@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
-import { Plus, Building2, MapPin, Layers } from 'lucide-react';
+import { Plus, Building2, MapPin, Layers, ChevronRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,13 +67,17 @@ export default async function AdminOrganizationsPage() {
                 <th className="px-6 py-3 font-medium">Sedi</th>
                 <th className="px-6 py-3 font-medium">Dispositivi</th>
                 <th className="px-6 py-3 font-medium">Stato</th>
-                <th className="px-6 py-3 font-medium">Data Creazione</th>
+                <th className="px-6 py-3 font-medium text-right">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#27272A]">
               {list.map((org) => (
                 <tr key={org.id} className="hover:bg-[#18181B]/50 transition-colors">
-                  <td className="px-6 py-4 font-semibold text-white">{org.name}</td>
+                  <td className="px-6 py-4 font-semibold text-white">
+                    <Link href={`/admin/organizations/${org.id}`} className="hover:underline">
+                      {org.name}
+                    </Link>
+                  </td>
                   <td className="px-6 py-4 font-mono text-xs text-zinc-400">{org.slug}</td>
                   <td className="px-6 py-4">{org.plans?.name || 'Free'}</td>
                   <td className="px-6 py-4">{org.locations?.[0]?.count ?? 1}</td>
@@ -83,8 +87,13 @@ export default async function AdminOrganizationsPage() {
                       {org.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-xs text-zinc-500">
-                    {new Date(org.created_at).toLocaleDateString('it-IT')}
+                  <td className="px-6 py-4 text-right">
+                    <Link
+                      href={`/admin/organizations/${org.id}`}
+                      className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+                    >
+                      Dettagli <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
                   </td>
                 </tr>
               ))}
