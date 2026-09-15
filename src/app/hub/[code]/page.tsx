@@ -283,10 +283,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       <div className="w-full max-w-lg md:max-w-4xl lg:max-w-5xl mx-auto my-auto flex-1 flex flex-col justify-between py-1 sm:py-2 relative z-10 gap-2.5 sm:gap-3.5">
         
         {/* RESPONSIVE DESKTOP/TABLET/MOBILE LAYOUT */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-4 md:items-center my-auto">
 
           {/* LEFT PANEL: IDENTITY, HERO CTA, REVIEW SHIELD */}
-          <div className="md:col-span-5 flex flex-col justify-between gap-2.5 sm:gap-3">
+          <div className="md:col-span-5 flex flex-col justify-center gap-2.5 sm:gap-3">
             
             {/* BRAND HEADER CARD */}
             <header className="rounded-2xl border border-[#27272A] bg-gradient-to-b from-[#18181B] to-[#121214] p-3 sm:p-4 relative overflow-hidden shadow-lg">
@@ -401,7 +401,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           </div>
 
           {/* RIGHT PANEL: SERVICES GRID (ADAPTIVE 2-COL / 3-COL TILES) */}
-          <div className="md:col-span-7 flex flex-col justify-between gap-1.5 sm:gap-2">
+          <div className="md:col-span-7 flex flex-col justify-center gap-1.5 sm:gap-2">
             
             <div className="flex items-center justify-between px-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
