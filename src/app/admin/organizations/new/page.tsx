@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Building, MapPin, UserCheck, CreditCard, Cpu } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Building, MapPin, UserCheck, Cpu, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NewOrganizationWizard() {
@@ -27,6 +26,7 @@ export default function NewOrganizationWizard() {
   const [ownerFirstName, setOwnerFirstName] = useState('');
   const [ownerLastName, setOwnerLastName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerPassword, setOwnerPassword] = useState('Rivo2026!');
 
   const [planName, setPlanName] = useState('Starter');
 
@@ -39,64 +39,34 @@ export default function NewOrganizationWizard() {
     setErrorMsg(null);
 
     try {
-      const supabase = createClient();
+      const res = await fetch('/api/admin/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName,
+          slug,
+          phone,
+          email,
+          website,
+          locationName,
+          address,
+          city,
+          postalCode,
+          ownerFirstName,
+          ownerLastName,
+          ownerEmail,
+          ownerPassword,
+          planName,
+          deviceName,
+          deviceType,
+          destinationUrl,
+        }),
+      });
 
-      // 1. Get Plan ID
-      const { data: plan } = await supabase
-        .from('plans')
-        .select('id')
-        .eq('name', planName)
-        .single();
-
-      // 2. Create Organization
-      const finalSlug = slug.trim() || businessName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const { data: org, error: orgErr } = await supabase
-        .from('organizations')
-        .insert({
-          name: businessName,
-          slug: finalSlug,
-          phone: phone || null,
-          email: email || null,
-          website: website || null,
-          plan_id: plan?.id || null,
-          status: 'active',
-        })
-        .select()
-        .single();
-
-      if (orgErr || !org) throw new Error(orgErr?.message || 'Errore creazione organizzazione');
-
-      // 3. Create Location
-      const { data: loc, error: locErr } = await supabase
-        .from('locations')
-        .insert({
-          organization_id: org.id,
-          name: locationName,
-          address: address || null,
-          city: city || null,
-          postal_code: postalCode || null,
-          country: 'IT',
-        })
-        .select()
-        .single();
-
-      if (locErr || !loc) throw new Error(locErr?.message || 'Errore creazione sede');
-
-      // 4. Create Initial Device with auto-generated code
-      const randCode = 'RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      const { error: devErr } = await supabase
-        .from('devices')
-        .insert({
-          organization_id: org.id,
-          location_id: loc.id,
-          name: deviceName,
-          type: deviceType,
-          unique_code: randCode,
-          destination_url: destinationUrl,
-          status: 'active',
-        });
-
-      if (devErr) throw new Error(devErr.message);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Errore durante la creazione.');
+      }
 
       router.push('/admin/organizations');
       router.refresh();
@@ -120,7 +90,7 @@ export default function NewOrganizationWizard() {
           Nuova Organizzazione Cliente
         </h1>
         <p className="text-sm text-zinc-400">
-          Configurazione guidata dell'attività commerciale, sede iniziale e primo dispositivo NFC/QR.
+          Configurazione guidata dell'attività, sede iniziale, credenziali del titolare e primo chip NFC/QR.
         </p>
       </div>
 
@@ -129,7 +99,7 @@ export default function NewOrganizationWizard() {
         {[
           { num: 1, label: 'Attività', icon: Building },
           { num: 2, label: 'Sede', icon: MapPin },
-          { num: 3, label: 'Proprietario', icon: UserCheck },
+          { num: 3, label: 'Credenziali Titolare', icon: UserCheck },
           { num: 4, label: 'Hardware', icon: Cpu },
         ].map((s) => {
           const Icon = s.icon;
@@ -184,7 +154,7 @@ export default function NewOrganizationWizard() {
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                placeholder="bar-centrale"
+                placeholder="Lascia vuoto per generarlo automaticamente"
                 className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs"
               />
             </div>
@@ -264,7 +234,7 @@ export default function NewOrganizationWizard() {
 
         {step === 3 && (
           <div className="space-y-4">
-            <h2 className="text-base font-semibold text-white mb-2">Titolare / Amministratore dell'Attività</h2>
+            <h2 className="text-base font-semibold text-white mb-2">Credenziali di Accesso del Titolare</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Nome</label>
@@ -287,8 +257,9 @@ export default function NewOrganizationWizard() {
                 />
               </div>
             </div>
+
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Email Account Titolare *</label>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Email di Accesso Titolare *</label>
               <input
                 type="email"
                 required
@@ -297,7 +268,24 @@ export default function NewOrganizationWizard() {
                 placeholder="mario.rossi@barcentrale.it"
                 className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               />
+              <p className="text-xs text-zinc-500 mt-1">Questa sarà l'email con cui il cliente effettuerà il login.</p>
             </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Password Iniziale Assegnata *</label>
+              <input
+                type="text"
+                required
+                value={ownerPassword}
+                onChange={(e) => setOwnerPassword(e.target.value)}
+                placeholder="Rivo2026!"
+                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono"
+              />
+              <p className="text-xs text-zinc-500 mt-1">
+                La password che consegnerai al cliente (potrà cambiarla in autonomia dalle Impostazioni).
+              </p>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1">Piano Abbonamento</label>
               <select
