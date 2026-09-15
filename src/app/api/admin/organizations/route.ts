@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     const {
       businessName,
       slug,
+      logoUrl,
       phone,
       email,
       website,
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
       .insert({
         name: businessName,
         slug: finalSlug,
+        logo_url: logoUrl || null,
         phone: phone || null,
         email: email || null,
         website: website || null,

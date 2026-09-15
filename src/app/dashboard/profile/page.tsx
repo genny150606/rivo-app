@@ -19,7 +19,11 @@ import {
   Compass,
   Layers,
   Building2,
-  ExternalLink
+  ExternalLink,
+  Upload,
+  Image as ImageIcon,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { BusinessCategory, HubMode } from '@/lib/types';
 
@@ -32,6 +36,12 @@ export default function ProfilePage() {
 
   // Org ID
   const [orgId, setOrgId] = useState<string | null>(null);
+
+  // Logo State
+  const [logoUrl, setLogoUrl] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoSuccess, setLogoSuccess] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
 
   // Form Fields
   const [name, setName] = useState('');
@@ -109,6 +119,7 @@ export default function ProfilePage() {
 
       if (org) {
         setName(org.name || '');
+        setLogoUrl(org.logo_url || '');
         setEmail(org.email || '');
         setPhone(org.phone || '');
         setWebsite(org.website || '');
@@ -138,6 +149,70 @@ export default function ProfilePage() {
     }
   }
 
+  // Handle Logo File Upload via API
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !orgId) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('Il file selezionato supera i 5MB. Seleziona un\'immagine più leggera.');
+      return;
+    }
+
+    setUploadingLogo(true);
+    setErrorMsg(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('orgId', orgId);
+
+      const res = await fetch('/api/upload/logo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.logoUrl) {
+        throw new Error(data.error || 'Errore durante il caricamento del logo.');
+      }
+
+      setLogoUrl(data.logoUrl);
+      setLogoSuccess(true);
+      setTimeout(() => setLogoSuccess(false), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Errore upload logo';
+      setErrorMsg(msg);
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
+
+  // Handle Remove Logo
+  const handleRemoveLogo = async () => {
+    if (!orgId) return;
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('orgId', orgId);
+      formData.append('action', 'remove');
+
+      await fetch('/api/upload/logo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      setLogoUrl('');
+      setLogoSuccess(true);
+      setTimeout(() => setLogoSuccess(false), 3000);
+    } catch (err) {
+      console.warn('Remove logo error:', err);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgId) return;
@@ -150,6 +225,7 @@ export default function ProfilePage() {
         .from('organizations')
         .update({
           name: name.trim(),
+          logo_url: logoUrl.trim() || null,
           email: email.trim() || null,
           phone: phone.trim() || null,
           website: website.trim() || null,
@@ -221,6 +297,113 @@ export default function ProfilePage() {
             <span>{errorMsg}</span>
           </div>
         )}
+
+        {/* LOGO DEL LOCALE / MARCHIO */}
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#18181B] to-[#121214] p-5 sm:p-6 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-[#BFFF00]" />
+                <span>Logo del Locale / Marchio</span>
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Questo logo apparirà in cima al tuo Universal Hub, sulla Ruota Premi e sulla scheda di valutazione.
+              </p>
+            </div>
+            <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-[#BFFF00]/10 text-[#BFFF00] border border-[#BFFF00]/20">
+              Live su NFC
+            </span>
+          </div>
+
+          {logoSuccess && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-2 animate-fade-in">
+              <Check className="w-4 h-4 shrink-0" />
+              <span>Logo aggiornato e salvato con successo! Visibile su tutti i dispositivi NFC.</span>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-2">
+            {/* Visual Live Preview */}
+            <div className="shrink-0 relative group">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt="Anteprima Logo"
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-white/20 shadow-2xl bg-black ring-4 ring-white/5"
+                />
+              ) : (
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[#18181B] border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center text-zinc-500 shadow-inner group-hover:border-zinc-500 transition-colors">
+                  <ImageIcon className="w-7 h-7 mb-1 text-zinc-600" />
+                  <span className="text-[9px] uppercase font-semibold">Nessun Logo</span>
+                </div>
+              )}
+              {uploadingLogo && (
+                <div className="absolute inset-0 bg-black/75 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Loader2 className="w-6 h-6 text-[#BFFF00] animate-spin" />
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex-1 space-y-3 text-center sm:text-left">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                {/* Upload Button */}
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-bold text-xs shadow-lg shadow-[#BFFF00]/20 transition-all active:scale-95">
+                  <Upload className="w-4 h-4" />
+                  <span>{uploadingLogo ? 'Caricamento in corso...' : logoUrl ? 'Sostituisci Logo' : 'Carica Logo (File)'}</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleLogoUpload}
+                    disabled={uploadingLogo}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* Toggle Direct URL input */}
+                <button
+                  type="button"
+                  onClick={() => setShowUrlInput(!showUrlInput)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-colors"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  <span>{showUrlInput ? 'Nascondi Link' : 'Inserisci Link URL'}</span>
+                </button>
+
+                {/* Remove Button */}
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    disabled={uploadingLogo}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold border border-red-500/20 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Rimuovi</span>
+                  </button>
+                )}
+              </div>
+
+              <p className="text-[11px] text-zinc-500">
+                Formati supportati: PNG, JPG, WEBP, SVG (massimo 5MB). Consigliato formato quadrato 1:1.
+              </p>
+
+              {/* Direct URL input accordion */}
+              {showUrlInput && (
+                <div className="pt-2 flex items-center gap-2 animate-fade-in">
+                  <input
+                    type="url"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="https://tuosito.it/logo.png"
+                    className="flex-1 min-h-[38px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#BFFF00]"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* SECTION 1: INFORMAZIONI GENERALI */}
         <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">

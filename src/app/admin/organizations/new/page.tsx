@@ -15,6 +15,7 @@ export default function NewOrganizationWizard() {
   // Form State
   const [businessName, setBusinessName] = useState('');
   const [slug, setSlug] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
@@ -50,6 +51,7 @@ export default function NewOrganizationWizard() {
         body: JSON.stringify({
           businessName,
           slug,
+          logoUrl,
           phone,
           email,
           website,
@@ -222,6 +224,17 @@ export default function NewOrganizationWizard() {
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 placeholder="es. Barber Club Milano oppure Ristorante Da Mario"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">URL Logo Attività (Opzionale)</label>
+              <input
+                type="url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://... (oppure potrà caricarlo il titolare dal suo profilo)"
                 className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
