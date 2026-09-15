@@ -1,0 +1,146 @@
+import { createClient } from '@/lib/supabase/server';
+import { ArrowUpRight, Smartphone, QrCode, Layers, Activity } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
+
+export default async function DashboardOverview() {
+  const supabase = await createClient();
+
+  // 1. Get current logged in user & organization
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let orgName = 'La tua attività';
+  let totalInteractions = 0;
+  let nfcInteractions = 0;
+  let qrInteractions = 0;
+  let activeDevicesCount = 0;
+  let recentInteractions: any[] = [];
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profile?.organization_id) {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', profile.organization_id)
+        .single();
+      if (org) orgName = org.name;
+
+      // Real interactions count
+      const { data: interactions } = await supabase
+        .from('interactions')
+        .select('interaction_type, timestamp, device_id')
+        .eq('organization_id', profile.organization_id)
+        .order('timestamp', { ascending: false });
+
+      if (interactions) {
+        totalInteractions = interactions.length;
+        nfcInteractions = interactions.filter((i) => i.interaction_type === 'nfc').length;
+        qrInteractions = interactions.filter((i) => i.interaction_type === 'qr').length;
+        recentInteractions = interactions.slice(0, 5);
+      }
+
+      // Real active devices
+      const { count } = await supabase
+        .from('devices')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', profile.organization_id)
+        .eq('status', 'active');
+      activeDevicesCount = count || 0;
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
+          {orgName}
+        </h1>
+        <p className="text-sm text-zinc-400">
+          Panoramica delle prestazioni e interazioni NFC/QR registrate in tempo reale.
+        </p>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+          <div className="flex items-center justify-between text-zinc-400 mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider">Interazioni Totali</span>
+            <Activity className="w-4 h-4 text-zinc-400" />
+          </div>
+          <div className="text-3xl font-semibold text-white tracking-tight">{totalInteractions}</div>
+          <div className="mt-2 flex items-center gap-1 text-xs text-[#BFFF00]">
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            <span>Dati reali dal DB</span>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+          <div className="flex items-center justify-between text-zinc-400 mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider">Tap NFC</span>
+            <Smartphone className="w-4 h-4 text-zinc-400" />
+          </div>
+          <div className="text-3xl font-semibold text-white tracking-tight">{nfcInteractions}</div>
+          <div className="mt-2 text-xs text-zinc-500">
+            {totalInteractions > 0 ? Math.round((nfcInteractions / totalInteractions) * 100) : 0}% del totale
+          </div>
+        </div>
+
+        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+          <div className="flex items-center justify-between text-zinc-400 mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider">Scansioni QR</span>
+            <QrCode className="w-4 h-4 text-zinc-400" />
+          </div>
+          <div className="text-3xl font-semibold text-white tracking-tight">{qrInteractions}</div>
+          <div className="mt-2 text-xs text-zinc-500">
+            {totalInteractions > 0 ? Math.round((qrInteractions / totalInteractions) * 100) : 0}% del totale
+          </div>
+        </div>
+
+        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+          <div className="flex items-center justify-between text-zinc-400 mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider">Dispositivi Attivi</span>
+            <Layers className="w-4 h-4 text-zinc-400" />
+          </div>
+          <div className="text-3xl font-semibold text-white tracking-tight">{activeDevicesCount}</div>
+          <div className="mt-2 text-xs text-emerald-400">
+            Pienamente operativi
+          </div>
+        </div>
+      </div>
+
+      {/* Real Recent Interactions List */}
+      <div className="rounded-xl bg-[#121214] border border-[#27272A] p-6">
+        <h2 className="text-base font-medium text-white mb-4">Ultime Interazioni Registrate</h2>
+        {recentInteractions.length === 0 ? (
+          <div className="text-sm text-zinc-500 py-6 text-center">
+            Nessuna interazione ancora registrata. Avvicina uno smartphone al chip NFC o inquadra il QR per vedere il dato comparire istantaneamente.
+          </div>
+        ) : (
+          <div className="divide-y divide-[#27272A]">
+            {recentInteractions.map((item, idx) => (
+              <div key={idx} className="py-3 flex items-center justify-between text-sm">
+                <div className="flex items-center gap-3">
+                  <span className={`px-2 py-0.5 text-xs font-medium rounded uppercase ${
+                    item.interaction_type === 'nfc' ? 'bg-[#BFFF00]/10 text-[#BFFF00]' : 'bg-blue-500/10 text-blue-400'
+                  }`}>
+                    {item.interaction_type}
+                  </span>
+                  <span className="text-zinc-300">Nuovo accesso registrato</span>
+                </div>
+                <span className="text-zinc-500 text-xs">
+                  {new Date(item.timestamp).toLocaleString('it-IT')}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
