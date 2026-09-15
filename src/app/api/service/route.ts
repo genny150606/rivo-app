@@ -18,18 +18,18 @@ async function notifyTelegramStaff(orgId: string, tableLabel: string, type: stri
     }
 
     const typeLabels: Record<string, string> = {
-      waiter: '🙋‍♂️ Assistenza Cameriere',
-      bill_pos: '💳 Richiesta Conto con POS / Carta',
-      bill_cash: '💵 Richiesta Conto in Contanti',
+      waiter: 'Assistenza Cameriere / Staff',
+      bill_pos: 'Richiesta Conto con POS / Carta',
+      bill_cash: 'Richiesta Conto in Contanti',
     };
 
-    const label = typeLabels[type] || '🔔 Chiamata Servizio';
+    const label = typeLabels[type] || 'Chiamata Servizio';
 
-    const msg = `🛎️ *CHIAMATA SERVIZIO TAVOLO*\n\n` +
-      `📍 *Locale:* ${org.name}\n` +
-      `🪑 *Tavolo:* ${tableLabel}\n` +
-      `🔔 *Richiesta:* ${label}\n\n` +
-      `⚡ *Azione:* Servire il cliente al tavolo.`;
+    const msg = `[CHIAMATA SERVIZIO AL TAVOLO]\n\n` +
+      `• Locale: ${org.name}\n` +
+      `• Postazione / Tavolo: ${tableLabel}\n` +
+      `• Tipo Richiesta: ${label}\n\n` +
+      `• Azione: Servire il cliente al tavolo.`;
 
     await fetch(`https://api.telegram.org/bot${org.telegram_bot_token}/sendMessage`, {
       method: 'POST',

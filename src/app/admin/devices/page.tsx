@@ -53,52 +53,54 @@ export default async function AdminDevicesPage() {
           </div>
         ) : (
           <>
-            {/* Desktop Table View */}
-            <table className="hidden lg:table w-full text-left text-sm text-zinc-300">
-              <thead className="bg-[#18181B] text-xs uppercase text-zinc-400 border-b border-[#27272A]">
-                <tr>
-                  <th className="px-6 py-3 font-medium">Nome</th>
-                  <th className="px-6 py-3 font-medium">Attività Commerciale</th>
-                  <th className="px-6 py-3 font-medium">Sede</th>
-                  <th className="px-6 py-3 font-medium">Codice Hardware</th>
-                  <th className="px-6 py-3 font-medium">Copia Link</th>
-                  <th className="px-6 py-3 font-medium">Stato</th>
-                  <th className="px-6 py-3 font-medium text-right">Redirect Test</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#27272A]">
-                {list.map((device) => (
-                  <tr key={device.id} className="hover:bg-[#18181B]/50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-white">{device.name}</td>
-                    <td className="px-6 py-4 text-zinc-300">{device.organizations?.name || '—'}</td>
-                    <td className="px-6 py-4 text-zinc-400">{device.locations?.name || '—'}</td>
-                    <td className="px-6 py-4">
-                      <span className="font-mono text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">
-                        {device.unique_code}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <CopyTrackingButtons uniqueCode={device.unique_code} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400">
-                        {device.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <a
-                        href={`/t/${device.unique_code}?source=admin-test`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
-                      >
-                        Verifica <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </td>
+            {/* Desktop / Large Viewport Table with horizontal scroll containment */}
+            <div className="hidden lg:block overflow-x-auto scrollbar-thin">
+              <table className="w-full text-left text-sm text-zinc-300 min-w-[660px]">
+                <thead className="bg-[#18181B] text-xs uppercase text-zinc-400 border-b border-[#27272A]">
+                  <tr>
+                    <th className="px-6 py-3 font-medium">Nome</th>
+                    <th className="px-6 py-3 font-medium">Attività Commerciale</th>
+                    <th className="px-6 py-3 font-medium">Sede</th>
+                    <th className="px-6 py-3 font-medium">Codice Hardware</th>
+                    <th className="px-6 py-3 font-medium">Copia Link</th>
+                    <th className="px-6 py-3 font-medium">Stato</th>
+                    <th className="px-6 py-3 font-medium text-right">Redirect Test</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#27272A]">
+                  {list.map((device) => (
+                    <tr key={device.id} className="hover:bg-[#18181B]/50 transition-colors">
+                      <td className="px-6 py-4 font-semibold text-white">{device.name}</td>
+                      <td className="px-6 py-4 text-zinc-300">{device.organizations?.name || '—'}</td>
+                      <td className="px-6 py-4 text-zinc-400">{device.locations?.name || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-xs bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
+                          {device.unique_code}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <CopyTrackingButtons uniqueCode={device.unique_code} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400">
+                          {device.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <a
+                          href={`/t/${device.unique_code}?source=admin-test`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+                        >
+                          Verifica <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Mobile Cards View (< lg) */}
             <div className="lg:hidden divide-y divide-[#27272A]">

@@ -20,12 +20,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const REWARDS = [
-  { label: 'Calice 🍷', color: '#18181B', textColor: '#BFFF00' },
-  { label: 'Dessert 🍰', color: '#121214', textColor: '#FFFFFF' },
-  { label: 'Sconto 15% 🏷️', color: '#18181B', textColor: '#38BDF8' },
-  { label: 'Caffè ☕', color: '#121214', textColor: '#FACC15' },
-  { label: 'Antipasto 🍕', color: '#18181B', textColor: '#4ADE80' },
-  { label: 'Brindisi 🍾', color: '#121214', textColor: '#F472B6' },
+  { label: 'Calice di Vino', color: '#18181B', textColor: '#BFFF00' },
+  { label: 'Dessert dello Chef', color: '#121214', textColor: '#FFFFFF' },
+  { label: 'Sconto 15%', color: '#18181B', textColor: '#38BDF8' },
+  { label: 'Caffè Speciale', color: '#121214', textColor: '#FACC15' },
+  { label: 'Antipasto della Casa', color: '#18181B', textColor: '#4ADE80' },
+  { label: 'Brindisi di Benvenuto', color: '#121214', textColor: '#F472B6' },
 ];
 
 interface WheelPageProps {
@@ -268,8 +268,9 @@ export default function WheelPage({ params }: WheelPageProps) {
             ) : (
               /* CLAIM FORM */
               <div className="w-full max-w-sm rounded-2xl border border-[#BFFF00]/40 bg-[#121214] p-4 text-center space-y-2.5 shadow-2xl animate-fade-in">
-                <div className="inline-flex items-center gap-1 text-[11px] font-bold text-[#BFFF00] bg-[#BFFF00]/10 px-2.5 py-0.5 rounded-full">
-                  <span>🎉 Hai Vinto:</span>
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#BFFF00] bg-[#BFFF00]/10 px-2.5 py-0.5 rounded-full border border-[#BFFF00]/20">
+                  <Gift className="w-3.5 h-3.5 text-[#BFFF00]" />
+                  <span>Hai Vinto:</span>
                   <span className="text-white underline">{wonReward}</span>
                 </div>
 

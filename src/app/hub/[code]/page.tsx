@@ -29,11 +29,16 @@ import {
   Share2,
   Search,
   Check,
-  Tag
+  Tag,
+  Pizza,
+  Beef,
+  Cake,
+  UtensilsCrossed,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 import { BusinessCategory } from '@/lib/types';
+import { getCategoryDefinition } from '@/lib/categories';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -62,6 +67,7 @@ interface OrgData {
   wifi_ssid: string | null;
   loyalty_reward_text: string | null;
   ai_menu_context: string | null;
+  description?: string | null;
 }
 
 interface DeviceData {
@@ -266,7 +272,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               lunch_end_time,
               wifi_ssid,
               loyalty_reward_text,
-              ai_menu_context
+              ai_menu_context,
+              description
             `)
             .eq('id', dev.organization_id)
             .single();
@@ -394,50 +401,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     );
   }
 
-  // Category Configuration Helper
-  const categoryConfig: Record<
-    BusinessCategory,
-    { label: string; icon: string; badgeColor: string; subtitle: string }
-  > = {
-    restaurant: {
-      label: 'Ristorante & Bar',
-      icon: '🍽️',
-      badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      subtitle: 'Tutti i servizi del tavolo a portata di tap',
-    },
-    salon: {
-      label: 'Salone & Beauty',
-      icon: '💈',
-      badgeColor: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20',
-      subtitle: 'La tua esperienza di bellezza esclusiva',
-    },
-    hotel: {
-      label: 'Hotel & B&B',
-      icon: '🏨',
-      badgeColor: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-      subtitle: 'Benvenuto! Servizi per un soggiorno perfetto',
-    },
-    medical: {
-      label: 'Studio Medico',
-      icon: '🩺',
-      badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      subtitle: 'Servizi digitali dedicati ai pazienti',
-    },
-    retail: {
-      label: 'Boutique & Retail',
-      icon: '🛍️',
-      badgeColor: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-      subtitle: 'Offerte esclusive e vantaggi in store',
-    },
-    generic: {
-      label: 'Palestra & Servizi',
-      icon: '🏢',
-      badgeColor: 'bg-lime-500/10 text-lime-400 border-lime-500/20',
-      subtitle: 'Accedi rapidamente a tutti i servizi',
-    },
+  // Category Configuration Helper using pure Lucide SVG icons
+  const catDef = getCategoryDefinition(org.category);
+  const CatIcon = catDef.icon;
+  const currentCat = {
+    label: catDef.badgeLabel,
+    badgeColor: 'bg-[#BFFF00]/10 text-[#BFFF00] border-[#BFFF00]/25',
+    subtitle: org.description || catDef.desc,
   };
 
-  const currentCat = categoryConfig[org.category] || categoryConfig.restaurant;
   const hasCustomCta = Boolean(org.custom_cta_label && org.custom_cta_url);
 
   // Star feelings label
@@ -487,8 +459,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl object-cover border border-white/10 shadow-lg bg-black ring-2 ring-white/5"
                       />
                     ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 flex items-center justify-center text-2xl md:text-3xl shadow-lg ring-2 ring-white/5">
-                        <span>{currentCat.icon}</span>
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 flex items-center justify-center text-white shadow-lg ring-2 ring-white/5">
+                        <CatIcon className="w-6 h-6 md:w-8 md:h-8 text-[#BFFF00]" />
                       </div>
                     )}
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-black flex items-center justify-center">
@@ -499,9 +471,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   {/* Identity Info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] md:text-xs font-semibold border ${currentCat.badgeColor}`}>
-                        <span>{currentCat.icon}</span>
-                        <span>{currentCat.label}</span>
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] md:text-xs font-semibold border ${currentCat.badgeColor}`}>
+                        <CatIcon className="w-3.5 h-3.5 shrink-0" />
+                        <span>{catDef.label}</span>
                       </span>
 
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] md:text-xs text-zinc-300 font-medium">
@@ -977,29 +949,33 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 />
               </div>
 
-              {/* Category Pills */}
+              {/* Category Pills with pure Lucide SVG icons */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                 {[
-                  { id: 'tutti', label: '🍽️ Tutti' },
-                  { id: 'antipasti', label: '🍕 Antipasti' },
-                  { id: 'primi', label: '🍝 Primi' },
-                  { id: 'secondi', label: '🥩 Secondi' },
-                  { id: 'dolci', label: '🍰 Dolci' },
-                  { id: 'bevande', label: '🍷 Vini & Bar' },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setMenuTab(tab.id as typeof menuTab)}
-                    className={`shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all ${
-                      menuTab === tab.id
-                        ? 'bg-amber-500 text-black font-bold shadow-md shadow-amber-500/20'
-                        : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                  { id: 'tutti', label: 'Tutti', icon: Utensils },
+                  { id: 'antipasti', label: 'Antipasti', icon: Pizza },
+                  { id: 'primi', label: 'Primi', icon: UtensilsCrossed },
+                  { id: 'secondi', label: 'Secondi', icon: Beef },
+                  { id: 'dolci', label: 'Dolci', icon: Cake },
+                  { id: 'bevande', label: 'Vini & Bar', icon: Wine },
+                ].map((tab) => {
+                  const TabIcon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setMenuTab(tab.id as typeof menuTab)}
+                      className={`shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
+                        menuTab === tab.id
+                          ? 'bg-amber-500 text-black font-bold shadow-md shadow-amber-500/20'
+                          : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
+                      }`}
+                    >
+                      <TabIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Scrollable Dish List */}

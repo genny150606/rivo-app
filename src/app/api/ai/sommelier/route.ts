@@ -9,22 +9,22 @@ function getSmartFallbackAdvice(userMsg: string, venueName: string): string {
   const q = userMsg.toLowerCase();
 
   if (q.includes('carne') || q.includes('bistecca') || q.includes('tagliata') || q.includes('filetto')) {
-    return `Per piatti a base di carne rossa come tagliata o filetto da ${venueName}, ti consiglio caldamente un rosso strutturato e tannico: un Aglianico del Taburno o un Chianti Classico esalteranno alla perfezione la succosità della carne! 🍷🥩`;
+    return `Per piatti a base di carne rossa come tagliata o filetto da ${venueName}, ti consiglio un rosso strutturato e armonico: un Aglianico del Taburno o un Chianti Classico esalteranno alla perfezione la succosità della carne.`;
   }
 
   if (q.includes('pesce') || q.includes('frutti di mare') || q.includes('spaghetti') || q.includes('bianco')) {
-    return `Con primi piatti di mare o pesce fresco, l'abbinamento ideale da ${venueName} è un vino bianco fresco e minerale: ti suggerisco una Falanghina del Sannio ghiacciata o un Greco di Tufo dalle note agrumate e persistenti! 🥂🐟`;
+    return `Con primi piatti di mare o pesce fresco, l'abbinamento ideale da ${venueName} è un vino bianco fresco e minerale: ti suggerisco una Falanghina del Sannio o un Greco di Tufo dalle note agrumate e persistenti.`;
   }
 
   if (q.includes('glutine') || q.includes('celiac') || q.includes('allerg') || q.includes('lattosio')) {
-    return `La nostra cucina pone estrema attenzione a intolleranze e celiachia. Abbiamo opzioni dedicate senza glutine e senza lattosio. Segnalalo subito al cameriere che ti indicherà le portate cucinate in sicurezza assoluta! 🌾✨`;
+    return `La nostra cucina pone estrema attenzione a intolleranze e celiachia. Abbiamo opzioni dedicate senza glutine e senza lattosio. Segnalalo subito al personale di sala che ti indicherà le portate cucinate in sicurezza assoluta.`;
   }
 
   if (q.includes('dolce') || q.includes('dessert') || q.includes('tiramis') || q.includes('fine')) {
-    return `Per concludere in bellezza la tua esperienza da ${venueName}, non puoi perderti il nostro Tiramisù artigianale o la Cheesecake ai frutti di bosco, accompagnati da un bicchierino di amaro alle erbe o passito! 🍰☕`;
+    return `Per concludere in bellezza la tua esperienza da ${venueName}, ti consigliamo il nostro Tiramisù artigianale o la Cheesecake ai frutti di bosco, accompagnati da un bicchierino di amaro alle erbe o passito.`;
   }
 
-  return `Benvenuto da ${venueName}! I nostri chef e sommelier consigliano di iniziare con un antipasto degustazione della casa e una bollicina fresca come benvenuto. Se hai richieste specifiche su carne, pesce o allergeni, chiedimi pure! 🍾🍽️`;
+  return `Benvenuto da ${venueName}! I nostri chef e sommelier consigliano di iniziare con un antipasto degustazione della casa e una bollicina fresca di benvenuto. Se hai richieste specifiche su carne, pesce o allergeni, chiedimi pure.`;
 }
 
 export async function POST(request: NextRequest) {
@@ -65,9 +65,7 @@ Menù e dettagli del locale:
 ${menuContext}
 
 Stile di comunicazione:
-- Caldo, empatico, professionale ed elegante (stile ospitalità italiana).
-- Risposte concise e dirette (massimo 2-3 frasi), ideali per chi è al tavolo con lo smartphone.
-- Usa qualche emoji di buon gusto (🍷, 🥩, 🥂, ✨).`;
+- Stile sobrio, elegante e professionale, senza emoji o cliché informali.`;
 
         const geminiRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,

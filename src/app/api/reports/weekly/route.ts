@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
           <tr>
             <td style="padding: 0 32px 24px 32px;">
               <div style="background-color: rgba(191,255,0,0.05); border: 1px solid rgba(191,255,0,0.2); border-radius: 12px; padding: 18px;">
-                <h3 style="margin: 0 0 6px 0; font-size: 14px; color: #FFFFFF;">🛡️ Come ha protetto la tua attività il Review Shield</h3>
+                <h3 style="margin: 0 0 6px 0; font-size: 14px; color: #FFFFFF;">Protezione Attiva con Review Shield</h3>
                 <p style="margin: 0; font-size: 12px; color: #A1A1AA; line-height: 1.5;">
                   Tutti i clienti che hanno espresso soddisfazione a 4-5 stelle sono stati indirizzati su Google Reviews. Le ${interceptedCount} lamentele da 1-3 stelle sono rimaste riservate, salvaguardando il tuo rating su Google Maps.
                 </p>

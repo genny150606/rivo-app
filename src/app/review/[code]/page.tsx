@@ -2,7 +2,23 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
-import { Star, Send, CheckCircle2, ArrowRight, ArrowLeft, ShieldCheck, HeartHandshake, AlertCircle } from 'lucide-react';
+import { 
+  Star, 
+  Send, 
+  CheckCircle2, 
+  ArrowRight, 
+  ArrowLeft, 
+  ShieldCheck, 
+  HeartHandshake, 
+  AlertCircle,
+  Sparkles,
+  Copy,
+  Check,
+  Zap,
+  Sun,
+  Tag,
+  Loader2
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 
@@ -38,7 +54,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
   // Positive state (4-5 stars)
   const [redirecting, setRedirecting] = useState(false);
   const [countdown, setCountdown] = useState(3);
-  const [selectedAiTags, setSelectedAiTags] = useState<string[]>(['Cibo squisito 🍕', 'Servizio rapido ⚡']);
+  const [selectedAiTags, setSelectedAiTags] = useState<string[]>(['Cibo squisito', 'Servizio rapido']);
   const [aiReviewText, setAiReviewText] = useState<string | null>(null);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -346,7 +362,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
               </div>
 
               <div>
-                <h3 className="text-base font-bold text-white">Grazie di cuore! 🎉</h3>
+                <h3 className="text-base font-bold text-white">Grazie di cuore!</h3>
                 <p className="text-xs text-zinc-300 mt-1">
                   La tua opinione è fondamentale. Aiutaci su Google con una recensione a 5 stelle!
                 </p>
@@ -356,7 +372,8 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
               <div className="p-4 rounded-xl bg-gradient-to-b from-[#18181B] to-[#121214] border border-[#27272A] text-left space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-[#BFFF00] flex items-center gap-1.5">
-                    <span>✨ AI Review Booster</span>
+                    <Sparkles className="w-3.5 h-3.5 text-[#BFFF00]" />
+                    <span>AI Review Booster</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#BFFF00]/20 text-[#BFFF00] font-mono">1-CLICK</span>
                   </span>
                   <span className="text-[11px] text-zinc-500">Cosa ti è piaciuto di più?</span>
@@ -365,25 +382,27 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                 {/* Quick Tags Selector */}
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    { id: 'cibo', label: 'Cibo squisito 🍕' },
-                    { id: 'servizio', label: 'Servizio rapido ⚡' },
-                    { id: 'staff', label: 'Staff accogliente ☀️' },
-                    { id: 'location', label: 'Bella atmosfera ✨' },
-                    { id: 'prezzo', label: 'Prezzo onesto 🏷️' },
+                    { id: 'cibo', label: 'Cibo squisito', icon: Sparkles },
+                    { id: 'servizio', label: 'Servizio rapido', icon: Zap },
+                    { id: 'staff', label: 'Staff accogliente', icon: Sun },
+                    { id: 'location', label: 'Bella atmosfera', icon: Star },
+                    { id: 'prezzo', label: 'Prezzo onesto', icon: Tag },
                   ].map((tag) => {
+                    const TagIcon = tag.icon;
                     const isSelected = selectedAiTags.includes(tag.label);
                     return (
                       <button
                         key={tag.id}
                         type="button"
                         onClick={() => toggleAiTag(tag.label)}
-                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
                           isSelected
                             ? 'bg-[#BFFF00]/15 text-[#BFFF00] border-[#BFFF00]/40 font-medium'
                             : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
                         }`}
                       >
-                        {tag.label}
+                        <TagIcon className="w-3 h-3 shrink-0" />
+                        <span>{tag.label}</span>
                       </button>
                     );
                   })}
@@ -400,7 +419,17 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                       onClick={handleCopyAndGoToGoogle}
                       className="w-full min-h-[46px] bg-[#BFFF00] hover:bg-[#a8e000] text-black font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#BFFF00]/20 touch-press"
                     >
-                      <span>{copied ? '✅ Testo Copiato! Incolla su Google' : '📋 Copia & Apri Google Reviews'}</span>
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4 text-black" />
+                          <span>Testo Copiato! Incolla su Google</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 text-black" />
+                          <span>Copia & Apri Google Reviews</span>
+                        </>
+                      )}
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -411,7 +440,17 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                     disabled={generatingAi}
                     className="w-full min-h-[42px] bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-xs px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-2 border border-zinc-700 touch-press disabled:opacity-50"
                   >
-                    <span>{generatingAi ? 'Scrittura in corso con AI...' : '✨ Genera recensione ottimizzata con AI'}</span>
+                    {generatingAi ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#BFFF00]" />
+                        <span>Scrittura in corso con AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-[#BFFF00]" />
+                        <span>Genera recensione ottimizzata con AI</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>

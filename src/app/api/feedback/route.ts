@@ -36,14 +36,14 @@ async function sendTelegramAlert(
       }
     }
 
-    const message = `🚨 *ALLERTA REPUTAZIONE RIVO*\n\n` +
-      `📍 *Locale:* ${org.name}\n` +
-      `🪑 *Tavolo / Punto:* ${deviceLabel}\n` +
-      `⭐ *Valutazione:* ${rating}/5\n` +
-      `👤 *Ospite:* ${customerName || 'Anonimo'}\n` +
-      `📞 *Contatto:* ${customerContact || 'Non rilasciato'}\n\n` +
-      `💬 *Messaggio dell'ospite:*\n"${comment}"\n\n` +
-      `⚡ *Azione consigliata:* Raggiungi il tavolo per scusarti e rimediare prima che il cliente lasci il locale!`;
+    const message = `[ALLERTA REPUTAZIONE RIVO]\n\n` +
+      `• Locale: ${org.name}\n` +
+      `• Postazione / Punto: ${deviceLabel}\n` +
+      `• Valutazione Ricevuta: ${rating}/5\n` +
+      `• Ospite: ${customerName || 'Anonimo'}\n` +
+      `• Contatto: ${customerContact || 'Non rilasciato'}\n\n` +
+      `• Messaggio:\n"${comment}"\n\n` +
+      `• Azione richiesta: Contattare l'ospite per risolvere la segnalazione tempestivamente.`;
 
     await fetch(`https://api.telegram.org/bot${org.telegram_bot_token}/sendMessage`, {
       method: 'POST',

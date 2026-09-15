@@ -69,47 +69,55 @@ export default async function DashboardOverview() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider truncate">Interazioni Totali</span>
-            <Activity className="w-4 h-4 text-zinc-400 shrink-0" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">Interazioni Totali</span>
+              <Activity className="w-4 h-4 text-zinc-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight">{totalInteractions}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{totalInteractions}</div>
           <div className="mt-2 flex items-center gap-1 text-xs text-[#BFFF00]">
             <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Dati reali dal DB</span>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider truncate">Tap NFC</span>
-            <Smartphone className="w-4 h-4 text-zinc-400 shrink-0" />
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">Tap NFC</span>
+              <Smartphone className="w-4 h-4 text-zinc-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight">{nfcInteractions}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{nfcInteractions}</div>
           <div className="mt-2 text-xs text-zinc-500 truncate">
             {totalInteractions > 0 ? Math.round((nfcInteractions / totalInteractions) * 100) : 0}% del totale
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider truncate">Scansioni QR</span>
-            <QrCode className="w-4 h-4 text-zinc-400 shrink-0" />
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">Scansioni QR</span>
+              <QrCode className="w-4 h-4 text-zinc-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight">{qrInteractions}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{qrInteractions}</div>
           <div className="mt-2 text-xs text-zinc-500 truncate">
             {totalInteractions > 0 ? Math.round((qrInteractions / totalInteractions) * 100) : 0}% del totale
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider truncate">Dispositivi Attivi</span>
-            <Layers className="w-4 h-4 text-zinc-400 shrink-0" />
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">Dispositivi Attivi</span>
+              <Layers className="w-4 h-4 text-zinc-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight">{activeDevicesCount}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{activeDevicesCount}</div>
           <div className="mt-2 text-xs text-emerald-400 truncate">
             Pienamente operativi
           </div>

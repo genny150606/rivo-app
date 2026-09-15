@@ -23,9 +23,11 @@ import {
   Upload,
   Image as ImageIcon,
   Trash2,
-  Loader2
+  Loader2,
+  ArrowUpRight
 } from 'lucide-react';
 import { BusinessCategory, HubMode } from '@/lib/types';
+import { CATEGORIES, getCategoryDefinition } from '@/lib/categories';
 
 export default function ProfilePage() {
   const [supabase] = useState(() => createClient());
@@ -473,20 +475,14 @@ export default function ProfilePage() {
             I chip NFC e i QR code RIVO non necessitano di alcuna riprogrammazione fisica: cambiando il settore o la modalità qui, l&apos;esperienza del cliente si aggiorna istantaneamente in tempo reale.
           </p>
 
-          {/* Category Selection Cards */}
+          {/* Category Selection Cards with pure Lucide SVG icons */}
           <div>
             <label className="block text-xs font-medium text-zinc-300 mb-2">
-              Settore di Attività Commerciale <span className="text-[#BFFF00]">*</span>
+              Settore di Attività Commerciale ({CATEGORIES.length} Settori Disponibili) <span className="text-[#BFFF00]">*</span>
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {[
-                { id: 'restaurant', label: 'Ristorante / Bar', icon: '🍽️', desc: 'Menù, Sala, Wi-Fi' },
-                { id: 'salon', label: 'Salone & Beauty', icon: '💈', desc: 'Prenota, Timbri, Wi-Fi' },
-                { id: 'hotel', label: 'Hotel & B&B', icon: '🏨', desc: 'Wi-Fi, Reception, Guida' },
-                { id: 'medical', label: 'Studio Medico', icon: '🩺', desc: 'Visite, Sala attesa' },
-                { id: 'retail', label: 'Retail & Negozio', icon: '🛍️', desc: 'Ruota sconti, Fidelity' },
-                { id: 'generic', label: 'Palestre & Servizi', icon: '🏢', desc: 'Contatti, Info, Orari' },
-              ].map((cat) => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-[340px] overflow-y-auto p-1 rounded-xl border border-[#27272A]/50 bg-[#09090B]/40 scrollbar-thin">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
                 const isSelected = category === cat.id;
                 return (
                   <button
@@ -494,27 +490,33 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => {
                       setCategory(cat.id as BusinessCategory);
-                      if (cat.id === 'salon' && !customCtaLabel) setCustomCtaLabel('Prenota un Appuntamento');
-                      else if (cat.id === 'restaurant' && !customCtaLabel) setCustomCtaLabel('Consulta Menù Digitale');
-                      else if (cat.id === 'medical' && !customCtaLabel) setCustomCtaLabel('Prenota Visita Specialistica');
-                      else if (cat.id === 'hotel' && !customCtaLabel) setCustomCtaLabel('Contatta la Reception');
+                      if (!customCtaLabel || customCtaLabel === 'Consulta Menù Digitale') {
+                        setCustomCtaLabel(cat.defaultCtaLabel);
+                      }
                     }}
-                    className={`p-3 rounded-xl border text-left transition-all ${
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-white shadow-[0_0_15px_rgba(191,255,0,0.15)]'
+                        ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-white shadow-[0_0_15px_rgba(191,255,0,0.15)] ring-1 ring-[#BFFF00]'
                         : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
                     }`}
                   >
-                    <span className="text-xl block mb-1">{cat.icon}</span>
-                    <span className="text-xs font-bold text-white block">{cat.label}</span>
-                    <span className="text-[10px] text-zinc-500 block mt-0.5">{cat.desc}</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-[#BFFF00] text-black' : 'bg-zinc-800 text-zinc-300'}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[#BFFF00]" />}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-white block leading-snug">{cat.label}</span>
+                      <span className="text-[10px] text-zinc-500 block mt-0.5 line-clamp-2 leading-tight">{cat.desc}</span>
+                    </div>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Hub Mode Selector */}
+          {/* Hub Mode Selector with pure Lucide SVG icons */}
           <div className="pt-2 border-t border-[#27272A]">
             <label className="block text-xs font-medium text-zinc-300 mb-2">
               Modalità di Reindirizzamento NFC / QR
@@ -523,29 +525,34 @@ export default function ProfilePage() {
               {[
                 {
                   id: 'hub',
-                  label: '🌟 Universal Experience Hub',
+                  label: 'Universal Experience Hub',
                   tag: 'Consigliato',
+                  icon: Sparkles,
                   desc: 'Apre la pagina multifunzione adattata al settore (Menù/Servizi, Wi-Fi 1-tap, Ruota della Fortuna, Fidelity Card e Recensioni).',
                 },
                 {
                   id: 'shield',
-                  label: '🛡️ Review Shield Diretto',
+                  label: 'Review Shield Diretto',
                   tag: 'Solo Recensioni',
+                  icon: ShieldCheck,
                   desc: 'Apre direttamente la schermata di filtro recensioni a 5 stelle anti 1-3 stelle.',
                 },
                 {
                   id: 'smart_routing',
-                  label: '⏱️ Smart Routing Orario',
+                  label: 'Smart Routing Orario',
                   tag: 'Orario Pranzo',
+                  icon: Clock,
                   desc: 'Mostra il menù pranzo negli orari definiti e il filtro recensioni per il resto della giornata.',
                 },
                 {
                   id: 'direct',
-                  label: '🔗 Reindirizzamento Diretto',
+                  label: 'Reindirizzamento Diretto',
                   tag: 'Standard',
+                  icon: ArrowUpRight,
                   desc: 'Reindirizza istantaneamente alla scheda Google Business o all\'URL configurato sul chip.',
                 },
               ].map((m) => {
+                const Icon = m.icon;
                 const isSelected = hubMode === m.id;
                 return (
                   <button
@@ -559,12 +566,15 @@ export default function ProfilePage() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-white">{m.label}</span>
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4 text-[#BFFF00]" />
+                        <span className="text-xs font-bold text-white">{m.label}</span>
+                      </div>
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">
                         {m.tag}
                       </span>
                     </div>
-                    <p className="text-[11px] text-zinc-500 leading-snug">{m.desc}</p>
+                    <p className="text-[11px] text-zinc-500 leading-snug pl-6">{m.desc}</p>
                   </button>
                 );
               })}

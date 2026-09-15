@@ -28,10 +28,10 @@ interface SommelierPageProps {
 }
 
 const PRESET_QUESTIONS = [
-  'Vino per la carne? 🥩',
-  'Abbinamento pesce? 🐟',
-  'Opzioni gluten free? 🌾',
-  'Dolce della casa? 🍰',
+  'Vino per piatti di carne',
+  'Miglior abbinamento pesce',
+  'Opzioni senza glutine o intolleranze',
+  'Dolce della casa consigliato',
 ];
 
 export default function AiSommelierPage({ params }: SommelierPageProps) {
@@ -74,7 +74,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
               {
                 id: 'welcome',
                 sender: 'ai',
-                text: `Buonasera e benvenuto da ${orgData.name}! Sono il tuo Sommelier e Maître di sala virtuale. Chiedimi qualsiasi consiglio su abbinamenti vini, piatti o allergeni. ✨🍷`,
+                text: `Buonasera e benvenuto da ${orgData.name}! Sono il tuo Sommelier e Maître di sala virtuale. Chiedimi qualsiasi consiglio su abbinamenti vini, piatti della cucina o intolleranze alimentari.`,
               },
             ]);
           }

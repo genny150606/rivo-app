@@ -349,8 +349,9 @@ export default function LoyaltyDashboardPage() {
                   <div className="flex items-center gap-3">
                     {hasReachedReward ? (
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#BFFF00] text-black animate-pulse">
-                          PREMIO DISPONIBILE 🎁
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#BFFF00] text-black animate-pulse inline-flex items-center gap-1.5">
+                          <Gift className="w-3.5 h-3.5 text-black" />
+                          <span>PREMIO DISPONIBILE</span>
                         </span>
                         <button
                           type="button"

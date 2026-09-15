@@ -56,10 +56,21 @@ export async function POST(request: NextRequest) {
       hubMode,
       customCtaLabel,
       customCtaUrl,
+      vatNumber,
+      whatsappNumber,
+      instagramUrl,
+      description,
+      adminNotes,
+      googleReviewUrl,
+      wifiSsid,
+      wifiPassword,
+      aiMenuContext,
+      loyaltyRewardText,
       locationName,
       address,
       city,
       postalCode,
+      province,
       ownerFirstName,
       ownerLastName,
       ownerEmail,
@@ -67,6 +78,7 @@ export async function POST(request: NextRequest) {
       planName,
       deviceName,
       deviceType,
+      deviceCode,
       destinationUrl,
     } = body;
 
@@ -106,6 +118,17 @@ export async function POST(request: NextRequest) {
         hub_mode: hubMode || 'hub',
         custom_cta_label: customCtaLabel || null,
         custom_cta_url: customCtaUrl || null,
+        vat_number: vatNumber || null,
+        whatsapp_number: whatsappNumber || null,
+        instagram_url: instagramUrl || null,
+        description: description || null,
+        admin_notes: adminNotes || null,
+        google_review_url: googleReviewUrl || null,
+        wifi_ssid: wifiSsid || null,
+        wifi_password: wifiPassword || null,
+        ai_menu_context: aiMenuContext || null,
+        loyalty_reward_text: loyaltyRewardText || null,
+        review_shield_enabled: true,
         status: 'active',
       })
       .select()
@@ -124,6 +147,7 @@ export async function POST(request: NextRequest) {
         address: address || null,
         city: city || null,
         postal_code: postalCode || null,
+        province: province || null,
         country: 'IT',
       })
       .select()
@@ -134,7 +158,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Insert Initial Device
-    const randCode = 'RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const cleanCode = deviceCode?.trim() 
+      ? (deviceCode.trim().toUpperCase().startsWith('RIVO-') ? deviceCode.trim().toUpperCase() : `RIVO-${deviceCode.trim().toUpperCase()}`)
+      : ('RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase());
+
     const { error: devErr } = await supabase
       .from('devices')
       .insert({
@@ -142,7 +169,7 @@ export async function POST(request: NextRequest) {
         location_id: loc.id,
         name: deviceName || 'Tavolo 1',
         type: deviceType || 'both',
-        unique_code: randCode,
+        unique_code: cleanCode,
         destination_url: destinationUrl || 'https://google.com',
         status: 'active',
       });
@@ -215,7 +242,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       organization: org,
-      deviceCode: randCode,
+      deviceCode: cleanCode,
       welcomeEmailSent,
       emailWarning,
     });

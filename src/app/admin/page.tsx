@@ -39,32 +39,38 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Global Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
-        <div className="p-5 sm:p-6 rounded-xl bg-[#121214] border border-[#27272A]">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Aziende Clienti</span>
-            <Building2 className="w-4 h-4 text-zinc-400" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+        <div className="p-4 sm:p-5 lg:p-6 rounded-xl bg-[#121214] border border-[#27272A] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider truncate">Aziende Clienti</span>
+              <Building2 className="w-4 h-4 text-zinc-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">{totalOrgs || 0}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{totalOrgs || 0}</div>
-          <p className="text-xs text-zinc-500 mt-2">Registrate nella piattaforma</p>
+          <p className="text-xs text-zinc-500 mt-2 truncate">Registrate nella piattaforma</p>
         </div>
 
-        <div className="p-5 sm:p-6 rounded-xl bg-[#121214] border border-[#27272A]">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Dispositivi Distribuiti</span>
-            <Layers className="w-4 h-4 text-zinc-400" />
+        <div className="p-4 sm:p-5 lg:p-6 rounded-xl bg-[#121214] border border-[#27272A] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider truncate">Dispositivi Distribuiti</span>
+              <Layers className="w-4 h-4 text-zinc-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">{totalDevices || 0}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{totalDevices || 0}</div>
-          <p className="text-xs text-zinc-500 mt-2">NFC / QR attivi e tracciati</p>
+          <p className="text-xs text-zinc-500 mt-2 truncate">NFC / QR attivi e tracciati</p>
         </div>
 
-        <div className="p-5 sm:p-6 rounded-xl bg-[#121214] border border-[#27272A]">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Traffico Complessivo</span>
-            <Activity className="w-4 h-4 text-zinc-400" />
+        <div className="p-4 sm:p-5 lg:p-6 rounded-xl bg-[#121214] border border-[#27272A] sm:col-span-2 lg:col-span-1 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider truncate">Traffico Complessivo</span>
+              <Activity className="w-4 h-4 text-zinc-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">{totalInteractions || 0}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{totalInteractions || 0}</div>
-          <p className="text-xs text-zinc-500 mt-2">Interazioni reali registrate</p>
+          <p className="text-xs text-zinc-500 mt-2 truncate">Interazioni reali registrate</p>
         </div>
       </div>
 

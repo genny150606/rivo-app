@@ -4,7 +4,27 @@ export type DeviceType = 'nfc' | 'qr' | 'both';
 export type DeviceStatus = 'active' | 'inactive';
 export type InteractionType = 'nfc' | 'qr' | 'unknown';
 export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing';
-export type BusinessCategory = 'restaurant' | 'salon' | 'hotel' | 'medical' | 'retail' | 'generic';
+export type BusinessCategory = 
+  | 'restaurant' 
+  | 'bar' 
+  | 'pizzeria' 
+  | 'salon' 
+  | 'barber' 
+  | 'beauty' 
+  | 'hotel' 
+  | 'bnb' 
+  | 'beach_club' 
+  | 'medical' 
+  | 'dental' 
+  | 'pharmacy' 
+  | 'fitness' 
+  | 'retail' 
+  | 'store' 
+  | 'professional' 
+  | 'automotive' 
+  | 'nightlife' 
+  | 'generic';
+
 export type HubMode = 'hub' | 'shield' | 'smart_routing' | 'direct';
 
 export interface Plan {
@@ -34,6 +54,11 @@ export interface Organization {
   custom_cta_label?: string | null;
   custom_cta_url?: string | null;
   city_guide_text?: string | null;
+  vat_number?: string | null;
+  whatsapp_number?: string | null;
+  instagram_url?: string | null;
+  description?: string | null;
+  admin_notes?: string | null;
   review_shield_enabled?: boolean;
   google_review_url?: string | null;
   smart_routing_enabled?: boolean;

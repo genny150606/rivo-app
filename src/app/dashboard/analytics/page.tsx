@@ -252,47 +252,55 @@ export default function AnalyticsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A]">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Interazioni Totali</span>
-            <TrendingUp className="w-4 h-4 text-[#BFFF00]" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">Interazioni Totali</span>
+              <TrendingUp className="w-4 h-4 text-[#BFFF00] shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">{totalCount}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{totalCount}</div>
-          <span className="text-[11px] text-zinc-500 mt-1 block">Nel periodo selezionato</span>
+          <span className="text-[11px] text-zinc-500 mt-2 block">Nel periodo selezionato</span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A]">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">NFC Touch</span>
-            <Smartphone className="w-4 h-4 text-[#BFFF00]" />
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">NFC Touch</span>
+              <Smartphone className="w-4 h-4 text-[#BFFF00] shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">{nfcCount}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{nfcCount}</div>
-          <span className="text-[11px] text-[#BFFF00] font-medium mt-1 block">{nfcPercent}% del volume</span>
+          <span className="text-[11px] text-[#BFFF00] font-medium mt-2 block">{nfcPercent}% del volume</span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A]">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Scansioni QR</span>
-            <QrCode className="w-4 h-4 text-blue-400" />
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">Scansioni QR</span>
+              <QrCode className="w-4 h-4 text-blue-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">{qrCount}</div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{qrCount}</div>
-          <span className="text-[11px] text-blue-400 font-medium mt-1 block">{qrPercent}% del volume</span>
+          <span className="text-[11px] text-blue-400 font-medium mt-2 block">{qrPercent}% del volume</span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A]">
-          <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Fascia di Picco</span>
-            <Clock className="w-4 h-4 text-emerald-400" />
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider truncate">Fascia di Picco</span>
+              <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
+            </div>
+            <div className="text-base sm:text-lg lg:text-xl font-bold text-white tracking-tight truncate">
+              {hourlySlots.dinner >= hourlySlots.lunch && hourlySlots.dinner >= hourlySlots.aperitivo
+                ? 'Cena (21-00)'
+                : hourlySlots.aperitivo >= hourlySlots.lunch
+                ? 'Aperitivo (18-21)'
+                : 'Pranzo (12-15)'}
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            {hourlySlots.dinner >= hourlySlots.lunch && hourlySlots.dinner >= hourlySlots.aperitivo
-              ? 'Cena (21-00)'
-              : hourlySlots.aperitivo >= hourlySlots.lunch
-              ? 'Aperitivo (18-21)'
-              : 'Pranzo (12-15)'}
-          </div>
-          <span className="text-[11px] text-emerald-400 font-medium mt-1 block">Massima affluenza</span>
+          <span className="text-[11px] text-emerald-400 font-medium mt-2 block">Massima affluenza</span>
         </div>
       </div>
 
