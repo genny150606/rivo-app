@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { MapPin, Building, Layers } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,18 +48,18 @@ export default async function LocationsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {locations.length === 0 ? (
-          <div className="p-8 col-span-2 rounded-xl bg-[#121214] border border-[#27272A] text-center text-sm text-zinc-500">
-            Nessuna sede configurata. Contatta l'amministratore per aggiungere una nuova sede.
+          <div className="p-6 sm:p-8 col-span-2 rounded-xl bg-[#121214] border border-[#27272A] text-center text-sm text-zinc-500">
+            Nessuna sede configurata. Contatta l&apos;amministratore per aggiungere una nuova sede.
           </div>
         ) : (
           locations.map((loc) => (
-            <div key={loc.id} className="p-6 rounded-xl bg-[#121214] border border-[#27272A] space-y-3">
-              <div className="flex items-center justify-between">
+            <div key={loc.id} className="p-4 sm:p-6 rounded-xl bg-[#121214] border border-[#27272A] space-y-3">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#BFFF00]" />
+                  <MapPin className="w-4 h-4 text-[#BFFF00] shrink-0" />
                   <span className="font-semibold text-white">{loc.name}</span>
                 </div>
-                <span className="text-xs font-mono uppercase bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
+                <span className="text-xs font-mono uppercase bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded shrink-0">
                   {loc.country}
                 </span>
               </div>

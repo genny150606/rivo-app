@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { ArrowRight, Loader2, ShieldAlert } from 'lucide-react';
 
@@ -47,18 +48,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#09090B]">
-      <div className="w-full max-w-md bg-[#121214] border border-[#27272A] rounded-xl p-8 shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-[#09090B]">
+      <div className="w-full max-w-md bg-[#121214] border border-[#27272A] rounded-xl p-6 sm:p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-3 h-3 rounded-full bg-[#BFFF00]" />
+          <div className="flex items-center gap-2.5 mb-2">
+            <Image
+              src="/brand/rivo-icon.png"
+              alt="RIVO"
+              width={32}
+              height={32}
+              className="rounded-sm"
+            />
             <span className="text-xl font-bold tracking-tight text-white">RIVO</span>
           </div>
-          <p className="text-sm text-zinc-400">Accedi alla piattaforma di gestione</p>
+          <p className="text-sm text-zinc-400 text-center">Accedi alla piattaforma di gestione</p>
         </div>
 
         {errorMsg && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-sm text-red-400">
+          <div className="mb-6 p-3.5 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-sm text-red-400">
             <ShieldAlert className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -73,7 +80,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nome@azienda.it"
-              className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+              className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
             />
           </div>
 
@@ -85,20 +92,20 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+              className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 bg-white hover:bg-zinc-200 text-black font-medium text-sm py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            className="w-full mt-2 bg-white hover:bg-zinc-200 text-black font-semibold text-sm min-h-[44px] py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 touch-press"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>
-                Accedi
+                <span>Accedi</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

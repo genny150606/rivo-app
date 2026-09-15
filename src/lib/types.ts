@@ -27,8 +27,75 @@ export interface Organization {
   website: string | null;
   status: OrgStatus;
   plan_id: string | null;
+  review_shield_enabled?: boolean;
+  google_review_url?: string | null;
+  smart_routing_enabled?: boolean;
+  lunch_destination_url?: string | null;
+  lunch_start_time?: string;
+  lunch_end_time?: string;
+  telegram_bot_token?: string | null;
+  telegram_chat_id?: string | null;
+  telegram_alerts_enabled?: boolean;
+  wifi_ssid?: string | null;
+  wifi_password?: string | null;
+  ai_menu_context?: string | null;
+  loyalty_reward_text?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PrivateFeedback {
+  id: string;
+  organization_id: string;
+  device_id: string | null;
+  rating: number;
+  customer_name: string | null;
+  customer_contact: string | null;
+  comment: string;
+  status: 'new' | 'read' | 'archived';
+  created_at: string;
+}
+
+export interface ServiceCall {
+  id: string;
+  organization_id: string;
+  device_id: string | null;
+  type: 'waiter' | 'bill_pos' | 'bill_cash';
+  table_label: string | null;
+  status: 'pending' | 'in_progress' | 'completed';
+  created_at: string;
+}
+
+export interface Coupon {
+  id: string;
+  organization_id: string;
+  code: string;
+  reward: string;
+  customer_name: string | null;
+  customer_contact: string;
+  status: 'active' | 'redeemed' | 'expired';
+  expires_at: string;
+  created_at: string;
+}
+
+export interface LoyaltyCard {
+  id: string;
+  organization_id: string;
+  customer_contact: string;
+  customer_name: string | null;
+  stamps_count: number;
+  max_stamps: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Lead {
+  id: string;
+  organization_id: string;
+  name: string | null;
+  contact: string;
+  source: 'wifi' | 'wheel' | 'loyalty';
+  created_at: string;
 }
 
 export interface Profile {

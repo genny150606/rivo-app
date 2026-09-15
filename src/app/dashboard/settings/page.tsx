@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { KeyRound, Shield, Check, Loader2 } from 'lucide-react';
+import { KeyRound, Check, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function SettingsPage() {
@@ -43,7 +43,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-6 sm:space-y-8 max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-white mb-1">Impostazioni Account</h1>
         <p className="text-sm text-zinc-400">
@@ -51,9 +51,9 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-[#27272A] bg-[#121214] p-6 space-y-6">
+      <div className="rounded-xl border border-[#27272A] bg-[#121214] p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-300">
+          <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-300 shrink-0">
             <KeyRound className="w-4 h-4" />
           </div>
           <div>
@@ -63,13 +63,13 @@ export default function SettingsPage() {
         </div>
 
         {success && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-sm flex items-center gap-2">
-            <Check className="w-4 h-4" /> Password aggiornata con successo.
+          <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-sm flex items-center gap-2">
+            <Check className="w-4 h-4 shrink-0" /> Password aggiornata con successo.
           </div>
         )}
 
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
+          <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
             {error}
           </div>
         )}
@@ -83,7 +83,7 @@ export default function SettingsPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Minimo 6 caratteri"
-              className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+              className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
             />
           </div>
 
@@ -95,7 +95,7 @@ export default function SettingsPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Ripeti la nuova password"
-              className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+              className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
             />
           </div>
 
@@ -103,7 +103,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={loading || !newPassword}
-              className="bg-white hover:bg-zinc-200 text-black font-semibold text-sm px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-black font-semibold text-sm min-h-[44px] px-5 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 touch-press"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Aggiorna Password'}
             </button>

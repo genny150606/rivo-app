@@ -33,7 +33,14 @@ export async function GET(
       return new NextResponse('Device is currently inactive', { status: 403 });
     }
 
-    // 2. Parse interaction context
+    // 2. Fetch organization configuration (Review Shield & Smart Routing)
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('review_shield_enabled, google_review_url, smart_routing_enabled, lunch_destination_url, lunch_start_time, lunch_end_time')
+      .eq('id', device.organization_id)
+      .single();
+
+    // 3. Parse interaction context
     const sourceParam = request.nextUrl.searchParams.get('source')?.toLowerCase();
     let interactionType: 'nfc' | 'qr' | 'unknown' = 'unknown';
     if (sourceParam === 'nfc') interactionType = 'nfc';
@@ -42,8 +49,7 @@ export async function GET(
     const userAgent = request.headers.get('user-agent') || null;
     const referrer = request.headers.get('referer') || null;
 
-    // 3. Log interaction asynchronously without blocking fast redirect
-    // We fire insert into interactions table
+    // 4. Log interaction asynchronously without blocking
     supabase
       .from('interactions')
       .insert({
@@ -60,10 +66,45 @@ export async function GET(
         }
       });
 
-    // 4. Immediate redirect to target destination
-    const targetUrl = device.destination_url.startsWith('http')
-      ? device.destination_url
-      : `https://${device.destination_url}`;
+    // 5. SMART ROUTING CHECK (Time-based conditional routing)
+    if (org?.smart_routing_enabled && org.lunch_destination_url) {
+      try {
+        const romeFormatter = new Intl.DateTimeFormat('it-IT', {
+          timeZone: 'Europe/Rome',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+        const currentRomeTime = romeFormatter.format(new Date()); // e.g. "13:15"
+        const startTime = org.lunch_start_time || '12:00';
+        const endTime = org.lunch_end_time || '15:30';
+
+        if (currentRomeTime >= startTime && currentRomeTime <= endTime) {
+          const lunchUrl = org.lunch_destination_url.startsWith('http')
+            ? org.lunch_destination_url
+            : `https://${org.lunch_destination_url}`;
+          return NextResponse.redirect(lunchUrl, { status: 307 });
+        }
+      } catch (err) {
+        console.warn('[Tracking] Smart routing check failed, falling back:', err);
+      }
+    }
+
+    // 6. REVIEW SHIELD CHECK
+    // If review shield is enabled on the organization, redirect to the micro-landing rating shield
+    if (org?.review_shield_enabled) {
+      const url = new URL(`/review/${cleanCode}`, request.url);
+      if (sourceParam) {
+        url.searchParams.set('source', sourceParam);
+      }
+      return NextResponse.redirect(url.toString(), { status: 307 });
+    }
+
+    // 7. Fallback: direct redirect to target destination
+    const destination = org?.google_review_url || device.destination_url;
+    const targetUrl = destination.startsWith('http')
+      ? destination
+      : `https://${destination}`;
 
     return NextResponse.redirect(targetUrl, { status: 307 });
   } catch (err: unknown) {

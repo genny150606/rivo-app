@@ -69,54 +69,54 @@ export default async function DashboardOverview() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Interazioni Totali</span>
-            <Activity className="w-4 h-4 text-zinc-400" />
+            <span className="text-xs font-medium uppercase tracking-wider truncate">Interazioni Totali</span>
+            <Activity className="w-4 h-4 text-zinc-400 shrink-0" />
           </div>
-          <div className="text-3xl font-semibold text-white tracking-tight">{totalInteractions}</div>
+          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{totalInteractions}</div>
           <div className="mt-2 flex items-center gap-1 text-xs text-[#BFFF00]">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>Dati reali dal DB</span>
+            <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Dati reali dal DB</span>
           </div>
         </div>
 
-        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Tap NFC</span>
-            <Smartphone className="w-4 h-4 text-zinc-400" />
+            <span className="text-xs font-medium uppercase tracking-wider truncate">Tap NFC</span>
+            <Smartphone className="w-4 h-4 text-zinc-400 shrink-0" />
           </div>
-          <div className="text-3xl font-semibold text-white tracking-tight">{nfcInteractions}</div>
-          <div className="mt-2 text-xs text-zinc-500">
+          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{nfcInteractions}</div>
+          <div className="mt-2 text-xs text-zinc-500 truncate">
             {totalInteractions > 0 ? Math.round((nfcInteractions / totalInteractions) * 100) : 0}% del totale
           </div>
         </div>
 
-        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Scansioni QR</span>
-            <QrCode className="w-4 h-4 text-zinc-400" />
+            <span className="text-xs font-medium uppercase tracking-wider truncate">Scansioni QR</span>
+            <QrCode className="w-4 h-4 text-zinc-400 shrink-0" />
           </div>
-          <div className="text-3xl font-semibold text-white tracking-tight">{qrInteractions}</div>
-          <div className="mt-2 text-xs text-zinc-500">
+          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{qrInteractions}</div>
+          <div className="mt-2 text-xs text-zinc-500 truncate">
             {totalInteractions > 0 ? Math.round((qrInteractions / totalInteractions) * 100) : 0}% del totale
           </div>
         </div>
 
-        <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Dispositivi Attivi</span>
-            <Layers className="w-4 h-4 text-zinc-400" />
+            <span className="text-xs font-medium uppercase tracking-wider truncate">Dispositivi Attivi</span>
+            <Layers className="w-4 h-4 text-zinc-400 shrink-0" />
           </div>
-          <div className="text-3xl font-semibold text-white tracking-tight">{activeDevicesCount}</div>
-          <div className="mt-2 text-xs text-emerald-400">
+          <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{activeDevicesCount}</div>
+          <div className="mt-2 text-xs text-emerald-400 truncate">
             Pienamente operativi
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl bg-[#121214] border border-[#27272A] p-6">
+      <div className="rounded-xl bg-[#121214] border border-[#27272A] p-4 sm:p-6">
         <h2 className="text-base font-medium text-white mb-4">Ultime Interazioni Registrate</h2>
         {recentInteractions.length === 0 ? (
           <div className="text-sm text-zinc-500 py-6 text-center">
@@ -125,16 +125,16 @@ export default async function DashboardOverview() {
         ) : (
           <div className="divide-y divide-[#27272A]">
             {recentInteractions.map((item, idx) => (
-              <div key={idx} className="py-3 flex items-center justify-between text-sm">
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-0.5 text-xs font-medium rounded uppercase ${
+              <div key={idx} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 text-sm">
+                <div className="flex items-center gap-2.5">
+                  <span className={`px-2 py-0.5 text-xs font-medium rounded uppercase shrink-0 ${
                     item.interaction_type === 'nfc' ? 'bg-[#BFFF00]/10 text-[#BFFF00]' : 'bg-blue-500/10 text-blue-400'
                   }`}>
                     {item.interaction_type}
                   </span>
                   <span className="text-zinc-300">Nuovo accesso registrato</span>
                 </div>
-                <span className="text-zinc-500 text-xs">
+                <span className="text-zinc-500 text-xs sm:text-right pl-7 sm:pl-0">
                   {new Date(item.timestamp).toLocaleString('it-IT')}
                 </span>
               </div>

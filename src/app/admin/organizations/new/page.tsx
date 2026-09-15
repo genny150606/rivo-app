@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Building, MapPin, UserCheck, Cpu, KeyRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Building, MapPin, UserCheck, Cpu } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NewOrganizationWizard() {
@@ -10,6 +10,7 @@ export default function NewOrganizationWizard() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [completionMsg, setCompletionMsg] = useState<string | null>(null);
 
   // Form State
   const [businessName, setBusinessName] = useState('');
@@ -68,6 +69,12 @@ export default function NewOrganizationWizard() {
         throw new Error(data.error || 'Errore durante la creazione.');
       }
 
+      if (data.emailWarning) {
+        setCompletionMsg(`Organizzazione creata. ${data.emailWarning}`);
+        setLoading(false);
+        return;
+      }
+
       router.push('/admin/organizations');
       router.refresh();
     } catch (err: unknown) {
@@ -77,29 +84,50 @@ export default function NewOrganizationWizard() {
     }
   };
 
+  if (completionMsg) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
+          <CheckCircle2 className="w-8 h-8 text-[#BFFF00] mb-4" />
+          <h1 className="text-xl font-bold text-white">Organizzazione attivata</h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">{completionMsg}</p>
+        </div>
+        <Link
+          href="/admin/organizations"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#BFFF00] px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-[#a8e000]"
+        >
+          Vai alle organizzazioni <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <div>
         <Link
           href="/admin/organizations"
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors mb-3"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors mb-3 min-h-[44px]"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Torna alle Organizzazioni
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
-          Nuova Organizzazione Cliente
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
+            Nuova Organizzazione Cliente
+          </h1>
+          <span className="text-xs text-[#BFFF00] font-medium sm:hidden">Fase {step} di 4</span>
+        </div>
         <p className="text-sm text-zinc-400">
-          Configurazione guidata dell'attività, sede iniziale, credenziali del titolare e primo chip NFC/QR.
+          Configurazione guidata dell&apos;attività, sede iniziale, credenziali del titolare e primo chip NFC/QR.
         </p>
       </div>
 
       {/* Steps Progress Indicator */}
-      <div className="flex items-center justify-between border-b border-[#27272A] pb-4">
+      <div className="flex items-center justify-between border-b border-[#27272A] pb-4 gap-2">
         {[
           { num: 1, label: 'Attività', icon: Building },
           { num: 2, label: 'Sede', icon: MapPin },
-          { num: 3, label: 'Credenziali Titolare', icon: UserCheck },
+          { num: 3, label: 'Credenziali', icon: UserCheck },
           { num: 4, label: 'Hardware', icon: Cpu },
         ].map((s) => {
           const Icon = s.icon;
@@ -108,15 +136,15 @@ export default function NewOrganizationWizard() {
           return (
             <div key={s.num} className="flex items-center gap-2">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-all ${
                   isCurrent
-                    ? 'bg-[#BFFF00] text-black'
+                    ? 'bg-[#BFFF00] text-black ring-2 ring-[#BFFF00]/30'
                     : isDone
                     ? 'bg-zinc-800 text-[#BFFF00]'
                     : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
                 }`}
               >
-                {isDone ? <CheckCircle2 className="w-4 h-4" /> : s.num}
+                {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-3.5 h-3.5" />}
               </div>
               <span className={`text-xs font-medium hidden sm:inline ${isCurrent ? 'text-white' : 'text-zinc-500'}`}>
                 {s.label}
@@ -133,10 +161,10 @@ export default function NewOrganizationWizard() {
       )}
 
       {/* Form Steps */}
-      <div className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-4">
+      <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 sm:p-6 space-y-4">
         {step === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-semibold text-white mb-2">Dati dell'Attività Commerciale</h2>
+            <h2 className="text-base font-semibold text-white mb-2">Dati dell&apos;Attività Commerciale</h2>
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1">Nome Attività *</label>
               <input
@@ -145,7 +173,7 @@ export default function NewOrganizationWizard() {
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 placeholder="es. Bar Centrale"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
@@ -155,10 +183,10 @@ export default function NewOrganizationWizard() {
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder="Lascia vuoto per generarlo automaticamente"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Email di contatto</label>
                 <input
@@ -166,7 +194,7 @@ export default function NewOrganizationWizard() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="info@barcentrale.it"
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -176,7 +204,7 @@ export default function NewOrganizationWizard() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+39 081 123456"
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
             </div>
@@ -194,7 +222,7 @@ export default function NewOrganizationWizard() {
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
                 placeholder="es. Napoli Centro"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
@@ -204,10 +232,10 @@ export default function NewOrganizationWizard() {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Via Toledo 120"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Città</label>
                 <input
@@ -215,7 +243,7 @@ export default function NewOrganizationWizard() {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Napoli"
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -225,7 +253,7 @@ export default function NewOrganizationWizard() {
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
                   placeholder="80134"
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
             </div>
@@ -235,7 +263,7 @@ export default function NewOrganizationWizard() {
         {step === 3 && (
           <div className="space-y-4">
             <h2 className="text-base font-semibold text-white mb-2">Credenziali di Accesso del Titolare</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Nome</label>
                 <input
@@ -243,7 +271,7 @@ export default function NewOrganizationWizard() {
                   value={ownerFirstName}
                   onChange={(e) => setOwnerFirstName(e.target.value)}
                   placeholder="Mario"
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -253,7 +281,7 @@ export default function NewOrganizationWizard() {
                   value={ownerLastName}
                   onChange={(e) => setOwnerLastName(e.target.value)}
                   placeholder="Rossi"
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
             </div>
@@ -266,9 +294,9 @@ export default function NewOrganizationWizard() {
                 value={ownerEmail}
                 onChange={(e) => setOwnerEmail(e.target.value)}
                 placeholder="mario.rossi@barcentrale.it"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               />
-              <p className="text-xs text-zinc-500 mt-1">Questa sarà l'email con cui il cliente effettuerà il login.</p>
+              <p className="text-xs text-zinc-500 mt-1">Questa sarà l&apos;email con cui il cliente effettuerà il login.</p>
             </div>
 
             <div>
@@ -279,7 +307,7 @@ export default function NewOrganizationWizard() {
                 value={ownerPassword}
                 onChange={(e) => setOwnerPassword(e.target.value)}
                 placeholder="Rivo2026!"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono"
               />
               <p className="text-xs text-zinc-500 mt-1">
                 La password che consegnerai al cliente (potrà cambiarla in autonomia dalle Impostazioni).
@@ -291,7 +319,7 @@ export default function NewOrganizationWizard() {
               <select
                 value={planName}
                 onChange={(e) => setPlanName(e.target.value)}
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               >
                 <option value="Free">Free (€0/mese - 3 dispositivi)</option>
                 <option value="Starter">Starter (€29/mese - 10 dispositivi)</option>
@@ -312,15 +340,15 @@ export default function NewOrganizationWizard() {
                 value={deviceName}
                 onChange={(e) => setDeviceName(e.target.value)}
                 placeholder="es. Tavolo 1 o Cassa"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1">Tecnologia Supportata</label>
               <select
                 value={deviceType}
-                onChange={(e) => setDeviceType(e.target.value as any)}
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                onChange={(e) => setDeviceType(e.target.value as 'both' | 'nfc' | 'qr')}
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               >
                 <option value="both">Entrambi (NFC + QR)</option>
                 <option value="nfc">Solo NFC</option>
@@ -335,7 +363,7 @@ export default function NewOrganizationWizard() {
                 value={destinationUrl}
                 onChange={(e) => setDestinationUrl(e.target.value)}
                 placeholder="https://g.page/r/your-google-review-link"
-                className="w-full bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
               />
               <p className="text-xs text-zinc-500 mt-1">
                 Questo link può essere aggiornato in qualsiasi momento senza modificare il chip fisico.
@@ -345,12 +373,12 @@ export default function NewOrganizationWizard() {
         )}
 
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-[#27272A]/80">
+        <div className="flex items-center justify-between pt-4 border-t border-[#27272A]/80 gap-3">
           {step > 1 ? (
             <button
               type="button"
               onClick={() => setStep(step - 1)}
-              className="px-4 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-800 rounded-lg transition-colors"
+              className="min-h-[44px] px-4 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors touch-press"
             >
               Indietro
             </button>
@@ -361,16 +389,17 @@ export default function NewOrganizationWizard() {
               type="button"
               disabled={step === 1 && !businessName.trim()}
               onClick={() => setStep(step + 1)}
-              className="px-5 py-2 text-sm font-semibold text-black bg-[#BFFF00] hover:bg-[#a8e000] rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="min-h-[44px] px-5 py-2.5 text-sm font-semibold text-black bg-[#BFFF00] hover:bg-[#a8e000] rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 touch-press"
             >
-              Continua <ArrowRight className="w-4 h-4" />
+              <span>Continua</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button
               type="button"
               disabled={loading || !deviceName.trim() || !destinationUrl.trim()}
               onClick={handleCreateOrg}
-              className="px-5 py-2 text-sm font-semibold text-black bg-[#BFFF00] hover:bg-[#a8e000] rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="min-h-[44px] px-5 py-2.5 text-sm font-semibold text-black bg-[#BFFF00] hover:bg-[#a8e000] rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 touch-press"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Crea e Attiva Organizzazione'}
             </button>
