@@ -8,13 +8,13 @@ import {
   Sparkles, 
   Award, 
   CheckCircle2, 
-  Plus, 
+  ArrowLeft,
   Search, 
-  Coffee, 
   Gift, 
-  Smartphone,
-  ChevronRight
+  AlertCircle,
+  Plus
 } from 'lucide-react';
+import Link from 'next/link';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -29,7 +29,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
   const code = resolvedParams.code ? resolvedParams.code.toUpperCase() : '';
 
   const [loading, setLoading] = useState(true);
-  const [device, setDevice] = useState<{ id: string; organization_id: string } | null>(null);
+  const [device, setDevice] = useState<{ id: string; name: string; organization_id: string } | null>(null);
   const [org, setOrg] = useState<{
     name: string;
     logo_url: string | null;
@@ -56,7 +56,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
 
       const { data: dev } = await supabase
         .from('devices')
-        .select('id, organization_id')
+        .select('id, name, organization_id')
         .eq('unique_code', code)
         .single();
 
@@ -98,24 +98,22 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
       const data = await res.json();
       if (res.ok && data.card) {
         setCard(data.card);
+        setMessage(data.message || 'Timbro aggiunto con successo!');
         if (data.card.stamps_count >= data.card.max_stamps) {
           try {
             confetti({
-              particleCount: 120,
-              spread: 90,
-              origin: { y: 0.5 },
-              colors: ['#BFFF00', '#38BDF8', '#FACC15'],
+              particleCount: 100,
+              spread: 80,
+              origin: { y: 0.6 },
+              colors: ['#BFFF00', '#FACC15', '#38BDF8', '#FFFFFF'],
             });
           } catch (e) {
             console.warn(e);
           }
-          setMessage('🎉 COMPLIMENTI! Hai completato la tessera e sbloccato il premio!');
-        } else {
-          setMessage(`✅ Timbro registrato con successo! (${data.card.stamps_count}/${data.card.max_stamps})`);
         }
       }
     } catch (err) {
-      console.warn(err);
+      console.warn('Loyalty error:', err);
     } finally {
       setSubmitting(false);
     }
@@ -123,151 +121,160 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#09090B] flex items-center justify-center p-4">
-        <div className="w-12 h-12 border-2 border-[#BFFF00] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen min-h-dvh bg-[#09090B] flex items-center justify-center p-4">
+        <div className="w-14 h-14 rounded-2xl bg-[#18181B] border border-[#27272A] flex items-center justify-center animate-pulse">
+          <CreditCard className="w-7 h-7 text-emerald-400 animate-pulse" />
+        </div>
       </div>
     );
   }
 
-  const stampsCount = card ? card.stamps_count : 0;
-  const maxStamps = card ? card.max_stamps : 10;
-  const rewardText = org?.loyalty_reward_text || 'Caffè o Dessert omaggio con 10 timbri';
+  if (!device) {
+    return (
+      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-14 h-14 rounded-2xl border border-red-500/20 bg-red-500/10 flex items-center justify-center mb-3 text-red-400">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h2 className="text-lg font-bold">Dispositivo non trovato</h2>
+        <Link
+          href={`/hub/${code}`}
+          className="mt-3 px-4 py-2 rounded-xl bg-zinc-800 text-white text-xs font-semibold"
+        >
+          Torna all&apos;Hub
+        </Link>
+      </div>
+    );
+  }
+
+  const maxStamps = card?.max_stamps || 10;
+  const currentStamps = card?.stamps_count || 0;
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-zinc-100 flex flex-col justify-between p-4 sm:p-6 selection:bg-[#BFFF00] selection:text-black">
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-[#BFFF00] selection:text-black">
       {/* Top ambient glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-[#BFFF00]/10 blur-[100px] pointer-events-none rounded-full" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-emerald-500/10 blur-[120px] pointer-events-none rounded-full" />
 
-      {/* Header */}
-      <div className="max-w-md w-full mx-auto text-center pt-4 sm:pt-8">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#18181B] border border-[#27272A] text-[11px] font-semibold text-[#BFFF00] mb-3">
-          <Award className="w-3.5 h-3.5" />
-          <span>Carta Fedeltà Digitale</span>
+      {/* TOP NAVIGATION: BACK TO HUB */}
+      <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pt-1 pb-2">
+        <Link
+          href={`/hub/${code}`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+        >
+          <ArrowLeft className="w-4 h-4 text-emerald-400" />
+          <span>Torna all&apos;Hub</span>
+        </Link>
+
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
+          <CreditCard className="w-3 h-3 text-emerald-400" />
+          <span className="text-white font-medium">{device.name}</span>
         </span>
+      </nav>
 
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-          {org?.name || 'Tessera Fedeltà'}
-        </h1>
-        <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-          Raccogli i timbri a ogni visita senza dover portare la tessera di carta!
-        </p>
-      </div>
+      {/* MAIN CARD CONTAINER */}
+      <main className="max-w-md w-full mx-auto my-auto py-1 z-10 space-y-3">
+        {/* Title */}
+        <div className="text-center space-y-0.5">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+            {org?.name || 'Carta Fedeltà'}
+          </h1>
+          <p className="text-[11px] text-zinc-400">
+            Colleziona timbri digitali con 1 tap al tavolo!
+          </p>
+        </div>
 
-      {/* Main card */}
-      <div className="max-w-md w-full mx-auto my-auto py-6 space-y-5">
-        {/* Apple Wallet Style Digital Card */}
-        <div className="rounded-3xl border border-zinc-800 bg-gradient-to-br from-[#18181B] via-[#141416] to-[#0E0E10] p-6 shadow-[0_0_30px_rgba(0,0,0,0.8)] relative overflow-hidden space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#BFFF00] text-black font-bold flex items-center justify-center text-sm shadow-md shadow-[#BFFF00]/20">
-                R
-              </div>
-              <span className="text-sm font-bold text-white tracking-wide">
-                {org?.name || 'RIVO Club'}
-              </span>
-            </div>
-            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#BFFF00]/15 text-[#BFFF00] border border-[#BFFF00]/30">
-              LOYALTY PASS
-            </span>
-          </div>
-
-          {/* 10 Stamps Grid */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-zinc-400">
-              <span>Progresso Timbri</span>
-              <span className="font-bold text-white">{stampsCount} / {maxStamps}</span>
-            </div>
-
-            <div className="grid grid-cols-5 gap-2.5 pt-1">
-              {Array.from({ length: maxStamps }).map((_, i) => {
-                const isStamped = i < stampsCount;
-                return (
-                  <div
-                    key={i}
-                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center transition-all ${
-                      isStamped
-                        ? 'bg-[#BFFF00] text-black shadow-lg shadow-[#BFFF00]/30 scale-105'
-                        : 'bg-[#18181B] border border-zinc-800 text-zinc-600'
-                    }`}
-                  >
-                    {isStamped ? (
-                      <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
-                    ) : (
-                      <span className="text-xs font-mono font-semibold">{i + 1}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Reward Footer */}
-          <div className="p-3.5 rounded-2xl bg-black/50 border border-zinc-800 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#BFFF00]/15 text-[#BFFF00] flex items-center justify-center shrink-0">
-              <Gift className="w-5 h-5" />
-            </div>
+        {/* VISUAL DIGITAL FIDELITY PASS */}
+        <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-[#121214] via-[#18181B] to-emerald-950/20 p-4 shadow-2xl relative overflow-hidden space-y-3">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
             <div>
-              <span className="text-[10px] text-zinc-500 uppercase block font-semibold">PREMIO AL TRAGUARDO</span>
-              <span className="text-xs font-bold text-white">{rewardText}</span>
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-400 block">Fidelity Pass Ufficiale</span>
+              <span className="text-sm font-bold text-white">{card?.customer_name || 'Pass Digitale'}</span>
             </div>
+            <div className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] text-emerald-300 font-mono font-bold">
+              {currentStamps} / {maxStamps} Timbri
+            </div>
+          </div>
+
+          {/* 10 STAMPS BUBBLE MATRIX (2 ROWS OF 5) */}
+          <div className="grid grid-cols-5 gap-2 py-1">
+            {Array.from({ length: maxStamps }).map((_, index) => {
+              const isStamped = index < currentStamps;
+              const isRewardSlot = index === maxStamps - 1;
+              return (
+                <div
+                  key={index}
+                  className={`aspect-square rounded-xl flex items-center justify-center transition-all ${
+                    isStamped
+                      ? 'bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.3)] scale-105'
+                      : isRewardSlot
+                      ? 'bg-amber-500/10 border-2 border-dashed border-amber-500/40 text-amber-400'
+                      : 'bg-black/40 border border-zinc-800 text-zinc-700'
+                  }`}
+                >
+                  {isStamped ? (
+                    <CheckCircle2 className="w-5 h-5 animate-scale-in" />
+                  ) : isRewardSlot ? (
+                    <Gift className="w-5 h-5 animate-pulse" />
+                  ) : (
+                    <span className="text-xs font-mono font-semibold">{index + 1}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-black/50 rounded-xl p-2.5 border border-white/5 flex items-center justify-between">
+            <span className="text-[10px] text-zinc-400">Premio finale:</span>
+            <span className="text-xs font-bold text-[#BFFF00]">{org?.loyalty_reward_text || 'Omaggio Esclusivo'}</span>
           </div>
         </div>
 
-        {/* Input form: Enter phone to add stamp or view card */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Smartphone className="w-4 h-4 text-[#BFFF00]" />
-            <h2 className="text-sm font-bold text-white">Aggiorna la tua Tessera</h2>
-          </div>
+        {/* LOOKUP / ADD STAMP FORM */}
+        <div className="rounded-2xl border border-white/10 bg-[#121214] p-3.5 shadow-xl space-y-2.5">
+          {message && (
+            <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] text-center font-medium animate-fade-in">
+              {message}
+            </div>
+          )}
 
-          <form onSubmit={handleLookupOrAddStamp} className="space-y-3">
+          <form onSubmit={handleLookupOrAddStamp} className="space-y-2">
+            {!card && (
+              <div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Il tuo Nome"
+                  className="w-full min-h-[38px] bg-[#18181B] border border-[#27272A] rounded-lg px-2.5 text-xs text-white focus:outline-none focus:border-emerald-400"
+                />
+              </div>
+            )}
+
             <div>
-              <label className="block text-[11px] font-medium text-zinc-400 mb-1">
-                Numero di Cellulare <span className="text-[#BFFF00]">*</span>
-              </label>
               <input
                 type="tel"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+39 340 1234567"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 text-xs sm:text-sm text-white focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-zinc-400 mb-1">Il tuo Nome (opzionale)</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Mario Rossi"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 text-xs sm:text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                placeholder="Numero di Cellulare (es. 3331234567)"
+                className="w-full min-h-[38px] bg-[#18181B] border border-[#27272A] rounded-lg px-2.5 text-xs text-white focus:outline-none focus:border-emerald-400"
               />
             </div>
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full min-h-[46px] bg-[#BFFF00] hover:bg-[#a8e000] text-black font-semibold text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 touch-press shadow-lg shadow-[#BFFF00]/20 disabled:opacity-50"
+              className="w-full min-h-[42px] bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
               <span>{submitting ? 'Aggiornamento...' : 'Aggiungi Timbro di Oggi'}</span>
             </button>
           </form>
-
-          {message && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-2 animate-fade-in">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{message}</span>
-            </div>
-          )}
         </div>
-      </div>
+      </main>
 
-      {/* Footer */}
-      <footer className="max-w-md w-full mx-auto text-center pb-4 text-[11px] text-zinc-600">
-        <span>Fidelity Pass Digitale • Powered by </span>
+      {/* Minimal Footer */}
+      <footer className="w-full max-w-md mx-auto text-center pb-2 text-[11px] text-zinc-600 flex items-center justify-center gap-1">
+        <span>Fidelity Pass Smart • Powered by </span>
         <strong className="text-zinc-400 font-semibold">RIVO</strong>
       </footer>
     </div>

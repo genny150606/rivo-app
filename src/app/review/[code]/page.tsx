@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { Star, Send, CheckCircle2, ArrowRight, ShieldCheck, HeartHandshake, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Star, Send, CheckCircle2, ArrowRight, ArrowLeft, ShieldCheck, HeartHandshake, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 
@@ -249,35 +250,46 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
   const activeHoverOrRating = hoverRating || rating || 0;
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-zinc-100 flex flex-col justify-between p-4 sm:p-6 selection:bg-[#BFFF00] selection:text-black">
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto selection:bg-[#BFFF00] selection:text-black">
       {/* Top ambient glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-[#BFFF00]/10 blur-[100px] pointer-events-none rounded-full" />
 
-      {/* Header venue branding */}
-      <div className="max-w-md w-full mx-auto text-center pt-6 sm:pt-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#18181B] border border-[#27272A] text-[11px] font-medium text-zinc-400 mb-4">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#BFFF00]" />
-          <span>Feedback Verificato</span>
-        </div>
+      {/* TOP NAVIGATION: BACK TO HUB */}
+      <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pt-1 pb-1">
+        <Link
+          href={`/hub/${code}`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+        >
+          <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
+          <span>Torna all&apos;Hub</span>
+        </Link>
 
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#BFFF00]" />
+          <span>Review Shield</span>
+        </span>
+      </nav>
+
+      {/* Header venue branding */}
+      <div className="max-w-md w-full mx-auto text-center pt-2 sm:pt-4">
         {org?.logo_url ? (
-          /* eslint-disable-next-js/no-img-element */
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={org.logo_url}
             alt={org.name}
-            className="w-16 h-16 rounded-2xl object-cover mx-auto mb-3 border border-[#27272A] shadow-xl"
+            className="w-14 h-14 rounded-2xl object-cover mx-auto mb-2 border border-[#27272A] shadow-xl"
           />
         ) : (
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#18181B] to-[#27272A] border border-zinc-700 flex items-center justify-center mx-auto mb-3 text-xl font-bold text-[#BFFF00] shadow-xl">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#18181B] to-[#27272A] border border-zinc-700 flex items-center justify-center mx-auto mb-2 text-lg font-bold text-[#BFFF00] shadow-xl">
             {org?.name ? org.name.charAt(0).toUpperCase() : 'R'}
           </div>
         )}
 
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
           {org?.name || 'La tua opinione'}
         </h1>
-        <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xs mx-auto">
-          Come valuteresti la tua esperienza complessiva oggi?
+        <p className="text-xs text-zinc-400 mt-0.5 max-w-xs mx-auto">
+          Come valuteresti la tua esperienza oggi?
         </p>
       </div>
 

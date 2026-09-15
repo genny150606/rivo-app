@@ -8,9 +8,10 @@ import {
   Sparkles, 
   Bot, 
   User, 
-  ChevronRight, 
+  ArrowLeft,
   AlertCircle 
 } from 'lucide-react';
+import Link from 'next/link';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -27,10 +28,10 @@ interface SommelierPageProps {
 }
 
 const PRESET_QUESTIONS = [
-  'Quale vino mi consigli con la carne? 🥩',
-  'Cosa si abbina meglio con il pesce? 🐟',
-  'Ci sono piatti senza glutine o lattosio? 🌾',
-  'Qual è il dolce della casa più richiesto? 🍰',
+  'Vino per la carne? 🥩',
+  'Abbinamento pesce? 🐟',
+  'Opzioni gluten free? 🌾',
+  'Dolce della casa? 🍰',
 ];
 
 export default function AiSommelierPage({ params }: SommelierPageProps) {
@@ -38,7 +39,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
   const code = resolvedParams.code ? resolvedParams.code.toUpperCase() : '';
 
   const [loading, setLoading] = useState(true);
-  const [device, setDevice] = useState<{ id: string; organization_id: string } | null>(null);
+  const [device, setDevice] = useState<{ id: string; name: string; organization_id: string } | null>(null);
   const [org, setOrg] = useState<{ name: string } | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -55,7 +56,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
 
       const { data: dev } = await supabase
         .from('devices')
-        .select('id, organization_id')
+        .select('id, name, organization_id')
         .eq('unique_code', code)
         .single();
 
@@ -73,7 +74,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
               {
                 id: 'welcome',
                 sender: 'ai',
-                text: `Buonasera e benvenuto da ${orgData.name}! Sono il tuo Sommelier e Maître di sala virtuale. Chiedimi qualsiasi consiglio su abbinamenti vini, carni, pesce o intolleranze alimentari. ✨🍷`,
+                text: `Buonasera e benvenuto da ${orgData.name}! Sono il tuo Sommelier e Maître di sala virtuale. Chiedimi qualsiasi consiglio su abbinamenti vini, piatti o allergeni. ✨🍷`,
               },
             ]);
           }
@@ -90,7 +91,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
   }, [messages, typing]);
 
   const sendMessage = async (textToSend: string) => {
-    if (!textToSend.trim() || typing) return;
+    if (!textToSend.trim() || typing || !device) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -107,135 +108,158 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          organization_id: device?.organization_id,
-          message: textToSend.trim(),
+          organization_id: device.organization_id,
+          prompt: textToSend.trim(),
+          conversationHistory: messages.slice(-4),
         }),
       });
 
       const data = await res.json();
-      const aiReplyText = data.reply || 'Scusa, si è verificato un errore momentaneo. Chiedi al cameriere per assistenza al tavolo!';
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          sender: 'ai',
-          text: aiReplyText,
-        },
-      ]);
-    } catch (e) {
-      console.warn('AI error:', e);
+      if (res.ok && data.reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            sender: 'ai',
+            text: data.reply,
+          },
+        ]);
+      }
+    } catch (err) {
+      console.warn('Sommelier chat error:', err);
     } finally {
       setTyping(false);
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(inputText);
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#09090B] flex items-center justify-center p-4">
-        <div className="w-12 h-12 border-2 border-[#BFFF00] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen min-h-dvh bg-[#09090B] flex items-center justify-center p-4">
+        <div className="w-14 h-14 rounded-2xl bg-[#18181B] border border-[#27272A] flex items-center justify-center animate-pulse">
+          <Wine className="w-7 h-7 text-purple-400 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!device) {
+    return (
+      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-14 h-14 rounded-2xl border border-red-500/20 bg-red-500/10 flex items-center justify-center mb-3 text-red-400">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h2 className="text-lg font-bold">Dispositivo non trovato</h2>
+        <Link
+          href={`/hub/${code}`}
+          className="mt-3 px-4 py-2 rounded-xl bg-zinc-800 text-white text-xs font-semibold"
+        >
+          Torna all&apos;Hub
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-zinc-100 flex flex-col justify-between selection:bg-[#BFFF00] selection:text-black">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-20 bg-[#121214]/90 backdrop-blur-md border-b border-[#27272A] px-4 py-3">
-        <div className="max-w-md mx-auto flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#BFFF00]/15 text-[#BFFF00] flex items-center justify-center border border-[#BFFF00]/30 shadow-md shadow-[#BFFF00]/10 shrink-0">
-            <Wine className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white flex items-center gap-1.5">
-              <span>AI Sommelier & Maître</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#BFFF00]/20 text-[#BFFF00]">GEMINI</span>
-            </h1>
-            <span className="text-[11px] text-zinc-400">{org?.name || 'Assistente al Tavolo'}</span>
-          </div>
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-hidden relative selection:bg-[#BFFF00] selection:text-black">
+      {/* Top ambient glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-purple-500/10 blur-[120px] pointer-events-none rounded-full" />
+
+      {/* TOP NAVIGATION: BACK TO HUB */}
+      <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pb-2">
+        <Link
+          href={`/hub/${code}`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+        >
+          <ArrowLeft className="w-4 h-4 text-purple-400" />
+          <span>Torna all&apos;Hub</span>
+        </Link>
+
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
+          <Wine className="w-3 h-3 text-purple-400" />
+          <span className="text-white font-medium">AI Sommelier</span>
+        </span>
+      </nav>
+
+      {/* CHAT MESSAGES SCROLL CONTAINER */}
+      <main className="max-w-md w-full mx-auto flex-1 flex flex-col justify-end overflow-hidden z-10 py-1">
+        <div className="overflow-y-auto space-y-2.5 pr-1 max-h-[60vh] sm:max-h-[65vh]">
+          {messages.map((msg) => {
+            const isAi = msg.sender === 'ai';
+            return (
+              <div
+                key={msg.id}
+                className={`flex items-start gap-2 ${isAi ? 'justify-start' : 'justify-end'}`}
+              >
+                {isAi && (
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0 mt-0.5">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                )}
+                <div
+                  className={`rounded-2xl p-3 text-xs leading-relaxed max-w-[82%] shadow-md ${
+                    isAi
+                      ? 'bg-[#18181B] border border-zinc-800 text-zinc-200'
+                      : 'bg-purple-600 text-white font-medium'
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            );
+          })}
+
+          {typing && (
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div className="rounded-2xl p-3 bg-[#18181B] border border-zinc-800 text-xs text-zinc-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" />
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce [animation-delay:0.2s]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce [animation-delay:0.4s]" />
+              </div>
+            </div>
+          )}
+          <div ref={chatEndRef} />
         </div>
-      </header>
-
-      {/* Chat Conversation Area */}
-      <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-3 overflow-y-auto">
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`flex items-end gap-2.5 ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            {m.sender === 'ai' && (
-              <div className="w-7 h-7 rounded-lg bg-[#18181B] border border-[#27272A] text-[#BFFF00] flex items-center justify-center shrink-0 mb-1">
-                <Bot className="w-3.5 h-3.5" />
-              </div>
-            )}
-
-            <div
-              className={`max-w-[80%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed shadow-md ${
-                m.sender === 'user'
-                  ? 'bg-[#BFFF00] text-black font-medium rounded-br-none'
-                  : 'bg-[#18181B] text-zinc-100 border border-[#27272A] rounded-bl-none'
-              }`}
-            >
-              {m.text}
-            </div>
-
-            {m.sender === 'user' && (
-              <div className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-400 flex items-center justify-center shrink-0 mb-1">
-                <User className="w-3.5 h-3.5" />
-              </div>
-            )}
-          </div>
-        ))}
-
-        {typing && (
-          <div className="flex items-center gap-2 text-zinc-500 text-xs pl-9">
-            <div className="flex items-center gap-1 bg-[#18181B] border border-[#27272A] px-3 py-2 rounded-2xl">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00] animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00] animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00] animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-            <span>Il Sommelier sta pensando...</span>
-          </div>
-        )}
-
-        <div ref={chatEndRef} />
       </main>
 
-      {/* Suggestion Chips */}
-      <div className="max-w-md w-full mx-auto px-4 pb-2">
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
+      {/* QUICK PRESET CHIPS & INPUT DOCKED AT BOTTOM */}
+      <footer className="w-full max-w-md mx-auto z-10 pt-2 pb-1 space-y-2">
+        {/* Quick prompt pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           {PRESET_QUESTIONS.map((q, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => sendMessage(q)}
-              className="text-[11px] whitespace-nowrap bg-[#18181B] hover:bg-zinc-800 text-zinc-300 border border-[#27272A] rounded-full px-3 py-1.5 transition-colors shrink-0 touch-press"
+              disabled={typing}
+              className="shrink-0 text-[10px] px-2.5 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300 transition-colors"
             >
               {q}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Input Bar */}
-      <footer className="sticky bottom-0 bg-[#121214] border-t border-[#27272A] p-3">
-        <form onSubmit={handleFormSubmit} className="max-w-md mx-auto flex items-center gap-2">
+        {/* Input box */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendMessage(inputText);
+          }}
+          className="flex items-center gap-2"
+        >
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Chiedi un consiglio sul vino o sul menù..."
-            className="flex-1 min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+            placeholder="Chiedi un consiglio sul menù..."
+            className="flex-1 min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || typing}
-            className="w-11 h-11 bg-[#BFFF00] hover:bg-[#a8e000] text-black rounded-xl flex items-center justify-center shrink-0 transition-all touch-press disabled:opacity-40"
+            className="w-10 h-10 rounded-xl bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
           >
             <Send className="w-4 h-4" />
           </button>
