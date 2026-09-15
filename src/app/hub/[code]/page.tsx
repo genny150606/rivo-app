@@ -289,8 +289,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           <div className="md:col-span-5 flex flex-col justify-center gap-2.5 sm:gap-3">
             
             {/* BRAND HEADER CARD */}
-            <header className="rounded-2xl border border-[#27272A] bg-gradient-to-b from-[#18181B] to-[#121214] p-3 sm:p-4 relative overflow-hidden shadow-lg">
-              <div className="flex items-center gap-3">
+            <header className="rounded-2xl border border-[#27272A] bg-gradient-to-b from-[#18181B] to-[#121214] p-3 sm:p-4 md:p-5 relative overflow-hidden shadow-lg">
+              <div className="flex items-center gap-3 md:gap-4">
                 {/* Logo / Monogram */}
                 <div className="shrink-0">
                   {org.logo_url ? (
@@ -298,10 +298,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     <img
                       src={org.logo_url}
                       alt={org.name}
-                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-[#27272A] shadow-md bg-black"
+                      className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl object-cover border border-[#27272A] shadow-md bg-black"
                     />
                   ) : (
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-[#3F3F46] flex items-center justify-center text-2xl shadow-md">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-[#3F3F46] flex items-center justify-center text-2xl md:text-3xl shadow-md">
                       <span>{currentCat.icon}</span>
                     </div>
                   )}
@@ -310,27 +310,27 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 {/* Identity Info */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${currentCat.badgeColor}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] md:text-xs font-semibold border ${currentCat.badgeColor}`}>
                       <span>{currentCat.icon}</span>
                       <span>{currentCat.label}</span>
                     </span>
 
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 border border-white/10 text-[10px] text-zinc-400 font-medium">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 border border-white/10 text-[10px] md:text-xs text-zinc-400 font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00] animate-pulse" />
                       <span>NFC</span>
                       {device?.name && (
                         <>
                           <span className="text-zinc-600">•</span>
-                          <span className="text-white font-medium truncate max-w-[80px]">{device.name}</span>
+                          <span className="text-white font-medium truncate max-w-[80px] sm:max-w-xs">{device.name}</span>
                         </>
                       )}
                     </span>
                   </div>
 
-                  <h1 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">
+                  <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-tight text-white truncate">
                     {org.name}
                   </h1>
-                  <p className="text-[11px] text-zinc-400 truncate">
+                  <p className="text-[11px] md:text-xs text-zinc-400 truncate">
                     {currentCat.subtitle}
                   </p>
                 </div>
@@ -343,18 +343,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 href={org.custom_cta_url!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative block rounded-2xl border-2 border-[#BFFF00] bg-gradient-to-r from-[#BFFF00]/15 via-[#18181B] to-[#BFFF00]/10 p-2.5 sm:p-3 shadow-[0_0_20px_rgba(191,255,0,0.12)] hover:shadow-[0_0_25px_rgba(191,255,0,0.2)] transition-all active:scale-[0.99]"
+                className="group relative block rounded-2xl border-2 border-[#BFFF00] bg-gradient-to-r from-[#BFFF00]/15 via-[#18181B] to-[#BFFF00]/10 p-2.5 sm:p-3 md:p-3.5 shadow-[0_0_20px_rgba(191,255,0,0.12)] hover:shadow-[0_0_25px_rgba(191,255,0,0.2)] transition-all active:scale-[0.99]"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-extrabold text-[#BFFF00] bg-[#BFFF00]/20 px-1.5 py-0.2 rounded-full mb-0.5">
+                    <span className="inline-flex items-center gap-1 text-[9px] md:text-[10px] uppercase tracking-wider font-extrabold text-[#BFFF00] bg-[#BFFF00]/20 px-1.5 py-0.2 rounded-full mb-0.5">
                       <Sparkles className="w-2.5 h-2.5" /> In Evidenza
                     </span>
-                    <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#BFFF00] transition-colors">
+                    <h3 className="text-xs sm:text-sm md:text-base font-bold text-white truncate group-hover:text-[#BFFF00] transition-colors">
                       {org.custom_cta_label}
                     </h3>
                   </div>
-                  <div className="w-8 h-8 rounded-lg bg-[#BFFF00] text-black flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-[#BFFF00] text-black flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     <ExternalLink className="w-4 h-4" />
                   </div>
                 </div>
@@ -362,17 +362,17 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             )}
 
             {/* COMPACT REVIEW SHIELD SECTION */}
-            <div className="rounded-2xl border border-[#27272A] bg-gradient-to-b from-[#18181B] to-[#121214] p-2.5 sm:p-3 shadow-md flex flex-col justify-center">
+            <div className="rounded-2xl border border-[#27272A] bg-gradient-to-b from-[#18181B] to-[#121214] p-2.5 sm:p-3 md:p-3.5 shadow-md flex flex-col justify-center">
               <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <div className="flex items-center gap-1.5 text-xs md:text-sm font-bold text-white">
                   <ShieldCheck className="w-4 h-4 text-[#BFFF00]" />
                   <span>Valuta la tua esperienza</span>
                 </div>
-                <span className="text-[10px] text-zinc-400">1-Tap Google</span>
+                <span className="text-[10px] md:text-xs text-zinc-400">1-Tap Google</span>
               </div>
 
               {/* 5 Stars Rating Bar */}
-              <div className="flex items-center justify-around py-1 bg-black/30 rounded-xl border border-white/5">
+              <div className="flex items-center justify-around py-1.5 bg-black/30 rounded-xl border border-white/5">
                 {[1, 2, 3, 4, 5].map((star) => {
                   const isFilled = (ratingHover !== null ? ratingHover >= star : (selectedRating !== null && selectedRating >= star));
                   return (
@@ -386,7 +386,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       aria-label={`Vota ${star} stelle`}
                     >
                       <Star
-                        className={`w-6 h-6 sm:w-7 sm:h-7 transition-colors ${
+                        className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 transition-colors ${
                           isFilled
                             ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]'
                             : 'text-zinc-600 fill-zinc-800/40'
@@ -411,7 +411,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </div>
 
             {/* SERVICES TILES GRID (2 COLS ON MOBILE & DESKTOP) */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5 flex-1 content-start">
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5 md:gap-3 flex-1 content-start">
               
               {/* ====== RESTAURANT TILES ====== */}
               {org.category === 'restaurant' && (
@@ -421,45 +421,45 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     href={menuTargetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-amber-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-amber-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Utensils className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Utensils className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-white truncate">Menù Digitale</span>
+                        <span className="text-xs md:text-sm font-bold text-white truncate">Menù Digitale</span>
                         {isLunchTime && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
                       </div>
-                      <p className="text-[10px] text-zinc-400 truncate">Piatti & prezzi</p>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Piatti & prezzi</p>
                     </div>
                   </a>
 
                   {/* Chiama Cameriere */}
                   <Link
                     href={`/call/${code}`}
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-red-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-red-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <BellRing className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <BellRing className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">Chiama Sala</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Cameriere o conto</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">Chiama Sala</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Cameriere o conto</p>
                     </div>
                   </Link>
 
                   {/* AI Sommelier */}
                   <Link
                     href={`/ai-sommelier/${code}`}
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-purple-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-purple-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Wine className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Wine className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">AI Sommelier</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Consigli abbinamento</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">AI Sommelier</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Consigli abbinamento</p>
                     </div>
                   </Link>
                 </>
@@ -472,14 +472,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     href={org.custom_cta_url || (org.phone ? `tel:${org.phone}` : '#')}
                     target={org.custom_cta_url ? '_blank' : '_self'}
                     rel="noopener noreferrer"
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-fuchsia-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-fuchsia-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <CalendarCheck className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <CalendarCheck className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">Prenota Taglio</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Scegli orario</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">Prenota Taglio</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Scegli orario</p>
                     </div>
                   </a>
 
@@ -488,24 +488,24 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       href={org.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-pink-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                      className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-pink-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                     >
-                      <div className="w-9 h-9 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <Scissors className="w-4 h-4" />
+                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <Scissors className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold text-white truncate block">Lookbook</span>
-                        <p className="text-[10px] text-zinc-400 truncate">Listino & trattamenti</p>
+                        <span className="text-xs md:text-sm font-bold text-white truncate block">Lookbook</span>
+                        <p className="text-[10px] md:text-xs text-zinc-400 truncate">Listino & trattamenti</p>
                       </div>
                     </a>
                   ) : (
-                    <div className="rounded-xl border border-[#27272A] bg-[#121214] p-2.5 sm:p-3 flex items-center gap-2.5 min-h-[56px]">
-                      <div className="w-9 h-9 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center shrink-0">
-                        <Scissors className="w-4 h-4" />
+                    <div className="rounded-xl border border-[#27272A] bg-[#121214] p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 min-h-[56px] md:min-h-[64px]">
+                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center shrink-0">
+                        <Scissors className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold text-white truncate block">Salone Style</span>
-                        <p className="text-[10px] text-zinc-400 truncate">Hair & Beauty</p>
+                        <span className="text-xs md:text-sm font-bold text-white truncate block">Salone Style</span>
+                        <p className="text-[10px] md:text-xs text-zinc-400 truncate">Hair & Beauty</p>
                       </div>
                     </div>
                   )}
@@ -517,28 +517,28 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <>
                   <a
                     href={org.phone ? `tel:${org.phone}` : org.custom_cta_url || '#'}
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-sky-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-sky-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <BellRing className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <BellRing className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">Reception</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Contatto diretto H24</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">Reception</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Contatto diretto H24</p>
                     </div>
                   </a>
 
                   <button
                     type="button"
                     onClick={() => setShowCityGuide(true)}
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-amber-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px] text-left"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-amber-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px] text-left"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Compass className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Compass className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">Guida Città</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Luoghi consigliati</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">Guida Città</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Luoghi consigliati</p>
                     </div>
                   </button>
                 </>
@@ -551,28 +551,28 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     href={org.custom_cta_url || (org.phone ? `tel:${org.phone}` : '#')}
                     target={org.custom_cta_url ? '_blank' : '_self'}
                     rel="noopener noreferrer"
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-emerald-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-emerald-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <CalendarCheck className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <CalendarCheck className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">Prenota Visita</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Segreteria rapida</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">Prenota Visita</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Segreteria rapida</p>
                     </div>
                   </a>
 
                   {org.phone && (
                     <a
                       href={`tel:${org.phone}`}
-                      className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-cyan-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                      className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-cyan-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                     >
-                      <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <Phone className="w-4 h-4" />
+                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <Phone className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold text-white truncate block">Segreteria</span>
-                        <p className="text-[10px] text-zinc-400 truncate">Chiama studio</p>
+                        <span className="text-xs md:text-sm font-bold text-white truncate block">Segreteria</span>
+                        <p className="text-[10px] md:text-xs text-zinc-400 truncate">Chiama studio</p>
                       </div>
                     </a>
                   )}
@@ -586,14 +586,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     href={org.custom_cta_url || org.website || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-violet-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-violet-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <ShoppingBag className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <ShoppingBag className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">Nuovi Arrivi</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Catalogo & sconti</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">Nuovi Arrivi</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Catalogo & sconti</p>
                     </div>
                   </a>
                 </>
@@ -606,14 +606,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     href={org.custom_cta_url || org.website || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-lime-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                    className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-lime-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-lime-500/10 border border-lime-500/20 text-lime-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Dumbbell className="w-4 h-4" />
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-lime-500/10 border border-lime-500/20 text-lime-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Dumbbell className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-white truncate block">Orari & Corsi</span>
-                      <p className="text-[10px] text-zinc-400 truncate">Programmazione</p>
+                      <span className="text-xs md:text-sm font-bold text-white truncate block">Orari & Corsi</span>
+                      <p className="text-[10px] md:text-xs text-zinc-400 truncate">Programmazione</p>
                     </div>
                   </a>
                 </>
@@ -624,45 +624,45 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* Wi-Fi 1-Tap */}
               <Link
                 href={`/wifi/${code}`}
-                className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-blue-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-blue-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
               >
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Wifi className="w-4 h-4" />
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Wifi className="w-4 h-4 md:w-5 md:h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-bold text-white truncate block">Wi-Fi Gratuito</span>
-                  <p className="text-[10px] text-zinc-400 truncate">Accesso 1-tap</p>
+                  <span className="text-xs md:text-sm font-bold text-white truncate block">Wi-Fi Gratuito</span>
+                  <p className="text-[10px] md:text-xs text-zinc-400 truncate">Accesso 1-tap</p>
                 </div>
               </Link>
 
               {/* Ruota della Fortuna */}
               <Link
                 href={`/wheel/${code}`}
-                className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-[#BFFF00]/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-[#BFFF00]/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
               >
-                <div className="w-9 h-9 rounded-lg bg-[#BFFF00]/10 border border-[#BFFF00]/20 text-[#BFFF00] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Sparkles className="w-4 h-4" />
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-[#BFFF00]/10 border border-[#BFFF00]/20 text-[#BFFF00] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-white truncate">Ruota Premi</span>
-                    <span className="text-[9px] bg-[#BFFF00]/20 text-[#BFFF00] font-bold px-1 rounded">Vinci</span>
+                    <span className="text-xs md:text-sm font-bold text-white truncate">Ruota Premi</span>
+                    <span className="text-[9px] md:text-[10px] bg-[#BFFF00]/20 text-[#BFFF00] font-bold px-1 rounded">Vinci</span>
                   </div>
-                  <p className="text-[10px] text-zinc-400 truncate">Gira & sblocca sconti</p>
+                  <p className="text-[10px] md:text-xs text-zinc-400 truncate">Gira & sblocca sconti</p>
                 </div>
               </Link>
 
               {/* Carta Fedeltà */}
               <Link
                 href={`/loyalty/${code}`}
-                className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-emerald-500/40 p-2.5 sm:p-3 flex items-center gap-2.5 group transition-all active:scale-[0.98] min-h-[56px]"
+                className="rounded-xl border border-[#27272A] bg-[#121214] hover:bg-[#18181B] hover:border-emerald-500/40 p-2.5 sm:p-3 md:p-3.5 flex items-center gap-2.5 md:gap-3 group transition-all active:scale-[0.98] min-h-[56px] md:min-h-[64px]"
               >
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <CreditCard className="w-4 h-4" />
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <CreditCard className="w-4 h-4 md:w-5 md:h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-bold text-white truncate block">Carta Fedeltà</span>
-                  <p className="text-[10px] text-zinc-400 truncate">Timbri digitali</p>
+                  <span className="text-xs md:text-sm font-bold text-white truncate block">Carta Fedeltà</span>
+                  <p className="text-[10px] md:text-xs text-zinc-400 truncate">Timbri digitali</p>
                 </div>
               </Link>
 
