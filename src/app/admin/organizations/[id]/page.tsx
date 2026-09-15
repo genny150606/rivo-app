@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { ArrowLeft, Building2, MapPin, Layers, ExternalLink, Activity, QrCode } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import AddDeviceModal from '@/components/admin/AddDeviceModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,7 @@ export default async function AdminOrgDetailPage({
   ] = await Promise.all([
     supabase.from('organizations').select('*, plans(name)').eq('id', id).single(),
     supabase.from('locations').select('*').eq('organization_id', id),
-    supabase.from('devices').select('*, locations(name)').eq('organization_id', id),
+    supabase.from('devices').select('*, locations(name)').eq('organization_id', id).order('created_at', { ascending: false }),
     supabase.from('interactions').select('id, interaction_type, timestamp, devices(name)').eq('organization_id', id).order('timestamp', { ascending: false }).limit(10)
   ]);
 
@@ -93,9 +94,16 @@ export default async function AdminOrgDetailPage({
 
       {/* Devices list for this Org */}
       <div className="rounded-xl border border-[#27272A] bg-[#121214] p-6 space-y-4">
-        <h2 className="text-base font-semibold text-white">Dispositivi NFC & QR Configurati</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-white">Dispositivi NFC & QR Configurati</h2>
+            <p className="text-xs text-zinc-500">Punti di contatto fisici associati alle sedi di questa attività</p>
+          </div>
+          <AddDeviceModal organizationId={org.id} locations={locList} />
+        </div>
+
         {devList.length === 0 ? (
-          <p className="text-sm text-zinc-500">Nessun dispositivo assegnato a questa attività.</p>
+          <p className="text-sm text-zinc-500 py-4">Nessun dispositivo assegnato a questa attività.</p>
         ) : (
           <div className="divide-y divide-[#27272A]">
             {devList.map((dev) => (
