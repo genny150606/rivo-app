@@ -3,10 +3,15 @@ import { ArrowUpRight, Smartphone, QrCode, Layers, Activity } from 'lucide-react
 
 export const dynamic = 'force-dynamic';
 
+interface InteractionSummary {
+  interaction_type: string;
+  timestamp: string;
+  device_id: string;
+}
+
 export default async function DashboardOverview() {
   const supabase = await createClient();
 
-  // 1. Get current logged in user & organization
   const { data: { user } } = await supabase.auth.getUser();
   
   let orgName = 'La tua attività';
@@ -14,7 +19,7 @@ export default async function DashboardOverview() {
   let nfcInteractions = 0;
   let qrInteractions = 0;
   let activeDevicesCount = 0;
-  let recentInteractions: any[] = [];
+  let recentInteractions: InteractionSummary[] = [];
 
   if (user) {
     const { data: profile } = await supabase
@@ -31,7 +36,6 @@ export default async function DashboardOverview() {
         .single();
       if (org) orgName = org.name;
 
-      // Real interactions count
       const { data: interactions } = await supabase
         .from('interactions')
         .select('interaction_type, timestamp, device_id')
@@ -42,10 +46,9 @@ export default async function DashboardOverview() {
         totalInteractions = interactions.length;
         nfcInteractions = interactions.filter((i) => i.interaction_type === 'nfc').length;
         qrInteractions = interactions.filter((i) => i.interaction_type === 'qr').length;
-        recentInteractions = interactions.slice(0, 5);
+        recentInteractions = interactions.slice(0, 5) as InteractionSummary[];
       }
 
-      // Real active devices
       const { count } = await supabase
         .from('devices')
         .select('*', { count: 'exact', head: true })
@@ -66,7 +69,6 @@ export default async function DashboardOverview() {
         </p>
       </div>
 
-      {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
@@ -114,7 +116,6 @@ export default async function DashboardOverview() {
         </div>
       </div>
 
-      {/* Real Recent Interactions List */}
       <div className="rounded-xl bg-[#121214] border border-[#27272A] p-6">
         <h2 className="text-base font-medium text-white mb-4">Ultime Interazioni Registrate</h2>
         {recentInteractions.length === 0 ? (

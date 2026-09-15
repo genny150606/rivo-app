@@ -4,11 +4,22 @@ import { Plus, ExternalLink, QrCode } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
+interface DeviceItem {
+  id: string;
+  name: string;
+  type: string;
+  unique_code: string;
+  destination_url: string;
+  status: string;
+  created_at: string;
+  locations?: { name: string } | null;
+}
+
 export default async function DevicesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  let devices: any[] = [];
+  let devices: DeviceItem[] = [];
 
   if (user) {
     const { data: profile } = await supabase
@@ -33,7 +44,7 @@ export default async function DevicesPage() {
         .eq('organization_id', profile.organization_id)
         .order('created_at', { ascending: false });
 
-      if (data) devices = data;
+      if (data) devices = data as unknown as DeviceItem[];
     }
   }
 
