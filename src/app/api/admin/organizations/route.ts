@@ -51,6 +51,10 @@ export async function POST(request: NextRequest) {
       phone,
       email,
       website,
+      category,
+      hubMode,
+      customCtaLabel,
+      customCtaUrl,
       locationName,
       address,
       city,
@@ -96,6 +100,10 @@ export async function POST(request: NextRequest) {
         email: email || null,
         website: website || null,
         plan_id: plan?.id || null,
+        category: category || 'restaurant',
+        hub_mode: hubMode || 'hub',
+        custom_cta_label: customCtaLabel || null,
+        custom_cta_url: customCtaUrl || null,
         status: 'active',
       })
       .select()

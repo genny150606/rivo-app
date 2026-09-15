@@ -33,10 +33,10 @@ export async function GET(
       return new NextResponse('Device is currently inactive', { status: 403 });
     }
 
-    // 2. Fetch organization configuration (Review Shield & Smart Routing)
+    // 2. Fetch organization configuration (Hub Mode, Review Shield & Smart Routing)
     const { data: org } = await supabase
       .from('organizations')
-      .select('review_shield_enabled, google_review_url, smart_routing_enabled, lunch_destination_url, lunch_start_time, lunch_end_time')
+      .select('category, hub_mode, review_shield_enabled, google_review_url, smart_routing_enabled, lunch_destination_url, lunch_start_time, lunch_end_time')
       .eq('id', device.organization_id)
       .single();
 
@@ -66,8 +66,20 @@ export async function GET(
         }
       });
 
-    // 5. SMART ROUTING CHECK (Time-based conditional routing)
-    if (org?.smart_routing_enabled && org.lunch_destination_url) {
+    const hubMode = org?.hub_mode || 'hub';
+
+    // 5. UNIVERSAL EXPERIENCE HUB MODE (Default)
+    // Directs visitors to the category-adaptive experience hub
+    if (hubMode === 'hub') {
+      const hubUrl = new URL(`/hub/${cleanCode}`, request.url);
+      if (sourceParam) {
+        hubUrl.searchParams.set('source', sourceParam);
+      }
+      return NextResponse.redirect(hubUrl.toString(), { status: 307 });
+    }
+
+    // 6. SMART ROUTING CHECK (Time-based conditional routing)
+    if (hubMode === 'smart_routing' && org?.lunch_destination_url) {
       try {
         const romeFormatter = new Intl.DateTimeFormat('it-IT', {
           timeZone: 'Europe/Rome',
@@ -90,9 +102,9 @@ export async function GET(
       }
     }
 
-    // 6. REVIEW SHIELD CHECK
-    // If review shield is enabled on the organization, redirect to the micro-landing rating shield
-    if (org?.review_shield_enabled) {
+    // 7. REVIEW SHIELD CHECK
+    // If review shield is enabled or hubMode is set to 'shield', redirect to review shield
+    if (hubMode === 'shield' || org?.review_shield_enabled) {
       const url = new URL(`/review/${cleanCode}`, request.url);
       if (sourceParam) {
         url.searchParams.set('source', sourceParam);
@@ -100,7 +112,7 @@ export async function GET(
       return NextResponse.redirect(url.toString(), { status: 307 });
     }
 
-    // 7. Fallback: direct redirect to target destination
+    // 8. Fallback / Direct Mode: direct redirect to target destination
     const destination = org?.google_review_url || device.destination_url;
     const targetUrl = destination.startsWith('http')
       ? destination

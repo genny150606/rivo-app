@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
   // Allow public routes
   if (
     pathname.startsWith('/t/') ||
+    pathname.startsWith('/hub/') ||
     pathname.startsWith('/review/') ||
     pathname.startsWith('/call/') ||
     pathname.startsWith('/wheel/') ||

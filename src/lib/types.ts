@@ -4,6 +4,8 @@ export type DeviceType = 'nfc' | 'qr' | 'both';
 export type DeviceStatus = 'active' | 'inactive';
 export type InteractionType = 'nfc' | 'qr' | 'unknown';
 export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing';
+export type BusinessCategory = 'restaurant' | 'salon' | 'hotel' | 'medical' | 'retail' | 'generic';
+export type HubMode = 'hub' | 'shield' | 'smart_routing' | 'direct';
 
 export interface Plan {
   id: string;
@@ -27,6 +29,11 @@ export interface Organization {
   website: string | null;
   status: OrgStatus;
   plan_id: string | null;
+  category?: BusinessCategory;
+  hub_mode?: HubMode;
+  custom_cta_label?: string | null;
+  custom_cta_url?: string | null;
+  city_guide_text?: string | null;
   review_shield_enabled?: boolean;
   google_review_url?: string | null;
   smart_routing_enabled?: boolean;

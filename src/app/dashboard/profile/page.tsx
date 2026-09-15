@@ -14,8 +14,14 @@ import {
   RefreshCw,
   Send,
   Wifi,
-  Wine
+  Wine,
+  Sparkles,
+  Compass,
+  Layers,
+  Building2,
+  ExternalLink
 } from 'lucide-react';
+import { BusinessCategory, HubMode } from '@/lib/types';
 
 export default function ProfilePage() {
   const [supabase] = useState(() => createClient());
@@ -34,6 +40,13 @@ export default function ProfilePage() {
   const [website, setWebsite] = useState('');
   const [reviewUrl, setReviewUrl] = useState('');
   const [reviewShieldEnabled, setReviewShieldEnabled] = useState(true);
+
+  // Category & Hub Configuration Fields
+  const [category, setCategory] = useState<BusinessCategory>('restaurant');
+  const [hubMode, setHubMode] = useState<HubMode>('hub');
+  const [customCtaLabel, setCustomCtaLabel] = useState('');
+  const [customCtaUrl, setCustomCtaUrl] = useState('');
+  const [cityGuideText, setCityGuideText] = useState('');
 
   // Smart Routing Fields
   const [smartRoutingEnabled, setSmartRoutingEnabled] = useState(false);
@@ -101,6 +114,11 @@ export default function ProfilePage() {
         setWebsite(org.website || '');
         setReviewUrl(org.google_review_url || '');
         setReviewShieldEnabled(org.review_shield_enabled ?? true);
+        setCategory((org.category || 'restaurant') as BusinessCategory);
+        setHubMode((org.hub_mode || 'hub') as HubMode);
+        setCustomCtaLabel(org.custom_cta_label || '');
+        setCustomCtaUrl(org.custom_cta_url || '');
+        setCityGuideText(org.city_guide_text || '');
         setSmartRoutingEnabled(org.smart_routing_enabled ?? false);
         setLunchUrl(org.lunch_destination_url || '');
         setLunchStart(org.lunch_start_time || '12:00');
@@ -137,6 +155,11 @@ export default function ProfilePage() {
           website: website.trim() || null,
           google_review_url: reviewUrl.trim() || null,
           review_shield_enabled: reviewShieldEnabled,
+          category,
+          hub_mode: hubMode,
+          custom_cta_label: customCtaLabel.trim() || null,
+          custom_cta_url: customCtaUrl.trim() || null,
+          city_guide_text: cityGuideText.trim() || null,
           smart_routing_enabled: smartRoutingEnabled,
           lunch_destination_url: lunchUrl.trim() || null,
           lunch_start_time: lunchStart,
@@ -251,7 +274,179 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* SECTION 2: REVIEW SHIELD CONFIGURATION */}
+        {/* SECTION 2: SETTORE ATTIVITÀ & UNIVERSAL NFC HUB */}
+        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#BFFF00]" />
+              <h2 className="text-base font-semibold text-white">Settore Attività & Universal NFC Hub</h2>
+            </div>
+            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase rounded-full bg-[#BFFF00]/10 text-[#BFFF00]">
+              Cloud Adaptive
+            </span>
+          </div>
+
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            I chip NFC e i QR code RIVO non necessitano di alcuna riprogrammazione fisica: cambiando il settore o la modalità qui, l&apos;esperienza del cliente si aggiorna istantaneamente in tempo reale.
+          </p>
+
+          {/* Category Selection Cards */}
+          <div>
+            <label className="block text-xs font-medium text-zinc-300 mb-2">
+              Settore di Attività Commerciale <span className="text-[#BFFF00]">*</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {[
+                { id: 'restaurant', label: 'Ristorante / Bar', icon: '🍽️', desc: 'Menù, Sala, Wi-Fi' },
+                { id: 'salon', label: 'Salone & Beauty', icon: '💈', desc: 'Prenota, Timbri, Wi-Fi' },
+                { id: 'hotel', label: 'Hotel & B&B', icon: '🏨', desc: 'Wi-Fi, Reception, Guida' },
+                { id: 'medical', label: 'Studio Medico', icon: '🩺', desc: 'Visite, Sala attesa' },
+                { id: 'retail', label: 'Retail & Negozio', icon: '🛍️', desc: 'Ruota sconti, Fidelity' },
+                { id: 'generic', label: 'Palestre & Servizi', icon: '🏢', desc: 'Contatti, Info, Orari' },
+              ].map((cat) => {
+                const isSelected = category === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setCategory(cat.id as BusinessCategory);
+                      if (cat.id === 'salon' && !customCtaLabel) setCustomCtaLabel('Prenota un Appuntamento');
+                      else if (cat.id === 'restaurant' && !customCtaLabel) setCustomCtaLabel('Consulta Menù Digitale');
+                      else if (cat.id === 'medical' && !customCtaLabel) setCustomCtaLabel('Prenota Visita Specialistica');
+                      else if (cat.id === 'hotel' && !customCtaLabel) setCustomCtaLabel('Contatta la Reception');
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      isSelected
+                        ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-white shadow-[0_0_15px_rgba(191,255,0,0.15)]'
+                        : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className="text-xl block mb-1">{cat.icon}</span>
+                    <span className="text-xs font-bold text-white block">{cat.label}</span>
+                    <span className="text-[10px] text-zinc-500 block mt-0.5">{cat.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Hub Mode Selector */}
+          <div className="pt-2 border-t border-[#27272A]">
+            <label className="block text-xs font-medium text-zinc-300 mb-2">
+              Modalità di Reindirizzamento NFC / QR
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {[
+                {
+                  id: 'hub',
+                  label: '🌟 Universal Experience Hub',
+                  tag: 'Consigliato',
+                  desc: 'Apre la pagina multifunzione adattata al settore (Menù/Servizi, Wi-Fi 1-tap, Ruota della Fortuna, Fidelity Card e Recensioni).',
+                },
+                {
+                  id: 'shield',
+                  label: '🛡️ Review Shield Diretto',
+                  tag: 'Solo Recensioni',
+                  desc: 'Apre direttamente la schermata di filtro recensioni a 5 stelle anti 1-3 stelle.',
+                },
+                {
+                  id: 'smart_routing',
+                  label: '⏱️ Smart Routing Orario',
+                  tag: 'Orario Pranzo',
+                  desc: 'Mostra il menù pranzo negli orari definiti e il filtro recensioni per il resto della giornata.',
+                },
+                {
+                  id: 'direct',
+                  label: '🔗 Reindirizzamento Diretto',
+                  tag: 'Standard',
+                  desc: 'Reindirizza istantaneamente alla scheda Google Business o all\'URL configurato sul chip.',
+                },
+              ].map((m) => {
+                const isSelected = hubMode === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setHubMode(m.id as HubMode)}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      isSelected
+                        ? 'bg-[#BFFF00]/10 border-[#BFFF00] text-white shadow-[0_0_12px_rgba(191,255,0,0.1)]'
+                        : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-white">{m.label}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">
+                        {m.tag}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-snug">{m.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Hero Custom CTA Configuration */}
+          <div className="pt-2 border-t border-[#27272A]">
+            <h3 className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
+              <ExternalLink className="w-3.5 h-3.5 text-[#BFFF00]" />
+              Pulsante in Evidenza sull&apos;Hub (Hero CTA)
+            </h3>
+            <p className="text-[11px] text-zinc-400 mb-3">
+              Un banner luminoso ad alta conversione posizionato in cima all&apos;Hub del cliente.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                  Testo del Pulsante
+                </label>
+                <input
+                  type="text"
+                  value={customCtaLabel}
+                  onChange={(e) => setCustomCtaLabel(e.target.value)}
+                  placeholder="Es. Prenota Taglio / Prenota Visita / Menù del Giorno"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00] transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                  Link di Destinazione
+                </label>
+                <input
+                  type="url"
+                  value={customCtaUrl}
+                  onChange={(e) => setCustomCtaUrl(e.target.value)}
+                  placeholder="https://wa.me/39... oppure link prenotazione/PDF"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-[#BFFF00] transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* City Guide / Territorio (Especially for Hotel & B&B) */}
+          <div className="pt-2 border-t border-[#27272A]">
+            <h3 className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5 text-amber-400" />
+              Guida del Territorio & Informazioni per gli Ospiti
+            </h3>
+            <p className="text-[11px] text-zinc-400 mb-2">
+              Mostra consigli turistici, ristoranti convenzionati e info utili nel pop-up della Guida del Territorio sull&apos;Hub.
+            </p>
+            <textarea
+              rows={3}
+              value={cityGuideText}
+              onChange={(e) => setCityGuideText(e.target.value)}
+              placeholder="Es. Ristorante convenzionato a 200m: Trattoria del Porto (10% sconto esibendo la card). Farmacia di turno in Via Roma. Taxi H24: +39 081 99999..."
+              className="w-full bg-[#18181B] border border-[#27272A] rounded-xl p-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-400 transition-colors resize-none"
+            />
+          </div>
+        </div>
+
+        {/* SECTION 3: REVIEW SHIELD CONFIGURATION */}
         <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

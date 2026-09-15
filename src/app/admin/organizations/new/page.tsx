@@ -18,6 +18,10 @@ export default function NewOrganizationWizard() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
+  const [category, setCategory] = useState<'restaurant' | 'salon' | 'hotel' | 'medical' | 'retail' | 'generic'>('restaurant');
+  const [hubMode, setHubMode] = useState<'hub' | 'shield' | 'smart_routing' | 'direct'>('hub');
+  const [customCtaLabel, setCustomCtaLabel] = useState('');
+  const [customCtaUrl, setCustomCtaUrl] = useState('');
 
   const [locationName, setLocationName] = useState('Sede Principale');
   const [address, setAddress] = useState('');
@@ -49,6 +53,10 @@ export default function NewOrganizationWizard() {
           phone,
           email,
           website,
+          category,
+          hubMode,
+          customCtaLabel,
+          customCtaUrl,
           locationName,
           address,
           city,
@@ -164,7 +172,48 @@ export default function NewOrganizationWizard() {
       <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 sm:p-6 space-y-4">
         {step === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-semibold text-white mb-2">Dati dell&apos;Attività Commerciale</h2>
+            <h2 className="text-base font-semibold text-white mb-1">Dati dell&apos;Attività Commerciale</h2>
+            <p className="text-xs text-zinc-400 mb-3">Seleziona il settore per adattare automaticamente l&apos;Universal Hub e le funzionalità.</p>
+
+            {/* Category Selector Cards */}
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-2">Settore di Attività *</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {[
+                  { id: 'restaurant', label: 'Ristorante / Bar', icon: '🍽️', desc: 'Menù, Sala, Wi-Fi' },
+                  { id: 'salon', label: 'Salone & Beauty', icon: '💈', desc: 'Prenota, Timbri, Wi-Fi' },
+                  { id: 'hotel', label: 'Hotel & B&B', icon: '🏨', desc: 'Wi-Fi, Reception, Guida' },
+                  { id: 'medical', label: 'Studio Medico', icon: '🩺', desc: 'Visite, Sala attesa' },
+                  { id: 'retail', label: 'Retail & Negozio', icon: '🛍️', desc: 'Ruota sconti, Fidelity' },
+                  { id: 'generic', label: 'Palestre & Servizi', icon: '🏢', desc: 'Contatti, Info, Orari' },
+                ].map((cat) => {
+                  const isSelected = category === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setCategory(cat.id as any);
+                        if (cat.id === 'salon' && !customCtaLabel) setCustomCtaLabel('Prenota un Appuntamento');
+                        else if (cat.id === 'restaurant' && !customCtaLabel) setCustomCtaLabel('Consulta Menù Digitale');
+                        else if (cat.id === 'medical' && !customCtaLabel) setCustomCtaLabel('Prenota Visita Specialistica');
+                        else if (cat.id === 'hotel' && !customCtaLabel) setCustomCtaLabel('Contatta la Reception');
+                      }}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-white shadow-[0_0_15px_rgba(191,255,0,0.15)]'
+                          : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                      }`}
+                    >
+                      <span className="text-xl block mb-1">{cat.icon}</span>
+                      <span className="text-xs font-bold text-white block">{cat.label}</span>
+                      <span className="text-[10px] text-zinc-500 block mt-0.5">{cat.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1">Nome Attività *</label>
               <input
@@ -172,10 +221,34 @@ export default function NewOrganizationWizard() {
                 required
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                placeholder="es. Bar Centrale"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
+                placeholder="es. Barber Club Milano oppure Ristorante Da Mario"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Pulsante Principale Hub (Opzionale)</label>
+                <input
+                  type="text"
+                  value={customCtaLabel}
+                  onChange={(e) => setCustomCtaLabel(e.target.value)}
+                  placeholder="Es. Prenota Taglio / Menù Pranzo"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Link di Destinazione Pulsante</label>
+                <input
+                  type="url"
+                  value={customCtaUrl}
+                  onChange={(e) => setCustomCtaUrl(e.target.value)}
+                  placeholder="https://wa.me/39... oppure link prenotazione"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs focus:outline-none focus:border-[#BFFF00]"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1">Slug Univoco (URL)</label>
               <input
@@ -183,9 +256,10 @@ export default function NewOrganizationWizard() {
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder="Lascia vuoto per generarlo automaticamente"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs"
+                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Email di contatto</label>
@@ -193,7 +267,7 @@ export default function NewOrganizationWizard() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="info@barcentrale.it"
+                  placeholder="info@tuolocale.it"
                   className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
                 />
               </div>
