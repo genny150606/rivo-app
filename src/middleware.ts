@@ -1,7 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
+// Public route prefixes that bypass Supabase auth completely for maximum fluidity & 0ms overhead
+const PUBLIC_PREFIXES = [
+  '/t/',
+  '/hub/',
+  '/review/',
+  '/call/',
+  '/wheel/',
+  '/loyalty/',
+  '/ai-sommelier/',
+  '/wifi/',
+  '/api/',
+  '/login',
+  '/auth/',
+  '/_next',
+  '/brand/',
+];
+
+const PUBLIC_EXACT = [
+  '/favicon.ico',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/manifest.json',
+];
+
+// Matcher for static assets (images, audio, fonts, icons, etc.)
+const STATIC_ASSET_REGEX = /\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt|xml|mp3|wav|woff|woff2|ttf|eot)$/i;
+
+function isPublicRoute(pathname: string): boolean {
+  if (PUBLIC_EXACT.includes(pathname)) return true;
+  if (STATIC_ASSET_REGEX.test(pathname)) return true;
+  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // FAST PATH: Return immediately for public routes without calling supabase.auth.getUser()
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // PROTECTED PATH: Only initialize Supabase client and check session on protected routes (e.g. /dashboard, /admin)
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -33,27 +74,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-
-  // Allow public routes
-  if (
-    pathname.startsWith('/t/') ||
-    pathname.startsWith('/hub/') ||
-    pathname.startsWith('/review/') ||
-    pathname.startsWith('/call/') ||
-    pathname.startsWith('/wheel/') ||
-    pathname.startsWith('/loyalty/') ||
-    pathname.startsWith('/ai-sommelier/') ||
-    pathname.startsWith('/wifi/') ||
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/auth/') ||
-    pathname === '/favicon.ico' ||
-    pathname.startsWith('/_next')
-  ) {
-    return response;
-  }
-
   // Redirect unauthenticated users to login
   if (!user) {
     const url = request.nextUrl.clone();
@@ -66,6 +86,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt|xml|mp3|wav|woff|woff2|ttf|eot)$).*)',
   ],
 };

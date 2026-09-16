@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         throw updateErr;
       }
 
-      return NextResponse.json({ success: true, logoUrl: null });
+      return NextResponse.json({ success: true, logoUrl: null, url: null });
     }
 
     // 5. Action: Direct URL
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         throw updateErr;
       }
 
-      return NextResponse.json({ success: true, logoUrl: trimmedUrl });
+      return NextResponse.json({ success: true, logoUrl: trimmedUrl, url: trimmedUrl });
     }
 
     // 6. Action: File Upload
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, logoUrl: publicUrl });
+    return NextResponse.json({ success: true, logoUrl: publicUrl, url: publicUrl });
   } catch (err: unknown) {
     console.error('Logo upload handler error:', err);
     const msg = err instanceof Error ? err.message : 'Errore interno server';

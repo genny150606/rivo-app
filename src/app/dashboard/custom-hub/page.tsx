@@ -31,6 +31,7 @@ import {
   Radio,
   Image as ImageIcon,
   Send,
+  Sliders,
 } from 'lucide-react';
 import { HUB_COLOR_PRESETS, DEFAULT_HUB_COLOR, getContrastColor } from '@/lib/palettes';
 import { BusinessCategory, HubMode } from '@/lib/types';
@@ -99,6 +100,7 @@ export default function CustomHubStudioPage() {
 
   // Active Tab for Studio Controls
   const [activeTab, setActiveTab] = useState<'theme' | 'hero' | 'services' | 'reviews' | 'contacts'>('theme');
+  const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
 
   // Load Organization & Devices
   useEffect(() => {
@@ -225,7 +227,8 @@ export default function CustomHubStudioPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore durante il caricamento');
 
-      setLogoUrl(data.url);
+      const uploadedUrl = data.logoUrl || data.url || '';
+      setLogoUrl(uploadedUrl);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Errore upload logo';
       setErrorMsg(msg);
@@ -245,25 +248,25 @@ export default function CustomHubStudioPage() {
       const { error } = await supabase
         .from('organizations')
         .update({
-          name: name.trim(),
-          logo_url: logoUrl.trim() || null,
-          description: description.trim() || null,
-          primary_color: primaryColor,
-          custom_cta_label: customCtaLabel.trim() || null,
-          custom_cta_url: customCtaUrl.trim() || null,
-          lunch_destination_url: heroDestinationType === 'external' ? lunchUrl.trim() || null : null,
-          wifi_ssid: wifiSsid.trim() || null,
-          wifi_password: wifiPassword.trim() || null,
-          ai_menu_context: aiMenuContext.trim() || null,
-          loyalty_reward_text: loyaltyRewardText.trim() || null,
-          telegram_alerts_enabled: telegramAlertsEnabled,
-          telegram_bot_token: telegramToken.trim() || null,
-          telegram_chat_id: telegramChatId.trim() || null,
-          review_shield_enabled: reviewShieldEnabled,
-          google_review_url: googleReviewUrl.trim() || null,
-          phone: phone.trim() || null,
-          whatsapp_number: whatsappNumber.trim() || null,
-          website: website.trim() || null,
+          name: (name || '').trim(),
+          logo_url: (logoUrl || '').trim() || null,
+          description: (description || '').trim() || null,
+          primary_color: primaryColor || DEFAULT_HUB_COLOR,
+          custom_cta_label: (customCtaLabel || '').trim() || null,
+          custom_cta_url: (customCtaUrl || '').trim() || null,
+          lunch_destination_url: heroDestinationType === 'external' ? (lunchUrl || '').trim() || null : null,
+          wifi_ssid: (wifiSsid || '').trim() || null,
+          wifi_password: (wifiPassword || '').trim() || null,
+          ai_menu_context: (aiMenuContext || '').trim() || null,
+          loyalty_reward_text: (loyaltyRewardText || '').trim() || null,
+          telegram_alerts_enabled: Boolean(telegramAlertsEnabled),
+          telegram_bot_token: (telegramToken || '').trim() || null,
+          telegram_chat_id: (telegramChatId || '').trim() || null,
+          review_shield_enabled: Boolean(reviewShieldEnabled),
+          google_review_url: (googleReviewUrl || '').trim() || null,
+          phone: (phone || '').trim() || null,
+          whatsapp_number: (whatsappNumber || '').trim() || null,
+          website: (website || '').trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', orgId);
@@ -281,7 +284,7 @@ export default function CustomHubStudioPage() {
   };
 
   const handleTestTelegram = async () => {
-    if (!telegramToken || !telegramChatId) {
+    if (!telegramToken?.trim() || !telegramChatId?.trim()) {
       setErrorMsg('Inserisci sia il Bot Token sia il Chat ID prima di inviare un test.');
       return;
     }
@@ -289,11 +292,11 @@ export default function CustomHubStudioPage() {
     setTestSending(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`https://api.telegram.org/bot${telegramToken.trim()}/sendMessage`, {
+      const res = await fetch(`https://api.telegram.org/bot${(telegramToken || '').trim()}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: telegramChatId.trim(),
+          chat_id: (telegramChatId || '').trim(),
           text: `🔔 [TEST NOTIFICA RIVO STAFF]\n\n• Locale: ${name || 'La tua attività'}\n• Stato: Connessione Bot Telegram attiva con successo!\n• Chiamate Cameriere: Pronte a essere ricevute in tempo reale.`,
         }),
       });
@@ -397,16 +400,44 @@ export default function CustomHubStudioPage() {
         </div>
       )}
 
+      {/* Mobile Mode Switcher (< lg screens) */}
+      <div className="lg:hidden flex items-center p-1 bg-[#121214] border border-white/10 rounded-2xl w-full max-w-sm mx-auto shadow-lg mb-2">
+        <button
+          type="button"
+          onClick={() => setMobileView('editor')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            mobileView === 'editor'
+              ? 'bg-[#18181B] text-[#BFFF00] shadow border border-white/10'
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <Sliders className="w-3.5 h-3.5" />
+          <span>Editor & Controlli</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView('preview')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            mobileView === 'preview'
+              ? 'bg-[#18181B] text-[#BFFF00] shadow border border-white/10'
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>Anteprima Live Hub</span>
+        </button>
+      </div>
+
       {/* Main Studio Grid: Controls (Left) & Live Smartphone Mockup (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* ========================================================================= */}
         {/* LEFT COLUMN: CONTROLS & CUSTOMIZATION FORMS */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className={`lg:col-span-7 space-y-4 ${mobileView === 'preview' ? 'hidden lg:block' : 'block'}`}>
           
           {/* Studio Navigation Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-[#121214] border border-white/5 rounded-2xl overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 p-1.5 bg-[#121214] border border-white/10 rounded-2xl overflow-x-auto scrollbar-none snap-x snap-mandatory touch-pan-x">
             {[
               { id: 'theme', label: 'Palette & Tema', icon: Palette },
               { id: 'hero', label: 'Tasto Hero', icon: Sparkles },
@@ -421,14 +452,14 @@ export default function CustomHubStudioPage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 snap-start transition-all min-h-[44px] touch-press ${
                     isActive
-                      ? 'bg-[#18181B] text-[#BFFF00] shadow-md border border-white/10'
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-[#1c1d20] text-[#BFFF00] shadow-md border border-[#BFFF00]/30 ring-1 ring-[#BFFF00]/20'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="whitespace-nowrap">{tab.label}</span>
                 </button>
               );
             })}
@@ -510,22 +541,31 @@ export default function CustomHubStudioPage() {
                 <h3 className="text-sm font-bold text-white">Identità & Logo nel Mockup</h3>
 
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                  <div className="shrink-0 relative">
+                  <div className="shrink-0 relative group">
                     {logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={logoUrl}
                         alt="Logo"
-                        className="w-16 h-16 rounded-full object-cover border-2 shadow-lg bg-black"
+                        onError={() => console.warn('Logo image failed to load:', logoUrl)}
+                        className="w-16 h-16 rounded-full object-cover border-2 shadow-lg bg-black transition-all"
                         style={{ borderColor: primaryColor }}
                       />
                     ) : (
                       <div
-                        className="w-16 h-16 rounded-full flex items-center justify-center font-extrabold text-lg shadow-lg text-black"
+                        className="w-16 h-16 rounded-full flex items-center justify-center font-extrabold text-lg shadow-lg text-black transition-all"
                         style={{ backgroundColor: primaryColor }}
                       >
                         <CatIcon className="w-8 h-8" style={{ color: contrastText }} />
                       </div>
+                    )}
+                    {logoUrl && (
+                      <span
+                        className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-[#121413] flex items-center justify-center text-[10px] text-black font-black shadow"
+                        title="Logo attivo"
+                      >
+                        ✓
+                      </span>
                     )}
                     {uploadingLogo && (
                       <div className="absolute inset-0 bg-black/75 rounded-full flex items-center justify-center">
@@ -1011,7 +1051,7 @@ export default function CustomHubStudioPage() {
         {/* ========================================================================= */}
         {/* RIGHT COLUMN: STICKY REAL-TIME SMARTPHONE MOCKUP (Inspired by reference photo) */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-5 flex flex-col items-center sticky top-6">
+        <div className={`lg:col-span-5 flex flex-col items-center sticky top-6 ${mobileView === 'editor' ? 'hidden lg:flex' : 'flex'}`}>
           
           <div className="flex items-center justify-between w-full max-w-[340px] sm:max-w-[360px] px-2 mb-2">
             <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-300">
@@ -1243,6 +1283,35 @@ export default function CustomHubStudioPage() {
 
         </div>
 
+      </div>
+
+      {/* Floating Action Button for Mobile Fast Switching */}
+      <div className="lg:hidden fixed bottom-5 right-5 z-40">
+        {mobileView === 'editor' ? (
+          <button
+            type="button"
+            onClick={() => {
+              setMobileView('preview');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex items-center gap-2 px-4 py-3 rounded-full bg-[#18181B] border border-[#BFFF00]/50 text-[#BFFF00] text-xs font-black shadow-[0_10px_30px_rgba(0,0,0,0.8)] active:scale-95 transition-all touch-press"
+          >
+            <Eye className="w-4 h-4" />
+            <span>Anteprima Live Hub</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setMobileView('editor');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex items-center gap-2 px-4 py-3 rounded-full bg-[#BFFF00] text-black text-xs font-black shadow-[0_10px_30px_rgba(191,255,0,0.3)] active:scale-95 transition-all touch-press"
+          >
+            <Sliders className="w-4 h-4" />
+            <span>Torna all&apos;Editor</span>
+          </button>
+        )}
       </div>
     </div>
   );

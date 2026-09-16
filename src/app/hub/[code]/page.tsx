@@ -56,6 +56,7 @@ interface OrgData {
   logo_url: string | null;
   category: BusinessCategory;
   phone: string | null;
+  whatsapp_number?: string | null;
   website: string | null;
   custom_cta_label: string | null;
   custom_cta_url: string | null;
@@ -263,6 +264,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               logo_url,
               category,
               phone,
+              whatsapp_number,
               website,
               custom_cta_label,
               custom_cta_url,
@@ -1089,7 +1091,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {/* DOCKED BOTTOM NAVIGATION BAR (Inspired by native app bottom dock in photo) */}
       {/* ========================================================================= */}
-      <div className="fixed bottom-3 inset-x-0 max-w-md mx-auto px-4 z-40 pointer-events-none">
+      <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] inset-x-0 max-w-md mx-auto px-4 z-40 pointer-events-none">
         <nav
           aria-label="Navigazione rapida"
           className="pointer-events-auto bg-[#141715]/95 backdrop-blur-2xl border border-white/10 rounded-full px-5 py-2 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)]"
@@ -1399,9 +1401,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               )}
 
               {/* WhatsApp Option */}
-              {org.phone && (
+              {(org.whatsapp_number || org.phone) && (
                 <a
-                  href={`https://wa.me/${org.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                  href={`https://wa.me/${(org.whatsapp_number || org.phone || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
                     `Ciao! Sono al ${device?.name || 'tavolo'} di ${org.name}.`
                   )}`}
                   target="_blank"

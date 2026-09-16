@@ -55,6 +55,7 @@ function SidebarContent({ pathname, onLogout, onNavigate }: SidebarContentProps)
             alt="RIVO"
             width={28}
             height={28}
+            priority
             className="rounded-sm"
           />
           <span className="font-bold text-lg tracking-tight text-white">RIVO</span>
@@ -64,11 +65,12 @@ function SidebarContent({ pathname, onLogout, onNavigate }: SidebarContentProps)
         <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 onClick={onNavigate}
                 className={`flex items-center gap-3 px-3.5 min-h-[44px] rounded-lg text-sm font-medium transition-all active:scale-[0.98] ${
                   isActive
@@ -183,6 +185,7 @@ export default function DashboardLayout({
                 alt="RIVO"
                 width={22}
                 height={22}
+                priority
                 className="rounded-sm"
               />
               <span className="font-bold text-sm tracking-tight text-white">RIVO</span>
