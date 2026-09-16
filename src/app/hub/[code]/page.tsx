@@ -430,7 +430,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#0c0f0d] text-white flex flex-col justify-between overflow-x-hidden relative selection:bg-white selection:text-black">
+    <div className="min-h-screen min-h-dvh bg-[#0c0f0d] text-white flex flex-col justify-between relative selection:bg-white selection:text-black">
       {/* Ambient background soft glow based on activity's primary color */}
       <div
         className="fixed top-0 left-1/2 -translate-x-1/2 w-[340px] sm:w-[520px] h-[240px] blur-[140px] rounded-full pointer-events-none opacity-25"

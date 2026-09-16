@@ -131,7 +131,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="flex min-h-screen bg-[#09090B] overflow-x-hidden">
+    <div className="flex min-h-screen min-h-dvh bg-[#09090B]">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 border-r border-[#27272A] flex-col justify-between p-4 bg-[#0D0D10] shrink-0 fixed inset-y-0 left-0 z-30">
         <SidebarContent pathname={pathname} onLogout={handleLogout} />
@@ -165,7 +165,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden lg:ml-64">
+      <main className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Header */}
         <header className="h-14 lg:h-16 border-b border-[#27272A] px-3 sm:px-5 lg:px-6 flex items-center justify-between bg-[#09090B]/90 backdrop-blur shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -200,7 +200,7 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <div className="p-3 sm:p-5 md:p-6 lg:p-7 max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
+        <div className="p-3 sm:p-5 md:p-6 lg:p-7 max-w-7xl w-full mx-auto min-w-0">
           {children}
         </div>
       </main>
