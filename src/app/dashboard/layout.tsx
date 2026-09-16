@@ -113,14 +113,19 @@ export default function DashboardLayout({
     setSidebarOpen(false);
   }, []);
 
-  // Prevent body scroll when sidebar is open on mobile
+  // Prevent body/window scroll when mobile sidebar drawer is open
   useEffect(() => {
     if (sidebarOpen) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, [sidebarOpen]);
 
   const handleLogout = async () => {
@@ -133,14 +138,14 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen min-h-dvh bg-[#09090B]">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-[#27272A] flex-col justify-between p-4 bg-[#0D0D10] shrink-0 fixed inset-y-0 left-0 z-30">
+      <aside className="hidden lg:flex w-64 border-r border-[#27272A] flex-col justify-between p-4 bg-[#0D0D10] shrink-0 fixed inset-y-0 left-0 z-30 overflow-y-auto overscroll-contain">
         <SidebarContent pathname={pathname} onLogout={handleLogout} />
       </aside>
 
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 gpu-layer"
+          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 gpu-layer touch-none"
           onClick={closeSidebar}
           aria-hidden="true"
         />
@@ -148,7 +153,7 @@ export default function DashboardLayout({
 
       {/* Mobile Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#0D0D10] border-r border-[#27272A] flex flex-col justify-between p-4 transform transition-transform duration-300 ease-out will-change-transform gpu-layer lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] h-full max-h-screen max-h-dvh bg-[#0D0D10] border-r border-[#27272A] flex flex-col justify-between p-4 overflow-y-auto overscroll-contain touch-pan-y transform transition-transform duration-300 ease-out will-change-transform gpu-layer lg:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Menu di navigazione mobile"
@@ -157,7 +162,7 @@ export default function DashboardLayout({
         <button
           onClick={closeSidebar}
           aria-label="Chiudi menu"
-          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-[#18181B] active:scale-95 transition-all touch-press"
+          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-[#18181B] active:scale-95 transition-all touch-press z-10"
         >
           <X className="w-5 h-5" />
         </button>
