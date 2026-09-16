@@ -72,6 +72,7 @@ export interface Organization {
   wifi_password?: string | null;
   ai_menu_context?: string | null;
   loyalty_reward_text?: string | null;
+  primary_color?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { 
   Save, 
@@ -24,8 +25,11 @@ import {
   Image as ImageIcon,
   Trash2,
   Loader2,
-  ArrowUpRight
+  ArrowUpRight,
+  Palette,
+  Smartphone,
 } from 'lucide-react';
+import { HUB_COLOR_PRESETS } from '@/lib/palettes';
 import { BusinessCategory, HubMode } from '@/lib/types';
 import { CATEGORIES, getCategoryDefinition } from '@/lib/categories';
 
@@ -44,6 +48,9 @@ export default function ProfilePage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoSuccess, setLogoSuccess] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
+
+  // Hub Color Theme State
+  const [primaryColor, setPrimaryColor] = useState('#B4F02A');
 
   // Form Fields
   const [name, setName] = useState('');
@@ -142,6 +149,7 @@ export default function ProfilePage() {
         setWifiSsid(org.wifi_ssid || '');
         setWifiPassword(org.wifi_password || '');
         setAiMenuContext(org.ai_menu_context || '');
+        setPrimaryColor(org.primary_color || '#B4F02A');
       }
     } catch (err) {
       console.error('Error loading profile data:', err);
@@ -248,6 +256,7 @@ export default function ProfilePage() {
           wifi_ssid: wifiSsid.trim() || null,
           wifi_password: wifiPassword.trim() || null,
           ai_menu_context: aiMenuContext.trim() || null,
+          primary_color: primaryColor,
           updated_at: new Date().toISOString(),
         })
         .eq('id', orgId);
@@ -284,6 +293,35 @@ export default function ProfilePage() {
           Personalizza le informazioni aziendali, il filtro recensioni e il routing orario intelligente (Menù Pranzo vs Google Reviews).
         </p>
       </div>
+
+      {/* Callout Banner to Custom Hub Studio */}
+      <Link
+        href="/dashboard/custom-hub"
+        className="group flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-[#BFFF00]/15 via-[#18181B] to-[#121214] border border-[#BFFF00]/30 hover:border-[#BFFF00] transition-all shadow-lg active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-[#BFFF00] text-black flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform">
+            <Smartphone className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-extrabold text-white group-hover:text-[#BFFF00] transition-colors">
+                Personalizza il tuo Custom Hub NFC
+              </span>
+              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#BFFF00]/20 text-[#BFFF00] font-bold">
+                Nuovo Studio
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Modifica palette, pulsanti e servizi con l&apos;anteprima live su mockup smartphone in tempo reale.
+            </p>
+          </div>
+        </div>
+        <div className="hidden sm:flex items-center gap-1 text-xs font-bold text-[#BFFF00] group-hover:translate-x-1 transition-transform">
+          <span>Apri Custom Hub</span>
+          <ArrowUpRight className="w-4 h-4" />
+        </div>
+      </Link>
 
       <form onSubmit={handleSave} className="space-y-6">
         {saved && (
@@ -403,6 +441,81 @@ export default function ProfilePage() {
                   />
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* PALETTE COLORI & TEMA UNIVERSAL HUB */}
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#18181B] to-[#121214] p-5 sm:p-6 space-y-4 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Palette className="w-5 h-5 text-[#BFFF00]" />
+                <span>Palette Colori & Tema Hub</span>
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Scegli in autonomia il colore guida del tuo Hub cliente. Si applica istantaneamente su pulsanti, icone e bagliori del tuo tag NFC/QR.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-xl bg-black/50 border border-white/10">
+              <span className="text-[11px] text-zinc-400">Colore attivo:</span>
+              <div
+                className="w-4 h-4 rounded-full border border-white/30 shadow-sm"
+                style={{ backgroundColor: primaryColor }}
+              />
+              <span className="font-mono text-xs font-bold text-white uppercase">{primaryColor}</span>
+            </div>
+          </div>
+
+          {/* Preset Palettes */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 pt-1">
+            {HUB_COLOR_PRESETS.map((p) => {
+              const isSelected = primaryColor.toUpperCase() === p.primary.toUpperCase();
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPrimaryColor(p.primary)}
+                  className={`p-3 rounded-2xl border flex flex-col items-center gap-2 text-center transition-all ${
+                    isSelected
+                      ? 'bg-white/10 border-white text-white shadow-xl ring-2 ring-white/40 scale-[1.03]'
+                      : 'bg-[#141416] border-white/5 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                  }`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full shadow-lg border border-white/20 flex items-center justify-center transition-transform"
+                    style={{ backgroundColor: p.primary }}
+                  >
+                    {isSelected && <Check className="w-4 h-4 text-black drop-shadow font-extrabold stroke-[3]" />}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold block text-white">{p.name}</span>
+                    <span className="text-[10px] text-zinc-500 line-clamp-1">{p.description}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Custom Hex Color Picker */}
+          <div className="pt-3 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span>Oppure seleziona un colore su misura:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={primaryColor.startsWith('#') ? primaryColor : '#B4F02A'}
+                onChange={(e) => setPrimaryColor(e.target.value)}
+                className="w-9 h-9 rounded-xl cursor-pointer bg-transparent border-0 p-0"
+              />
+              <input
+                type="text"
+                value={primaryColor}
+                onChange={(e) => setPrimaryColor(e.target.value)}
+                placeholder="#B4F02A"
+                className="w-28 min-h-[38px] bg-[#141416] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white font-mono uppercase focus:outline-none focus:border-white"
+              />
             </div>
           </div>
         </div>

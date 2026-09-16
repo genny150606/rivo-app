@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Smartphone } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import AddDeviceModal from '@/components/admin/AddDeviceModal';
 import CopyTrackingButtons from '@/components/ui/CopyTrackingButtons';
@@ -52,6 +52,7 @@ export default async function AdminOrgDetailPage({
   const locList = (locations || []) as LocationItem[];
   const devList = (devices || []) as unknown as DeviceItem[];
   const totalTaps = (interactions || []).length;
+  const sampleDevice = devList.find(d => d.status === 'active') || devList[0];
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl">
@@ -67,9 +68,23 @@ export default async function AdminOrgDetailPage({
             <h1 className="text-2xl font-bold tracking-tight text-white mb-1">{org.name}</h1>
             <p className="text-xs text-zinc-500 font-mono break-all">slug: {org.slug} • id: {org.id}</p>
           </div>
-          <span className="px-2.5 py-1 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase self-start sm:self-auto">
-            {org.status}
-          </span>
+          <div className="flex items-center gap-2.5">
+            {sampleDevice && (
+              <a
+                href={`/hub/${sampleDevice.unique_code}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[#BFFF00] border border-[#BFFF00]/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Visualizza Custom Hub</span>
+                <ExternalLink className="w-3 h-3 text-zinc-400" />
+              </a>
+            )}
+            <span className="px-2.5 py-1 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase self-start sm:self-auto">
+              {org.status}
+            </span>
+          </div>
         </div>
       </div>
 

@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       wifiPassword,
       aiMenuContext,
       loyaltyRewardText,
+      primaryColor,
       locationName,
       address,
       city,
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
         wifi_password: wifiPassword || null,
         ai_menu_context: aiMenuContext || null,
         loyalty_reward_text: loyaltyRewardText || null,
+        primary_color: primaryColor || '#B4F02A',
         review_shield_enabled: true,
         status: 'active',
       })

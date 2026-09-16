@@ -18,12 +18,14 @@ import {
   BellRing,
   Gift,
   Award,
-  Users
+  Users,
+  Smartphone
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 const navItems = [
   { label: 'Overview', href: '/dashboard', icon: BarChart3 },
+  { label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone },
   { label: 'Analytics', href: '/dashboard/analytics', icon: Radio },
   { label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing },
   { label: 'Review Shield', href: '/dashboard/reviews', icon: Star },

@@ -33,6 +33,7 @@ function InstagramIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   );
 }
 import Link from 'next/link';
+import { HUB_COLOR_PRESETS } from '@/lib/palettes';
 import { 
   CATEGORIES, 
   CATEGORY_GROUPS, 
@@ -69,6 +70,7 @@ export default function NewOrganizationWizard() {
 
   // Form State - Step 3: Esperienza Hub & Servizi In-Store
   const [hubMode, setHubMode] = useState<'hub' | 'shield' | 'smart_routing' | 'direct'>('hub');
+  const [primaryColor, setPrimaryColor] = useState('#B4F02A');
   const [customCtaLabel, setCustomCtaLabel] = useState('Consulta Menù Digitale');
   const [customCtaUrl, setCustomCtaUrl] = useState('');
   const [wifiSsid, setWifiSsid] = useState('');
@@ -161,6 +163,7 @@ export default function NewOrganizationWizard() {
           wifiPassword,
           aiMenuContext,
           loyaltyRewardText,
+          primaryColor,
           locationName,
           address,
           city,
@@ -594,6 +597,73 @@ export default function NewOrganizationWizard() {
                     <span className="text-[11px] text-zinc-500 leading-snug block">{mode.desc}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Palette Colori Hub */}
+            <div className="p-4 rounded-xl bg-[#18181B]/80 border border-[#27272A] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-zinc-200 font-semibold text-xs uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4 text-[#BFFF00]" /> Palette Colori & Tema Hub
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-zinc-400">Colore attivo:</span>
+                  <div
+                    className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                    style={{ backgroundColor: primaryColor }}
+                  />
+                  <span className="font-mono text-xs text-white uppercase">{primaryColor}</span>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Personalizza l&apos;accento cromatico dell&apos;Hub cliente (tasto hero, icone, pulsante chiamata e bagliori).
+              </p>
+
+              {/* Color Presets Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1">
+                {HUB_COLOR_PRESETS.map((p) => {
+                  const isSelected = primaryColor.toUpperCase() === p.primary.toUpperCase();
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPrimaryColor(p.primary)}
+                      className={`p-2.5 rounded-xl border flex flex-col items-center gap-1.5 text-center transition-all ${
+                        isSelected
+                          ? 'bg-white/10 border-white text-white shadow-lg ring-1 ring-white/50 scale-[1.02]'
+                          : 'bg-[#121214] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div
+                        className="w-7 h-7 rounded-full shadow-md border border-white/20 flex items-center justify-center transition-transform"
+                        style={{ backgroundColor: p.primary }}
+                      >
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-black drop-shadow" />}
+                      </div>
+                      <span className="text-[11px] font-bold truncate max-w-full">{p.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Hex Input */}
+              <div className="flex items-center gap-3 pt-2 border-t border-zinc-800">
+                <label className="text-xs text-zinc-400 shrink-0">Colore Personalizzato (HEX):</label>
+                <div className="flex items-center gap-2 max-w-xs">
+                  <input
+                    type="color"
+                    value={primaryColor.startsWith('#') ? primaryColor : '#B4F02A'}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0 p-0"
+                  />
+                  <input
+                    type="text"
+                    value={primaryColor}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    placeholder="#B4F02A"
+                    className="w-28 min-h-[36px] bg-[#121214] border border-[#27272A] rounded-lg px-2.5 py-1 text-xs text-white font-mono uppercase focus:outline-none focus:border-[#BFFF00]"
+                  />
+                </div>
               </div>
             </div>
 
