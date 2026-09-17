@@ -2,8 +2,19 @@
 
 @layer base {
   :root {
+    --background: #f4f4f5;
+    --foreground: #09090b;
+    --scrollbar-track: #f4f4f5;
+    --scrollbar-thumb: #d4d4d8;
+    --scrollbar-thumb-hover: #a1a1aa;
+  }
+
+  .dark {
     --background: #09090b;
     --foreground: #f4f4f5;
+    --scrollbar-track: #09090b;
+    --scrollbar-thumb: #27272a;
+    --scrollbar-thumb-hover: #3f3f46;
   }
 }
 
@@ -14,14 +25,15 @@ html {
 }
 
 body {
-  background-color: #09090b;
-  color: #f4f4f5;
+  background-color: var(--background);
+  color: var(--foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-tap-highlight-color: transparent;
   overflow-x: clip;
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 /* Safe area for notched devices */
@@ -77,20 +89,37 @@ body {
   }
 }
 
-/* Custom scrollbar */
+/* =========================================================
+   UNIVERSAL SCROLLBARS (Firefox & Webkit / Chrome / Safari / Edge)
+   ========================================================= */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: var(--scrollbar-track);
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 1.5px solid var(--scrollbar-track);
+  background-clip: padding-box;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* =========================================================
