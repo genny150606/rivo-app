@@ -430,12 +430,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#0c0f0d] text-white flex flex-col justify-between relative selection:bg-white selection:text-black">
-      {/* Ambient background soft glow based on activity's primary color */}
-      <div
-        className="fixed top-0 left-1/2 -translate-x-1/2 w-[340px] sm:w-[520px] h-[240px] blur-[140px] rounded-full pointer-events-none opacity-25"
-        style={{ backgroundColor: primaryColor }}
-      />
+    <div className="min-h-screen min-h-dvh bg-[#0c0f0d] text-white flex flex-col justify-between relative selection:bg-white selection:text-black overflow-x-hidden">
+      {/* Dynamic Ambient Aurora Glow Mesh (60/120fps GPU-accelerated) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div
+          className="absolute -top-16 left-1/2 -translate-x-1/2 w-[340px] sm:w-[520px] h-[300px] rounded-full blur-[130px] animate-ambient-drift-1"
+          style={{ backgroundColor: primaryColor }}
+        />
+        <div
+          className="absolute top-1/4 -right-12 w-[220px] sm:w-[320px] h-[260px] rounded-full blur-[120px] animate-ambient-drift-2"
+          style={{ backgroundColor: `${primaryColor}85` }}
+        />
+      </div>
 
       {/* Share Toast Notification */}
       {sharedNotification && (
@@ -454,18 +460,23 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         <header className="animate-nfc-stagger-1 flex items-center justify-between gap-3 pt-0.5">
           {/* Left: Avatar / Logo + Business Name */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="shrink-0 relative">
+            <div className="shrink-0 relative group">
+              {/* Breathing Halo Glow Ring */}
+              <div
+                className="absolute -inset-1 rounded-full blur-xs opacity-70 animate-pulse pointer-events-none"
+                style={{ backgroundColor: primaryColor }}
+              />
               {org.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={org.logo_url}
                   alt={org.name}
-                  className="w-11 h-11 rounded-full object-cover border-2 shadow-md bg-black"
+                  className="relative w-11 h-11 rounded-full object-cover border-2 shadow-lg bg-black transition-transform duration-300 group-hover:scale-105"
                   style={{ borderColor: primaryColor }}
                 />
               ) : (
                 <div
-                  className="w-11 h-11 rounded-full flex items-center justify-center shadow-md text-black font-bold"
+                  className="relative w-11 h-11 rounded-full flex items-center justify-center shadow-lg text-black font-bold transition-transform duration-300 group-hover:scale-105"
                   style={{ backgroundColor: primaryColor }}
                 >
                   <CatIcon className="w-5 h-5" style={{ color: contrastText }} />
@@ -557,14 +568,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   '--hero-glow-strong-2': `${primaryColor}40`,
                 } as React.CSSProperties}
               >
+                {/* Continuous Diagonal Mirror Shimmer Beam */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+                </div>
                 {/* Luminous breath overlay */}
                 <div
                   className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
                 />
-                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <UtensilsCrossed className="w-5 h-5" style={{ color: contrastText }} />
+                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative z-10">
+                  <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
                 </div>
-                <div>
+                <div className="relative z-10">
                   <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-tight leading-none mb-1">
                     Menù Digitale
                   </h3>
@@ -577,12 +592,12 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 2: CHIAMA SALA */}
               <Link
                 href={`/call/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
               >
                 <div
                   className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"
                 >
-                  <BellRing className="w-5 h-5" style={{ color: primaryColor }} />
+                  <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
@@ -597,10 +612,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 3: AI SOMMELIER */}
               <Link
                 href={`/ai-sommelier/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
               >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative">
                   <Wine className="w-5 h-5" style={{ color: primaryColor }} />
+                  <Sparkles className="w-2.5 h-2.5 absolute top-1 right-1 text-amber-300 animate-pulse" />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
@@ -615,10 +631,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 4: WI-FI OSPITI */}
               <Link
                 href={`/wifi/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
+                  <Wifi className="w-5 h-5 animate-pulse" style={{ color: primaryColor }} />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
@@ -633,10 +649,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 5: RUOTA PREMI */}
               <Link
                 href={`/wheel/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
+                  <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
@@ -817,14 +833,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   '--hero-glow-strong-2': `${primaryColor}40`,
                 } as React.CSSProperties}
               >
+                {/* Continuous Diagonal Mirror Shimmer Beam */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+                </div>
                 {/* Luminous breath overlay */}
                 <div
                   className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
                 />
-                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <BellRing className="w-5 h-5" style={{ color: contrastText }} />
+                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative z-10">
+                  <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: contrastText }} />
                 </div>
-                <div>
+                <div className="relative z-10">
                   <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-tight leading-none mb-1">
                     Reception H24
                   </h3>
@@ -928,14 +948,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   '--hero-glow-strong-2': `${primaryColor}40`,
                 } as React.CSSProperties}
               >
+                {/* Continuous Diagonal Mirror Shimmer Beam */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+                </div>
                 {/* Luminous breath overlay */}
                 <div
                   className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
                 />
-                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <CatIcon className="w-5 h-5" style={{ color: contrastText }} />
+                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative z-10">
+                  <CatIcon className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
                 </div>
-                <div>
+                <div className="relative z-10">
                   <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-tight leading-none mb-1 truncate max-w-full">
                     {org.custom_cta_label || 'Servizi'}
                   </h3>
@@ -1101,14 +1125,17 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     onMouseEnter={() => setRatingHover(star)}
                     onMouseLeave={() => setRatingHover(null)}
                     onClick={() => handleRatingClick(star)}
-                    className="touch-press p-1 transition-transform hover:scale-125 active:scale-95 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    className="touch-press p-1 transition-transform hover:scale-125 active:scale-90 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center relative"
                     aria-label={`Vota ${star} stelle`}
                   >
                     <Star
+                      style={{
+                        animationDelay: isFilled ? '0ms' : `${(star - 1) * 220}ms`,
+                      }}
                       className={`w-7 h-7 sm:w-8 sm:h-8 transition-all ${
                         isFilled
-                          ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)] scale-110'
-                          : 'text-zinc-600 fill-zinc-800/40'
+                          ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.7)] scale-115 animate-star-pop'
+                          : 'text-zinc-600 fill-zinc-800/40 animate-star-twinkle'
                       }`}
                     />
                   </button>
@@ -1175,14 +1202,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           <Link
             href={`/call/${code}`}
             aria-label="Chiama Sala Rapido"
-            className="touch-press active:scale-95 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-2xl relative group"
+            className="touch-press active:scale-90 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-2xl relative group"
             style={{
               backgroundColor: primaryColor,
               color: contrastText,
-              boxShadow: `0 6px 25px ${primaryColor}55`,
+              boxShadow: `0 6px 25px ${primaryColor}65`,
             }}
           >
-            <BellRing className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            {/* Ambient radar pulse ring */}
+            <span
+              className="absolute inset-0 rounded-full animate-fab-pulse-ring pointer-events-none"
+              style={{ backgroundColor: primaryColor }}
+            />
+            <BellRing className="w-5 h-5 relative z-10 animate-bell-swing origin-top" />
           </Link>
 
           {/* Info & Assistenza */}
