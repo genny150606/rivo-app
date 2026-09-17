@@ -75,6 +75,8 @@ import {
   HUB_CARD_STYLE_OPTIONS,
   HubCardStyle,
   HubModuleConfig,
+  getBorderRadiusClass,
+  getBorderRadiusStyle,
 } from '@/lib/hub-config';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -920,11 +922,12 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           title="Tocca per riprodurre l'animazione di connessione NFC"
           className={`${
             nfcPhase === 'assembling' ? 'animate-assemble-badge' : 'animate-nfc-stagger-2'
-          } w-full text-left touch-press active:scale-[0.98] flex items-center justify-between px-3.5 py-2 rounded-2xl backdrop-blur-md shadow-sm transition-all cursor-pointer ${
+          } w-full text-left touch-press active:scale-[0.98] flex items-center justify-between px-3.5 py-2 ${getBorderRadiusClass(activeConfig.borderRadius)} backdrop-blur-md shadow-sm transition-all cursor-pointer ${
             isLight
               ? 'bg-white/90 border border-slate-200/90 text-slate-800 hover:bg-slate-50'
               : 'bg-[#141715]/90 border border-white/[0.08] text-white hover:bg-[#1a1d1b]'
           }`}
+          style={getBorderRadiusStyle(activeConfig.borderRadius)}
         >
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Pulsing emerald dot (animate-ping + solid dot) */}
@@ -945,7 +948,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
+          <div
+            className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0`}
+            style={getBorderRadiusStyle(activeConfig.borderRadius)}
+          >
             <Zap className="w-2.5 h-2.5 animate-pulse" />
             <span>{activeConfig.tableLiveTag || 'NFC LIVE'}</span>
           </div>
@@ -962,7 +968,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               rel="noopener noreferrer"
               className={`${
                 nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
-              } animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left`}
+              } animate-hero-glow touch-press active:scale-[0.98] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
@@ -971,10 +977,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 '--hero-glow-2': `${primaryColor}20`,
                 '--hero-glow-strong-1': `${primaryColor}65`,
                 '--hero-glow-strong-2': `${primaryColor}40`,
+                ...getBorderRadiusStyle(activeConfig.borderRadius),
               } as React.CSSProperties}
             >
               {/* Continuous Diagonal Mirror Shimmer Beam */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+              <div
+                className={`absolute inset-0 pointer-events-none overflow-hidden ${getBorderRadiusClass(activeConfig.borderRadius)}`}
+                style={getBorderRadiusStyle(activeConfig.borderRadius)}
+              >
                 <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
               </div>
               {/* Luminous breath overlay */}
@@ -982,7 +992,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
               <div className="relative z-10 flex-1 min-w-0 pr-3">
                 {activeConfig.hero.badgeText && (
-                  <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full bg-black/20 mb-1.5">
+                  <div
+                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/20 mb-1.5`}
+                    style={getBorderRadiusStyle(activeConfig.borderRadius)}
+                  >
                     <Sparkles className="w-2.5 h-2.5" />
                     <span>{activeConfig.hero.badgeText}</span>
                   </div>
@@ -996,7 +1009,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </div>
 
               <div className="relative z-10 shrink-0 flex items-center gap-2">
-                <div className="w-11 h-11 rounded-2xl bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div
+                  className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform`}
+                  style={getBorderRadiusStyle(activeConfig.borderRadius)}
+                >
                   <ExternalLink className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
                 </div>
               </div>
@@ -1007,7 +1023,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               onClick={() => setShowMenuModal(true)}
               className={`${
                 nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
-              } animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer`}
+              } animate-hero-glow touch-press active:scale-[0.98] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
@@ -1016,10 +1032,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 '--hero-glow-2': `${primaryColor}20`,
                 '--hero-glow-strong-1': `${primaryColor}65`,
                 '--hero-glow-strong-2': `${primaryColor}40`,
+                ...getBorderRadiusStyle(activeConfig.borderRadius),
               } as React.CSSProperties}
             >
               {/* Continuous Diagonal Mirror Shimmer Beam */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+              <div
+                className={`absolute inset-0 pointer-events-none overflow-hidden ${getBorderRadiusClass(activeConfig.borderRadius)}`}
+                style={getBorderRadiusStyle(activeConfig.borderRadius)}
+              >
                 <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
               </div>
               {/* Luminous breath overlay */}
@@ -1027,7 +1047,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
               <div className="relative z-10 flex-1 min-w-0 pr-3">
                 {activeConfig.hero.badgeText && (
-                  <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full bg-black/20 mb-1.5">
+                  <div
+                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/20 mb-1.5`}
+                    style={getBorderRadiusStyle(activeConfig.borderRadius)}
+                  >
                     <Sparkles className="w-2.5 h-2.5" />
                     <span>{activeConfig.hero.badgeText}</span>
                   </div>
@@ -1041,7 +1064,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </div>
 
               <div className="relative z-10 shrink-0 flex items-center gap-2">
-                <div className="w-11 h-11 rounded-2xl bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div
+                  className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform`}
+                  style={getBorderRadiusStyle(activeConfig.borderRadius)}
+                >
                   <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
                 </div>
               </div>
@@ -1125,19 +1151,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <>
                 <div className="flex items-start justify-between w-full mb-2">
                   <div
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative ${
+                    className={`w-10 h-10 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center group-hover:scale-110 transition-transform relative ${
                       isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.05] border border-white/5'
                     }`}
+                    style={getBorderRadiusStyle(activeConfig.borderRadius)}
                   >
                     {renderModuleIcon()}
                   </div>
                   {mod.badge && (
                     <span
-                      className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                      className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)}`}
                       style={{
                         backgroundColor: `${primaryColor}20`,
                         color: primaryColor,
                         border: `1px solid ${primaryColor}35`,
+                        ...getBorderRadiusStyle(activeConfig.borderRadius),
                       }}
                     >
                       {mod.badge}
@@ -1178,21 +1206,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 ? 'animate-nfc-stagger-3'
                 : 'animate-nfc-stagger-4';
 
-            const cardRadiusClass =
-              activeConfig.borderRadius === 'full'
-                ? 'rounded-full'
-                : activeConfig.borderRadius === 'none'
-                ? 'rounded-none'
-                : activeConfig.borderRadius === 'md'
-                ? 'rounded-xl'
-                : activeConfig.borderRadius === '3xl'
-                ? 'rounded-3xl'
-                : 'rounded-2xl';
+            const cardRadiusClass = getBorderRadiusClass(activeConfig.borderRadius);
+            const cardRadiusStyle = getBorderRadiusStyle(activeConfig.borderRadius);
 
             const cardClassName = `${cardSpanClass} ${cardAnimClass} touch-press active:scale-95 ${cardRadiusClass} p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all group relative overflow-hidden ${cardBaseClass}`;
 
             const moduleCardStyle: React.CSSProperties = {
               ...cardCustomStyle,
+              ...cardRadiusStyle,
               ...(mod.cardColor ? { borderColor: `${mod.cardColor}50` } : {}),
             };
 
@@ -1393,7 +1414,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               href={org.custom_cta_url!}
               target="_blank"
               rel="noopener noreferrer"
-              className={`touch-press group relative block rounded-3xl border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden ${
+              className={`touch-press group relative block ${getBorderRadiusClass(activeConfig.borderRadius)} border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden ${
                 isLight ? 'bg-white border-slate-200' : 'border-white/10'
               }`}
               style={{
@@ -1401,13 +1422,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 background: isLight
                   ? `linear-gradient(135deg, ${primaryColor}15 0%, #ffffff 100%)`
                   : `linear-gradient(135deg, ${primaryColor}20 0%, #161816 100%)`,
+                ...getBorderRadiusStyle(activeConfig.borderRadius),
               }}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <span
-                    className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full mb-1"
-                    style={{ backgroundColor: `${primaryColor}25`, color: primaryColor }}
+                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} mb-1`}
+                    style={{
+                      backgroundColor: `${primaryColor}25`,
+                      color: primaryColor,
+                      ...getBorderRadiusStyle(activeConfig.borderRadius),
+                    }}
                   >
                     <Sparkles className="w-2.5 h-2.5" /> In Evidenza
                   </span>
@@ -1416,8 +1442,12 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   </h3>
                 </div>
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md"
-                  style={{ backgroundColor: primaryColor, color: contrastText }}
+                  className={`w-8 h-8 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md`}
+                  style={{
+                    backgroundColor: primaryColor,
+                    color: contrastText,
+                    ...getBorderRadiusStyle(activeConfig.borderRadius),
+                  }}
                 >
                   <ExternalLink className="w-4 h-4" />
                 </div>
@@ -1427,12 +1457,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
           {/* Interactive Review Shield Banner */}
           <div
-            className={`rounded-3xl border p-4 shadow-xl relative overflow-hidden ${
+            className={`${getBorderRadiusClass(activeConfig.borderRadius)} border p-4 shadow-xl relative overflow-hidden ${
               isLight
                 ? 'bg-white border-slate-200'
                 : 'border-white/[0.08] bg-gradient-to-b from-[#181b19] to-[#121413]'
             }`}
-            style={{ boxShadow: `0 8px 30px ${primaryColor}12` }}
+            style={{
+              boxShadow: `0 8px 30px ${primaryColor}12`,
+              ...getBorderRadiusStyle(activeConfig.borderRadius),
+            }}
           >
             <div className="flex items-center justify-between mb-2">
               <div className={`flex items-center gap-2 text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -1444,9 +1477,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {/* 5 Stars Rating Bar */}
             <div
-              className={`flex items-center justify-around py-1.5 rounded-2xl border ${
+              className={`flex items-center justify-around py-1.5 ${getBorderRadiusClass(activeConfig.borderRadius)} border ${
                 isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/5'
               }`}
+              style={getBorderRadiusStyle(activeConfig.borderRadius)}
             >
               {[1, 2, 3, 4, 5].map((star) => {
                 const isFilled =

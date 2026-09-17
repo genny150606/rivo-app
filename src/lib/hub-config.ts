@@ -1,7 +1,8 @@
+import type { CSSProperties } from 'react';
 import { BusinessCategory } from './types';
 import { DEFAULT_HUB_COLOR } from './palettes';
 
-export type HubFontFamily = 'outfit' | 'inter' | 'playfair' | 'syne' | 'jakarta' | 'cinzel' | 'dm_sans';
+export type HubFontFamily = 'outfit' | 'inter' | 'playfair' | 'syne' | 'jakarta' | 'cinzel' | 'dm_sans' | 'space_grotesk' | 'plus_jakarta';
 export type HubThemeMode = 'dark' | 'midnight' | 'warm_charcoal' | 'minimal_light';
 export type HubCardStyle = 'glass' | 'solid' | 'bordered' | 'neon';
 
@@ -43,7 +44,21 @@ export const HUB_FONT_OPTIONS: HubFontOption[] = [
     sample: 'Vibes & Cocktail Bar',
   },
   {
+    id: 'space_grotesk',
+    name: 'Space Grotesk',
+    category: 'Cyberpunk & Tech',
+    cssFamily: "'Space Grotesk', 'Syne', var(--font-geist-sans), sans-serif",
+    sample: 'Futuro & Innovazione Digitale',
+  },
+  {
     id: 'jakarta',
+    name: 'Plus Jakarta',
+    category: 'Minimal & Fresco',
+    cssFamily: "'Plus Jakarta Sans', var(--font-geist-sans), sans-serif",
+    sample: 'Bistrot Contemporaneo',
+  },
+  {
+    id: 'plus_jakarta',
     name: 'Plus Jakarta',
     category: 'Minimal & Fresco',
     cssFamily: "'Plus Jakarta Sans', var(--font-geist-sans), sans-serif",
@@ -574,4 +589,38 @@ export function mergeHubConfig(
 
 export function resetToDefaultHubConfig(category: BusinessCategory = 'restaurant'): HubConfig {
   return JSON.parse(JSON.stringify(getDefaultHubConfig(category)));
+}
+
+export function getBorderRadiusClass(radius?: HubConfig['borderRadius']): string {
+  switch (radius) {
+    case 'none':
+      return 'rounded-none';
+    case 'md':
+      return 'rounded-xl';
+    case '2xl':
+      return 'rounded-2xl';
+    case '3xl':
+      return 'rounded-3xl';
+    case 'full':
+      return 'rounded-full';
+    default:
+      return 'rounded-2xl';
+  }
+}
+
+export function getBorderRadiusStyle(radius?: HubConfig['borderRadius']): CSSProperties {
+  switch (radius) {
+    case 'none':
+      return { borderRadius: '0px' };
+    case 'md':
+      return { borderRadius: '12px' };
+    case '2xl':
+      return { borderRadius: '20px' };
+    case '3xl':
+      return { borderRadius: '28px' };
+    case 'full':
+      return { borderRadius: '9999px' };
+    default:
+      return { borderRadius: '20px' };
+  }
 }

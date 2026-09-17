@@ -55,7 +55,15 @@ import {
   CalendarCheck,
   Layers,
   Type,
+  Zap,
+  Share2,
+  Search,
 } from 'lucide-react';
+import {
+  CommunityHubTemplate,
+  getCommunityHubTemplates,
+  shareHubToCatalog,
+} from '@/lib/community-catalog';
 import { HUB_COLOR_PRESETS, DEFAULT_HUB_COLOR, getContrastColor } from '@/lib/palettes';
 import { BusinessCategory } from '@/lib/types';
 import { getCategoryDefinition } from '@/lib/categories';
@@ -73,6 +81,8 @@ import {
   HubThemeMode,
   HubCardStyle,
   HubModuleId,
+  getBorderRadiusClass,
+  getBorderRadiusStyle,
 } from '@/lib/hub-config';
 
 interface DeviceOption {
@@ -126,6 +136,67 @@ export default function CustomHubStudioPage() {
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [conceptExplanation, setConceptExplanation] = useState<string>('');
+
+  // Community Hub Catalog State
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [showShareCatalogModal, setShowShareCatalogModal] = useState(false);
+  const [catalogTemplates, setCatalogTemplates] = useState<CommunityHubTemplate[]>(() => getCommunityHubTemplates());
+  const [catalogFilter, setCatalogFilter] = useState<string>('all');
+  const [catalogSearch, setCatalogSearch] = useState<string>('');
+  const [catalogAppliedToast, setCatalogAppliedToast] = useState<string | null>(null);
+
+  // Share to Catalog Form State
+  const [shareTplName, setShareTplName] = useState('');
+  const [shareTplAuthor, setShareTplAuthor] = useState('');
+  const [shareTplStyle, setShareTplStyle] = useState('Luxury & Fine Dining');
+  const [shareTplDesc, setShareTplDesc] = useState('');
+  const [shareSubmitting, setShareSubmitting] = useState(false);
+  const [shareSuccessToast, setShareSuccessToast] = useState(false);
+
+  const handleApplyTemplate = (tpl: CommunityHubTemplate) => {
+    setHubConfig(tpl.config);
+    setShimmerKey((k) => k + 1);
+    setIsShimmering(true);
+    setTimeout(() => setIsShimmering(false), 1400);
+    setCatalogAppliedToast(`Template "${tpl.name}" applicato! Clicca su "Salva Modifiche" per pubblicarlo.`);
+    setTimeout(() => setCatalogAppliedToast(null), 4500);
+    setShowCatalogModal(false);
+  };
+
+  const handleShareCurrentHub = async () => {
+    if (!shareTplName.trim()) return;
+    setShareSubmitting(true);
+    try {
+      const newTpl = await shareHubToCatalog({
+        name: shareTplName.trim(),
+        author: shareTplAuthor.trim() || name || 'Community Creator',
+        category,
+        styleTag: shareTplStyle.trim() || 'Signature Experience',
+        description: shareTplDesc.trim() || `Design curato da ${name || 'un utente RIVO'}`,
+        preview: {
+          primaryColor: hubConfig.primaryColor,
+          themeMode: hubConfig.themeMode,
+          fontFamily: hubConfig.fontFamily,
+          cardStyle: hubConfig.cardStyle,
+          bgImageUrl: hubConfig.bgImageUrl,
+          modulesPreview: hubConfig.modules.filter((m) => m.enabled).map((m) => m.title),
+        },
+        config: hubConfig,
+      });
+
+      setCatalogTemplates((prev) => [newTpl, ...prev]);
+      setShareSuccessToast(true);
+      setTimeout(() => setShareSuccessToast(false), 3500);
+      setShowShareCatalogModal(false);
+      setShareTplName('');
+      setShareTplDesc('');
+    } catch (e) {
+      console.error('Error sharing hub to catalog:', e);
+    } finally {
+      setShareSubmitting(false);
+    }
+  };
 
   // Secondary Service Configurations
   const [wifiSsid, setWifiSsid] = useState('');
@@ -261,75 +332,37 @@ export default function CustomHubStudioPage() {
     }));
   };
 
-  // AI Brand Architect Generator
-  const handleApplyAiPreset = (presetKey: string) => {
+  // AI Brand Architect Generator with Free Textual Prompt
+  const handleGenerateWithAiPrompt = async (promptOverride?: string) => {
+    const promptToUse = (promptOverride || aiPrompt).trim();
+    if (!promptToUse) return;
+
     setAiGenerating(true);
-    setTimeout(() => {
-      if (presetKey === 'pizzeria') {
-        setHubConfig((prev) => ({
-          ...prev,
-          themeMode: 'warm_charcoal',
-          fontFamily: 'dm_sans',
-          cardStyle: 'solid',
-          primaryColor: '#F59E0B',
-          borderRadius: '2xl',
-          hero: {
-            ...prev.hero,
-            title: 'I Nostri Impasti a Lenta Lievitazione',
-            subtitle: 'Farine macinate a pietra & ingredienti DOP',
-            badgeText: 'Fatto in Casa',
-          },
-        }));
-      } else if (presetKey === 'cocktail') {
-        setHubConfig((prev) => ({
-          ...prev,
-          themeMode: 'dark',
-          fontFamily: 'syne',
-          cardStyle: 'neon',
-          primaryColor: '#EC4899',
-          accentGlow: true,
-          borderRadius: '3xl',
-          hero: {
-            ...prev.hero,
-            title: 'Signature Cocktails & Mixology',
-            subtitle: 'Ricette esclusive & distillati rari',
-            badgeText: 'Nightlife',
-          },
-        }));
-      } else if (presetKey === 'gourmet') {
-        setHubConfig((prev) => ({
-          ...prev,
-          themeMode: 'midnight',
-          fontFamily: 'playfair',
-          cardStyle: 'glass',
-          primaryColor: '#D97706',
-          borderRadius: 'md',
-          hero: {
-            ...prev.hero,
-            title: 'Esperienza Gastronomica d\'Autore',
-            subtitle: 'Percorsi degustazione dello Chef',
-            badgeText: 'Eccellenza',
-          },
-        }));
-      } else if (presetKey === 'bistrot') {
-        setHubConfig((prev) => ({
-          ...prev,
-          themeMode: 'minimal_light',
-          fontFamily: 'jakarta',
-          cardStyle: 'bordered',
-          primaryColor: '#059669',
-          borderRadius: '2xl',
-          hero: {
-            ...prev.hero,
-            title: 'Brunch & Cucina Contemporanea',
-            subtitle: 'Ingredienti biologici a km zero',
-            badgeText: 'Freschezza',
-          },
-        }));
+    try {
+      const res = await fetch('/api/ai/hub-architect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: promptToUse,
+          businessName: name || 'Il Tuo Locale',
+          category: category || 'restaurant',
+          currentConfig: hubConfig,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.config) {
+        setHubConfig(data.config);
+        setConceptExplanation(data.conceptExplanation || '');
+        setShowAiModal(false);
+      } else {
+        console.error('AI Architect error:', data.error);
       }
+    } catch (err) {
+      console.error('AI generation failed:', err);
+    } finally {
       setAiGenerating(false);
-      setShowAiModal(false);
-    }, 450);
+    }
   };
 
   // Trigger Glass Shimmer Effect on visual changes
@@ -756,12 +789,38 @@ export default function CustomHubStudioPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Community Hub Catalog Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowCatalogModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-bold border border-sky-500/25 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
+            title="Sfoglia il catalogo di Hub d'autore pronti all'uso o condividi il tuo"
+          >
+            <Globe className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden sm:inline">Catalogo Hub</span>
+          </button>
+
+          {/* Share to Catalog Trigger */}
+          <button
+            type="button"
+            onClick={() => {
+              setShareTplName(`${name || 'Locale'} Signature`);
+              setShareTplAuthor(name || 'Creatore RIVO');
+              setShowShareCatalogModal(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/25 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
+            title="Condividi il design del tuo Hub nel catalogo pubblico"
+          >
+            <Share2 className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Condividi Hub</span>
+          </button>
+
           {/* AI Brand Architect Trigger */}
           <button
             type="button"
             onClick={() => setShowAiModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/25 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
-            title="Genera il tema e i testi ideali in 1 click con l'AI"
+            title="Genera il tema e i testi ideali con un prompt libero con l'AI"
           >
             <Wand2 className="w-3.5 h-3.5 text-purple-400" />
             <span className="hidden sm:inline">AI Architect</span>
@@ -816,6 +875,20 @@ export default function CustomHubStudioPage() {
         </div>
       </div>
 
+      {catalogAppliedToast && (
+        <div className="p-4 bg-sky-500/15 border border-sky-500/30 text-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-fade-in shadow-lg">
+          <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
+          <span>{catalogAppliedToast}</span>
+        </div>
+      )}
+
+      {shareSuccessToast && (
+        <div className="p-4 bg-amber-500/15 border border-amber-500/30 text-amber-200 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-fade-in shadow-lg">
+          <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>Il tuo Hub è stato pubblicato con successo nel Catalogo della Community ed è ora accessibile a tutti!</span>
+        </div>
+      )}
+
       {saved && (
         <div className="p-4 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-fade-in shadow-lg">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -865,6 +938,26 @@ export default function CustomHubStudioPage() {
         {/* ========================================================================= */}
         <div className={`lg:col-span-7 space-y-4 ${mobileView === 'preview' ? 'hidden lg:block' : 'block'}`}>
           
+          {/* AI Concept Explanation Banner */}
+          {conceptExplanation && (
+            <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/30 flex items-start gap-3 text-purple-200 text-xs animate-fade-in shadow-lg">
+              <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white text-[11px] uppercase tracking-wider">Concept Visivo AI</span>
+                  <button
+                    type="button"
+                    onClick={() => setConceptExplanation('')}
+                    className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 text-[10px] cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-zinc-300 leading-relaxed text-[11px]">{conceptExplanation}</p>
+              </div>
+            </div>
+          )}
+
           {/* Studio Navigation Tabs */}
           <div className="flex items-center gap-2 p-1.5 bg-[#121214] border border-white/10 rounded-2xl overflow-x-auto scrollbar-none snap-x snap-mandatory touch-pan-x">
             {[
@@ -2383,26 +2476,57 @@ export default function CustomHubStudioPage() {
               </div>
             </div>
 
+            {/* Table Badge inside Mockup */}
+            <div
+              className={`w-full flex items-center justify-between px-3 py-1.5 mb-2.5 backdrop-blur-md border transition-all ${getBorderRadiusClass(hubConfig.borderRadius)} ${
+                isLight
+                  ? 'bg-white/90 border-slate-200 text-slate-800'
+                  : 'bg-[#141715]/90 border-white/[0.08] text-white'
+              } ${mockupNfcPhase === 'assembling' ? 'animate-assemble-badge' : ''}`}
+              style={getBorderRadiusStyle(hubConfig.borderRadius)}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                  {hubConfig.tableBadgeLabel || 'Tavolo Connesso'}: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{devices[0]?.name || 'Tavolo 1'}</strong>
+                </span>
+              </div>
+              <div
+                className={`flex items-center gap-1 text-[8px] font-mono px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0`}
+                style={getBorderRadiusStyle(hubConfig.borderRadius)}
+              >
+                <Zap className="w-2.5 h-2.5 animate-pulse" />
+                <span>{hubConfig.tableLiveTag || 'NFC LIVE'}</span>
+              </div>
+            </div>
+
             {/* Dynamic Grid of Cards inside Mockup: Hero + Reordered Modules */}
             <div className="grid grid-cols-2 gap-2.5 relative z-10 mb-3 flex-1 content-start">
               {/* HERO HIGHLIGHT CARD */}
               {hubConfig.hero.enabled && (
                 <div
-                  className={`rounded-2xl p-3 flex flex-col justify-between min-h-[96px] shadow-lg transition-all relative overflow-hidden ${
+                  className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] shadow-lg transition-all relative overflow-hidden ${
                     mockupNfcPhase === 'assembling' ? 'animate-assemble-hero' : ''
                   }`}
                   style={{
                     backgroundColor: hubConfig.primaryColor,
                     color: contrastText,
                     boxShadow: `0 8px 20px ${hubConfig.primaryColor}35`,
+                    ...getBorderRadiusStyle(hubConfig.borderRadius),
                   }}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <div className="w-7 h-7 rounded-xl bg-black/15 flex items-center justify-center">
+                    <div
+                      className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-black/15 flex items-center justify-center`}
+                      style={getBorderRadiusStyle(hubConfig.borderRadius)}
+                    >
                       <UtensilsCrossed className="w-3.5 h-3.5" style={{ color: contrastText }} />
                     </div>
                     {hubConfig.hero.badgeText && (
-                      <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-black/20 tracking-wider">
+                      <span
+                        className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-black/20 tracking-wider`}
+                        style={getBorderRadiusStyle(hubConfig.borderRadius)}
+                      >
                         {hubConfig.hero.badgeText}
                       </span>
                     )}
@@ -2430,7 +2554,7 @@ export default function CustomHubStudioPage() {
                   return (
                     <div
                       key={m.id}
-                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} rounded-2xl p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden ${getCardStyleClass()} ${
+                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} ${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden ${getCardStyleClass()} ${
                         mockupNfcPhase === 'assembling'
                           ? isLeft
                             ? 'animate-assemble-left'
@@ -2439,20 +2563,25 @@ export default function CustomHubStudioPage() {
                       }`}
                       style={{
                         boxShadow: isNeon ? `0 0 14px ${hubConfig.primaryColor}25` : undefined,
+                        ...getBorderRadiusStyle(hubConfig.borderRadius),
                       }}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <div
-                          className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                          className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} flex items-center justify-center ${
                             isLight ? 'bg-slate-100' : 'bg-white/5'
                           }`}
+                          style={getBorderRadiusStyle(hubConfig.borderRadius)}
                         >
                           <Icon className="w-3.5 h-3.5" style={{ color: hubConfig.primaryColor }} />
                         </div>
                         {m.badge && (
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
-                            isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
-                          }`}>
+                          <span
+                            className={`text-[8px] font-bold px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} ${
+                              isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
+                            }`}
+                            style={getBorderRadiusStyle(hubConfig.borderRadius)}
+                          >
                             {m.badge}
                           </span>
                         )}
@@ -2474,8 +2603,11 @@ export default function CustomHubStudioPage() {
             {/* Review Shield inside Mockup */}
             {reviewShieldEnabled && (
               <div
-                className={`rounded-2xl p-2.5 mb-2 relative z-10 border transition-all ${getCardStyleClass()}`}
-                style={{ boxShadow: `0 4px 15px ${hubConfig.primaryColor}15` }}
+                className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-2.5 mb-2 relative z-10 border transition-all ${getCardStyleClass()}`}
+                style={{
+                  boxShadow: `0 4px 15px ${hubConfig.primaryColor}15`,
+                  ...getBorderRadiusStyle(hubConfig.borderRadius),
+                }}
               >
                 <div className={`flex items-center justify-between mb-1 text-[10px] font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   <span className="flex items-center gap-1">
@@ -2484,7 +2616,10 @@ export default function CustomHubStudioPage() {
                   </span>
                   <span className={`text-[9px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>1-Tap</span>
                 </div>
-                <div className={`flex items-center justify-around py-1 rounded-xl ${isLight ? 'bg-slate-100' : 'bg-black/40'}`}>
+                <div
+                  className={`flex items-center justify-around py-1 ${getBorderRadiusClass(hubConfig.borderRadius)} ${isLight ? 'bg-slate-100' : 'bg-black/40'}`}
+                  style={getBorderRadiusStyle(hubConfig.borderRadius)}
+                >
                   {[1, 2, 3, 4, 5].map((s) => (
                     <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   ))}
@@ -2868,42 +3003,464 @@ export default function CustomHubStudioPage() {
               </button>
             </div>
 
-            <p className="text-xs text-zinc-300 leading-relaxed">
-              Scegli lo stile della tua attività o descrivi l&apos;atmosfera che desideri. L&apos;AI configurerà palette di colori, font coordinato, stile delle card e testi promozionali armoniosi:
-            </p>
-
-            {/* Quick Presets */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {[
-                { id: 'pizzeria', title: '🍕 Pizzeria & Trattoria', desc: 'Caldo, rustico, accogliente e tradizionale' },
-                { id: 'cocktail', title: '🍸 Cocktail Bar & Club', desc: 'Vibes notturne, neon fucsia e font audace' },
-                { id: 'gourmet', title: '🍷 Fine Dining & Gourmet', desc: 'Lusso sobrio, serif classico e calde luci soffuse' },
-                { id: 'bistrot', title: '🥗 Bistrot Contemporaneo', desc: 'Minimal chiaro, fresco, naturale e moderno' },
-              ].map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleApplyAiPreset(p.id)}
+            <div className="space-y-3.5 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                  <span>Descrivi il tuo locale in piena libertà</span>
+                  <span className="text-[10px] text-purple-400 font-normal">Stile, atmosfera, colori, mood</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="es. Club notturno cyberpunk con neon fucsia e cocktail bar sperimentale, oppure Trattoria toscana rustica con pietra a vista e brace..."
+                  className="w-full bg-[#18181B] border border-white/15 focus:border-purple-500/60 rounded-2xl p-3.5 text-xs text-white focus:outline-none transition-all placeholder:text-zinc-500 shadow-inner resize-none"
                   disabled={aiGenerating}
-                  className="p-3.5 rounded-2xl border border-white/10 bg-[#18181B] hover:border-purple-500/40 hover:bg-purple-950/20 text-left transition-all group touch-press active:scale-95 cursor-pointer disabled:opacity-50"
-                >
-                  <span className="text-xs font-bold text-white group-hover:text-purple-300 block mb-0.5">
-                    {p.title}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 block">{p.desc}</span>
-                </button>
-              ))}
-            </div>
-
-            {aiGenerating && (
-              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center gap-2 text-purple-300 text-xs font-bold animate-pulse">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Generazione e armonia design in corso...</span>
+                />
               </div>
-            )}
+
+              {/* Inspiration Chips */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-zinc-400 font-medium">Oppure prova un&apos;ispirazione rapida:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: '⚡ Cyberpunk & Neon', text: 'Club notturno cyberpunk con luci neon fucsia, musica elettronica e cocktail sperimentali' },
+                    { label: '👑 Fine Dining & Oro', text: 'Ristorante di lusso fine dining con dettagli in oro, marmo nero e atmosfera riservata' },
+                    { label: '🪵 Trattoria Rustica', text: 'Trattoria rustica toscana con forno a legna, pietra a vista, carne alla brace e vino rosso' },
+                    { label: '🌊 Lido & Mare', text: 'Lido balneare estivo vista mare, azzurro e cocktail freschi sotto l\'ombrellone' },
+                    { label: '🍺 Birreria Artigianale', text: 'Pub birreria artigianale con spine a vista, burger gourmet e tinte ambrate' },
+                    { label: '🌿 Minimal Zen & Bio', text: 'Bistrot minimal chiaro nordico con cucina biologica sana, bowls e piante' },
+                  ].map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setAiPrompt(item.text)}
+                      disabled={aiGenerating}
+                      className="px-2.5 py-1 rounded-lg text-[10px] bg-white/5 hover:bg-purple-950/30 text-zinc-300 hover:text-purple-200 border border-white/10 hover:border-purple-500/30 transition-all cursor-pointer"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {aiGenerating && (
+                <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center gap-2.5 text-purple-300 text-xs font-bold animate-pulse">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Analisi stilistica ed elaborazione layout bento in corso...</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowAiModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
+                  disabled={aiGenerating}
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateWithAiPrompt()}
+                  disabled={aiGenerating || !aiPrompt.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white font-bold text-xs shadow-lg shadow-purple-500/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Generazione...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Genera Hub con AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: 🌐 CATALOGO HUB PRONTI ALL'USO & COMMUNITY */}
+      {/* ========================================================================= */}
+      {showCatalogModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-4xl bg-[#121413] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <span>Catalogo Hub Pronti all&apos;Uso & Community</span>
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-extrabold border border-sky-500/30">
+                      {catalogTemplates.length} Design
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Scegli un Hub d&apos;autore già pronto per il tuo locale oppure condividi il tuo design con la community
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareTplName(`${name || 'Locale'} Signature`);
+                    setShareTplAuthor(name || 'Creatore RIVO');
+                    setShowShareCatalogModal(true);
+                  }}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-95 touch-press cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Condividi il Tuo Hub</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCatalogModal(false)}
+                  className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    placeholder="Cerca template per nome, stile, autore o parole chiave..."
+                    className="w-full bg-[#18181B] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareTplName(`${name || 'Locale'} Signature`);
+                    setShareTplAuthor(name || 'Creatore RIVO');
+                    setShowShareCatalogModal(true);
+                  }}
+                  className="sm:hidden inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Condividi</span>
+                </button>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {[
+                  { id: 'all', label: 'Tutti i Design' },
+                  { id: 'luxury', label: '👑 Luxury & Fine Dining' },
+                  { id: 'nightlife', label: '🍸 Cocktail & Speakeasy' },
+                  { id: 'pizzeria', label: '🍕 Pizzeria Contemporanea' },
+                  { id: 'bistrot', label: '🌿 Bistrot & Brunch' },
+                  { id: 'cyberpunk', label: '⚡ Cyberpunk Lounge' },
+                  { id: 'beach', label: '🌊 Beach Club' },
+                  { id: 'hotel', label: '🏨 Boutique Hotel' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setCatalogFilter(f.id)}
+                    className={`shrink-0 px-3 py-1 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${
+                      catalogFilter === f.id
+                        ? 'bg-sky-500 text-black font-bold shadow'
+                        : 'bg-white/5 text-zinc-400 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable Templates Grid */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[58vh]">
+              {(() => {
+                const filtered = catalogTemplates.filter((t) => {
+                  const matchesSearch =
+                    !catalogSearch.trim() ||
+                    t.name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                    t.description.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                    t.author.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                    t.styleTag.toLowerCase().includes(catalogSearch.toLowerCase());
+
+                  let matchesCategory = true;
+                  if (catalogFilter === 'luxury') matchesCategory = t.styleTag.toLowerCase().includes('luxury') || t.styleTag.toLowerCase().includes('fine');
+                  else if (catalogFilter === 'nightlife') matchesCategory = t.styleTag.toLowerCase().includes('jazz') || t.styleTag.toLowerCase().includes('cocktail') || t.styleTag.toLowerCase().includes('speakeasy');
+                  else if (catalogFilter === 'pizzeria') matchesCategory = t.styleTag.toLowerCase().includes('pizz');
+                  else if (catalogFilter === 'bistrot') matchesCategory = t.styleTag.toLowerCase().includes('bistrot') || t.styleTag.toLowerCase().includes('brunch');
+                  else if (catalogFilter === 'cyberpunk') matchesCategory = t.styleTag.toLowerCase().includes('cyber') || t.styleTag.toLowerCase().includes('lounge');
+                  else if (catalogFilter === 'beach') matchesCategory = t.styleTag.toLowerCase().includes('beach') || t.styleTag.toLowerCase().includes('sunset');
+                  else if (catalogFilter === 'hotel') matchesCategory = t.styleTag.toLowerCase().includes('hotel') || t.styleTag.toLowerCase().includes('suite');
+
+                  return matchesSearch && matchesCategory;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-zinc-500 space-y-2">
+                      <p className="text-sm">Nessun template corrisponde ai filtri selezionati.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCatalogFilter('all');
+                          setCatalogSearch('');
+                        }}
+                        className="text-xs text-sky-400 font-bold underline"
+                      >
+                        Azzera i filtri
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {filtered.map((tpl) => {
+                      return (
+                        <div
+                          key={tpl.id}
+                          className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-sky-500/30 transition-all flex flex-col justify-between space-y-3 group"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/25 mb-1">
+                                  {tpl.styleTag}
+                                </span>
+                                <h4 className="text-sm sm:text-base font-extrabold text-white group-hover:text-sky-200 transition-colors">
+                                  {tpl.name}
+                                </h4>
+                                <span className="text-[11px] text-zinc-400 block mt-0.5">
+                                  Creato da <strong className="text-zinc-200">{tpl.author}</strong>
+                                </span>
+                              </div>
+
+                              <div
+                                className="w-8 h-8 rounded-full border-2 shadow-md shrink-0 flex items-center justify-center font-bold text-[10px] text-black"
+                                style={{
+                                  backgroundColor: tpl.preview.primaryColor,
+                                  borderColor: '#ffffff',
+                                }}
+                                title={`Colore primario: ${tpl.preview.primaryColor}`}
+                              >
+                                ●
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-zinc-300 line-clamp-3 leading-relaxed">
+                              {tpl.description}
+                            </p>
+
+                            {/* Badges preview */}
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
+                                Font: <strong className="text-zinc-200">{tpl.preview.fontFamily}</strong>
+                              </span>
+                              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
+                                Card: <strong className="text-zinc-200">{tpl.preview.cardStyle}</strong>
+                              </span>
+                              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
+                                Tema: <strong className="text-zinc-200">{tpl.preview.themeMode}</strong>
+                              </span>
+                            </div>
+
+                            {/* Modules included preview */}
+                            {tpl.preview.modulesPreview && tpl.preview.modulesPreview.length > 0 && (
+                              <div className="text-[10px] text-zinc-400 pt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="text-zinc-500">Include:</span>
+                                {tpl.preview.modulesPreview.slice(0, 4).map((modName, mIdx) => (
+                                  <span key={mIdx} className="text-zinc-300 font-medium bg-black/30 px-1.5 py-0.2 rounded border border-white/5">
+                                    {modName}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Footer with Apply Button */}
+                          <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-zinc-500">
+                              ❤️ {tpl.likesCount} preferiti
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => handleApplyTemplate(tpl)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                            >
+                              <Zap className="w-3.5 h-3.5 fill-black" />
+                              <span>Applica questo Hub</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Bottom Footer */}
+            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+              <span className="text-[11px] text-zinc-400">
+                💡 Quando applichi un template puoi modificarlo a tuo piacimento e salvarlo.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCatalogModal(false)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: 📤 CONDIVIDI IL TUO HUB NEL CATALOGO DELLA COMMUNITY */}
+      {/* ========================================================================= */}
+      {showShareCatalogModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-[#131514] border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Condividi nel Catalogo</h3>
+                  <p className="text-xs text-zinc-400">Fai entrare il tuo Hub nel catalogo pubblico</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShareCatalogModal(false)}
+                className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1">Nome del Design / Template</label>
+                <input
+                  type="text"
+                  value={shareTplName}
+                  onChange={(e) => setShareTplName(e.target.value)}
+                  placeholder="es. Positano Dream Signature"
+                  className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-amber-500/60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1">Nome Autore o Locale</label>
+                <input
+                  type="text"
+                  value={shareTplAuthor}
+                  onChange={(e) => setShareTplAuthor(e.target.value)}
+                  placeholder={name || 'Il tuo nome o nome del locale'}
+                  className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-amber-500/60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1">Etichetta di Stile</label>
+                <select
+                  value={shareTplStyle}
+                  onChange={(e) => setShareTplStyle(e.target.value)}
+                  className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-amber-500/60 cursor-pointer"
+                >
+                  <option value="Luxury & Fine Dining">Luxury & Fine Dining</option>
+                  <option value="Cocktail & Speakeasy">Cocktail & Speakeasy</option>
+                  <option value="Pizzeria Contemporanea">Pizzeria Contemporanea</option>
+                  <option value="Bistrot & Brunch">Bistrot & Brunch</option>
+                  <option value="Cyberpunk Lounge">Cyberpunk Lounge</option>
+                  <option value="Sunset Beach Club">Sunset Beach Club</option>
+                  <option value="Boutique Hotel & Spa">Boutique Hotel & Spa</option>
+                  <option value="Tradizione & Rustico">Tradizione & Rustico</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1">Descrizione del Concept</label>
+                <textarea
+                  rows={3}
+                  value={shareTplDesc}
+                  onChange={(e) => setShareTplDesc(e.target.value)}
+                  placeholder="Descrivi l'atmosfera, i punti di forza e le scelte visive del tuo Hub..."
+                  className="w-full bg-[#18181B] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 resize-none"
+                />
+              </div>
+
+              {/* Current Configuration Summary */}
+              <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">
+                  Caratteristiche che verranno condivise:
+                </span>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-300">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: hubConfig.primaryColor }} />
+                    {hubConfig.primaryColor}
+                  </span>
+                  <span>•</span>
+                  <span>Font: {hubConfig.fontFamily}</span>
+                  <span>•</span>
+                  <span>Card: {hubConfig.cardStyle}</span>
+                  <span>•</span>
+                  <span>{hubConfig.modules.filter((m) => m.enabled).length} Moduli attivi</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowShareCatalogModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
+                  disabled={shareSubmitting}
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShareCurrentHub}
+                  disabled={shareSubmitting || !shareTplName.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {shareSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Pubblicazione...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-4 h-4" />
+                      <span>Pubblica nel Catalogo</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
