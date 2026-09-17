@@ -58,7 +58,11 @@ import {
   Zap,
   Share2,
   Search,
+  ArrowLeft,
+  Crown,
+  Building,
 } from 'lucide-react';
+import { WhatsAppIcon, InstagramIcon } from '@/components/brand-icons';
 import {
   CommunityHubTemplate,
   getCommunityHubTemplates,
@@ -145,6 +149,8 @@ export default function CustomHubStudioPage() {
   const [catalogFilter, setCatalogFilter] = useState<string>('all');
   const [catalogSearch, setCatalogSearch] = useState<string>('');
   const [catalogAppliedToast, setCatalogAppliedToast] = useState<string | null>(null);
+  const [previewingTemplate, setPreviewingTemplate] = useState<CommunityHubTemplate | null>(null);
+  const [previewModuleToast, setPreviewModuleToast] = useState<string | null>(null);
 
   // Share to Catalog Form State
   const [shareTplName, setShareTplName] = useState('');
@@ -221,6 +227,7 @@ export default function CustomHubStudioPage() {
   const [phone, setPhone] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [website, setWebsite] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
 
   // Active Tab & View Mode
   const [activeTab, setActiveTab] = useState<StudioTab>('theme');
@@ -460,6 +467,7 @@ export default function CustomHubStudioPage() {
           setPhone(org.phone || '');
           setWhatsappNumber(org.whatsapp_number || '');
           setWebsite(org.website || '');
+          setInstagramUrl(org.instagram_url || '');
         }
 
         // Fetch active devices for this org
@@ -578,6 +586,7 @@ export default function CustomHubStudioPage() {
           phone: (phone || '').trim() || null,
           whatsapp_number: (whatsappNumber || '').trim() || null,
           website: (website || '').trim() || null,
+          instagram_url: (instagramUrl || '').trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', orgId);
@@ -609,7 +618,7 @@ export default function CustomHubStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: (telegramChatId || '').trim(),
-          text: `🔔 [TEST NOTIFICA RIVO STAFF]\n\n• Locale: ${name || 'La tua attività'}\n• Stato: Connessione Bot Telegram attiva con successo!\n• Chiamate Cameriere: Pronte a essere ricevute in tempo reale.`,
+          text: `[TEST NOTIFICA RIVO STAFF]\n\n• Locale: ${name || 'La tua attività'}\n• Stato: Connessione Bot Telegram attiva con successo!\n• Chiamate Cameriere: Pronte a essere ricevute in tempo reale.`,
         }),
       });
 
@@ -714,7 +723,11 @@ export default function CustomHubStudioPage() {
         case 'Globe': return Globe;
         case 'CalendarCheck': return CalendarCheck;
         case 'UtensilsCrossed': return UtensilsCrossed;
-        case 'Sparkles': return Sparkles;
+        case 'WhatsApp': return WhatsAppIcon;
+        case 'Instagram': return InstagramIcon;
+        case 'Sparkles':
+        default:
+          return Sparkles;
       }
     }
     switch (id) {
@@ -735,9 +748,9 @@ export default function CustomHubStudioPage() {
       case 'guide':
         return Compass;
       case 'instagram':
-        return ImageIcon;
+        return InstagramIcon;
       case 'whatsapp':
-        return MessageCircle;
+        return WhatsAppIcon;
       case 'custom_cta':
       default:
         return ArrowUpRight;
@@ -950,7 +963,7 @@ export default function CustomHubStudioPage() {
                     onClick={() => setConceptExplanation('')}
                     className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 text-[10px] cursor-pointer"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 <p className="text-zinc-300 leading-relaxed text-[11px]">{conceptExplanation}</p>
@@ -961,13 +974,13 @@ export default function CustomHubStudioPage() {
           {/* Studio Navigation Tabs */}
           <div className="flex items-center gap-2 p-1.5 bg-[#121214] border border-white/10 rounded-2xl overflow-x-auto scrollbar-none snap-x snap-mandatory touch-pan-x">
             {[
-              { id: 'theme', label: '🎨 Stile & Font', icon: Palette },
-              { id: 'atmosphere', label: '🌌 Sfondo & Texture', icon: Layers },
-              { id: 'modules', label: '📱 Moduli & Bento Grid', icon: Sliders },
-              { id: 'hero', label: '✨ Hero & Badge', icon: Sparkles },
-              { id: 'services', label: '🛎️ Servizi Tavolo', icon: UtensilsCrossed },
-              { id: 'reviews', label: '⭐ Recensioni & Promo', icon: Star },
-              { id: 'contacts', label: '📞 Contatti & Info', icon: Phone },
+              { id: 'theme', label: 'Stile & Font', icon: Palette },
+              { id: 'atmosphere', label: 'Sfondo & Texture', icon: Layers },
+              { id: 'modules', label: 'Moduli & Bento Grid', icon: Sliders },
+              { id: 'hero', label: 'Hero & Badge', icon: Sparkles },
+              { id: 'services', label: 'Servizi Tavolo', icon: UtensilsCrossed },
+              { id: 'reviews', label: 'Recensioni & Promo', icon: Star },
+              { id: 'contacts', label: 'Contatti & Info', icon: Phone },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -990,17 +1003,17 @@ export default function CustomHubStudioPage() {
           </div>
 
           {/* ======================================================================= */}
-          {/* TAB 1: 🎨 ASPETTO & FONT (Font, Tema di Sfondo, Stile Card, Palette) */}
+          {/* TAB 1: ASPETTO & FONT (Font, Tema di Sfondo, Stile Card, Palette) */}
           {/* ======================================================================= */}
           {activeTab === 'theme' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-6 shadow-xl animate-fade-in">
               <div>
                 <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  <Palette className="w-5 h-5" style={{ color: hubConfig.primaryColor }} />
-                  <span>Aspetto Visivo, Font Tipografico & Atmosfera</span>
+                  <Palette className="w-5 h-5 text-[#BFFF00]" />
+                  <span>Tipografia, Stile Card & Palette</span>
                 </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Personalizza la personalità del tuo Hub. Le modifiche sono immediatamente visibili nel simulatore 1:1 a destra.
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Personalizza la firma visiva del tuo locale: font iconico, tema e contrasti ad alta leggibilità.
                 </p>
               </div>
 
@@ -1234,10 +1247,10 @@ export default function CustomHubStudioPage() {
                     )}
                     {logoUrl && (
                       <span
-                        className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-[#121413] flex items-center justify-center text-[10px] text-black font-black shadow"
+                        className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-[#121413] flex items-center justify-center shadow"
                         title="Logo attivo"
                       >
-                        ✓
+                        <Check className="w-3 h-3 text-black stroke-[3]" />
                       </span>
                     )}
                     {uploadingLogo && (
@@ -1319,7 +1332,7 @@ export default function CustomHubStudioPage() {
           )}
 
           {/* ======================================================================= */}
-          {/* TAB 2: 🌌 SFONDO, TEXTURE & ATMOSFERA */}
+          {/* TAB 2: SFONDO, TEXTURE & ATMOSFERA */}
           {/* ======================================================================= */}
           {activeTab === 'atmosphere' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-6 shadow-xl animate-fade-in">
@@ -1474,11 +1487,109 @@ export default function CustomHubStudioPage() {
                   })}
                 </div>
               </div>
+
+              {/* Advanced Layout & Customization Controls */}
+              <div className="pt-3 border-t border-white/5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Density */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1.5">
+                      Densità Card
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 bg-[#181b19] p-1 rounded-xl border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setHubConfig((p) => ({ ...p, cardDensity: 'comfortable' }))}
+                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                          (hubConfig.cardDensity || 'comfortable') === 'comfortable'
+                            ? 'bg-white/15 text-white shadow'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        Ariosa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHubConfig((p) => ({ ...p, cardDensity: 'compact' }))}
+                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                          hubConfig.cardDensity === 'compact'
+                            ? 'bg-white/15 text-white shadow'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        Compatta
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Button Glow */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1.5">
+                      Effetto Bagliore CTA
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 bg-[#181b19] p-1 rounded-xl border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setHubConfig((p) => ({ ...p, buttonGlow: true }))}
+                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                          hubConfig.buttonGlow !== false
+                            ? 'bg-white/15 text-white shadow'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        Luminoso
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHubConfig((p) => ({ ...p, buttonGlow: false }))}
+                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                          hubConfig.buttonGlow === false
+                            ? 'bg-white/15 text-white shadow'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        Flat
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bottom Dock Bar */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-300 mb-1.5">
+                      Barra Dock Inferiore
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 bg-[#181b19] p-1 rounded-xl border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setHubConfig((p) => ({ ...p, showBottomDock: true }))}
+                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                          hubConfig.showBottomDock !== false
+                            ? 'bg-white/15 text-white shadow'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        Visibile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHubConfig((p) => ({ ...p, showBottomDock: false }))}
+                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                          hubConfig.showBottomDock === false
+                            ? 'bg-white/15 text-white shadow'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        Nascosta
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {/* ======================================================================= */}
-          {/* TAB 3: 📱 MODULI & BENTO GRID (Lista completa, Reorder, Toggle, Custom Add, Bento) */}
+          {/* TAB 3: MODULI & BENTO GRID (Lista completa, Reorder, Toggle, Custom Add, Bento) */}
           {/* ======================================================================= */}
           {activeTab === 'modules' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-5 shadow-xl animate-fade-in">
@@ -1623,7 +1734,7 @@ export default function CustomHubStudioPage() {
                             value={m.badge || ''}
                             onChange={(e) => updateModuleField(m.id, 'badge', e.target.value)}
                             className="w-full bg-[#121214] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-white placeholder-zinc-600"
-                            placeholder="es. 1-Tap, Free, AI, 5★"
+                            placeholder="es. 1-Tap, Free, AI, 5.0"
                           />
                         </div>
                       </div>
@@ -1755,7 +1866,7 @@ export default function CustomHubStudioPage() {
           )}
 
           {/* ======================================================================= */}
-          {/* TAB 3: ✨ HERO & BADGE (Hero Title, Subtitle, Destinazione, Table Badge, Tag NFC) */}
+          {/* TAB 3: HERO & BADGE (Hero Title, Subtitle, Destinazione, Table Badge, Tag NFC) */}
           {/* ======================================================================= */}
           {activeTab === 'hero' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-6 shadow-xl animate-fade-in">
@@ -1962,7 +2073,7 @@ export default function CustomHubStudioPage() {
           )}
 
           {/* ======================================================================= */}
-          {/* TAB 4: 🛎️ SERVIZI TAVOLO (Waiter Call, Telegram, Wi-Fi, AI Sommelier, Loyalty) */}
+          {/* TAB 4: SERVIZI TAVOLO (Waiter Call, Telegram, Wi-Fi, AI Sommelier, Loyalty) */}
           {/* ======================================================================= */}
           {activeTab === 'services' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-4 shadow-xl animate-fade-in">
@@ -2064,8 +2175,9 @@ export default function CustomHubStudioPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <span className="text-[10px] text-zinc-400">
-                          💡 Crea il bot gratis in 30 secondi su Telegram cercando <strong>@BotFather</strong>, invia <code>/newbot</code> e copia il token generato.
+                        <span className="text-[10px] text-zinc-400 flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                          <span>Crea il bot gratis in 30 secondi su Telegram cercando <strong>@BotFather</strong>, invia <code>/newbot</code> e copia il token generato.</span>
                         </span>
                         <button
                           type="button"
@@ -2228,7 +2340,7 @@ export default function CustomHubStudioPage() {
           )}
 
           {/* ======================================================================= */}
-          {/* TAB 6: 📞 CONTATTI & INFO (WhatsApp, Telefono, Sito web) */}
+          {/* TAB 6: CONTATTI & INFO (WhatsApp, Telefono, Sito web) */}
           {/* ======================================================================= */}
           {activeTab === 'contacts' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-4 shadow-xl animate-fade-in">
@@ -2245,13 +2357,26 @@ export default function CustomHubStudioPage() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1 flex items-center gap-1.5">
-                    <MessageCircle className="w-3.5 h-3.5 text-emerald-400" /> WhatsApp Diretto del Locale
+                    <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" /> WhatsApp Diretto del Locale
                   </label>
                   <input
                     type="tel"
                     value={whatsappNumber}
                     onChange={(e) => setWhatsappNumber(e.target.value)}
                     placeholder="+39 333 1234567"
+                    className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white font-mono focus:outline-none focus:border-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1 flex items-center gap-1.5">
+                    <InstagramIcon className="w-3.5 h-3.5 text-[#E1306C]" /> Profilo Instagram (URL o @username)
+                  </label>
+                  <input
+                    type="text"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    placeholder="@nomelocale o https://instagram.com/..."
                     className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white font-mono focus:outline-none focus:border-white"
                   />
                 </div>
@@ -2856,6 +2981,8 @@ export default function CustomHubStudioPage() {
                 <div className="grid grid-cols-6 gap-2">
                   {[
                     { name: 'Sparkles', icon: Sparkles },
+                    { name: 'WhatsApp', icon: WhatsAppIcon },
+                    { name: 'Instagram', icon: InstagramIcon },
                     { name: 'Wine', icon: Wine },
                     { name: 'Coffee', icon: Coffee },
                     { name: 'Music', icon: Music },
@@ -2979,7 +3106,7 @@ export default function CustomHubStudioPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: ✨ AI BRAND ARCHITECT (GENERATORE MAGICO IN 1-CLICK) */}
+      {/* MODAL 3: AI BRAND ARCHITECT (GENERATORE MAGICO IN 1-CLICK) */}
       {/* ========================================================================= */}
       {showAiModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
@@ -3024,23 +3151,27 @@ export default function CustomHubStudioPage() {
                 <p className="text-[11px] text-zinc-400 font-medium">Oppure prova un&apos;ispirazione rapida:</p>
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    { label: '⚡ Cyberpunk & Neon', text: 'Club notturno cyberpunk con luci neon fucsia, musica elettronica e cocktail sperimentali' },
-                    { label: '👑 Fine Dining & Oro', text: 'Ristorante di lusso fine dining con dettagli in oro, marmo nero e atmosfera riservata' },
-                    { label: '🪵 Trattoria Rustica', text: 'Trattoria rustica toscana con forno a legna, pietra a vista, carne alla brace e vino rosso' },
-                    { label: '🌊 Lido & Mare', text: 'Lido balneare estivo vista mare, azzurro e cocktail freschi sotto l\'ombrellone' },
-                    { label: '🍺 Birreria Artigianale', text: 'Pub birreria artigianale con spine a vista, burger gourmet e tinte ambrate' },
-                    { label: '🌿 Minimal Zen & Bio', text: 'Bistrot minimal chiaro nordico con cucina biologica sana, bowls e piante' },
-                  ].map((item, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setAiPrompt(item.text)}
-                      disabled={aiGenerating}
-                      className="px-2.5 py-1 rounded-lg text-[10px] bg-white/5 hover:bg-purple-950/30 text-zinc-300 hover:text-purple-200 border border-white/10 hover:border-purple-500/30 transition-all cursor-pointer"
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                    { label: 'Cyberpunk & Neon', icon: Zap, text: 'Club notturno cyberpunk con luci neon fucsia, musica elettronica e cocktail sperimentali' },
+                    { label: 'Fine Dining & Oro', icon: Crown, text: 'Ristorante di lusso fine dining con dettagli in oro, marmo nero e atmosfera riservata' },
+                    { label: 'Trattoria Rustica', icon: UtensilsCrossed, text: 'Trattoria rustica toscana con forno a legna, pietra a vista, carne alla brace e vino rosso' },
+                    { label: 'Lido & Mare', icon: Compass, text: 'Lido balneare estivo vista mare, azzurro e cocktail freschi sotto l\'ombrellone' },
+                    { label: 'Birreria Artigianale', icon: Wine, text: 'Pub birreria artigianale con spine a vista, burger gourmet e tinte ambrate' },
+                    { label: 'Minimal Zen & Bio', icon: Coffee, text: 'Bistrot minimal chiaro nordico con cucina biologica sana, bowls e piante' },
+                  ].map((item, idx) => {
+                    const ChipIcon = item.icon;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setAiPrompt(item.text)}
+                        disabled={aiGenerating}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] bg-white/5 hover:bg-purple-950/30 text-zinc-300 hover:text-purple-200 border border-white/10 hover:border-purple-500/30 transition-all cursor-pointer"
+                      >
+                        <ChipIcon className="w-3 h-3 text-purple-400" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -3085,255 +3216,639 @@ export default function CustomHubStudioPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 4: 🌐 CATALOGO HUB PRONTI ALL'USO & COMMUNITY */}
+      {/* MODAL 4: CATALOGO HUB PRONTI ALL'USO & COMMUNITY */}
       {/* ========================================================================= */}
       {showCatalogModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-4xl bg-[#121413] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
-                  <Globe className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                    <span>Catalogo Hub Pronti all&apos;Uso & Community</span>
-                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-extrabold border border-sky-500/30">
-                      {catalogTemplates.length} Design
-                    </span>
-                  </h3>
-                  <p className="text-xs text-zinc-400">
-                    Scegli un Hub d&apos;autore già pronto per il tuo locale oppure condividi il tuo design con la community
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShareTplName(`${name || 'Locale'} Signature`);
-                    setShareTplAuthor(name || 'Creatore RIVO');
-                    setShowShareCatalogModal(true);
-                  }}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-95 touch-press cursor-pointer"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Condividi il Tuo Hub</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCatalogModal(false)}
-                  className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Filter & Search Bar */}
-            <div className="space-y-2.5">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={catalogSearch}
-                    onChange={(e) => setCatalogSearch(e.target.value)}
-                    placeholder="Cerca template per nome, stile, autore o parole chiave..."
-                    className="w-full bg-[#18181B] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500/50"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShareTplName(`${name || 'Locale'} Signature`);
-                    setShareTplAuthor(name || 'Creatore RIVO');
-                    setShowShareCatalogModal(true);
-                  }}
-                  className="sm:hidden inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Condividi</span>
-                </button>
-              </div>
-
-              {/* Filter Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                {[
-                  { id: 'all', label: 'Tutti i Design' },
-                  { id: 'luxury', label: '👑 Luxury & Fine Dining' },
-                  { id: 'nightlife', label: '🍸 Cocktail & Speakeasy' },
-                  { id: 'pizzeria', label: '🍕 Pizzeria Contemporanea' },
-                  { id: 'bistrot', label: '🌿 Bistrot & Brunch' },
-                  { id: 'cyberpunk', label: '⚡ Cyberpunk Lounge' },
-                  { id: 'beach', label: '🌊 Beach Club' },
-                  { id: 'hotel', label: '🏨 Boutique Hotel' },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setCatalogFilter(f.id)}
-                    className={`shrink-0 px-3 py-1 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${
-                      catalogFilter === f.id
-                        ? 'bg-sky-500 text-black font-bold shadow'
-                        : 'bg-white/5 text-zinc-400 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Scrollable Templates Grid */}
-            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[58vh]">
-              {(() => {
-                const filtered = catalogTemplates.filter((t) => {
-                  const matchesSearch =
-                    !catalogSearch.trim() ||
-                    t.name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                    t.description.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                    t.author.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                    t.styleTag.toLowerCase().includes(catalogSearch.toLowerCase());
-
-                  let matchesCategory = true;
-                  if (catalogFilter === 'luxury') matchesCategory = t.styleTag.toLowerCase().includes('luxury') || t.styleTag.toLowerCase().includes('fine');
-                  else if (catalogFilter === 'nightlife') matchesCategory = t.styleTag.toLowerCase().includes('jazz') || t.styleTag.toLowerCase().includes('cocktail') || t.styleTag.toLowerCase().includes('speakeasy');
-                  else if (catalogFilter === 'pizzeria') matchesCategory = t.styleTag.toLowerCase().includes('pizz');
-                  else if (catalogFilter === 'bistrot') matchesCategory = t.styleTag.toLowerCase().includes('bistrot') || t.styleTag.toLowerCase().includes('brunch');
-                  else if (catalogFilter === 'cyberpunk') matchesCategory = t.styleTag.toLowerCase().includes('cyber') || t.styleTag.toLowerCase().includes('lounge');
-                  else if (catalogFilter === 'beach') matchesCategory = t.styleTag.toLowerCase().includes('beach') || t.styleTag.toLowerCase().includes('sunset');
-                  else if (catalogFilter === 'hotel') matchesCategory = t.styleTag.toLowerCase().includes('hotel') || t.styleTag.toLowerCase().includes('suite');
-
-                  return matchesSearch && matchesCategory;
-                });
-
-                if (filtered.length === 0) {
-                  return (
-                    <div className="text-center py-12 text-zinc-500 space-y-2">
-                      <p className="text-sm">Nessun template corrisponde ai filtri selezionati.</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCatalogFilter('all');
-                          setCatalogSearch('');
-                        }}
-                        className="text-xs text-sky-400 font-bold underline"
-                      >
-                        Azzera i filtri
-                      </button>
+          <div className={`w-full ${previewingTemplate ? 'max-w-5xl' : 'max-w-4xl'} bg-[#121413] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden space-y-4 transition-all`}>
+            {previewingTemplate ? (
+              /* LIVE INTERACTIVE TEMPLATE PREVIEW */
+              <div className="flex flex-col h-full space-y-4 max-h-[84vh]">
+                {/* Preview Header */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewingTemplate(null)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-xs font-semibold transition-all cursor-pointer active:scale-95"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Torna all&apos;Elenco</span>
+                    </button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-base font-extrabold text-white">
+                          {previewingTemplate.name}
+                        </h4>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/25">
+                          {previewingTemplate.styleTag}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400">
+                        Design di <strong className="text-zinc-200">{previewingTemplate.author}</strong> — Modalità Anteprima dal Vivo
+                      </p>
                     </div>
-                  );
-                }
+                  </div>
 
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    {filtered.map((tpl) => {
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate(previewingTemplate)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs shadow-lg transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Zap className="w-4 h-4 fill-black" />
+                      <span>Applica questo Hub</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewingTemplate(null);
+                        setShowCatalogModal(false);
+                      }}
+                      className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preview Content: Left Phone Simulator, Right Specs */}
+                <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pr-1">
+                  {/* Left Column: Phone Simulator Mockup */}
+                  <div className="lg:col-span-6 flex flex-col items-center justify-center py-1">
+                    <div className="text-[11px] font-bold text-sky-400 mb-2 flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Simulatore Live (Tocca i moduli per testarli)</span>
+                    </div>
+
+                    {(() => {
+                      const cfg = previewingTemplate.config;
+                      const themeOpt = HUB_THEME_OPTIONS.find((t) => t.id === cfg.themeMode) || HUB_THEME_OPTIONS[0];
+                      const fontOpt = HUB_FONT_OPTIONS.find((f) => f.id === cfg.fontFamily) || HUB_FONT_OPTIONS[0];
+                      const isTplLight = cfg.themeMode === 'minimal_light';
+                      const pColor = cfg.primaryColor || '#00F0FF';
+                      const cText = getContrastColor(pColor);
+                      const radiusClass = getBorderRadiusClass(cfg.borderRadius);
+                      const radiusStyle = getBorderRadiusStyle(cfg.borderRadius);
+
+                      const getTplCardClass = () => {
+                        switch (cfg.cardStyle) {
+                          case 'solid':
+                            return isTplLight ? 'bg-white border border-slate-200 shadow-sm' : 'bg-[#181b19] border border-white/5 shadow-md';
+                          case 'bordered':
+                            return isTplLight ? 'bg-slate-50 border-2 border-slate-300' : 'bg-[#121413] border-2 border-white/20 shadow';
+                          case 'neon':
+                            return isTplLight ? 'bg-white border-2 border-sky-400/40 shadow-md' : 'bg-[#141715] border border-white/10 shadow-[0_0_15px_rgba(0,240,255,0.15)]';
+                          case 'glass':
+                          default:
+                            return isTplLight ? 'bg-white/80 backdrop-blur-md border border-slate-200/80 shadow-md' : 'bg-white/[0.04] backdrop-blur-md border border-white/10 shadow-lg';
+                        }
+                      };
+
                       return (
                         <div
-                          key={tpl.id}
-                          className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-sky-500/30 transition-all flex flex-col justify-between space-y-3 group"
+                          className="w-full max-w-[320px] sm:max-w-[340px] border-[8px] border-[#222624] rounded-[44px] p-3.5 shadow-2xl relative overflow-hidden flex flex-col justify-between select-none"
+                          style={{
+                            minHeight: '580px',
+                            maxHeight: '600px',
+                            backgroundColor: themeOpt.bgHex,
+                            color: themeOpt.textHex,
+                            fontFamily: fontOpt.cssFamily,
+                          }}
                         >
-                          <div className="space-y-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/25 mb-1">
-                                  {tpl.styleTag}
-                                </span>
-                                <h4 className="text-sm sm:text-base font-extrabold text-white group-hover:text-sky-200 transition-colors">
-                                  {tpl.name}
-                                </h4>
-                                <span className="text-[11px] text-zinc-400 block mt-0.5">
-                                  Creato da <strong className="text-zinc-200">{tpl.author}</strong>
-                                </span>
-                              </div>
-
+                          {/* Background Image / Gradient / Blur if configured */}
+                          {cfg.bgType === 'image' && cfg.bgImageUrl && (
+                            <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={cfg.bgImageUrl}
+                                alt="Sfondo Hub"
+                                className="w-full h-full object-cover scale-105"
+                                style={{ filter: `blur(${cfg.bgBlur || 8}px)` }}
+                              />
                               <div
-                                className="w-8 h-8 rounded-full border-2 shadow-md shrink-0 flex items-center justify-center font-bold text-[10px] text-black"
-                                style={{
-                                  backgroundColor: tpl.preview.primaryColor,
-                                  borderColor: '#ffffff',
-                                }}
-                                title={`Colore primario: ${tpl.preview.primaryColor}`}
-                              >
-                                ●
+                                className="absolute inset-0 bg-black"
+                                style={{ opacity: (cfg.bgOverlayOpacity ?? 50) / 100 }}
+                              />
+                            </div>
+                          )}
+
+                          {/* Top Status Bar */}
+                          <div className="relative z-20 flex items-center justify-between mb-2 px-1">
+                            <span className={`text-[10px] font-mono font-bold ${isTplLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                              12:45
+                            </span>
+                            <div className="w-16 h-3 bg-black rounded-full border border-white/10 shadow-inner" />
+                            <div
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[8px] font-bold font-mono ${
+                                isTplLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-950/70 text-emerald-400 border-emerald-500/30'
+                              }`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>{cfg.tableLiveTag || 'NFC LIVE'}</span>
+                            </div>
+                          </div>
+
+                          {/* Scrollable Phone Content */}
+                          <div className="relative z-10 flex-1 overflow-y-auto pr-0.5 space-y-2.5 scrollbar-none">
+                            {/* Table Badge */}
+                            <div
+                              className={`w-full flex items-center justify-between px-2.5 py-1.5 border backdrop-blur-md ${radiusClass} ${
+                                isTplLight ? 'bg-white/80 border-slate-200 text-slate-800' : 'bg-black/30 border-white/10 text-white'
+                              }`}
+                              style={radiusStyle}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: pColor }} />
+                                <span className="text-[10px] font-bold tracking-tight">
+                                  {cfg.tableBadgeLabel || 'Tavolo Riservato'}
+                                </span>
                               </div>
-                            </div>
-
-                            <p className="text-[11px] text-zinc-300 line-clamp-3 leading-relaxed">
-                              {tpl.description}
-                            </p>
-
-                            {/* Badges preview */}
-                            <div className="flex flex-wrap gap-1.5 pt-1">
-                              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
-                                Font: <strong className="text-zinc-200">{tpl.preview.fontFamily}</strong>
-                              </span>
-                              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
-                                Card: <strong className="text-zinc-200">{tpl.preview.cardStyle}</strong>
-                              </span>
-                              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
-                                Tema: <strong className="text-zinc-200">{tpl.preview.themeMode}</strong>
+                              <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-300 font-semibold">
+                                TAVOLO 1
                               </span>
                             </div>
 
-                            {/* Modules included preview */}
-                            {tpl.preview.modulesPreview && tpl.preview.modulesPreview.length > 0 && (
-                              <div className="text-[10px] text-zinc-400 pt-1 flex items-center gap-1.5 flex-wrap">
-                                <span className="text-zinc-500">Include:</span>
-                                {tpl.preview.modulesPreview.slice(0, 4).map((modName, mIdx) => (
-                                  <span key={mIdx} className="text-zinc-300 font-medium bg-black/30 px-1.5 py-0.2 rounded border border-white/5">
-                                    {modName}
-                                  </span>
-                                ))}
+                            {/* Hero Card */}
+                            {cfg.hero && cfg.hero.enabled !== false && (
+                              <div
+                                className={`${radiusClass} p-3 flex flex-col justify-between min-h-[90px] shadow-lg relative overflow-hidden text-left`}
+                                style={{
+                                  backgroundColor: pColor,
+                                  color: cText,
+                                  boxShadow: cfg.buttonGlow !== false ? `0 6px 20px ${pColor}40` : 'none',
+                                  ...radiusStyle,
+                                }}
+                              >
+                                <div className="relative z-10">
+                                  {cfg.hero.badgeText && (
+                                    <span
+                                      className={`inline-block text-[8px] font-extrabold uppercase px-1.5 py-0.5 ${radiusClass} bg-black/20 mb-1`}
+                                      style={radiusStyle}
+                                    >
+                                      {cfg.hero.badgeText}
+                                    </span>
+                                  )}
+                                  <h4 className="text-xs sm:text-sm font-black uppercase leading-tight truncate">
+                                    {cfg.hero.title || 'Menù Digitale'}
+                                  </h4>
+                                  <p className="text-[10px] font-semibold opacity-90 truncate mt-0.5">
+                                    {cfg.hero.subtitle || 'Esplora i nostri piatti'}
+                                  </p>
+                                </div>
+                                <div className="relative z-10 self-end mt-1">
+                                  <div
+                                    className={`w-6 h-6 ${radiusClass} bg-black/15 flex items-center justify-center`}
+                                    style={radiusStyle}
+                                  >
+                                    <UtensilsCrossed className="w-3.5 h-3.5" style={{ color: cText }} />
+                                  </div>
+                                </div>
                               </div>
                             )}
-                          </div>
 
-                          {/* Footer with Apply Button */}
-                          <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
-                            <span className="text-[10px] text-zinc-500">
-                              ❤️ {tpl.likesCount} preferiti
-                            </span>
+                            {/* Bento Grid Modules */}
+                            <div className="grid grid-cols-2 gap-2">
+                              {cfg.modules
+                                .filter((m) => m.enabled)
+                                .map((m) => {
+                                  const isFull = m.colSpan === 2;
+                                  const ModIcon = getModuleIcon(m.id, m.iconName);
+                                  return (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setPreviewModuleToast(`Modulo: ${m.title}`);
+                                        setTimeout(() => setPreviewModuleToast(null), 2000);
+                                      }}
+                                      className={`${isFull ? 'col-span-2' : 'col-span-1'} ${radiusClass} p-2.5 flex flex-col justify-between ${
+                                        cfg.cardDensity === 'compact' ? 'min-h-[82px]' : 'min-h-[96px]'
+                                      } transition-transform active:scale-95 text-left relative overflow-hidden ${getTplCardClass()}`}
+                                      style={{
+                                        ...radiusStyle,
+                                        ...(m.cardColor ? { borderColor: `${m.cardColor}50` } : {}),
+                                      }}
+                                    >
+                                      <div className="flex items-start justify-between w-full mb-1">
+                                        <div
+                                          className={`w-6 h-6 ${radiusClass} flex items-center justify-center ${
+                                            isTplLight ? 'bg-slate-100 text-slate-800' : 'bg-white/10 text-white'
+                                          }`}
+                                          style={radiusStyle}
+                                        >
+                                          <ModIcon className="w-3.5 h-3.5" style={{ color: pColor }} />
+                                        </div>
+                                        {m.badge && (
+                                          <span
+                                            className={`text-[8px] font-bold px-1.5 py-0.5 ${radiusClass} ${
+                                              isTplLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
+                                            }`}
+                                            style={radiusStyle}
+                                          >
+                                            {m.badge}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <h5 className={`text-[11px] font-bold truncate leading-tight ${isTplLight ? 'text-slate-900' : 'text-white'}`}>
+                                          {m.title}
+                                        </h5>
+                                        {m.subtitle && (
+                                          <p className={`text-[9px] truncate mt-0.5 ${isTplLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                                            {m.subtitle}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                            </div>
 
-                            <button
-                              type="button"
-                              onClick={() => handleApplyTemplate(tpl)}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                            {/* Review Banner */}
+                            <div
+                              className={`${radiusClass} p-2 relative z-10 border text-center ${getTplCardClass()}`}
+                              style={radiusStyle}
                             >
-                              <Zap className="w-3.5 h-3.5 fill-black" />
-                              <span>Applica questo Hub</span>
-                            </button>
+                              <span className="text-[9px] font-bold block mb-1">Valuta l&apos;Esperienza</span>
+                              <div className="flex items-center justify-center gap-1 text-amber-400">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star key={s} className="w-3.5 h-3.5 fill-amber-400" />
+                                ))}
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Bottom Dock Bar if enabled */}
+                          {cfg.showBottomDock !== false && (
+                            <div className="relative z-20 pt-2">
+                              <div
+                                className={`flex items-center justify-around py-1.5 px-3 rounded-full border shadow-md ${
+                                  isTplLight ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-black/60 border-white/10 text-zinc-300'
+                                }`}
+                              >
+                                <span className="text-[9px] font-bold">Home</span>
+                                <span className="text-[9px] font-bold">Menù</span>
+                                <div
+                                  className="w-7 h-7 rounded-full flex items-center justify-center -mt-3 shadow-md"
+                                  style={{ backgroundColor: pColor, color: cText }}
+                                >
+                                  <BellRing className="w-3.5 h-3.5" />
+                                </div>
+                                <span className="text-[9px] font-bold">Info</span>
+                                <span className="text-[9px] font-bold">Share</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Toast overlay inside phone */}
+                          {previewModuleToast && (
+                            <div className="absolute top-10 inset-x-4 z-50 bg-black/90 border border-sky-400/50 text-white text-[10px] font-bold py-1.5 px-3 rounded-xl text-center shadow-lg animate-fade-in">
+                              {previewModuleToast}
+                            </div>
+                          )}
                         </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Right Column: Template Specifications & Apply Action */}
+                  <div className="lg:col-span-6 space-y-4 py-2">
+                    <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-sky-400 tracking-wider">Specifiche del Design</span>
+                        <h4 className="text-lg font-black text-white mt-0.5">{previewingTemplate.name}</h4>
+                        <p className="text-xs text-zinc-300 leading-relaxed mt-1">{previewingTemplate.description}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-[11px]">
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                          <span className="text-zinc-500 block text-[9px] uppercase font-bold">Font Tipografico</span>
+                          <span className="font-extrabold text-white mt-0.5 block capitalize">{previewingTemplate.config.fontFamily}</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                          <span className="text-zinc-500 block text-[9px] uppercase font-bold">Stile Card</span>
+                          <span className="font-extrabold text-white mt-0.5 block capitalize">{previewingTemplate.config.cardStyle}</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                          <span className="text-zinc-500 block text-[9px] uppercase font-bold">Tema & Contrasto</span>
+                          <span className="font-extrabold text-white mt-0.5 block capitalize">{previewingTemplate.config.themeMode}</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                          <span className="text-zinc-500 block text-[9px] uppercase font-bold">Angoli Bordo</span>
+                          <span className="font-extrabold text-white mt-0.5 block capitalize">{previewingTemplate.config.borderRadius || '2xl'}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-[10px] text-zinc-400">Colore Primario d&apos;Accento:</span>
+                        <div
+                          className="w-5 h-5 rounded-full border border-white/40 shadow-sm"
+                          style={{ backgroundColor: previewingTemplate.preview.primaryColor }}
+                        />
+                        <span className="text-xs font-mono font-bold text-white">
+                          {previewingTemplate.preview.primaryColor}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Notice Box */}
+                    <div className="bg-sky-500/10 border border-sky-500/25 rounded-2xl p-3.5 flex items-start gap-2.5 text-sky-200 text-xs">
+                      <Sparkles className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="font-bold">Nessuna modifica è stata ancora salvata.</p>
+                        <p className="text-[11px] text-sky-300/80 leading-relaxed">
+                          Puoi esplorare questo mockup senza alcun rischio. Se decidi di applicarlo, potrai comunque personalizzarlo ulteriormente in qualsiasi momento.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyTemplate(previewingTemplate)}
+                        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-sky-500 hover:bg-sky-400 text-black font-black text-sm shadow-xl transition-all active:scale-[0.98] cursor-pointer"
+                      >
+                        <Zap className="w-4 h-4 fill-black" />
+                        <span>Applica questo Hub al Tuo Locale</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPreviewingTemplate(null)}
+                        className="w-full py-2.5 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        Torna all&apos;Elenco dei Design
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* CATALOG TEMPLATES LIST */
+              <>
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                        <span>Catalogo Hub Pronti all&apos;Uso & Community</span>
+                        <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-extrabold border border-sky-500/30">
+                          {catalogTemplates.length} Design
+                        </span>
+                      </h3>
+                      <p className="text-xs text-zinc-400">
+                        Scegli un Hub d&apos;autore già pronto per il tuo locale oppure condividi il tuo design con la community
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShareTplName(`${name || 'Locale'} Signature`);
+                        setShareTplAuthor(name || 'Creatore RIVO');
+                        setShowShareCatalogModal(true);
+                      }}
+                      className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-95 touch-press cursor-pointer"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Condividi il Tuo Hub</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCatalogModal(false)}
+                      className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={catalogSearch}
+                        onChange={(e) => setCatalogSearch(e.target.value)}
+                        placeholder="Cerca template per nome, stile, autore o parole chiave..."
+                        className="w-full bg-[#18181B] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500/50"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShareTplName(`${name || 'Locale'} Signature`);
+                        setShareTplAuthor(name || 'Creatore RIVO');
+                        setShowShareCatalogModal(true);
+                      }}
+                      className="sm:hidden inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Condividi</span>
+                    </button>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {[
+                      { id: 'all', label: 'Tutti i Design', icon: Globe },
+                      { id: 'luxury', label: 'Luxury & Fine Dining', icon: Crown },
+                      { id: 'nightlife', label: 'Cocktail & Speakeasy', icon: Wine },
+                      { id: 'pizzeria', label: 'Pizzeria Contemporanea', icon: UtensilsCrossed },
+                      { id: 'bistrot', label: 'Bistrot & Brunch', icon: Coffee },
+                      { id: 'cyberpunk', label: 'Cyberpunk Lounge', icon: Zap },
+                      { id: 'beach', label: 'Beach Club', icon: Compass },
+                      { id: 'hotel', label: 'Boutique Hotel', icon: Building },
+                    ].map((f) => {
+                      const FilterIcon = f.icon;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setCatalogFilter(f.id)}
+                          className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${
+                            catalogFilter === f.id
+                              ? 'bg-sky-500 text-black font-bold shadow'
+                              : 'bg-white/5 text-zinc-400 hover:text-white border border-white/5'
+                          }`}
+                        >
+                          <FilterIcon className="w-3.5 h-3.5" />
+                          <span>{f.label}</span>
+                        </button>
                       );
                     })}
                   </div>
-                );
-              })()}
-            </div>
+                </div>
 
-            {/* Modal Bottom Footer */}
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-400">
-                💡 Quando applichi un template puoi modificarlo a tuo piacimento e salvarlo.
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowCatalogModal(false)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs transition-colors cursor-pointer"
-              >
-                Chiudi
-              </button>
-            </div>
+                {/* Scrollable Templates Grid */}
+                <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[58vh]">
+                  {(() => {
+                    const filtered = catalogTemplates.filter((t) => {
+                      const matchesSearch =
+                        !catalogSearch.trim() ||
+                        t.name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                        t.description.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                        t.author.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                        t.styleTag.toLowerCase().includes(catalogSearch.toLowerCase());
+
+                      let matchesCategory = true;
+                      if (catalogFilter === 'luxury') matchesCategory = t.styleTag.toLowerCase().includes('luxury') || t.styleTag.toLowerCase().includes('fine');
+                      else if (catalogFilter === 'nightlife') matchesCategory = t.styleTag.toLowerCase().includes('jazz') || t.styleTag.toLowerCase().includes('cocktail') || t.styleTag.toLowerCase().includes('speakeasy');
+                      else if (catalogFilter === 'pizzeria') matchesCategory = t.styleTag.toLowerCase().includes('pizz');
+                      else if (catalogFilter === 'bistrot') matchesCategory = t.styleTag.toLowerCase().includes('bistrot') || t.styleTag.toLowerCase().includes('brunch');
+                      else if (catalogFilter === 'cyberpunk') matchesCategory = t.styleTag.toLowerCase().includes('cyber') || t.styleTag.toLowerCase().includes('lounge');
+                      else if (catalogFilter === 'beach') matchesCategory = t.styleTag.toLowerCase().includes('beach') || t.styleTag.toLowerCase().includes('sunset');
+                      else if (catalogFilter === 'hotel') matchesCategory = t.styleTag.toLowerCase().includes('hotel') || t.styleTag.toLowerCase().includes('suite');
+
+                      return matchesSearch && matchesCategory;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="text-center py-12 text-zinc-500 space-y-2">
+                          <p className="text-sm">Nessun template corrisponde ai filtri selezionati.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCatalogFilter('all');
+                              setCatalogSearch('');
+                            }}
+                            className="text-xs text-sky-400 font-bold underline"
+                          >
+                            Azzera i filtri
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {filtered.map((tpl) => {
+                          return (
+                            <div
+                              key={tpl.id}
+                              className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-sky-500/30 transition-all flex flex-col justify-between space-y-3 group"
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/25 mb-1">
+                                      {tpl.styleTag}
+                                    </span>
+                                    <h4 className="text-sm sm:text-base font-extrabold text-white group-hover:text-sky-200 transition-colors">
+                                      {tpl.name}
+                                    </h4>
+                                    <span className="text-[11px] text-zinc-400 block mt-0.5">
+                                      Creato da <strong className="text-zinc-200">{tpl.author}</strong>
+                                    </span>
+                                  </div>
+
+                                  <div
+                                    className="w-8 h-8 rounded-full border-2 shadow-md shrink-0"
+                                    style={{
+                                      backgroundColor: tpl.preview.primaryColor,
+                                      borderColor: '#ffffff',
+                                    }}
+                                    title={`Colore primario: ${tpl.preview.primaryColor}`}
+                                  />
+                                </div>
+
+                                <p className="text-[11px] text-zinc-300 line-clamp-3 leading-relaxed">
+                                  {tpl.description}
+                                </p>
+
+                                {/* Badges preview */}
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
+                                    Font: <strong className="text-zinc-200">{tpl.preview.fontFamily}</strong>
+                                  </span>
+                                  <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
+                                    Card: <strong className="text-zinc-200">{tpl.preview.cardStyle}</strong>
+                                  </span>
+                                  <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400">
+                                    Tema: <strong className="text-zinc-200">{tpl.preview.themeMode}</strong>
+                                  </span>
+                                </div>
+
+                                {/* Modules included preview */}
+                                {tpl.preview.modulesPreview && tpl.preview.modulesPreview.length > 0 && (
+                                  <div className="text-[10px] text-zinc-400 pt-1 flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-zinc-500">Include:</span>
+                                    {tpl.preview.modulesPreview.slice(0, 4).map((modName, mIdx) => (
+                                      <span key={mIdx} className="text-zinc-300 font-medium bg-black/30 px-1.5 py-0.2 rounded border border-white/5">
+                                        {modName}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Footer with Preview and Apply Buttons */}
+                              <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1 text-[10px] text-zinc-500">
+                                  <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                                  <span>{tpl.likesCount} preferiti</span>
+                                </span>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewingTemplate(tpl)}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition-all active:scale-95 cursor-pointer border border-white/10"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-sky-400" />
+                                    <span>Prova Anteprima</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplyTemplate(tpl)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                                  >
+                                    <Zap className="w-3.5 h-3.5 fill-black" />
+                                    <span>Applica</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Modal Bottom Footer */}
+                <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-400 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Quando applichi un template puoi modificarlo a tuo piacimento e salvarlo.</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCatalogModal(false)}
+                    className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    Chiudi
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 5: 📤 CONDIVIDI IL TUO HUB NEL CATALOGO DELLA COMMUNITY */}
+      {/* MODAL 5: CONDIVIDI IL TUO HUB NEL CATALOGO DELLA COMMUNITY */}
       {/* ========================================================================= */}
       {showShareCatalogModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">

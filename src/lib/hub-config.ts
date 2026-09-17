@@ -197,7 +197,7 @@ export const ALL_HUB_MODULE_TEMPLATES: Omit<HubModuleConfig, 'order'>[] = [
   { id: 'wifi', enabled: true, title: 'Wi-Fi Ospiti', subtitle: 'Accesso rapido 1-tap', badge: 'Gratis', colSpan: 1 },
   { id: 'wheel', enabled: true, title: 'Ruota Premi', subtitle: 'Gira & vinci un dolce/caffè', badge: 'Bonus', colSpan: 1 },
   { id: 'loyalty', enabled: true, title: 'Fidelity Pass', subtitle: 'Timbri digitali al tavolo', badge: 'Fedeltà', colSpan: 1 },
-  { id: 'reviews', enabled: true, title: 'Lascia Recensione', subtitle: 'Valuta l’esperienza su Google', badge: '5★', colSpan: 2 },
+  { id: 'reviews', enabled: true, title: 'Lascia Recensione', subtitle: 'Valuta l’esperienza su Google', badge: '5.0', colSpan: 2 },
   { id: 'guide', enabled: false, title: 'Guida Locale', subtitle: 'Cosa vedere & fare nei dintorni', badge: 'Consigli', colSpan: 1 },
   { id: 'instagram', enabled: false, title: 'Canale Instagram', subtitle: 'Foto, storie & novità', badge: '@Social', colSpan: 1 },
   { id: 'whatsapp', enabled: false, title: 'Chat WhatsApp', subtitle: 'Scrivi allo staff', badge: 'Chat', colSpan: 1 },
@@ -231,6 +231,10 @@ export interface HubConfig {
   bgOverlayOpacity?: number; // 0-90% dark overlay for guaranteed WCAG legibility
   bgGradientStops?: [string, string];
   borderRadius?: 'none' | 'md' | '2xl' | '3xl' | 'full';
+  // Advanced Customization Controls
+  cardDensity?: 'compact' | 'comfortable';
+  buttonGlow?: boolean;
+  showBottomDock?: boolean;
 }
 
 export function getDefaultModules(category: BusinessCategory = 'restaurant'): HubModuleConfig[] {
@@ -435,7 +439,7 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
           order: 6,
           title: 'Lascia Recensione',
           subtitle: 'Valuta l’esperienza su Google',
-          badge: '5★',
+          badge: '5.0',
         },
       ];
   }
@@ -584,6 +588,10 @@ export function mergeHubConfig(
     bgOverlayOpacity: typeof conf.bgOverlayOpacity === 'number' ? conf.bgOverlayOpacity : 50,
     bgGradientStops: conf.bgGradientStops || ['#0c0f0d', '#1a241b'],
     borderRadius: conf.borderRadius || '2xl',
+    // Advanced Customization Controls
+    cardDensity: conf.cardDensity || 'comfortable',
+    buttonGlow: conf.buttonGlow ?? true,
+    showBottomDock: conf.showBottomDock ?? true,
   };
 }
 

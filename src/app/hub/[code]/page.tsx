@@ -55,13 +55,7 @@ const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.C
   </svg>
 );
 
-const Instagram = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
-  <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-  </svg>
-);
+import { WhatsAppIcon, InstagramIcon } from '@/components/brand-icons';
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 import { BusinessCategory } from '@/lib/types';
@@ -1023,11 +1017,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               onClick={() => setShowMenuModal(true)}
               className={`${
                 nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
-              } animate-hero-glow touch-press active:scale-[0.98] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer`}
+              } ${activeConfig.buttonGlow !== false ? 'animate-hero-glow' : ''} touch-press active:scale-[0.98] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
-                boxShadow: `0 10px 28px ${primaryColor}35`,
+                boxShadow: activeConfig.buttonGlow !== false ? `0 10px 28px ${primaryColor}35` : 'none',
                 '--hero-glow-1': `${primaryColor}35`,
                 '--hero-glow-2': `${primaryColor}20`,
                 '--hero-glow-strong-1': `${primaryColor}65`,
@@ -1108,6 +1102,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     return <CalendarCheck className="w-5 h-5" style={{ color: primaryColor }} />;
                   case 'UtensilsCrossed':
                     return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                  case 'WhatsApp':
+                    return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
+                  case 'Instagram':
+                    return <InstagramIcon className="w-5 h-5 text-pink-500" />;
                   case 'Sparkles':
                   default:
                     return <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
@@ -1135,11 +1133,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 case 'guide':
                   return <BookOpen className="w-5 h-5" style={{ color: primaryColor }} />;
                 case 'whatsapp':
-                  return <MessageCircle className="w-5 h-5 text-emerald-400" />;
+                  return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
                 case 'menu':
                   return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
                 case 'instagram':
-                  return <Instagram className="w-5 h-5 text-pink-400" />;
+                  return <InstagramIcon className="w-5 h-5 text-pink-500" />;
                 case 'custom_cta':
                   return <ExternalLink className="w-5 h-5" style={{ color: primaryColor }} />;
                 default:
@@ -1209,7 +1207,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             const cardRadiusClass = getBorderRadiusClass(activeConfig.borderRadius);
             const cardRadiusStyle = getBorderRadiusStyle(activeConfig.borderRadius);
 
-            const cardClassName = `${cardSpanClass} ${cardAnimClass} touch-press active:scale-95 ${cardRadiusClass} p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all group relative overflow-hidden ${cardBaseClass}`;
+            const isCompact = activeConfig.cardDensity === 'compact';
+            const densityClass = isCompact ? 'p-3 min-h-[96px] sm:min-h-[105px]' : 'p-4 min-h-[115px] sm:min-h-[125px]';
+
+            const cardClassName = `${cardSpanClass} ${cardAnimClass} touch-press active:scale-95 ${cardRadiusClass} ${densityClass} flex flex-col justify-between items-start text-left transition-all group relative overflow-hidden ${cardBaseClass}`;
 
             const moduleCardStyle: React.CSSProperties = {
               ...cardCustomStyle,
@@ -1551,81 +1552,85 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {/* DOCKED BOTTOM NAVIGATION BAR (Inspired by native app bottom dock in photo) */}
       {/* ========================================================================= */}
-      <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] inset-x-0 max-w-md mx-auto px-4 z-40 pointer-events-none">
-        <nav
-          aria-label="Navigazione rapida"
-          className={`pointer-events-auto backdrop-blur-2xl border rounded-full px-5 py-2 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)] ${
-            nfcPhase === 'assembling' ? 'animate-assemble-dock' : ''
-          } ${
-            isLight
-              ? 'bg-white/95 text-slate-700 border-slate-200/90 shadow-[0_12px_45px_rgba(0,0,0,0.12)]'
-              : 'bg-[#141715]/95 text-zinc-300 border-white/10 shadow-[0_12px_45px_rgba(0,0,0,0.85)]'
-          }`}
-        >
-          {/* Home */}
-          <button
-            type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            aria-label="Torna all'inizio"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+      {activeConfig.showBottomDock !== false && (
+        <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] inset-x-0 max-w-md mx-auto px-4 z-40 pointer-events-none">
+          <nav
+            aria-label="Navigazione rapida"
+            className={`pointer-events-auto backdrop-blur-2xl border rounded-full px-5 py-2 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)] ${
+              nfcPhase === 'assembling' ? 'animate-assemble-dock' : ''
+            } ${
+              isLight
+                ? 'bg-white/95 text-slate-700 border-slate-200/90 shadow-[0_12px_45px_rgba(0,0,0,0.12)]'
+                : 'bg-[#141715]/95 text-zinc-300 border-white/10 shadow-[0_12px_45px_rgba(0,0,0,0.85)]'
+            }`}
           >
-            <Home className="w-5 h-5" />
-            <span className="text-[9px] font-medium mt-0.5">Home</span>
-          </button>
+            {/* Home */}
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              aria-label="Torna all'inizio"
+              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+            >
+              <Home className="w-5 h-5" />
+              <span className="text-[9px] font-medium mt-0.5">Home</span>
+            </button>
 
-          {/* Menù / Servizi */}
-          <button
-            type="button"
-            onClick={() => setShowMenuModal(true)}
-            aria-label="Apri Menù"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
-          >
-            <BookOpen className="w-5 h-5" />
-            <span className="text-[9px] font-medium mt-0.5">Menù</span>
-          </button>
+            {/* Menù / Servizi */}
+            <button
+              type="button"
+              onClick={() => setShowMenuModal(true)}
+              aria-label="Apri Menù"
+              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+            >
+              <BookOpen className="w-5 h-5" />
+              <span className="text-[9px] font-medium mt-0.5">Menù</span>
+            </button>
 
-          {/* CENTER ELEVATED FLOATING ACTION BUTTON (Primary Accent) */}
-          <Link
-            href={`/call/${code}`}
-            aria-label="Chiama Sala Rapido"
-            className="touch-press active:scale-90 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-2xl relative group"
-            style={{
-              backgroundColor: primaryColor,
-              color: contrastText,
-              boxShadow: `0 6px 25px ${primaryColor}65`,
-            }}
-          >
-            {/* Ambient radar pulse ring */}
-            <span
-              className="absolute inset-0 rounded-full animate-fab-pulse-ring pointer-events-none"
-              style={{ backgroundColor: primaryColor }}
-            />
-            <BellRing className="w-5 h-5 relative z-10 animate-bell-swing origin-top" />
-          </Link>
+            {/* CENTER ELEVATED FLOATING ACTION BUTTON (Primary Accent) */}
+            <Link
+              href={`/call/${code}`}
+              aria-label="Chiama Sala Rapido"
+              className="touch-press active:scale-90 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-2xl relative group"
+              style={{
+                backgroundColor: primaryColor,
+                color: contrastText,
+                boxShadow: activeConfig.buttonGlow !== false ? `0 6px 25px ${primaryColor}65` : 'none',
+              }}
+            >
+              {/* Ambient radar pulse ring */}
+              {activeConfig.buttonGlow !== false && (
+                <span
+                  className="absolute inset-0 rounded-full animate-fab-pulse-ring pointer-events-none"
+                  style={{ backgroundColor: primaryColor }}
+                />
+              )}
+              <BellRing className="w-5 h-5 relative z-10 animate-bell-swing origin-top" />
+            </Link>
 
-          {/* Info & Assistenza */}
-          <button
-            type="button"
-            onClick={() => setShowContactModal(true)}
-            aria-label="Info e contatti"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
-          >
-            <Info className="w-5 h-5" />
-            <span className="text-[9px] font-medium mt-0.5">Info</span>
-          </button>
+            {/* Info & Assistenza */}
+            <button
+              type="button"
+              onClick={() => setShowContactModal(true)}
+              aria-label="Info e contatti"
+              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+            >
+              <Info className="w-5 h-5" />
+              <span className="text-[9px] font-medium mt-0.5">Info</span>
+            </button>
 
-          {/* Condividi */}
-          <button
-            type="button"
-            onClick={handleShare}
-            aria-label="Condividi"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
-          >
-            <Share2 className="w-5 h-5" />
-            <span className="text-[9px] font-medium mt-0.5">Share</span>
-          </button>
-        </nav>
-      </div>
+            {/* Condividi */}
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Condividi"
+              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+            >
+              <Share2 className="w-5 h-5" />
+              <span className="text-[9px] font-medium mt-0.5">Share</span>
+            </button>
+          </nav>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* INTERACTIVE DIGITAL MENU MODAL */}
@@ -1882,13 +1887,32 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   className="flex items-center justify-between p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <MessageCircle className="w-4 h-4 text-emerald-400" />
+                    <WhatsAppIcon className="w-4 h-4" color="#25D366" />
                     <div>
                       <span className="font-bold text-white block">Chat WhatsApp</span>
                       <span className="text-[10px] text-zinc-400">Messaggio rapido al locale</span>
                     </div>
                   </div>
                   <span className="text-[11px] text-emerald-400 font-bold group-hover:underline">Chat</span>
+                </a>
+              )}
+
+              {/* Instagram Option */}
+              {org.instagram_url && (
+                <a
+                  href={org.instagram_url.startsWith('http') ? org.instagram_url : `https://instagram.com/${org.instagram_url.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-pink-500/10 hover:bg-pink-500/15 border border-pink-500/20 transition-colors group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <InstagramIcon className="w-4 h-4" color="#E1306C" />
+                    <div>
+                      <span className="font-bold text-white block">Profilo Instagram</span>
+                      <span className="text-[10px] text-zinc-400">Seguici per storie e foto</span>
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-pink-400 font-bold group-hover:underline">Apri</span>
                 </a>
               )}
 
