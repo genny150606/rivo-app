@@ -8,11 +8,11 @@ import {
   Sparkles, 
   Award, 
   CheckCircle2, 
-  ArrowLeft,
+  ArrowLeft, 
   Search, 
   Gift, 
-  AlertCircle,
-  Plus
+  AlertCircle, 
+  Plus 
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -45,7 +45,9 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
     max_stamps: number;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [newlyStampedIndex, setNewlyStampedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -77,8 +79,69 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
     loadData();
   }, [code]);
 
-  const handleLookupOrAddStamp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const triggerConfettiCelebration = () => {
+    try {
+      confetti({
+        particleCount: 110,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: ['#BFFF00', '#FACC15', '#38BDF8', '#FFFFFF', '#EC4899'],
+      });
+      setTimeout(() => {
+        confetti({
+          particleCount: 65,
+          angle: 60,
+          spread: 60,
+          origin: { x: 0.05, y: 0.7 },
+          colors: ['#FACC15', '#F59E0B', '#BFFF00'],
+        });
+        confetti({
+          particleCount: 65,
+          angle: 120,
+          spread: 60,
+          origin: { x: 0.95, y: 0.7 },
+          colors: ['#FACC15', '#F59E0B', '#BFFF00'],
+        });
+      }, 250);
+    } catch (e) {
+      console.warn('Confetti error:', e);
+    }
+  };
+
+  const handleLookupCard = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!device || !phone.trim()) return;
+
+    setSearching(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(
+        `/api/loyalty?organization_id=${encodeURIComponent(device.organization_id)}&contact=${encodeURIComponent(phone.trim())}`
+      );
+      const data = await res.json();
+      if (res.ok && data.card) {
+        setCard(data.card);
+        setNewlyStampedIndex(null);
+        if (data.card.stamps_count >= data.card.max_stamps) {
+          setMessage('🎉 Traguardo raggiunto! Premio pronto per il ritiro al tavolo!');
+          triggerConfettiCelebration();
+        } else {
+          setMessage(`Tessera trovata! Hai ${data.card.stamps_count} su ${data.card.max_stamps} timbri.`);
+        }
+      } else {
+        setMessage('Nessuna tessera trovata per questo numero. Aggiungi il tuo primo timbro!');
+      }
+    } catch (err) {
+      console.warn('Loyalty lookup error:', err);
+      setMessage('Errore durante la ricerca della tessera.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAddStamp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!device || !phone.trim()) return;
 
     setSubmitting(true);
@@ -97,23 +160,26 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
 
       const data = await res.json();
       if (res.ok && data.card) {
+        const newCount = data.card.stamps_count;
         setCard(data.card);
-        setMessage(data.message || 'Timbro aggiunto con successo!');
-        if (data.card.stamps_count >= data.card.max_stamps) {
-          try {
-            confetti({
-              particleCount: 100,
-              spread: 80,
-              origin: { y: 0.6 },
-              colors: ['#BFFF00', '#FACC15', '#38BDF8', '#FFFFFF'],
-            });
-          } catch (e) {
-            console.warn(e);
-          }
+        setNewlyStampedIndex(newCount - 1);
+
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([40, 30, 40]);
         }
+
+        if (newCount >= data.card.max_stamps) {
+          setMessage('🎉 Traguardo completato! Il tuo premio è pronto da ritirare al tavolo!');
+          triggerConfettiCelebration();
+        } else {
+          setMessage(data.isNew ? '✨ Benvenuto! Primo timbro impresso sul tuo pass.' : '✅ Timbro a inchiostro impresso con successo!');
+        }
+      } else {
+        setMessage(data.error || 'Errore durante la timbratura.');
       }
     } catch (err) {
       console.warn('Loyalty error:', err);
+      setMessage('Errore di connessione. Riprova tra poco.');
     } finally {
       setSubmitting(false);
     }
@@ -138,7 +204,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
         <h2 className="text-lg font-bold">Dispositivo non trovato</h2>
         <Link
           href={`/hub/${code}`}
-          className="mt-3 px-4 py-2 rounded-xl bg-zinc-800 text-white text-xs font-semibold"
+          className="mt-3 px-4 py-2 rounded-xl bg-zinc-800 text-white text-xs font-semibold touch-press active:scale-95 transition-all"
         >
           Torna all&apos;Hub
         </Link>
@@ -148,6 +214,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
 
   const maxStamps = card?.max_stamps || 10;
   const currentStamps = card?.stamps_count || 0;
+  const isCompleted = currentStamps >= maxStamps;
 
   return (
     <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-[#BFFF00] selection:text-black">
@@ -158,7 +225,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
       <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pt-1 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 touch-press min-h-[40px]"
         >
           <ArrowLeft className="w-4 h-4 text-emerald-400" />
           <span>Torna all&apos;Hub</span>
@@ -199,33 +266,101 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
             {Array.from({ length: maxStamps }).map((_, index) => {
               const isStamped = index < currentStamps;
               const isRewardSlot = index === maxStamps - 1;
+              const isNewlyStamped = newlyStampedIndex === index;
+              
+              // Organic ink stamp rotation angles mimicking real physical hand stamping
+              const stampRotations = [
+                '-rotate-3',
+                'rotate-2',
+                '-rotate-2',
+                'rotate-3',
+                '-rotate-1',
+                'rotate-2',
+                '-rotate-3',
+                'rotate-2',
+                '-rotate-2',
+                'rotate-1',
+              ];
+              const rotClass = stampRotations[index % stampRotations.length];
+
               return (
                 <div
                   key={index}
-                  className={`aspect-square rounded-xl flex items-center justify-center transition-all ${
+                  className={`aspect-square rounded-xl sm:rounded-2xl flex flex-col items-center justify-center relative transition-all duration-300 select-none overflow-hidden ${
                     isStamped
-                      ? 'bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.3)] scale-105'
+                      ? `bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.35)] scale-100 ${
+                          isNewlyStamped ? 'animate-stamp-bounce ring-4 ring-emerald-400/30' : ''
+                        }`
                       : isRewardSlot
-                      ? 'bg-amber-500/10 border-2 border-dashed border-amber-500/40 text-amber-400'
-                      : 'bg-black/40 border border-zinc-800 text-zinc-700'
+                      ? 'bg-amber-500/10 border-2 border-dashed border-amber-500/50 text-amber-400'
+                      : 'bg-black/40 border border-zinc-800 text-zinc-600'
                   }`}
                 >
                   {isStamped ? (
-                    <CheckCircle2 className="w-5 h-5 animate-scale-in" />
+                    <div
+                      className={`flex flex-col items-center justify-center transition-transform ${rotClass} ${
+                        isNewlyStamped ? 'animate-stamp-bounce' : ''
+                      }`}
+                    >
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-emerald-300/80 bg-emerald-500/30 flex items-center justify-center shadow-inner">
+                        {isRewardSlot ? (
+                          <Award className="w-4 h-4 sm:w-5 sm:h-5 text-[#BFFF00] stroke-[2.5]" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-300 stroke-[2.5]" />
+                        )}
+                      </div>
+                      <span className="text-[8px] font-mono font-black text-emerald-400 tracking-tight mt-0.5 uppercase">
+                        {index + 1}
+                      </span>
+                    </div>
                   ) : isRewardSlot ? (
-                    <Gift className="w-5 h-5 animate-pulse" />
+                    <div className="flex flex-col items-center justify-center gap-0.5">
+                      <Gift className="w-5 h-5 animate-pulse text-amber-400" />
+                      <span className="text-[8px] sm:text-[9px] font-mono font-bold text-amber-400/90">{index + 1}</span>
+                    </div>
                   ) : (
-                    <span className="text-xs font-mono font-semibold">{index + 1}</span>
+                    <span className="text-xs font-mono font-semibold text-zinc-600">{index + 1}</span>
                   )}
                 </div>
               );
             })}
           </div>
 
-          <div className="bg-black/50 rounded-xl p-2.5 border border-white/5 flex items-center justify-between">
-            <span className="text-[10px] text-zinc-400">Premio finale:</span>
-            <span className="text-xs font-bold text-[#BFFF00]">{org?.loyalty_reward_text || 'Omaggio Esclusivo'}</span>
-          </div>
+          {/* REWARD BADGE: GOLDEN GLOW ON COMPLETION (10 TIMBRI) */}
+          {isCompleted ? (
+            <div className="rounded-xl p-3 border-2 border-yellow-400 bg-gradient-to-r from-amber-500/20 via-yellow-400/25 to-amber-500/20 animate-golden-glow flex flex-col gap-1.5 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-yellow-300">
+                  <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />
+                  <span className="text-[11px] font-black uppercase tracking-wider">
+                    🎉 Premio Sbloccato • Al Tavolo!
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-yellow-400/30 border border-yellow-400/60 text-[10px] font-extrabold text-yellow-200 uppercase tracking-tight">
+                  Pronto al Ritiro
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-0.5">
+                <span className="text-[11px] text-zinc-300">Il tuo omaggio:</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[#BFFF00] drop-shadow-[0_0_8px_rgba(191,255,0,0.5)]">
+                  {org?.loyalty_reward_text || 'Omaggio Esclusivo'}
+                </span>
+              </div>
+              <p className="text-[10px] text-yellow-200/90 italic text-center pt-0.5">
+                Mostra questa schermata al cameriere per ricevere il premio al tuo tavolo!
+              </p>
+            </div>
+          ) : (
+            <div className="bg-black/50 rounded-xl p-2.5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-zinc-400 text-[10px]">
+                <Gift className="w-3.5 h-3.5 text-amber-400" />
+                <span>Premio al 10° timbro:</span>
+              </div>
+              <span className="text-xs font-bold text-[#BFFF00]">
+                {org?.loyalty_reward_text || 'Omaggio Esclusivo'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* LOOKUP / ADD STAMP FORM */}
@@ -236,7 +371,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
             </div>
           )}
 
-          <form onSubmit={handleLookupOrAddStamp} className="space-y-2">
+          <form onSubmit={handleAddStamp} className="space-y-2.5">
             {!card && (
               <div>
                 <input
@@ -260,14 +395,27 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full min-h-[42px] bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{submitting ? 'Aggiornamento...' : 'Aggiungi Timbro di Oggi'}</span>
-            </button>
+            {/* ACTION BUTTONS WITH TOUCH-PRESS & ACTIVE:SCALE-95 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleLookupCard}
+                disabled={submitting || searching || !phone.trim()}
+                className="w-full min-h-[42px] bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] hover:border-zinc-500 text-zinc-200 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 touch-press active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Search className="w-4 h-4 text-zinc-400" />
+                <span>{searching ? 'Ricerca in corso...' : 'Cerca Tessera'}</span>
+              </button>
+
+              <button
+                type="submit"
+                disabled={submitting || searching || !phone.trim()}
+                className="w-full min-h-[42px] bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-black font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 touch-press active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Plus className="w-4 h-4 text-black stroke-[3]" />
+                <span>{submitting ? 'Impressione...' : 'Aggiungi Timbro'}</span>
+              </button>
+            </div>
           </form>
         </div>
       </main>

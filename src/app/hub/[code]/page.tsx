@@ -449,9 +449,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-4 pt-2.5 sm:pt-4 pb-24 sm:pb-28 relative z-10 gap-2.5 sm:gap-3">
         
         {/* ========================================================================= */}
-        {/* TOP APP BAR / HEADER (Inspired by reference phone photo) */}
+        {/* TOP APP BAR / HEADER (Stagger 1) */}
         {/* ========================================================================= */}
-        <header className="flex items-center justify-between gap-3 pt-0.5">
+        <header className="animate-nfc-stagger-1 flex items-center justify-between gap-3 pt-0.5">
           {/* Left: Avatar / Logo + Business Name */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="shrink-0 relative">
@@ -478,12 +478,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 {org.name}
               </h1>
               <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: primaryColor }} />
-                <span className="font-semibold text-zinc-300 truncate max-w-[120px]">
-                  {device?.name || 'Tavolo Ospiti'}
+                <span className="font-semibold text-zinc-300 truncate max-w-[140px]">
+                  {catDef.label}
                 </span>
                 <span className="text-zinc-600">•</span>
-                <span className="text-zinc-500 font-mono text-[10px]">RIVO</span>
+                <span className="text-zinc-500 font-mono text-[10px]">RIVO Hub</span>
               </div>
             </div>
           </div>
@@ -495,7 +494,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={() => setShowContactModal(true)}
               aria-label="Notifiche e assistenza"
-              className="w-9 h-9 rounded-full bg-[#181b19] hover:bg-[#202421] border border-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center transition-all relative active:scale-90"
+              className="touch-press w-9 h-9 rounded-full bg-[#181b19] hover:bg-[#202421] border border-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center transition-all relative active:scale-95"
             >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#181b19] animate-pulse" />
@@ -506,12 +505,34 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={handleShare}
               aria-label="Condividi locale"
-              className="w-9 h-9 rounded-full bg-[#181b19] hover:bg-[#202421] border border-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center transition-all active:scale-90"
+              className="touch-press w-9 h-9 rounded-full bg-[#181b19] hover:bg-[#202421] border border-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center transition-all active:scale-95"
             >
               <Share2 className="w-4 h-4" />
             </button>
           </div>
         </header>
+
+        {/* ========================================================================= */}
+        {/* BADGE TAVOLO CONNESSO (Stagger 2) */}
+        {/* ========================================================================= */}
+        <div className="animate-nfc-stagger-2 flex items-center justify-between px-3.5 py-2 rounded-2xl bg-[#141715]/90 border border-white/[0.08] backdrop-blur-md shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Pulsing emerald dot (animate-ping + solid dot) for real-time live connection feedback */}
+            <div className="relative flex h-2.5 w-2.5 items-center justify-center shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+            </div>
+            <div className="flex items-center gap-1.5 text-xs min-w-0">
+              <span className="text-zinc-400 font-medium shrink-0">Tavolo Connesso:</span>
+              <span className="font-bold text-white tracking-wide truncate max-w-[150px] sm:max-w-[200px]">
+                {device?.name || 'Tavolo Ospiti'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
+            NFC LIVE
+          </div>
+        </div>
 
         {/* ========================================================================= */}
         {/* SQUIRCLE ACTION GRID (2 COLUMNS x 3 ROWS) */}
@@ -525,13 +546,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <button
                 type="button"
                 onClick={() => setShowMenuModal(true)}
-                className="rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-xl group relative overflow-hidden"
+                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
                 style={{
                   backgroundColor: primaryColor,
                   color: contrastText,
                   boxShadow: `0 10px 25px ${primaryColor}35`,
-                }}
+                  '--hero-glow-1': `${primaryColor}35`,
+                  '--hero-glow-2': `${primaryColor}20`,
+                  '--hero-glow-strong-1': `${primaryColor}65`,
+                  '--hero-glow-strong-2': `${primaryColor}40`,
+                } as React.CSSProperties}
               >
+                {/* Luminous breath overlay */}
+                <div
+                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
+                />
                 <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <UtensilsCrossed className="w-5 h-5" style={{ color: contrastText }} />
                 </div>
@@ -548,7 +577,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 2: CHIAMA SALA */}
               <Link
                 href={`/call/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div
                   className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"
@@ -568,7 +597,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 3: AI SOMMELIER */}
               <Link
                 href={`/ai-sommelier/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Wine className="w-5 h-5" style={{ color: primaryColor }} />
@@ -586,7 +615,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 4: WI-FI OSPITI */}
               <Link
                 href={`/wifi/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
@@ -604,7 +633,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 5: RUOTA PREMI */}
               <Link
                 href={`/wheel/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
@@ -622,7 +651,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 6: CARTA FEDELTÀ */}
               <Link
                 href={`/loyalty/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
@@ -647,13 +676,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 href={org.custom_cta_url || (org.phone ? `tel:${org.phone}` : '#')}
                 target={org.custom_cta_url ? '_blank' : '_self'}
                 rel="noopener noreferrer"
-                className="rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-xl group"
+                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
                 style={{
                   backgroundColor: primaryColor,
                   color: contrastText,
                   boxShadow: `0 10px 25px ${primaryColor}35`,
-                }}
+                  '--hero-glow-1': `${primaryColor}35`,
+                  '--hero-glow-2': `${primaryColor}20`,
+                  '--hero-glow-strong-1': `${primaryColor}65`,
+                  '--hero-glow-strong-2': `${primaryColor}40`,
+                } as React.CSSProperties}
               >
+                {/* Luminous breath overlay */}
+                <div
+                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
+                />
                 <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <CalendarCheck className="w-5 h-5" style={{ color: contrastText }} />
                 </div>
@@ -673,7 +710,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   href={org.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
                 >
                   <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <Scissors className="w-5 h-5" style={{ color: primaryColor }} />
@@ -689,7 +726,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <button
                   type="button"
                   onClick={() => setShowContactModal(true)}
-                  className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
                 >
                   <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <Scissors className="w-5 h-5" style={{ color: primaryColor }} />
@@ -706,7 +743,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 3: WI-FI */}
               <Link
                 href={`/wifi/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
@@ -720,7 +757,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 4: RUOTA PREMI */}
               <Link
                 href={`/wheel/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
@@ -734,7 +771,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 5: CARTA FEDELTÀ */}
               <Link
                 href={`/loyalty/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
@@ -749,7 +786,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <button
                 type="button"
                 onClick={() => setShowContactModal(true)}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Phone className="w-5 h-5" style={{ color: primaryColor }} />
@@ -769,13 +806,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <a
                 href={org.phone ? `tel:${org.phone}` : '#'}
                 onClick={() => !org.phone && setShowContactModal(true)}
-                className="rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-xl group"
+                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
                 style={{
                   backgroundColor: primaryColor,
                   color: contrastText,
                   boxShadow: `0 10px 25px ${primaryColor}35`,
-                }}
+                  '--hero-glow-1': `${primaryColor}35`,
+                  '--hero-glow-2': `${primaryColor}20`,
+                  '--hero-glow-strong-1': `${primaryColor}65`,
+                  '--hero-glow-strong-2': `${primaryColor}40`,
+                } as React.CSSProperties}
               >
+                {/* Luminous breath overlay */}
+                <div
+                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
+                />
                 <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <BellRing className="w-5 h-5" style={{ color: contrastText }} />
                 </div>
@@ -793,7 +838,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <button
                 type="button"
                 onClick={() => setShowCityGuide(true)}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Compass className="w-5 h-5" style={{ color: primaryColor }} />
@@ -807,7 +852,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 3: WI-FI */}
               <Link
                 href={`/wifi/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
@@ -821,7 +866,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 4: RUOTA PREMI */}
               <Link
                 href={`/wheel/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
@@ -835,7 +880,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 5: CARTA FEDELTÀ */}
               <Link
                 href={`/loyalty/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
@@ -850,7 +895,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <button
                 type="button"
                 onClick={() => setShowContactModal(true)}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Info className="w-5 h-5" style={{ color: primaryColor }} />
@@ -872,13 +917,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 onClick={() => !org.custom_cta_url && !org.phone && setShowContactModal(true)}
                 target={org.custom_cta_url ? '_blank' : '_self'}
                 rel="noopener noreferrer"
-                className="rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-xl group"
+                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
                 style={{
                   backgroundColor: primaryColor,
                   color: contrastText,
                   boxShadow: `0 10px 25px ${primaryColor}35`,
-                }}
+                  '--hero-glow-1': `${primaryColor}35`,
+                  '--hero-glow-2': `${primaryColor}20`,
+                  '--hero-glow-strong-1': `${primaryColor}65`,
+                  '--hero-glow-strong-2': `${primaryColor}40`,
+                } as React.CSSProperties}
               >
+                {/* Luminous breath overlay */}
+                <div
+                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
+                />
                 <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <CatIcon className="w-5 h-5" style={{ color: contrastText }} />
                 </div>
@@ -895,7 +948,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 2: WI-FI */}
               <Link
                 href={`/wifi/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
@@ -909,7 +962,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 3: RUOTA PREMI */}
               <Link
                 href={`/wheel/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
@@ -923,7 +976,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* CARD 4: CARTA FEDELTÀ */}
               <Link
                 href={`/loyalty/${code}`}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
@@ -940,7 +993,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   href={org.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
                 >
                   <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <ExternalLink className="w-5 h-5" style={{ color: primaryColor }} />
@@ -954,7 +1007,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <button
                   type="button"
                   onClick={() => setShowContactModal(true)}
-                  className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
                 >
                   <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <Clock className="w-5 h-5" style={{ color: primaryColor }} />
@@ -970,7 +1023,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <button
                 type="button"
                 onClick={() => setShowContactModal(true)}
-                className="rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all active:scale-95 shadow-lg group"
+                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
               >
                 <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Phone className="w-5 h-5" style={{ color: primaryColor }} />
@@ -988,14 +1041,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* ========================================================================= */}
         {/* WIDE BANNER CARD (Review Shield 5-Stars & Custom CTA Banner) */}
         {/* ========================================================================= */}
-        <div className="space-y-2.5">
+        <div className="animate-nfc-stagger-4 space-y-2.5">
           {/* Custom CTA Banner if configured */}
           {hasCustomCta && (
             <a
               href={org.custom_cta_url!}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative block rounded-3xl border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden"
+              className="touch-press group relative block rounded-3xl border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden"
               style={{
                 borderColor: `${primaryColor}60`,
                 background: `linear-gradient(135deg, ${primaryColor}20 0%, #161816 100%)`,
@@ -1048,7 +1101,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     onMouseEnter={() => setRatingHover(star)}
                     onMouseLeave={() => setRatingHover(null)}
                     onClick={() => handleRatingClick(star)}
-                    className="p-1 transition-transform hover:scale-125 active:scale-95 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    className="touch-press p-1 transition-transform hover:scale-125 active:scale-95 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label={`Vota ${star} stelle`}
                   >
                     <Star
@@ -1101,7 +1154,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             aria-label="Torna all'inizio"
-            className="flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-colors p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
           >
             <Home className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Home</span>
@@ -1112,7 +1165,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             type="button"
             onClick={() => setShowMenuModal(true)}
             aria-label="Apri Menù"
-            className="flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-colors p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
           >
             <BookOpen className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Menù</span>
@@ -1122,7 +1175,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           <Link
             href={`/call/${code}`}
             aria-label="Chiama Sala Rapido"
-            className="w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-transform active:scale-90 shadow-2xl relative group"
+            className="touch-press active:scale-95 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-2xl relative group"
             style={{
               backgroundColor: primaryColor,
               color: contrastText,
@@ -1137,7 +1190,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             type="button"
             onClick={() => setShowContactModal(true)}
             aria-label="Info e contatti"
-            className="flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-colors p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
           >
             <Info className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Info</span>
@@ -1148,7 +1201,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             type="button"
             onClick={handleShare}
             aria-label="Condividi"
-            className="flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-colors p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
           >
             <Share2 className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Share</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -101,6 +101,29 @@ export default function CustomHubStudioPage() {
   // Active Tab for Studio Controls
   const [activeTab, setActiveTab] = useState<'theme' | 'hero' | 'services' | 'reviews' | 'contacts'>('theme');
   const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
+
+  // Contextual Glass Shimmer Animation for Simulator Mockup
+  const [isShimmering, setIsShimmering] = useState(false);
+  const [shimmerKey, setShimmerKey] = useState(0);
+  const isInitialLoadDone = useRef(false);
+
+  // Trigger Glass Shimmer Effect on color palette or logo change
+  useEffect(() => {
+    if (loading) return;
+
+    if (!isInitialLoadDone.current) {
+      isInitialLoadDone.current = true;
+      return;
+    }
+
+    setIsShimmering(true);
+    setShimmerKey((k) => k + 1);
+    const timer = setTimeout(() => {
+      setIsShimmering(false);
+    }, 1400);
+
+    return () => clearTimeout(timer);
+  }, [primaryColor, logoUrl, loading]);
 
   // Load Organization & Devices
   useEffect(() => {
@@ -354,10 +377,10 @@ export default function CustomHubStudioPage() {
               href={`/hub/${selectedDeviceCode}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold border border-zinc-700 transition-all active:scale-95"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold border border-zinc-700 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Apri Hub Live</span>
+              <span>Apri Hub Reale</span>
             </a>
           )}
 
@@ -365,7 +388,7 @@ export default function CustomHubStudioPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-extrabold text-xs shadow-lg shadow-[#BFFF00]/20 transition-all active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-extrabold text-xs shadow-lg shadow-[#BFFF00]/20 transition-all active:scale-95 disabled:opacity-50 touch-press cursor-pointer disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -452,7 +475,7 @@ export default function CustomHubStudioPage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 snap-start transition-all min-h-[44px] touch-press ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 snap-start transition-all min-h-[44px] touch-press active:scale-95 cursor-pointer ${
                     isActive
                       ? 'bg-[#1c1d20] text-[#BFFF00] shadow-md border border-[#BFFF00]/30 ring-1 ring-[#BFFF00]/20'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
@@ -487,10 +510,10 @@ export default function CustomHubStudioPage() {
                       key={p.id}
                       type="button"
                       onClick={() => setPrimaryColor(p.primary)}
-                      className={`p-3 rounded-2xl border text-left transition-all relative ${
+                      className={`p-3 rounded-2xl border text-left transition-all duration-200 relative touch-press active:scale-95 cursor-pointer ${
                         isSelected
                           ? 'bg-white/10 border-white text-white shadow-xl ring-2 ring-white/40 scale-[1.02]'
-                          : 'bg-[#181b19] border-white/5 text-zinc-400 hover:text-zinc-200'
+                          : 'bg-[#181b19] border-white/5 text-zinc-400 hover:text-zinc-200 hover:border-white/20'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -1074,9 +1097,41 @@ export default function CustomHubStudioPage() {
               style={{ backgroundColor: primaryColor }}
             />
 
-            {/* Dynamic Island / Notch */}
-            <div className="w-24 h-4 bg-black rounded-full mx-auto mb-2 relative z-20 flex items-center justify-end px-2">
-              <span className="w-2 h-2 rounded-full bg-[#1c221e]" />
+            {/* Glass Shimmer Effect (Translucent diagonal light bar feedback on color or logo change) */}
+            {isShimmering && (
+              <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden rounded-[40px]">
+                <div
+                  key={shimmerKey}
+                  className="w-1/2 h-[200%] -top-1/2 absolute bg-gradient-to-r from-transparent via-white/25 to-transparent animate-shimmer-slide pointer-events-none"
+                  style={{ animationDuration: '1.4s' }}
+                />
+              </div>
+            )}
+
+            {/* Top Status Bar: Clock + Centered Dynamic Island + LIVE SIMULATOR Badge */}
+            <div className="relative z-20 flex items-center justify-between mb-2 px-1">
+              <span className="text-[10px] font-mono text-zinc-400 font-bold tracking-tight">
+                12:45
+              </span>
+
+              {/* Dynamic Island / Notch */}
+              <div className="w-20 h-3.5 bg-black rounded-full flex items-center justify-end px-2 border border-white/5 shadow-inner">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1c221e]" />
+              </div>
+
+              {/* Badge "LIVE SIMULATOR" with synchronized pulsating green dot */}
+              <div
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/30 backdrop-blur-md shadow-sm"
+                title="Anteprima 1:1 sincronizzata con l'esperienza tavolo reale"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="text-[8px] font-black tracking-wider text-emerald-400 uppercase font-mono leading-none">
+                  LIVE SIMULATOR
+                </span>
+              </div>
             </div>
 
             {/* Hub Header inside Mockup */}

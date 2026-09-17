@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID, sanitizeString, verifyUserOrgAccess } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -14,12 +15,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'organization_id e contatto obbligatori' }, { status: 400 });
     }
 
+    if (!isValidUUID(organization_id)) {
+      return NextResponse.json({ error: 'ID organizzazione non valido' }, { status: 400 });
+    }
+
+    const cleanContact = sanitizeString(contact, 120);
+    if (!cleanContact || cleanContact.length < 3) {
+      return NextResponse.json({ error: 'Contatto non valido' }, { status: 400 });
+    }
+
+    const cleanName = sanitizeString(name, 100);
+    const cleanSource = sanitizeString(source, 50) || 'wifi';
+
     // Save lead
     await supabase.from('leads').insert({
       organization_id,
-      name: name ? name.trim() : null,
-      contact: contact.trim(),
-      source: source || 'wifi',
+      name: cleanName,
+      contact: cleanContact,
+      source: cleanSource,
     });
 
     // Fetch org Wi-Fi credentials
@@ -45,8 +58,14 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const orgId = request.nextUrl.searchParams.get('organization_id');
-    if (!orgId) {
-      return NextResponse.json({ error: 'organization_id obbligatorio' }, { status: 400 });
+    if (!orgId || !isValidUUID(orgId)) {
+      return NextResponse.json({ error: 'organization_id valido obbligatorio' }, { status: 400 });
+    }
+
+    // High security: require authenticated merchant session belonging to this org (or admin)
+    const authCheck = await verifyUserOrgAccess(request, orgId);
+    if (!authCheck.authorized) {
+      return authCheck.errorResponse;
     }
 
     const { data: leads, error } = await supabase

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID, verifyUserOrgAccess } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -9,20 +10,33 @@ export async function GET(request: NextRequest) {
   try {
     const orgIdParam = request.nextUrl.searchParams.get('org_id');
 
+    if (!orgIdParam || !isValidUUID(orgIdParam)) {
+      return NextResponse.json({ error: 'org_id valido obbligatorio' }, { status: 400 });
+    }
+
+    // Allow cron secret header or require authenticated merchant/admin
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    const isCronAuthorized = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+    if (!isCronAuthorized) {
+      const authCheck = await verifyUserOrgAccess(request, orgIdParam);
+      if (!authCheck.authorized) {
+        return authCheck.errorResponse;
+      }
+    }
+
     // 1. Fetch organization
-    let orgQuery = supabase.from('organizations').select('*');
-    if (orgIdParam) {
-      orgQuery = orgQuery.eq('id', orgIdParam);
-    } else {
-      orgQuery = orgQuery.limit(1);
+    const { data: org, error: orgError } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', orgIdParam)
+      .single();
+
+    if (orgError || !org) {
+      return NextResponse.json({ error: 'Attività non trovata' }, { status: 404 });
     }
 
-    const { data: orgs, error: orgError } = await orgQuery;
-    if (orgError || !orgs || orgs.length === 0) {
-      return NextResponse.json({ error: 'Nessuna attività trovata' }, { status: 404 });
-    }
-
-    const org = orgs[0];
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // 2. Fetch past 7 days interactions

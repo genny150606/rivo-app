@@ -41,6 +41,7 @@ export default function CallServicePage({ params }: CallPageProps) {
 
   const [activeRequest, setActiveRequest] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submittingType, setSubmittingType] = useState<string | null>(null);
   const [requestedTime, setRequestedTime] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export default function CallServicePage({ params }: CallPageProps) {
   const handleCall = async (type: 'waiter' | 'bill_pos' | 'bill_cash') => {
     if (!device) return;
     setSubmitting(true);
+    setSubmittingType(type);
 
     try {
       const res = await fetch('/api/service', {
@@ -98,6 +100,7 @@ export default function CallServicePage({ params }: CallPageProps) {
       console.warn('Call error:', e);
     } finally {
       setSubmitting(false);
+      setSubmittingType(null);
     }
   };
 
@@ -170,16 +173,42 @@ export default function CallServicePage({ params }: CallPageProps) {
 
         {/* ACTIVE REQUEST CONFIRMATION */}
         {activeRequest ? (
-          <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-[#121214] p-5 text-center space-y-3 shadow-2xl animate-fade-in">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto animate-bounce">
-              <CheckCircle2 className="w-7 h-7" />
+          <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 via-[#121214] to-[#121214] p-5 sm:p-6 text-center space-y-4 shadow-2xl animate-fade-in relative overflow-hidden">
+            {/* Background ambient radial glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-emerald-500/10 blur-[50px] pointer-events-none rounded-full" />
+
+            {/* Sonar / Radar Wave Central Icon with Swinging Bell */}
+            <div className="relative w-24 h-24 mx-auto flex items-center justify-center my-1">
+              {/* Radar concentric wave 1 */}
+              <div className="absolute inset-2 rounded-full border-2 border-emerald-400/60 bg-emerald-400/10 animate-radar-wave-1 pointer-events-none" />
+              {/* Radar concentric wave 2 */}
+              <div className="absolute inset-2 rounded-full border-2 border-[#BFFF00]/50 bg-[#BFFF00]/10 animate-radar-wave-2 pointer-events-none" />
+
+              {/* Central glowing container with swinging bell */}
+              <div className="relative z-10 w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500/30 via-zinc-900 to-[#BFFF00]/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                <BellRing className="w-8 h-8 text-[#BFFF00] animate-bell-swing origin-top" />
+                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center border-2 border-[#121214] shadow-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-black stroke-[3]" />
+                </span>
+              </div>
+            </div>
+
+            {/* Badge di stato pulsante ("Segnale ricevuto dallo staff • In arrivo") con dot animate-ping */}
+            <div className="flex justify-center">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs shadow-inner">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="font-semibold tracking-tight">Segnale ricevuto dallo staff • In arrivo</span>
+              </div>
             </div>
 
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white">
                 {typeLabels[activeRequest]}!
               </h2>
-              <p className="text-xs text-zinc-300 mt-1">
+              <p className="text-xs text-zinc-300 mt-1 max-w-xs mx-auto">
                 La sala ha ricevuto l&apos;alert per <strong>{device.name}</strong>. Il cameriere arriverà a breve.
               </p>
             </div>
@@ -192,14 +221,14 @@ export default function CallServicePage({ params }: CallPageProps) {
             <div className="pt-2 flex flex-col gap-2">
               <Link
                 href={`/hub/${code}`}
-                className="w-full py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-bold text-xs transition-all shadow-lg shadow-[#BFFF00]/20 flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-bold text-xs transition-all shadow-lg shadow-[#BFFF00]/20 flex items-center justify-center gap-1.5 touch-press active:scale-95"
               >
                 <span>Torna all&apos;Hub dei Servizi</span>
               </Link>
               <button
                 type="button"
                 onClick={() => setActiveRequest(null)}
-                className="text-[11px] text-zinc-500 hover:text-zinc-300 underline py-1"
+                className="text-[11px] text-zinc-500 hover:text-zinc-300 underline py-1 touch-press active:scale-95 transition-transform"
               >
                 Invia un&apos;altra richiesta
               </button>
@@ -213,18 +242,28 @@ export default function CallServicePage({ params }: CallPageProps) {
               type="button"
               onClick={() => handleCall('waiter')}
               disabled={submitting}
-              className="w-full text-left rounded-2xl border border-white/10 bg-gradient-to-r from-red-500/10 via-[#18181B] to-transparent hover:border-red-500/40 p-3.5 sm:p-4 transition-all flex items-center justify-between group touch-press active:scale-[0.98]"
+              className="w-full text-left rounded-2xl border border-white/10 bg-gradient-to-r from-red-500/10 via-[#18181B] to-transparent hover:border-red-500/40 p-3.5 sm:p-4 transition-all flex items-center justify-between group touch-press active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <BellRing className="w-5 h-5" />
+                <div className="relative w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  {submitting && submittingType === 'waiter' ? (
+                    <>
+                      <span className="absolute inset-0 rounded-xl border border-red-400/80 animate-radar-wave-1 pointer-events-none" />
+                      <span className="absolute inset-0 rounded-xl border border-red-400/50 animate-radar-wave-2 pointer-events-none" />
+                      <BellRing className="w-5 h-5 animate-bell-swing text-[#BFFF00]" />
+                    </>
+                  ) : (
+                    <BellRing className="w-5 h-5 group-hover:animate-bell-swing" />
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-sm font-bold text-white">Chiama Cameriere</h3>
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-semibold">Tavolo</span>
                   </div>
-                  <p className="text-[11px] text-zinc-400">Richiedi assistenza immediata del personale</p>
+                  <p className="text-[11px] text-zinc-400">
+                    {submitting && submittingType === 'waiter' ? 'Invio segnale alla sala...' : 'Richiedi assistenza immediata del personale'}
+                  </p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
@@ -235,18 +274,28 @@ export default function CallServicePage({ params }: CallPageProps) {
               type="button"
               onClick={() => handleCall('bill_pos')}
               disabled={submitting}
-              className="w-full text-left rounded-2xl border border-white/10 bg-gradient-to-r from-blue-500/10 via-[#18181B] to-transparent hover:border-blue-500/40 p-3.5 sm:p-4 transition-all flex items-center justify-between group touch-press active:scale-[0.98]"
+              className="w-full text-left rounded-2xl border border-white/10 bg-gradient-to-r from-blue-500/10 via-[#18181B] to-transparent hover:border-blue-500/40 p-3.5 sm:p-4 transition-all flex items-center justify-between group touch-press active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <CreditCard className="w-5 h-5" />
+                <div className="relative w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  {submitting && submittingType === 'bill_pos' ? (
+                    <>
+                      <span className="absolute inset-0 rounded-xl border border-blue-400/80 animate-radar-wave-1 pointer-events-none" />
+                      <span className="absolute inset-0 rounded-xl border border-blue-400/50 animate-radar-wave-2 pointer-events-none" />
+                      <CreditCard className="w-5 h-5 animate-pulse text-blue-300" />
+                    </>
+                  ) : (
+                    <CreditCard className="w-5 h-5" />
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-sm font-bold text-white">Conto con POS</h3>
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-semibold">Carte/Apple Pay</span>
                   </div>
-                  <p className="text-[11px] text-zinc-400">Porta il terminale per il pagamento elettronico</p>
+                  <p className="text-[11px] text-zinc-400">
+                    {submitting && submittingType === 'bill_pos' ? 'Invio segnale alla cassa...' : 'Porta il terminale per il pagamento elettronico'}
+                  </p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
@@ -257,18 +306,28 @@ export default function CallServicePage({ params }: CallPageProps) {
               type="button"
               onClick={() => handleCall('bill_cash')}
               disabled={submitting}
-              className="w-full text-left rounded-2xl border border-white/10 bg-gradient-to-r from-emerald-500/10 via-[#18181B] to-transparent hover:border-emerald-500/40 p-3.5 sm:p-4 transition-all flex items-center justify-between group touch-press active:scale-[0.98]"
+              className="w-full text-left rounded-2xl border border-white/10 bg-gradient-to-r from-emerald-500/10 via-[#18181B] to-transparent hover:border-emerald-500/40 p-3.5 sm:p-4 transition-all flex items-center justify-between group touch-press active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Banknote className="w-5 h-5" />
+                <div className="relative w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  {submitting && submittingType === 'bill_cash' ? (
+                    <>
+                      <span className="absolute inset-0 rounded-xl border border-emerald-400/80 animate-radar-wave-1 pointer-events-none" />
+                      <span className="absolute inset-0 rounded-xl border border-emerald-400/50 animate-radar-wave-2 pointer-events-none" />
+                      <Banknote className="w-5 h-5 animate-pulse text-emerald-300" />
+                    </>
+                  ) : (
+                    <Banknote className="w-5 h-5" />
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-sm font-bold text-white">Conto in Contanti</h3>
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Cassa</span>
                   </div>
-                  <p className="text-[11px] text-zinc-400">Richiedi conto cartaceo per contanti</p>
+                  <p className="text-[11px] text-zinc-400">
+                    {submitting && submittingType === 'bill_cash' ? 'Invio segnale alla cassa...' : 'Richiedi conto cartaceo per contanti'}
+                  </p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />

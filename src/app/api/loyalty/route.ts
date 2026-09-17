@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID, sanitizeString, verifyUserOrgAccess } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -10,22 +11,36 @@ export async function GET(request: NextRequest) {
     const orgId = request.nextUrl.searchParams.get('organization_id');
     const contact = request.nextUrl.searchParams.get('contact');
 
-    if (!orgId) {
-      return NextResponse.json({ error: 'organization_id obbligatorio' }, { status: 400 });
+    if (!orgId || !isValidUUID(orgId)) {
+      return NextResponse.json({ error: 'organization_id valido obbligatorio' }, { status: 400 });
     }
 
     if (contact) {
+      const cleanContact = sanitizeString(contact, 120);
+      if (!cleanContact) {
+        return NextResponse.json({ error: 'Contatto non valido' }, { status: 400 });
+      }
+
       const { data, error } = await supabase
         .from('loyalty_cards')
         .select('*')
         .eq('organization_id', orgId)
-        .eq('customer_contact', contact.trim())
+        .eq('customer_contact', cleanContact)
         .single();
+
+      if (error && error.code !== 'PGRST116') {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
 
       return NextResponse.json({ card: data || null });
     }
 
-    // List all cards for dashboard
+    // Listing all cards is a dashboard operation: require merchant/admin auth
+    const authCheck = await verifyUserOrgAccess(request, orgId);
+    if (!authCheck.authorized) {
+      return authCheck.errorResponse;
+    }
+
     const { data, error } = await supabase
       .from('loyalty_cards')
       .select('*')
@@ -52,7 +67,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parametri mancanti' }, { status: 400 });
     }
 
-    const cleanContact = customer_contact.trim();
+    if (!isValidUUID(organization_id)) {
+      return NextResponse.json({ error: 'ID organizzazione non valido' }, { status: 400 });
+    }
+
+    const cleanContact = sanitizeString(customer_contact, 120);
+    if (!cleanContact || cleanContact.length < 3) {
+      return NextResponse.json({ error: 'Contatto non valido' }, { status: 400 });
+    }
+
+    const cleanName = sanitizeString(customer_name, 100);
 
     // Check if card already exists
     const { data: existingCard } = await supabase
@@ -68,7 +92,7 @@ export async function POST(request: NextRequest) {
         .from('loyalty_cards')
         .update({
           stamps_count: newCount,
-          customer_name: customer_name ? customer_name.trim() : existingCard.customer_name,
+          customer_name: cleanName || existingCard.customer_name,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingCard.id)
@@ -86,7 +110,7 @@ export async function POST(request: NextRequest) {
       .insert({
         organization_id,
         customer_contact: cleanContact,
-        customer_name: customer_name ? customer_name.trim() : null,
+        customer_name: cleanName,
         stamps_count: 1,
         max_stamps: 10,
       })
@@ -100,7 +124,7 @@ export async function POST(request: NextRequest) {
       .from('leads')
       .insert({
         organization_id,
-        name: customer_name ? customer_name.trim() : null,
+        name: cleanName,
         contact: cleanContact,
         source: 'loyalty',
       })
@@ -118,8 +142,25 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { card_id, action } = body;
 
-    if (!card_id) {
-      return NextResponse.json({ error: 'card_id obbligatorio' }, { status: 400 });
+    if (!card_id || !isValidUUID(card_id)) {
+      return NextResponse.json({ error: 'card_id valido obbligatorio' }, { status: 400 });
+    }
+
+    // Fetch the card to know which organization it belongs to
+    const { data: card, error: cardErr } = await supabase
+      .from('loyalty_cards')
+      .select('id, organization_id')
+      .eq('id', card_id)
+      .single();
+
+    if (cardErr || !card) {
+      return NextResponse.json({ error: 'Carta fedeltà non trovata' }, { status: 404 });
+    }
+
+    // High security: require merchant or admin auth for this organization
+    const authCheck = await verifyUserOrgAccess(request, card.organization_id);
+    if (!authCheck.authorized) {
+      return authCheck.errorResponse;
     }
 
     if (action === 'reset') {

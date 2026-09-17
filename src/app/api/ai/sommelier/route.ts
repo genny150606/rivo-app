@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID, sanitizeString } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -32,15 +33,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { organization_id, message } = body;
 
-    if (!message || typeof message !== 'string') {
-      return NextResponse.json({ error: 'Messaggio obbligatorio' }, { status: 400 });
+    const cleanMessage = sanitizeString(message, 500);
+    if (!cleanMessage) {
+      return NextResponse.json({ error: 'Messaggio obbligatorio (max 500 caratteri)' }, { status: 400 });
     }
 
     // Fetch org details & custom menu context
     let orgName = 'il nostro locale';
     let menuContext = 'Cucina tradizionale di qualità, materie prime fresche, cantina vini campani e nazionali.';
 
-    if (organization_id) {
+    if (organization_id && isValidUUID(organization_id)) {
       const { data: org } = await supabase
         .from('organizations')
         .select('name, ai_menu_context')
@@ -48,9 +50,9 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (org) {
-        orgName = org.name;
+        orgName = sanitizeString(org.name, 100) || orgName;
         if (org.ai_menu_context) {
-          menuContext = org.ai_menu_context;
+          menuContext = sanitizeString(org.ai_menu_context, 2000) || menuContext;
         }
       }
     }

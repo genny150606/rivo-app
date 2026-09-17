@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeString } from '@/lib/security';
 
 interface ReviewRequest {
   venueName?: string;
@@ -50,12 +51,21 @@ function generateFallbackReview(venueName: string, tags: string[]): string {
   sentences.push(`Consiglio vivamente ${cleanVenue} a chiunque voglia passare una piacevole esperienza!`);
   return sentences.join(' ');
 }
-
+ 
 export async function POST(request: NextRequest) {
   try {
     const body: ReviewRequest = await request.json();
-    const venueName = body.venueName || 'il locale';
-    const tags = body.tags || ['cibo squisito', 'servizio impeccabile'];
+    const venueName = sanitizeString(body.venueName, 100) || 'questo locale';
+    const rawTags = Array.isArray(body.tags) ? body.tags : ['cibo squisito', 'servizio impeccabile'];
+    const tags = rawTags
+      .map((t) => sanitizeString(t, 50))
+      .filter((t): t is string => Boolean(t))
+      .slice(0, 8);
+
+    if (tags.length === 0) {
+      tags.push('ottimo servizio', 'qualità eccellente');
+    }
+
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
     // If Gemini API Key is available, generate via Google Gemini

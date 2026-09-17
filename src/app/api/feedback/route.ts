@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID, sanitizeString } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -64,29 +65,48 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { organization_id, device_id, rating, customer_name, customer_contact, comment } = body;
 
-    if (!organization_id || typeof rating !== 'number' || rating < 1 || rating > 5) {
+    if (!organization_id || !isValidUUID(organization_id)) {
       return NextResponse.json(
-        { error: 'Dati incompleti o non validi' },
+        { error: 'ID organizzazione non valido' },
         { status: 400 }
       );
     }
 
-    if (!comment || typeof comment !== 'string' || comment.trim().length === 0) {
+    if (device_id && !isValidUUID(device_id)) {
+      return NextResponse.json(
+        { error: 'ID dispositivo non valido' },
+        { status: 400 }
+      );
+    }
+
+    const numRating = Number(rating);
+    if (!Number.isInteger(numRating) || numRating < 1 || numRating > 5) {
+      return NextResponse.json(
+        { error: 'Valutazione non valida (deve essere tra 1 e 5)' },
+        { status: 400 }
+      );
+    }
+
+    const cleanComment = sanitizeString(comment, 1500);
+    if (!cleanComment) {
       return NextResponse.json(
         { error: 'Il commento è obbligatorio' },
         { status: 400 }
       );
     }
 
+    const cleanName = sanitizeString(customer_name, 100);
+    const cleanContact = sanitizeString(customer_contact, 120);
+
     const { error } = await supabase
       .from('private_feedbacks')
       .insert({
         organization_id,
         device_id: device_id || null,
-        rating,
-        customer_name: customer_name ? customer_name.trim() : null,
-        customer_contact: customer_contact ? customer_contact.trim() : null,
-        comment: comment.trim(),
+        rating: numRating,
+        customer_name: cleanName,
+        customer_contact: cleanContact,
+        comment: cleanComment,
         status: 'new',
       });
 

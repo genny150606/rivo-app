@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID, sanitizeString, verifyUserOrgAccess } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -26,6 +27,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!isValidUUID(organization_id)) {
+      return NextResponse.json({ error: 'ID organizzazione non valido' }, { status: 400 });
+    }
+
+    const cleanReward = sanitizeString(reward, 150);
+    const cleanContact = sanitizeString(customer_contact, 120);
+    const cleanName = sanitizeString(customer_name, 100);
+
+    if (!cleanReward || !cleanContact || cleanContact.length < 3) {
+      return NextResponse.json({ error: 'Dati coupon non validi' }, { status: 400 });
+    }
+
     const code = generateCouponCode();
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -34,9 +47,9 @@ export async function POST(request: NextRequest) {
       .insert({
         organization_id,
         code,
-        reward,
-        customer_name: customer_name ? customer_name.trim() : null,
-        customer_contact: customer_contact.trim(),
+        reward: cleanReward,
+        customer_name: cleanName,
+        customer_contact: cleanContact,
         status: 'active',
         expires_at: expiresAt,
       })
@@ -52,8 +65,8 @@ export async function POST(request: NextRequest) {
       .from('leads')
       .insert({
         organization_id,
-        name: customer_name ? customer_name.trim() : null,
-        contact: customer_contact.trim(),
+        name: cleanName,
+        contact: cleanContact,
         source: 'wheel',
       })
       .then();
@@ -68,8 +81,14 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const orgId = request.nextUrl.searchParams.get('organization_id');
-    if (!orgId) {
-      return NextResponse.json({ error: 'organization_id obbligatorio' }, { status: 400 });
+    if (!orgId || !isValidUUID(orgId)) {
+      return NextResponse.json({ error: 'organization_id valido obbligatorio' }, { status: 400 });
+    }
+
+    // High security: require merchant or admin auth for this organization
+    const authCheck = await verifyUserOrgAccess(request, orgId);
+    if (!authCheck.authorized) {
+      return authCheck.errorResponse;
     }
 
     const { data, error } = await supabase
@@ -94,11 +113,20 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { code, organization_id } = body;
 
-    if (!code || !organization_id) {
-      return NextResponse.json({ error: 'Codice e organization_id obbligatori' }, { status: 400 });
+    if (!code || !organization_id || !isValidUUID(organization_id)) {
+      return NextResponse.json({ error: 'Codice e organization_id valido obbligatori' }, { status: 400 });
     }
 
-    const cleanCode = code.trim().toUpperCase();
+    // High security: coupon redemption must be authorized by the merchant/admin
+    const authCheck = await verifyUserOrgAccess(request, organization_id);
+    if (!authCheck.authorized) {
+      return authCheck.errorResponse;
+    }
+
+    const cleanCode = sanitizeString(code, 30)?.toUpperCase();
+    if (!cleanCode) {
+      return NextResponse.json({ error: 'Codice coupon non valido' }, { status: 400 });
+    }
 
     // Verify coupon
     const { data: coupon, error: findErr } = await supabase

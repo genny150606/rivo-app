@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -35,9 +36,9 @@ export async function POST(request: NextRequest) {
     const directUrl = formData.get('directUrl') as string | null;
     const action = formData.get('action') as string | null;
 
-    if (!orgId) {
+    if (!orgId || !isValidUUID(orgId)) {
       return NextResponse.json(
-        { error: 'ID organizzazione mancante.' },
+        { error: 'ID organizzazione mancante o non valido.' },
         { status: 400 }
       );
     }
@@ -113,18 +114,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate mime type
+    // Validate mime type (safe raster formats only, disallow SVG to prevent XSS)
     const allowedTypes = [
       'image/jpeg',
       'image/png',
       'image/webp',
-      'image/svg+xml',
       'image/gif',
     ];
 
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Formato file non supportato. Usa PNG, JPG, WEBP o SVG.' },
+        { error: 'Formato file non supportato. Usa PNG, JPG, WEBP o GIF.' },
         { status: 400 }
       );
     }

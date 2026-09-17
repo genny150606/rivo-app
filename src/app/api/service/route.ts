@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isValidUUID, sanitizeString, verifyUserOrgAccess } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -54,13 +55,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parametri mancanti' }, { status: 400 });
     }
 
+    if (!isValidUUID(organization_id)) {
+      return NextResponse.json({ error: 'ID organizzazione non valido' }, { status: 400 });
+    }
+
+    if (device_id && !isValidUUID(device_id)) {
+      return NextResponse.json({ error: 'ID dispositivo non valido' }, { status: 400 });
+    }
+
+    const validTypes = ['waiter', 'bill_pos', 'bill_cash'];
+    const cleanType = String(type).trim().toLowerCase();
+    if (!validTypes.includes(cleanType)) {
+      return NextResponse.json({ error: 'Tipo di chiamata non valido' }, { status: 400 });
+    }
+
+    const cleanTableLabel = sanitizeString(table_label, 50) || 'Tavolo';
+
     const { data, error } = await supabase
       .from('service_calls')
       .insert({
         organization_id,
         device_id: device_id || null,
-        type,
-        table_label: table_label || 'Tavolo',
+        type: cleanType,
+        table_label: cleanTableLabel,
         status: 'pending',
       })
       .select()
@@ -71,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Notify staff on Telegram if configured
-    notifyTelegramStaff(organization_id, table_label || 'Tavolo', type);
+    notifyTelegramStaff(organization_id, cleanTableLabel, cleanType);
 
     return NextResponse.json({ success: true, call: data });
   } catch (err: unknown) {
@@ -83,8 +100,14 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const orgId = request.nextUrl.searchParams.get('organization_id');
-    if (!orgId) {
-      return NextResponse.json({ error: 'organization_id obbligatorio' }, { status: 400 });
+    if (!orgId || !isValidUUID(orgId)) {
+      return NextResponse.json({ error: 'organization_id valido obbligatorio' }, { status: 400 });
+    }
+
+    // High security: merchant/admin session required
+    const authCheck = await verifyUserOrgAccess(request, orgId);
+    if (!authCheck.authorized) {
+      return authCheck.errorResponse;
     }
 
     const { data, error } = await supabase
@@ -110,13 +133,36 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { id, status } = body;
 
-    if (!id || !status) {
-      return NextResponse.json({ error: 'id e status obbligatori' }, { status: 400 });
+    if (!id || !status || !isValidUUID(id)) {
+      return NextResponse.json({ error: 'id valido e status obbligatori' }, { status: 400 });
+    }
+
+    // Check service call organization
+    const { data: call, error: callErr } = await supabase
+      .from('service_calls')
+      .select('id, organization_id')
+      .eq('id', id)
+      .single();
+
+    if (callErr || !call) {
+      return NextResponse.json({ error: 'Chiamata di servizio non trovata' }, { status: 404 });
+    }
+
+    // High security: merchant/admin session check
+    const authCheck = await verifyUserOrgAccess(request, call.organization_id);
+    if (!authCheck.authorized) {
+      return authCheck.errorResponse;
+    }
+
+    const validStatuses = ['pending', 'in_progress', 'completed', 'cancelled'];
+    const cleanStatus = String(status).trim().toLowerCase();
+    if (!validStatuses.includes(cleanStatus)) {
+      return NextResponse.json({ error: 'Stato non valido' }, { status: 400 });
     }
 
     const { error } = await supabase
       .from('service_calls')
-      .update({ status })
+      .update({ status: cleanStatus })
       .eq('id', id);
 
     if (error) {
