@@ -10,11 +10,7 @@ import {
   Wine,
   CreditCard,
   Star,
-  Scissors,
-  CalendarCheck,
   Compass,
-  ShoppingBag,
-  Dumbbell,
   ExternalLink,
   ShieldCheck,
   Info,
@@ -33,14 +29,35 @@ import {
   Home,
   BookOpen,
   Bell,
+  Scissors,
+  CalendarCheck,
+  ShoppingBag,
+  Dumbbell,
   Award,
   ChevronRight,
 } from 'lucide-react';
+
+const Instagram = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
+  <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 import { BusinessCategory } from '@/lib/types';
 import { getCategoryDefinition } from '@/lib/categories';
 import { DEFAULT_HUB_COLOR, getContrastColor } from '@/lib/palettes';
+import {
+  mergeHubConfig,
+  HubConfig,
+  HUB_FONT_OPTIONS,
+  HUB_THEME_OPTIONS,
+  HUB_CARD_STYLE_OPTIONS,
+  HubCardStyle,
+  HubModuleConfig,
+} from '@/lib/hub-config';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -57,6 +74,7 @@ interface OrgData {
   category: BusinessCategory;
   phone: string | null;
   whatsapp_number?: string | null;
+  instagram_url?: string | null;
   website: string | null;
   custom_cta_label: string | null;
   custom_cta_url: string | null;
@@ -72,6 +90,7 @@ interface OrgData {
   ai_menu_context: string | null;
   description?: string | null;
   primary_color?: string | null;
+  hub_config?: any;
 }
 
 interface DeviceData {
@@ -214,6 +233,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [loading, setLoading] = useState(true);
   const [device, setDevice] = useState<DeviceData | null>(null);
   const [org, setOrg] = useState<OrgData | null>(null);
+  const [hubConfig, setHubConfig] = useState<HubConfig | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   // Modals & Interactivity
@@ -265,6 +285,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               category,
               phone,
               whatsapp_number,
+              instagram_url,
               website,
               custom_cta_label,
               custom_cta_url,
@@ -279,16 +300,31 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               loyalty_reward_text,
               ai_menu_context,
               description,
-              primary_color
+              primary_color,
+              hub_config
             `)
             .eq('id', dev.organization_id)
             .single();
 
           if (!orgErr && orgData) {
+            const currentCategory = (orgData.category || 'restaurant') as BusinessCategory;
             setOrg({
               ...orgData,
-              category: (orgData.category || 'restaurant') as BusinessCategory,
+              category: currentCategory,
             });
+
+            // Initialize/Merge HubConfig with absolute backwards compatibility
+            const merged = mergeHubConfig(
+              orgData.hub_config,
+              currentCategory,
+              {
+                primaryColor: orgData.primary_color,
+                customCtaLabel: orgData.custom_cta_label,
+                customCtaUrl: orgData.custom_cta_url,
+                lunchDestinationUrl: orgData.lunch_destination_url,
+              }
+            );
+            setHubConfig(merged);
 
             // Check if lunch hours apply
             if (orgData.smart_routing_enabled && orgData.lunch_destination_url) {
@@ -377,36 +413,123 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     });
   }, [menuTab, menuSearch]);
 
-  const primaryColor = org?.primary_color || DEFAULT_HUB_COLOR;
+  const activeConfig: HubConfig = useMemo(() => {
+    if (hubConfig) return hubConfig;
+    return mergeHubConfig(
+      org?.hub_config,
+      (org?.category || 'restaurant') as BusinessCategory,
+      {
+        primaryColor: org?.primary_color,
+        customCtaLabel: org?.custom_cta_label,
+        customCtaUrl: org?.custom_cta_url,
+        lunchDestinationUrl: org?.lunch_destination_url,
+      }
+    );
+  }, [hubConfig, org]);
+
+  const primaryColor = activeConfig.primaryColor || org?.primary_color || DEFAULT_HUB_COLOR;
   const contrastText = getContrastColor(primaryColor);
+
+  const activeFont = useMemo(() => {
+    return HUB_FONT_OPTIONS.find((f) => f.id === activeConfig.fontFamily) || HUB_FONT_OPTIONS[0];
+  }, [activeConfig.fontFamily]);
+
+  const activeTheme = useMemo(() => {
+    return HUB_THEME_OPTIONS.find((t) => t.id === activeConfig.themeMode) || HUB_THEME_OPTIONS[0];
+  }, [activeConfig.themeMode]);
+
+  const isLight = activeTheme.id === 'minimal_light';
+
+  const cardBaseClass = useMemo(() => {
+    switch (activeConfig.cardStyle) {
+      case 'glass':
+        return isLight
+          ? 'backdrop-blur-md bg-white/70 border border-slate-200/90 shadow-md hover:bg-white/85'
+          : 'backdrop-blur-md bg-white/[0.04] border border-white/10 shadow-lg hover:bg-white/[0.07]';
+      case 'solid':
+        return isLight
+          ? 'bg-white border border-slate-200 shadow-md hover:bg-slate-50'
+          : 'bg-[#181b19] border border-white/5 shadow-md hover:bg-[#1f2320]';
+      case 'bordered':
+        return isLight
+          ? 'bg-white border-2 border-slate-300 shadow hover:border-slate-400'
+          : 'bg-[#121413] border-2 border-white/20 shadow hover:border-white/30';
+      case 'neon':
+        return isLight
+          ? 'bg-white border border-slate-200 shadow-md hover:bg-slate-50'
+          : 'bg-[#141715] border border-white/10 shadow-lg hover:bg-[#1a1d1b]';
+      default:
+        return isLight
+          ? 'bg-white border border-slate-200 shadow-md hover:bg-slate-50'
+          : 'bg-[#161816]/95 border border-white/[0.08] shadow-lg hover:bg-[#1c201d]';
+    }
+  }, [activeConfig.cardStyle, isLight]);
+
+  const cardCustomStyle = useMemo<React.CSSProperties>(() => {
+    if (activeConfig.cardStyle === 'neon') {
+      return {
+        boxShadow: `0 0 16px ${primaryColor}25`,
+        borderColor: `${primaryColor}40`,
+      };
+    }
+    return {};
+  }, [activeConfig.cardStyle, primaryColor]);
+
+  const enabledModules = useMemo(() => {
+    return [...(activeConfig.modules || [])]
+      .filter((m) => m && m.enabled)
+      .sort((a, b) => a.order - b.order);
+  }, [activeConfig.modules]);
 
   if (loading) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#0b0e0c] flex flex-col items-center justify-center p-4">
+      <div
+        className="min-h-screen min-h-dvh flex flex-col items-center justify-center p-4 transition-colors duration-300"
+        style={{
+          backgroundColor: activeTheme.bgHex,
+          color: activeTheme.textHex,
+          fontFamily: activeFont.cssFamily,
+        }}
+      >
         <div
-          className="w-14 h-14 rounded-2xl bg-[#141715] border border-white/10 flex items-center justify-center mb-3 animate-pulse"
+          className={`w-14 h-14 rounded-2xl border flex items-center justify-center mb-3 animate-pulse ${
+            isLight ? 'bg-white border-slate-200 shadow-lg' : 'bg-[#141715] border-white/10'
+          }`}
           style={{ boxShadow: `0 0 25px ${primaryColor}25` }}
         >
           <Sparkles className="w-7 h-7 animate-spin" style={{ color: primaryColor }} />
         </div>
-        <p className="text-zinc-400 text-xs font-medium animate-pulse">Caricamento esperienza RIVO...</p>
+        <p className={`text-xs font-medium animate-pulse ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+          Caricamento esperienza RIVO...
+        </p>
       </div>
     );
   }
 
   if (notFound || !org) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#0b0e0c] flex flex-col items-center justify-center p-6 text-center">
+      <div
+        className="min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 text-center transition-colors duration-300"
+        style={{
+          backgroundColor: activeTheme.bgHex,
+          color: activeTheme.textHex,
+          fontFamily: activeFont.cssFamily,
+        }}
+      >
         <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-3 text-red-400">
           <AlertCircle className="w-7 h-7" />
         </div>
-        <h1 className="text-lg font-bold text-white mb-1.5">Dispositivo non trovato</h1>
-        <p className="text-xs text-zinc-400 max-w-xs mb-5">
-          Il tag NFC o codice QR (<span className="text-white font-mono">{code}</span>) non è attivo o non è configurato.
+        <h1 className={`text-lg font-bold mb-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          Dispositivo non trovato
+        </h1>
+        <p className={`text-xs max-w-xs mb-5 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+          Il tag NFC o codice QR (<span className={`font-mono font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{code}</span>) non è attivo o non è configurato.
         </p>
         <Link
           href="/"
-          className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold transition-colors"
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
+            isLight ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+          }`}
         >
           Torna alla Home
         </Link>
@@ -430,22 +553,43 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#0c0f0d] text-white flex flex-col justify-between relative selection:bg-white selection:text-black overflow-x-hidden">
+    <div
+      className="min-h-screen min-h-dvh flex flex-col justify-between relative selection:bg-white selection:text-black overflow-x-hidden transition-colors duration-300"
+      style={{
+        backgroundColor: activeTheme.bgHex,
+        color: activeTheme.textHex,
+        fontFamily: activeFont.cssFamily,
+      }}
+    >
       {/* Dynamic Ambient Aurora Glow Mesh (60/120fps GPU-accelerated) */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div
-          className="absolute -top-16 left-1/2 -translate-x-1/2 w-[340px] sm:w-[520px] h-[300px] rounded-full blur-[130px] animate-ambient-drift-1"
-          style={{ backgroundColor: primaryColor }}
-        />
-        <div
-          className="absolute top-1/4 -right-12 w-[220px] sm:w-[320px] h-[260px] rounded-full blur-[120px] animate-ambient-drift-2"
-          style={{ backgroundColor: `${primaryColor}85` }}
-        />
-      </div>
+      {activeConfig.accentGlow !== false && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div
+            className="absolute -top-16 left-1/2 -translate-x-1/2 w-[340px] sm:w-[520px] h-[300px] rounded-full blur-[130px] animate-ambient-drift-1"
+            style={{
+              backgroundColor: primaryColor,
+              opacity: isLight ? 0.25 : 0.65,
+            }}
+          />
+          <div
+            className="absolute top-1/4 -right-12 w-[220px] sm:w-[320px] h-[260px] rounded-full blur-[120px] animate-ambient-drift-2"
+            style={{
+              backgroundColor: `${primaryColor}85`,
+              opacity: isLight ? 0.2 : 0.5,
+            }}
+          />
+        </div>
+      )}
 
       {/* Share Toast Notification */}
       {sharedNotification && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#161816] border border-white/20 text-white px-4 py-2 rounded-2xl text-xs font-semibold shadow-2xl flex items-center gap-2 animate-fade-in">
+        <div
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl text-xs font-semibold shadow-2xl flex items-center gap-2 animate-fade-in ${
+            isLight
+              ? 'bg-white border border-slate-200 text-slate-900'
+              : 'bg-[#161816] border border-white/20 text-white'
+          }`}
+        >
           <Check className="w-4 h-4" style={{ color: primaryColor }} />
           <span>Link copiato negli appunti!</span>
         </div>
@@ -485,15 +629,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </div>
 
             <div className="min-w-0 flex-1">
-              <h1 className="text-base font-extrabold tracking-tight text-white truncate leading-tight">
+              <h1
+                className={`text-base font-extrabold tracking-tight truncate leading-tight ${
+                  isLight ? 'text-slate-900' : 'text-white'
+                }`}
+              >
                 {org.name}
               </h1>
-              <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 mt-0.5">
-                <span className="font-semibold text-zinc-300 truncate max-w-[140px]">
+              <div className="flex items-center gap-1.5 text-[11px] mt-0.5">
+                <span className={`font-semibold truncate max-w-[140px] ${isLight ? 'text-slate-600' : 'text-zinc-300'}`}>
                   {catDef.label}
                 </span>
-                <span className="text-zinc-600">•</span>
-                <span className="text-zinc-500 font-mono text-[10px]">RIVO Hub</span>
+                <span className={isLight ? 'text-slate-400' : 'text-zinc-600'}>•</span>
+                <span className={`font-mono text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>RIVO Hub</span>
               </div>
             </div>
           </div>
@@ -505,7 +653,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={() => setShowContactModal(true)}
               aria-label="Notifiche e assistenza"
-              className="touch-press w-9 h-9 rounded-full bg-[#181b19] hover:bg-[#202421] border border-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center transition-all relative active:scale-95"
+              className={`touch-press w-9 h-9 rounded-full border flex items-center justify-center transition-all relative active:scale-95 ${
+                isLight
+                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm'
+                  : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
+              }`}
             >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#181b19] animate-pulse" />
@@ -516,7 +668,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={handleShare}
               aria-label="Condividi locale"
-              className="touch-press w-9 h-9 rounded-full bg-[#181b19] hover:bg-[#202421] border border-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center transition-all active:scale-95"
+              className={`touch-press w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${
+                isLight
+                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm'
+                  : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
+              }`}
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -526,556 +682,363 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* ========================================================================= */}
         {/* BADGE TAVOLO CONNESSO (Stagger 2) */}
         {/* ========================================================================= */}
-        <div className="animate-nfc-stagger-2 flex items-center justify-between px-3.5 py-2 rounded-2xl bg-[#141715]/90 border border-white/[0.08] backdrop-blur-md shadow-sm">
+        <div
+          className={`animate-nfc-stagger-2 flex items-center justify-between px-3.5 py-2 rounded-2xl backdrop-blur-md shadow-sm ${
+            isLight
+              ? 'bg-white/90 border border-slate-200/90 text-slate-800'
+              : 'bg-[#141715]/90 border border-white/[0.08] text-white'
+          }`}
+        >
           <div className="flex items-center gap-2.5 min-w-0">
-            {/* Pulsing emerald dot (animate-ping + solid dot) for real-time live connection feedback */}
+            {/* Pulsing emerald dot (animate-ping + solid dot) */}
             <div className="relative flex h-2.5 w-2.5 items-center justify-center shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
             </div>
             <div className="flex items-center gap-1.5 text-xs min-w-0">
-              <span className="text-zinc-400 font-medium shrink-0">Tavolo Connesso:</span>
-              <span className="font-bold text-white tracking-wide truncate max-w-[150px] sm:max-w-[200px]">
+              <span className={`font-medium shrink-0 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                {activeConfig.tableBadgeLabel || 'Tavolo Connesso'}:
+              </span>
+              <span
+                className={`font-bold tracking-wide truncate max-w-[150px] sm:max-w-[200px] ${
+                  isLight ? 'text-slate-900' : 'text-white'
+                }`}
+              >
                 {device?.name || 'Tavolo Ospiti'}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
-            NFC LIVE
+            {activeConfig.tableLiveTag || 'NFC LIVE'}
           </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* SQUIRCLE ACTION GRID (2 COLUMNS x 3 ROWS) */}
+        {/* CARD HERO (Se abilitata) */}
         {/* ========================================================================= */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
+        {activeConfig.hero?.enabled && (
+          activeConfig.hero.destinationType === 'external' && activeConfig.hero.externalUrl ? (
+            <a
+              href={activeConfig.hero.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left"
+              style={{
+                backgroundColor: primaryColor,
+                color: contrastText,
+                boxShadow: `0 10px 28px ${primaryColor}35`,
+                '--hero-glow-1': `${primaryColor}35`,
+                '--hero-glow-2': `${primaryColor}20`,
+                '--hero-glow-strong-1': `${primaryColor}65`,
+                '--hero-glow-strong-2': `${primaryColor}40`,
+              } as React.CSSProperties}
+            >
+              {/* Continuous Diagonal Mirror Shimmer Beam */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+              </div>
+              {/* Luminous breath overlay */}
+              <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse" />
 
-          {/* ====== RESTAURANT TILES ====== */}
-          {org.category === 'restaurant' && (
-            <>
-              {/* CARD 1 (HERO HIGHLIGHT): MENÙ DIGITALE */}
-              <button
-                type="button"
-                onClick={() => setShowMenuModal(true)}
-                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: contrastText,
-                  boxShadow: `0 10px 25px ${primaryColor}35`,
-                  '--hero-glow-1': `${primaryColor}35`,
-                  '--hero-glow-2': `${primaryColor}20`,
-                  '--hero-glow-strong-1': `${primaryColor}65`,
-                  '--hero-glow-strong-2': `${primaryColor}40`,
-                } as React.CSSProperties}
-              >
-                {/* Continuous Diagonal Mirror Shimmer Beam */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+              <div className="relative z-10 flex-1 min-w-0 pr-3">
+                {activeConfig.hero.badgeText && (
+                  <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full bg-black/20 mb-1.5">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    <span>{activeConfig.hero.badgeText}</span>
+                  </div>
+                )}
+                <h3 className="text-base sm:text-lg font-black uppercase tracking-tight leading-tight mb-1 truncate">
+                  {activeConfig.hero.title}
+                </h3>
+                <p className="text-xs font-semibold opacity-90 truncate">
+                  {activeConfig.hero.subtitle}
+                </p>
+              </div>
+
+              <div className="relative z-10 shrink-0 flex items-center gap-2">
+                <div className="w-11 h-11 rounded-2xl bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ExternalLink className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
                 </div>
-                {/* Luminous breath overlay */}
-                <div
-                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
-                />
-                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative z-10">
+              </div>
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowMenuModal(true)}
+              className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer"
+              style={{
+                backgroundColor: primaryColor,
+                color: contrastText,
+                boxShadow: `0 10px 28px ${primaryColor}35`,
+                '--hero-glow-1': `${primaryColor}35`,
+                '--hero-glow-2': `${primaryColor}20`,
+                '--hero-glow-strong-1': `${primaryColor}65`,
+                '--hero-glow-strong-2': `${primaryColor}40`,
+              } as React.CSSProperties}
+            >
+              {/* Continuous Diagonal Mirror Shimmer Beam */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+              </div>
+              {/* Luminous breath overlay */}
+              <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse" />
+
+              <div className="relative z-10 flex-1 min-w-0 pr-3">
+                {activeConfig.hero.badgeText && (
+                  <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full bg-black/20 mb-1.5">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    <span>{activeConfig.hero.badgeText}</span>
+                  </div>
+                )}
+                <h3 className="text-base sm:text-lg font-black uppercase tracking-tight leading-tight mb-1 truncate">
+                  {activeConfig.hero.title}
+                </h3>
+                <p className="text-xs font-semibold opacity-90 truncate">
+                  {activeConfig.hero.subtitle}
+                </p>
+              </div>
+
+              <div className="relative z-10 shrink-0 flex items-center gap-2">
+                <div className="w-11 h-11 rounded-2xl bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
                 </div>
-                <div className="relative z-10">
-                  <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-tight leading-none mb-1">
-                    Menù Digitale
-                  </h3>
-                  <p className="text-[11px] font-semibold opacity-85">
-                    Piatti, prezzi & vini
-                  </p>
-                </div>
-              </button>
+              </div>
+            </button>
+          )
+        )}
 
-              {/* CARD 2: CHIAMA SALA */}
-              <Link
-                href={`/call/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
-              >
-                <div
-                  className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"
-                >
-                  <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
-                    Chiama Sala
-                  </h3>
-                  <p className="text-[11px] text-zinc-400">
-                    Cameriere o conto
-                  </p>
-                </div>
-              </Link>
-
-              {/* CARD 3: AI SOMMELIER */}
-              <Link
-                href={`/ai-sommelier/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative">
-                  <Wine className="w-5 h-5" style={{ color: primaryColor }} />
-                  <Sparkles className="w-2.5 h-2.5 absolute top-1 right-1 text-amber-300 animate-pulse" />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
-                    AI Sommelier
-                  </h3>
-                  <p className="text-[11px] text-zinc-400">
-                    Consigli abbinamento
-                  </p>
-                </div>
-              </Link>
-
-              {/* CARD 4: WI-FI OSPITI */}
-              <Link
-                href={`/wifi/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Wifi className="w-5 h-5 animate-pulse" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
-                    Wi-Fi Ospiti
-                  </h3>
-                  <p className="text-[11px] text-zinc-400">
-                    Accesso rapido 1-tap
-                  </p>
-                </div>
-              </Link>
-
-              {/* CARD 5: RUOTA PREMI */}
-              <Link
-                href={`/wheel/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group relative overflow-hidden"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
-                    Ruota Premi
-                  </h3>
-                  <p className="text-[11px] text-zinc-400">
-                    Gira e vinci sconti
-                  </p>
-                </div>
-              </Link>
-
-              {/* CARD 6: CARTA FEDELTÀ */}
-              <Link
-                href={`/loyalty/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] hover:border-white/20 p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
-                    Carta Fedeltà
-                  </h3>
-                  <p className="text-[11px] text-zinc-400">
-                    Raccolta timbri smart
-                  </p>
-                </div>
-              </Link>
-            </>
-          )}
-
-          {/* ====== SALON & BEAUTY TILES ====== */}
-          {(org.category === 'salon' || org.category === 'barber' || org.category === 'beauty') && (
-            <>
-              {/* HERO CARD: PRENOTA TAGLIO */}
-              <a
-                href={org.custom_cta_url || (org.phone ? `tel:${org.phone}` : '#')}
-                target={org.custom_cta_url ? '_blank' : '_self'}
-                rel="noopener noreferrer"
-                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: contrastText,
-                  boxShadow: `0 10px 25px ${primaryColor}35`,
-                  '--hero-glow-1': `${primaryColor}35`,
-                  '--hero-glow-2': `${primaryColor}20`,
-                  '--hero-glow-strong-1': `${primaryColor}65`,
-                  '--hero-glow-strong-2': `${primaryColor}40`,
-                } as React.CSSProperties}
-              >
-                {/* Luminous breath overlay */}
-                <div
-                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
-                />
-                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <CalendarCheck className="w-5 h-5" style={{ color: contrastText }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-tight leading-none mb-1">
-                    Prenota
-                  </h3>
-                  <p className="text-[11px] font-semibold opacity-85">
-                    Scegli data & orario
-                  </p>
-                </div>
-              </a>
-
-              {/* CARD 2: LOOKBOOK */}
-              {org.website ? (
-                <a
-                  href={org.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <Scissors className="w-5 h-5" style={{ color: primaryColor }} />
+        {/* ========================================================================= */}
+        {/* GRIGLIA MODULI DINAMICA (2 COLONNE) */}
+        {/* ========================================================================= */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
+          {enabledModules.map((mod) => {
+            const commonInner = (
+              <>
+                <div className="flex items-start justify-between w-full mb-2">
+                  <div
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative ${
+                      isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.05] border border-white/5'
+                    }`}
+                  >
+                    {(() => {
+                      switch (mod.id) {
+                        case 'service':
+                          return <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />;
+                        case 'sommelier':
+                          return (
+                            <div className="relative">
+                              <Wine className="w-5 h-5" style={{ color: primaryColor }} />
+                              <Sparkles className="w-2.5 h-2.5 absolute -top-1 -right-1 text-amber-300 animate-pulse" />
+                            </div>
+                          );
+                        case 'wifi':
+                          return <Wifi className="w-5 h-5 animate-pulse" style={{ color: primaryColor }} />;
+                        case 'wheel':
+                          return <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                        case 'loyalty':
+                          return <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />;
+                        case 'reviews':
+                          return <Star className="w-5 h-5 fill-amber-400 text-amber-400" />;
+                        case 'guide':
+                          return <BookOpen className="w-5 h-5" style={{ color: primaryColor }} />;
+                        case 'whatsapp':
+                          return <MessageCircle className="w-5 h-5 text-emerald-400" />;
+                        case 'menu':
+                          return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                        case 'instagram':
+                          return <Instagram className="w-5 h-5 text-pink-400" />;
+                        case 'custom_cta':
+                          return <ExternalLink className="w-5 h-5" style={{ color: primaryColor }} />;
+                        default:
+                          return <CatIcon className="w-5 h-5" style={{ color: primaryColor }} />;
+                      }
+                    })()}
                   </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
-                      Lookbook
-                    </h3>
-                    <p className="text-[11px] text-zinc-400">Listino & trattamenti</p>
-                  </div>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowContactModal(true)}
-                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <Scissors className="w-5 h-5" style={{ color: primaryColor }} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">
-                      Salone Style
-                    </h3>
-                    <p className="text-[11px] text-zinc-400">Info & trattamenti</p>
-                  </div>
-                </button>
-              )}
+                  {mod.badge && (
+                    <span
+                      className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: `${primaryColor}20`,
+                        color: primaryColor,
+                        border: `1px solid ${primaryColor}35`,
+                      }}
+                    >
+                      {mod.badge}
+                    </span>
+                  )}
+                </div>
 
-              {/* CARD 3: WI-FI */}
-              <Link
-                href={`/wifi/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Wi-Fi Ospiti</h3>
-                  <p className="text-[11px] text-zinc-400">Connessione gratis</p>
-                </div>
-              </Link>
-
-              {/* CARD 4: RUOTA PREMI */}
-              <Link
-                href={`/wheel/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Ruota Premi</h3>
-                  <p className="text-[11px] text-zinc-400">Sconti & trattamenti</p>
-                </div>
-              </Link>
-
-              {/* CARD 5: CARTA FEDELTÀ */}
-              <Link
-                href={`/loyalty/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Carta Fedeltà</h3>
-                  <p className="text-[11px] text-zinc-400">Timbri & vantaggi</p>
-                </div>
-              </Link>
-
-              {/* CARD 6: CONTATTO RAPIDO */}
-              <button
-                type="button"
-                onClick={() => setShowContactModal(true)}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Phone className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Contatta</h3>
-                  <p className="text-[11px] text-zinc-400">WhatsApp & Telefono</p>
-                </div>
-              </button>
-            </>
-          )}
-
-          {/* ====== HOTEL & B&B TILES ====== */}
-          {(org.category === 'hotel' || org.category === 'bnb') && (
-            <>
-              {/* HERO CARD: RECEPTION */}
-              <a
-                href={org.phone ? `tel:${org.phone}` : '#'}
-                onClick={() => !org.phone && setShowContactModal(true)}
-                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: contrastText,
-                  boxShadow: `0 10px 25px ${primaryColor}35`,
-                  '--hero-glow-1': `${primaryColor}35`,
-                  '--hero-glow-2': `${primaryColor}20`,
-                  '--hero-glow-strong-1': `${primaryColor}65`,
-                  '--hero-glow-strong-2': `${primaryColor}40`,
-                } as React.CSSProperties}
-              >
-                {/* Continuous Diagonal Mirror Shimmer Beam */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
-                </div>
-                {/* Luminous breath overlay */}
-                <div
-                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
-                />
-                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative z-10">
-                  <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: contrastText }} />
-                </div>
-                <div className="relative z-10">
-                  <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-tight leading-none mb-1">
-                    Reception H24
+                <div className="w-full">
+                  <h3
+                    className={`text-sm sm:text-base font-bold tracking-tight leading-none mb-1 truncate ${
+                      isLight ? 'text-slate-900' : 'text-white'
+                    }`}
+                  >
+                    {mod.title}
                   </h3>
-                  <p className="text-[11px] font-semibold opacity-85">
-                    Contatto immediato
-                  </p>
+                  {mod.subtitle && (
+                    <p
+                      className={`text-[11px] leading-tight truncate ${
+                        isLight ? 'text-slate-500' : 'text-zinc-400'
+                      }`}
+                    >
+                      {mod.subtitle}
+                    </p>
+                  )}
                 </div>
-              </a>
+              </>
+            );
 
-              {/* CARD 2: GUIDA CITTÀ */}
-              <button
-                type="button"
-                onClick={() => setShowCityGuide(true)}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Compass className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Guida Città</h3>
-                  <p className="text-[11px] text-zinc-400">Luoghi consigliati</p>
-                </div>
-              </button>
+            const cardClassName = `animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all group relative overflow-hidden ${cardBaseClass}`;
 
-              {/* CARD 3: WI-FI */}
-              <Link
-                href={`/wifi/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Wi-Fi Ospiti</h3>
-                  <p className="text-[11px] text-zinc-400">Accesso camera</p>
-                </div>
-              </Link>
-
-              {/* CARD 4: RUOTA PREMI */}
-              <Link
-                href={`/wheel/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Ruota Premi</h3>
-                  <p className="text-[11px] text-zinc-400">Vinci sconti soggiorno</p>
-                </div>
-              </Link>
-
-              {/* CARD 5: CARTA FEDELTÀ */}
-              <Link
-                href={`/loyalty/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Fidelity Pass</h3>
-                  <p className="text-[11px] text-zinc-400">Punti fedeltà</p>
-                </div>
-              </Link>
-
-              {/* CARD 6: INFO & WHATSAPP */}
-              <button
-                type="button"
-                onClick={() => setShowContactModal(true)}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Info className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Concierge</h3>
-                  <p className="text-[11px] text-zinc-400">Orari & check-out</p>
-                </div>
-              </button>
-            </>
-          )}
-
-          {/* ====== OTHER / GENERIC / RETAIL / MEDICAL TILES ====== */}
-          {!['restaurant', 'salon', 'barber', 'beauty', 'hotel', 'bnb'].includes(org.category) && (
-            <>
-              {/* HERO CARD: AZIONE PRINCIPALE */}
-              <a
-                href={org.custom_cta_url || (org.phone ? `tel:${org.phone}` : '#')}
-                onClick={() => !org.custom_cta_url && !org.phone && setShowContactModal(true)}
-                target={org.custom_cta_url ? '_blank' : '_self'}
-                rel="noopener noreferrer"
-                className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-xl group relative overflow-hidden"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: contrastText,
-                  boxShadow: `0 10px 25px ${primaryColor}35`,
-                  '--hero-glow-1': `${primaryColor}35`,
-                  '--hero-glow-2': `${primaryColor}20`,
-                  '--hero-glow-strong-1': `${primaryColor}65`,
-                  '--hero-glow-strong-2': `${primaryColor}40`,
-                } as React.CSSProperties}
-              >
-                {/* Continuous Diagonal Mirror Shimmer Beam */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
-                </div>
-                {/* Luminous breath overlay */}
-                <div
-                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse"
-                />
-                <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform relative z-10">
-                  <CatIcon className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
-                </div>
-                <div className="relative z-10">
-                  <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-tight leading-none mb-1 truncate max-w-full">
-                    {org.custom_cta_label || 'Servizi'}
-                  </h3>
-                  <p className="text-[11px] font-semibold opacity-85">
-                    Accedi 1-Tap
-                  </p>
-                </div>
-              </a>
-
-              {/* CARD 2: WI-FI */}
-              <Link
-                href={`/wifi/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Wifi className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Wi-Fi Ospiti</h3>
-                  <p className="text-[11px] text-zinc-400">Accesso rapido</p>
-                </div>
-              </Link>
-
-              {/* CARD 3: RUOTA PREMI */}
-              <Link
-                href={`/wheel/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Ruota Premi</h3>
-                  <p className="text-[11px] text-zinc-400">Vinci vantaggi</p>
-                </div>
-              </Link>
-
-              {/* CARD 4: CARTA FEDELTÀ */}
-              <Link
-                href={`/loyalty/${code}`}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Carta Fedeltà</h3>
-                  <p className="text-[11px] text-zinc-400">Timbri & premi</p>
-                </div>
-              </Link>
-
-              {/* CARD 5: SITO / INFO */}
-              {org.website ? (
-                <a
-                  href={org.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <ExternalLink className="w-5 h-5" style={{ color: primaryColor }} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Sito Web</h3>
-                    <p className="text-[11px] text-zinc-400">Tutte le informazioni</p>
-                  </div>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowContactModal(true)}
-                  className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <Clock className="w-5 h-5" style={{ color: primaryColor }} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Orari & Info</h3>
-                    <p className="text-[11px] text-zinc-400">Dettagli attività</p>
-                  </div>
-                </button>
-              )}
-
-              {/* CARD 6: CONTATTI */}
-              <button
-                type="button"
-                onClick={() => setShowContactModal(true)}
-                className="animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl bg-[#161816]/95 hover:bg-[#1c201d] border border-white/[0.08] p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all shadow-lg group"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.05] border border-white/5 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Phone className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-none mb-1">Assistenza</h3>
-                  <p className="text-[11px] text-zinc-400">WhatsApp & Telefono</p>
-                </div>
-              </button>
-            </>
-          )}
-
+            switch (mod.id) {
+              case 'service':
+                return (
+                  <Link key={mod.id} href={`/call/${code}`} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </Link>
+                );
+              case 'sommelier':
+                return (
+                  <Link key={mod.id} href={`/ai-sommelier/${code}`} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </Link>
+                );
+              case 'wifi':
+                return (
+                  <Link key={mod.id} href={`/wifi/${code}`} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </Link>
+                );
+              case 'wheel':
+                return (
+                  <Link key={mod.id} href={`/wheel/${code}`} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </Link>
+                );
+              case 'loyalty':
+                return (
+                  <Link key={mod.id} href={`/loyalty/${code}`} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </Link>
+                );
+              case 'reviews':
+                return (
+                  <Link key={mod.id} href={`/review/${code}`} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </Link>
+                );
+              case 'guide':
+                if (mod.customUrl) {
+                  return (
+                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={cardCustomStyle}>
+                      {commonInner}
+                    </a>
+                  );
+                }
+                return (
+                  <button key={mod.id} type="button" onClick={() => setShowCityGuide(true)} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </button>
+                );
+              case 'whatsapp': {
+                const cleanNumber = (org.whatsapp_number || org.phone || '').replace(/[^0-9]/g, '');
+                if (cleanNumber) {
+                  return (
+                    <a
+                      key={mod.id}
+                      href={`https://wa.me/${cleanNumber}?text=${encodeURIComponent(
+                        `Ciao! Sono al ${device?.name || 'tavolo'} di ${org.name}.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cardClassName}
+                      style={cardCustomStyle}
+                    >
+                      {commonInner}
+                    </a>
+                  );
+                }
+                return (
+                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </button>
+                );
+              }
+              case 'menu':
+                if (mod.customUrl) {
+                  return (
+                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={cardCustomStyle}>
+                      {commonInner}
+                    </a>
+                  );
+                }
+                return (
+                  <button key={mod.id} type="button" onClick={() => setShowMenuModal(true)} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </button>
+                );
+              case 'instagram':
+                return (
+                  <a
+                    key={mod.id}
+                    href={mod.customUrl || org.instagram_url || org.website || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cardClassName}
+                    style={cardCustomStyle}
+                  >
+                    {commonInner}
+                  </a>
+                );
+              case 'custom_cta':
+                return (
+                  <a
+                    key={mod.id}
+                    href={mod.customUrl || org.custom_cta_url || org.website || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cardClassName}
+                    style={cardCustomStyle}
+                  >
+                    {commonInner}
+                  </a>
+                );
+              default:
+                if (mod.customUrl) {
+                  return (
+                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={cardCustomStyle}>
+                      {commonInner}
+                    </a>
+                  );
+                }
+                return (
+                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={cardCustomStyle}>
+                    {commonInner}
+                  </button>
+                );
+            }
+          })}
         </div>
 
         {/* ========================================================================= */}
         {/* WIDE BANNER CARD (Review Shield 5-Stars & Custom CTA Banner) */}
         {/* ========================================================================= */}
         <div className="animate-nfc-stagger-4 space-y-2.5">
-          {/* Custom CTA Banner if configured */}
-          {hasCustomCta && (
+          {/* Custom CTA Banner if configured (and not already in modules) */}
+          {hasCustomCta && !enabledModules.some((m) => m.id === 'custom_cta') && (
             <a
               href={org.custom_cta_url!}
               target="_blank"
               rel="noopener noreferrer"
-              className="touch-press group relative block rounded-3xl border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden"
+              className={`touch-press group relative block rounded-3xl border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden ${
+                isLight ? 'bg-white border-slate-200' : 'border-white/10'
+              }`}
               style={{
                 borderColor: `${primaryColor}60`,
-                background: `linear-gradient(135deg, ${primaryColor}20 0%, #161816 100%)`,
+                background: isLight
+                  ? `linear-gradient(135deg, ${primaryColor}15 0%, #ffffff 100%)`
+                  : `linear-gradient(135deg, ${primaryColor}20 0%, #161816 100%)`,
               }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -1086,7 +1049,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   >
                     <Sparkles className="w-2.5 h-2.5" /> In Evidenza
                   </span>
-                  <h3 className="text-xs sm:text-sm font-bold text-white truncate">
+                  <h3 className={`text-xs sm:text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     {org.custom_cta_label}
                   </h3>
                 </div>
@@ -1102,19 +1065,27 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
           {/* Interactive Review Shield Banner */}
           <div
-            className="rounded-3xl border border-white/[0.08] bg-gradient-to-b from-[#181b19] to-[#121413] p-4 shadow-xl relative overflow-hidden"
+            className={`rounded-3xl border p-4 shadow-xl relative overflow-hidden ${
+              isLight
+                ? 'bg-white border-slate-200'
+                : 'border-white/[0.08] bg-gradient-to-b from-[#181b19] to-[#121413]'
+            }`}
             style={{ boxShadow: `0 8px 30px ${primaryColor}12` }}
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
+              <div className={`flex items-center gap-2 text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 <ShieldCheck className="w-4 h-4" style={{ color: primaryColor }} />
                 <span>Valuta la tua esperienza</span>
               </div>
-              <span className="text-[10px] text-zinc-400 font-medium">1-Tap Google</span>
+              <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>1-Tap Google</span>
             </div>
 
             {/* 5 Stars Rating Bar */}
-            <div className="flex items-center justify-around py-1.5 bg-black/40 rounded-2xl border border-white/5">
+            <div
+              className={`flex items-center justify-around py-1.5 rounded-2xl border ${
+                isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/5'
+              }`}
+            >
               {[1, 2, 3, 4, 5].map((star) => {
                 const isFilled =
                   ratingHover !== null ? ratingHover >= star : selectedRating !== null && selectedRating >= star;
@@ -1135,6 +1106,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       className={`w-7 h-7 sm:w-8 sm:h-8 transition-all ${
                         isFilled
                           ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.7)] scale-115 animate-star-pop'
+                          : isLight
+                          ? 'text-slate-300 fill-slate-200 animate-star-twinkle'
                           : 'text-zinc-600 fill-zinc-800/40 animate-star-twinkle'
                       }`}
                     />
@@ -1152,19 +1125,30 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <span>{starFeelings[activeStar]?.text}</span>
                 </span>
               ) : (
-                <span className="text-[10px] text-zinc-500">Tocca una stella per recensire o inviare feedback</span>
+                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+                  Tocca una stella per recensire o inviare feedback
+                </span>
               )}
             </div>
           </div>
         </div>
 
         {/* Minimal Footer Info */}
-        <footer className="text-center pt-2 text-[11px] text-zinc-500 flex items-center justify-center gap-1.5">
-          <span className="font-medium text-zinc-400 truncate max-w-[160px]">{org.name}</span>
-          <span className="text-zinc-600">•</span>
-          <span>Powered by</span>
-          <span className="font-bold" style={{ color: primaryColor }}>RIVO</span>
-        </footer>
+        <div className="pt-2 text-center space-y-1">
+          {activeConfig.footerNote && (
+            <p className={`text-[10px] sm:text-[11px] max-w-xs mx-auto ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+              {activeConfig.footerNote}
+            </p>
+          )}
+          <footer className="text-[11px] flex items-center justify-center gap-1.5 text-zinc-500">
+            <span className={`font-medium truncate max-w-[160px] ${isLight ? 'text-slate-700' : 'text-zinc-400'}`}>
+              {org.name}
+            </span>
+            <span className={isLight ? 'text-slate-400' : 'text-zinc-600'}>•</span>
+            <span>Powered by</span>
+            <span className="font-bold" style={{ color: primaryColor }}>RIVO</span>
+          </footer>
+        </div>
 
       </div>
 
@@ -1174,14 +1158,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] inset-x-0 max-w-md mx-auto px-4 z-40 pointer-events-none">
         <nav
           aria-label="Navigazione rapida"
-          className="pointer-events-auto bg-[#141715]/95 backdrop-blur-2xl border border-white/10 rounded-full px-5 py-2 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)]"
+          className={`pointer-events-auto backdrop-blur-2xl border rounded-full px-5 py-2 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)] ${
+            isLight
+              ? 'bg-white/95 text-slate-700 border-slate-200/90 shadow-[0_12px_45px_rgba(0,0,0,0.12)]'
+              : 'bg-[#141715]/95 text-zinc-300 border-white/10 shadow-[0_12px_45px_rgba(0,0,0,0.85)]'
+          }`}
         >
           {/* Home */}
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             aria-label="Torna all'inizio"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
           >
             <Home className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Home</span>
@@ -1192,7 +1180,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             type="button"
             onClick={() => setShowMenuModal(true)}
             aria-label="Apri Menù"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
           >
             <BookOpen className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Menù</span>
@@ -1222,7 +1210,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             type="button"
             onClick={() => setShowContactModal(true)}
             aria-label="Info e contatti"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
           >
             <Info className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Info</span>
@@ -1233,7 +1221,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             type="button"
             onClick={handleShare}
             aria-label="Condividi"
-            className="touch-press active:scale-95 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all p-1.5"
+            className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
           >
             <Share2 className="w-5 h-5" />
             <span className="text-[9px] font-medium mt-0.5">Share</span>
