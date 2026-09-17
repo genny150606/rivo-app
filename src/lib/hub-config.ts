@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { BusinessCategory } from './types';
 import { DEFAULT_HUB_COLOR } from './palettes';
+import type { CanvaMenuConfig } from './canva-menu';
 
 export type HubFontFamily = 'outfit' | 'inter' | 'playfair' | 'syne' | 'jakarta' | 'cinzel' | 'dm_sans' | 'space_grotesk' | 'plus_jakarta';
 export type HubThemeMode = 'dark' | 'midnight' | 'warm_charcoal' | 'minimal_light';
@@ -235,6 +236,7 @@ export interface HubConfig {
   cardDensity?: 'compact' | 'comfortable';
   buttonGlow?: boolean;
   showBottomDock?: boolean;
+  canvaMenu?: CanvaMenuConfig;
 }
 
 export function getDefaultModules(category: BusinessCategory = 'restaurant'): HubModuleConfig[] {
@@ -592,6 +594,7 @@ export function mergeHubConfig(
     cardDensity: conf.cardDensity || 'comfortable',
     buttonGlow: conf.buttonGlow ?? true,
     showBottomDock: conf.showBottomDock ?? true,
+    canvaMenu: conf.canvaMenu || undefined,
   };
 }
 

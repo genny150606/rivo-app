@@ -19,34 +19,28 @@ import {
   Gift,
   Award,
   Users,
-  Smartphone
+  Smartphone,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 import { ThemeToggle } from '@/components/theme-toggle';
 
-const navItems = [
-  { label: 'Overview', href: '/dashboard', icon: BarChart3 },
-  { label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone },
-  { label: 'Analytics', href: '/dashboard/analytics', icon: Radio },
-  { label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing },
-  { label: 'Review Shield', href: '/dashboard/reviews', icon: Star },
-  { label: 'Ruota & Coupon', href: '/dashboard/coupons', icon: Gift },
-  { label: 'Fidelity Pass', href: '/dashboard/loyalty', icon: Award },
-  { label: 'Clienti & CRM', href: '/dashboard/leads', icon: Users },
-  { label: 'Devices', href: '/dashboard/devices', icon: Layers },
-  { label: 'Locations', href: '/dashboard/locations', icon: MapPin },
-  { label: 'Profile & Routing', href: '/dashboard/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
+interface NavItem {
+  label: string;
+  href: string;
+  icon: any;
+  badge?: string;
+}
 
 interface SidebarContentProps {
   pathname: string;
+  navItems: NavItem[];
   onLogout: () => void;
   onNavigate?: () => void;
 }
 
-function SidebarContent({ pathname, onLogout, onNavigate }: SidebarContentProps) {
+function SidebarContent({ pathname, navItems, onLogout, onNavigate }: SidebarContentProps) {
   return (
     <>
       <div>
@@ -81,7 +75,12 @@ function SidebarContent({ pathname, onLogout, onNavigate }: SidebarContentProps)
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
+                {item.badge && (
+                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -111,10 +110,75 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchOrgCategory() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !isMounted) return;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id, role')
+          .eq('auth_user_id', user.id)
+          .single();
+
+        let targetOrgId = profile?.organization_id;
+        if (!targetOrgId && profile?.role === 'admin') {
+          const { data: firstOrg } = await supabase
+            .from('organizations')
+            .select('id')
+            .limit(1)
+            .single();
+          targetOrgId = firstOrg?.id;
+        }
+
+        if (targetOrgId && isMounted) {
+          const { data: org } = await supabase
+            .from('organizations')
+            .select('category')
+            .eq('id', targetOrgId)
+            .single();
+
+          if (org?.category && isMounted) {
+            setCategory(org.category);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching org category in layout:', err);
+      }
+    }
+
+    fetchOrgCategory();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const navItems: NavItem[] = [
+    { label: 'Overview', href: '/dashboard', icon: BarChart3 },
+    { label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone },
+    ...(category === 'restaurant'
+      ? [{ label: 'Menù Canvas', href: '/dashboard/menu', icon: UtensilsCrossed, badge: 'Ristoranti' }]
+      : []),
+    { label: 'Analytics', href: '/dashboard/analytics', icon: Radio },
+    { label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing },
+    { label: 'Review Shield', href: '/dashboard/reviews', icon: Star },
+    { label: 'Ruota & Coupon', href: '/dashboard/coupons', icon: Gift },
+    { label: 'Fidelity Pass', href: '/dashboard/loyalty', icon: Award },
+    { label: 'Clienti & CRM', href: '/dashboard/leads', icon: Users },
+    { label: 'Devices', href: '/dashboard/devices', icon: Layers },
+    { label: 'Locations', href: '/dashboard/locations', icon: MapPin },
+    { label: 'Profile & Routing', href: '/dashboard/profile', icon: User },
+    { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+  ];
 
   // Prevent body/window scroll when mobile sidebar drawer is open
   useEffect(() => {
@@ -142,7 +206,7 @@ export default function DashboardLayout({
     <div className="flex min-h-screen min-h-dvh bg-zinc-100/70 dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 border-r border-zinc-200 dark:border-[#27272A] flex-col justify-between p-4 bg-white dark:bg-[#0D0D10] shrink-0 fixed inset-y-0 left-0 z-30 overflow-y-auto overscroll-contain">
-        <SidebarContent pathname={pathname} onLogout={handleLogout} />
+        <SidebarContent pathname={pathname} navItems={navItems} onLogout={handleLogout} />
       </aside>
 
       {/* Mobile Overlay */}
@@ -169,7 +233,7 @@ export default function DashboardLayout({
         >
           <X className="w-5 h-5" />
         </button>
-        <SidebarContent pathname={pathname} onLogout={handleLogout} onNavigate={closeSidebar} />
+        <SidebarContent pathname={pathname} navItems={navItems} onLogout={handleLogout} onNavigate={closeSidebar} />
       </aside>
 
       {/* Main Content Area */}

@@ -12,15 +12,22 @@ import {
   Volume2, 
   VolumeX,
   Sparkles,
-  Layers
+  Layers,
+  UtensilsCrossed,
+  MessageSquareText
 } from 'lucide-react';
 
 interface ServiceCallRecord {
   id: string;
-  type: 'waiter' | 'bill_pos' | 'bill_cash';
+  type: 'waiter' | 'bill_pos' | 'bill_cash' | 'dish_order';
   table_label: string;
   status: 'pending' | 'in_progress' | 'completed';
   created_at: string;
+  order_details?: {
+    items?: Array<{ id?: string; name: string; quantity: number; price: string }>;
+    total?: string;
+    notes?: string;
+  };
 }
 
 export default function ServiceDashboardPage() {
@@ -150,6 +157,11 @@ export default function ServiceDashboardPage() {
       icon: Banknote,
       color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
     },
+    dish_order: {
+      label: 'Nuovo Ordine Piatti',
+      icon: UtensilsCrossed,
+      color: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    },
   };
 
   if (loading) {
@@ -259,6 +271,63 @@ export default function ServiceDashboardPage() {
                   </div>
                 </div>
 
+                {/* Dettaglio Comanda Piatti */}
+                {call.type === 'dish_order' && call.order_details && (
+                  <div className="bg-[#18181B] rounded-xl p-3.5 border border-[#27272A] space-y-3">
+                    {/* Lista piatti ordinati con quantità in evidenza */}
+                    {call.order_details.items && call.order_details.items.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                          Portate Ordinate
+                        </p>
+                        <div className="divide-y divide-zinc-800/80">
+                          {call.order_details.items.map((item, idx) => (
+                            <div
+                              key={item.id || idx}
+                              className="py-1.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-amber-400 bg-amber-400/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-[11px] shrink-0 font-mono">
+                                  {item.quantity}x
+                                </span>
+                                <span className="font-medium text-zinc-200 truncate">
+                                  {item.name}
+                                </span>
+                              </div>
+                              <span className="font-mono text-zinc-400 text-xs shrink-0 ml-2">
+                                {item.price}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Note cliente per la cucina */}
+                    {call.order_details.notes && (
+                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2">
+                        <MessageSquareText className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                        <div className="min-w-0">
+                          <span className="font-semibold block text-[11px] text-amber-400">
+                            Note per la cucina:
+                          </span>
+                          <span className="break-words">{call.order_details.notes}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Totale comanda */}
+                    {call.order_details.total && (
+                      <div className="pt-2 border-t border-[#27272A] flex items-center justify-between">
+                        <span className="text-xs text-zinc-400 font-medium">Totale Comanda:</span>
+                        <span className="font-mono font-bold text-sm text-amber-400">
+                          {call.order_details.total}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="pt-2 border-t border-[#27272A] flex items-center justify-end">
                   <button
                     type="button"
@@ -266,7 +335,7 @@ export default function ServiceDashboardPage() {
                     className="min-h-[42px] px-5 py-2 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-semibold text-xs flex items-center gap-2 transition-all shadow-md shadow-[#BFFF00]/10 touch-press"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Servito / Evadi Chiamata</span>
+                    <span>{call.type === 'dish_order' ? 'Comanda Evasa / Servita' : 'Servito / Evadi Chiamata'}</span>
                   </button>
                 </div>
               </div>

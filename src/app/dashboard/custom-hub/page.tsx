@@ -1696,6 +1696,34 @@ export default function CustomHubStudioPage() {
                 </div>
               </div>
 
+              {/* Ristoranti: Canva Menu Promo Banner */}
+              {category === 'restaurant' && (
+                <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-zinc-900/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-amber-950/20">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 shadow-inner">
+                      <UtensilsCrossed className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-white tracking-tight">Personalizza il tuo Menù Stile Canva</span>
+                        <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-amber-400 text-black">Esclusivo Ristoranti</span>
+                      </div>
+                      <p className="text-xs text-zinc-300 mt-0.5">
+                        Crea un&apos;esperienza visiva elegante con preset grafici (Lavagna, Fine Dining, Trattoria) e anteprima smartphone live.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/dashboard/menu"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-black text-xs shadow-md transition-all active:scale-95 touch-press shrink-0"
+                  >
+                    <UtensilsCrossed className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Vai a Menù Canvas</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              )}
+
               {/* Module List with Up/Down buttons, Visibility Toggle, and Inline Inputs */}
               <div className="space-y-3">
                 {hubConfig.modules.map((m, idx) => {
@@ -2158,6 +2186,34 @@ export default function CustomHubStudioPage() {
                   Configura gli strumenti operativi: notifiche per le chiamate dei camerieri, credenziali Wi-Fi e intelligenza artificiale.
                 </p>
               </div>
+
+              {/* Ristoranti: Canva Menu Promo Banner */}
+              {category === 'restaurant' && (
+                <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-zinc-900/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-amber-950/20">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 shadow-inner">
+                      <UtensilsCrossed className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-white tracking-tight">Personalizza il tuo Menù Stile Canva</span>
+                        <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-amber-400 text-black">Esclusivo Ristoranti</span>
+                      </div>
+                      <p className="text-xs text-zinc-300 mt-0.5">
+                        Passa al designer visuale avanzato: gestisci piatti, foto HD, allergeni, ordini al tavolo e stili grafici d&apos;autore.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/dashboard/menu"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-black text-xs shadow-md transition-all active:scale-95 touch-press shrink-0"
+                  >
+                    <UtensilsCrossed className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Vai a Menù Canvas</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              )}
 
               {/* Waiter Call & Staff Notification Card */}
               <div className="p-4 rounded-2xl bg-[#181b19] border border-white/5 space-y-4">

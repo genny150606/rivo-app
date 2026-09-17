@@ -45,7 +45,21 @@ import {
   Heart,
   HelpCircle,
   Globe,
+  Plus,
+  Minus,
+  Trash2,
+  Send,
+  Receipt,
 } from 'lucide-react';
+
+import {
+  CanvaMenuConfig,
+  CanvaMenuStylePreset,
+  CanvaDish,
+  CanvaMenuCategory,
+  CANVA_PRESETS,
+  getDefaultCanvaMenuConfig,
+} from '@/lib/canva-menu';
 
 const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -265,6 +279,17 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [menuTab, setMenuTab] = useState<'tutti' | 'antipasti' | 'primi' | 'secondi' | 'dolci' | 'bevande'>('tutti');
   const [menuSearch, setMenuSearch] = useState('');
+  
+  // Canva Menu & Table Cart State (for restaurants)
+  const [canvaCategoryTab, setCanvaCategoryTab] = useState<string>('tutti');
+  const [canvaSearchQuery, setCanvaSearchQuery] = useState<string>('');
+  const [tableCart, setTableCart] = useState<Record<string, { dish: CanvaDish; quantity: number }>>({});
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderNotes, setOrderNotes] = useState('');
+  const [orderSending, setOrderSending] = useState(false);
+  const [orderSuccessMessage, setOrderSuccessMessage] = useState<string | null>(null);
+  const [orderErrorMessage, setOrderErrorMessage] = useState<string | null>(null);
+
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeCustomModal, setActiveCustomModal] = useState<{ title: string; content: string } | null>(null);
   const [sharedNotification, setSharedNotification] = useState(false);
@@ -504,6 +529,173 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
   const primaryColor = activeConfig.primaryColor || org?.primary_color || DEFAULT_HUB_COLOR;
   const contrastText = getContrastColor(primaryColor);
+
+  const isRestaurant = org?.category === 'restaurant';
+
+  const canvaMenu: CanvaMenuConfig = useMemo(() => {
+    if (org?.category === 'restaurant') {
+      if (activeConfig?.canvaMenu && activeConfig.canvaMenu.enabled !== false) {
+        return activeConfig.canvaMenu;
+      }
+      return getDefaultCanvaMenuConfig();
+    }
+    return getDefaultCanvaMenuConfig();
+  }, [org?.category, activeConfig?.canvaMenu]);
+
+  const canvaPreset = useMemo(() => {
+    const presetKey = canvaMenu.preset || 'chalkboard';
+    return CANVA_PRESETS[presetKey] || CANVA_PRESETS.chalkboard;
+  }, [canvaMenu.preset]);
+
+  const canvaAccent = canvaMenu.primaryAccent || canvaPreset.primaryAccent || primaryColor;
+  const canvaContrastText = getContrastColor(canvaAccent);
+
+  const canvaFontCss = useMemo(() => {
+    if (canvaMenu.fontFamily) {
+      const found = HUB_FONT_OPTIONS.find((f) => f.id === canvaMenu.fontFamily);
+      if (found) return found.cssFamily;
+    }
+    return canvaPreset.cssFamily;
+  }, [canvaMenu.fontFamily, canvaPreset]);
+
+  const cartItems = useMemo(() => {
+    return Object.values(tableCart).filter((entry) => entry.quantity > 0);
+  }, [tableCart]);
+
+  const totalCartCount = useMemo(() => {
+    return cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  }, [cartItems]);
+
+  const totalCartNumeric = useMemo(() => {
+    return cartItems.reduce((acc, item) => {
+      const cleaned = String(item.dish.price).replace(/[^0-9.,]/g, '').replace(',', '.');
+      const val = parseFloat(cleaned) || 0;
+      return acc + val * item.quantity;
+    }, 0);
+  }, [cartItems]);
+
+  const formattedTotal = useMemo(() => {
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalCartNumeric);
+  }, [totalCartNumeric]);
+
+  const addToTableCart = (dish: CanvaDish) => {
+    hapticTap();
+    setTableCart((prev) => {
+      const current = prev[dish.id]?.quantity || 0;
+      return {
+        ...prev,
+        [dish.id]: {
+          dish,
+          quantity: current + 1,
+        },
+      };
+    });
+  };
+
+  const removeFromTableCart = (dishId: string) => {
+    hapticTap();
+    setTableCart((prev) => {
+      const current = prev[dishId]?.quantity || 0;
+      if (current <= 1) {
+        const next = { ...prev };
+        delete next[dishId];
+        return next;
+      }
+      return {
+        ...prev,
+        [dishId]: {
+          ...prev[dishId],
+          quantity: current - 1,
+        },
+      };
+    });
+  };
+
+  const removeDishEntirelyFromCart = (dishId: string) => {
+    hapticTap();
+    setTableCart((prev) => {
+      const next = { ...prev };
+      delete next[dishId];
+      return next;
+    });
+  };
+
+  const handleSendOrder = async () => {
+    if (cartItems.length === 0 || !org) return;
+    setOrderSending(true);
+    setOrderErrorMessage(null);
+    hapticSuccess();
+    hapticNfcPulse();
+
+    try {
+      const payloadItems = cartItems.map((item) => ({
+        id: item.dish.id,
+        name: item.dish.name,
+        quantity: item.quantity,
+        price: item.dish.price,
+      }));
+
+      const res = await fetch('/api/service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organization_id: org.id,
+          device_id: device?.id || null,
+          type: 'dish_order',
+          table_label: device?.name || 'Tavolo',
+          order_details: {
+            items: payloadItems,
+            total: formattedTotal,
+            notes: orderNotes.trim() || undefined,
+          },
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || 'Errore durante l’invio dell’ordine');
+      }
+
+      setOrderSuccessMessage('Ordine inviato alla cassa e cucina! Il personale sta preparando i tuoi piatti.');
+      setTableCart({});
+      setOrderNotes('');
+
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: [canvaAccent, '#10b981', '#f59e0b', '#ffffff'],
+        });
+      } catch {}
+    } catch (err: any) {
+      hapticWarning();
+      setOrderErrorMessage(err?.message || 'Impossibile inviare la comanda. Riprova o chiama il cameriere.');
+    } finally {
+      setOrderSending(false);
+    }
+  };
+
+  const visibleCanvaCategories = useMemo(() => {
+    const query = canvaSearchQuery.trim().toLowerCase();
+    const categories = canvaMenu?.categories || [];
+    return categories
+      .filter((cat) => canvaCategoryTab === 'tutti' || cat.id === canvaCategoryTab)
+      .map((cat) => {
+        const filteredDishes = cat.dishes.filter((dish) => {
+          if (!query) return true;
+          const inName = dish.name.toLowerCase().includes(query);
+          const inDesc = dish.description.toLowerCase().includes(query);
+          const inTags = dish.tags?.some((t) => t.toLowerCase().includes(query));
+          return inName || inDesc || inTags;
+        });
+        return {
+          ...cat,
+          dishes: filteredDishes,
+        };
+      })
+      .filter((cat) => cat.dishes.length > 0);
+  }, [canvaMenu?.categories, canvaCategoryTab, canvaSearchQuery]);
 
   const activeFont = useMemo(() => {
     return HUB_FONT_OPTIONS.find((f) => f.id === activeConfig.fontFamily) || HUB_FONT_OPTIONS[0];
@@ -1663,208 +1855,893 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       )}
 
       {/* ========================================================================= */}
-      {/* INTERACTIVE DIGITAL MENU MODAL */}
+      {/* DIGITAL MENU MODAL (CANVA STYLE FOR RESTAURANTS / STANDARD FOR OTHERS) */}
       {/* ========================================================================= */}
       {showMenuModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
-                  style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
-                >
-                  <Utensils className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-white">Menù Digitale</h3>
-                  <p className="text-[10px] sm:text-[11px] text-zinc-400">{org.name}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                {(org.lunch_destination_url || org.website) && (
-                  <a
-                    href={org.lunch_destination_url || org.website!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1 text-white"
+        isRestaurant ? (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+            <div
+              className={`w-full max-w-lg h-[94vh] sm:h-[88vh] rounded-t-[32px] sm:rounded-[32px] border ${canvaPreset.borderClass} flex flex-col overflow-hidden shadow-2xl transition-all relative`}
+              style={{
+                background: canvaPreset.decorStyle.background,
+                fontFamily: canvaFontCss,
+              }}
+            >
+              {/* Top Header Bar */}
+              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/30 backdrop-blur-md z-10">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0"
+                    style={{ backgroundColor: `${canvaAccent}25`, color: canvaAccent }}
                   >
-                    <span>PDF / Web</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
-                <button
-                  onClick={() => {
-                    hapticTap();
-                    setShowMenuModal(false);
-                  }}
-                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
-                  aria-label="Chiudi menù"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+                    <Utensils className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className={`text-sm sm:text-base font-extrabold truncate ${canvaPreset.textClass}`}>
+                      {canvaMenu.headerTitle || 'Menù & Specialità'}
+                    </h3>
+                    <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate flex items-center gap-1.5">
+                      <span>{org.name}</span>
+                      <span className="text-zinc-600">•</span>
+                      <span className="font-semibold text-emerald-400">📍 {device?.name || 'Tavolo'}</span>
+                    </p>
+                  </div>
+                </div>
 
-            {/* Chef Notes & Daily Context Banner */}
-            {org.ai_menu_context && (
-              <div
-                className="p-2.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2"
-                style={{
-                  backgroundColor: `${primaryColor}15`,
-                  borderColor: `${primaryColor}30`,
-                  color: '#ffffff',
-                }}
-              >
-                <Sparkles className="w-4 h-4 shrink-0 mt-0.5" style={{ color: primaryColor }} />
-                <div>
-                  <strong className="block text-[11px] uppercase tracking-wider font-bold" style={{ color: primaryColor }}>
-                    Consiglio dello Chef
-                  </strong>
-                  <span className="text-zinc-200">{org.ai_menu_context}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {(org.lunch_destination_url || org.website) && (
+                    <a
+                      href={org.lunch_destination_url || org.website!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-xl border border-white/10 flex items-center gap-1 text-white transition-colors"
+                    >
+                      <span>PDF / Web</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => {
+                      hapticTap();
+                      setShowMenuModal(false);
+                    }}
+                    className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 min-h-[40px] min-w-[40px] flex items-center justify-center transition-colors"
+                    aria-label="Chiudi menù"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
-            )}
 
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={menuSearch}
-                onChange={(e) => setMenuSearch(e.target.value)}
-                placeholder="Cerca piatti, ingredienti..."
-                className="w-full bg-[#181b19] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none"
-                style={{ borderColor: menuSearch ? primaryColor : undefined }}
-              />
-            </div>
+              {/* Scrollable Menu Body */}
+              <div className="overflow-y-auto flex-1 space-y-4 p-4 no-scrollbar">
+                {/* Cover Hero Banner */}
+                {canvaMenu.coverImageUrl ? (
+                  <div className="relative rounded-2xl overflow-hidden min-h-[140px] sm:min-h-[160px] flex flex-col justify-end p-4 border border-white/10 shadow-lg group">
+                    <img
+                      src={canvaMenu.coverImageUrl}
+                      alt={canvaMenu.headerTitle || 'Cover menù'}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                    <div className="relative z-10 space-y-1">
+                      <span
+                        className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full inline-block backdrop-blur-md"
+                        style={{ backgroundColor: `${canvaAccent}40`, color: '#ffffff', border: `1px solid ${canvaAccent}60` }}
+                      >
+                        {canvaPreset.name}
+                      </span>
+                      <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
+                        {canvaMenu.headerTitle || 'Menù Digitale'}
+                      </h2>
+                      {canvaMenu.headerSubtitle && (
+                        <p className="text-xs text-zinc-200 line-clamp-2">
+                          {canvaMenu.headerSubtitle}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="p-4 rounded-2xl border border-white/10 text-left space-y-1"
+                    style={{ background: canvaPreset.decorStyle.cardBackground }}
+                  >
+                    <span
+                      className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md inline-block"
+                      style={{ backgroundColor: `${canvaAccent}20`, color: canvaAccent }}
+                    >
+                      {canvaPreset.name}
+                    </span>
+                    <h2 className={`text-base sm:text-lg font-black ${canvaPreset.textClass}`}>
+                      {canvaMenu.headerTitle || 'Menù Digitale'}
+                    </h2>
+                    {canvaMenu.headerSubtitle && (
+                      <p className={`text-xs ${canvaPreset.subtextClass}`}>
+                        {canvaMenu.headerSubtitle}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-            {/* Category Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {[
-                { id: 'tutti', label: 'Tutti', icon: Utensils },
-                { id: 'antipasti', label: 'Antipasti', icon: Pizza },
-                { id: 'primi', label: 'Primi', icon: UtensilsCrossed },
-                { id: 'secondi', label: 'Secondi', icon: Beef },
-                { id: 'dolci', label: 'Dolci', icon: Cake },
-                { id: 'bevande', label: 'Vini & Bar', icon: Wine },
-              ].map((tab) => {
-                const TabIcon = tab.icon;
-                const isSelected = menuTab === tab.id;
-                return (
+                {/* Order Notice or Chef Context */}
+                {(canvaMenu.orderNotice || org.ai_menu_context) && (
+                  <div
+                    className="p-3 rounded-2xl border text-xs leading-relaxed flex items-start gap-2.5 backdrop-blur-sm"
+                    style={{
+                      backgroundColor: `${canvaAccent}12`,
+                      borderColor: `${canvaAccent}30`,
+                      color: '#ffffff',
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4 shrink-0 mt-0.5" style={{ color: canvaAccent }} />
+                    <div className="space-y-0.5">
+                      <strong className="block text-[10px] uppercase tracking-wider font-extrabold" style={{ color: canvaAccent }}>
+                        {canvaMenu.allowTableOrders !== false ? 'Ordinazione al Tavolo Attiva' : 'Nota della Cucina'}
+                      </strong>
+                      <p className="text-zinc-200 text-[11px] leading-relaxed">
+                        {canvaMenu.orderNotice || org.ai_menu_context}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={canvaSearchQuery}
+                    onChange={(e) => setCanvaSearchQuery(e.target.value)}
+                    placeholder="Cerca piatti, allergeni, ingredienti..."
+                    className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
+                    style={{ borderColor: canvaSearchQuery ? canvaAccent : undefined }}
+                  />
+                  {canvaSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCanvaSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                   <button
-                    key={tab.id}
                     type="button"
                     onClick={() => {
                       hapticTap();
-                      setMenuTab(tab.id as typeof menuTab);
+                      setCanvaCategoryTab('tutti');
                     }}
-                    className={`shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
-                      isSelected
+                    className={`shrink-0 text-[11px] px-3.5 py-1.5 rounded-xl font-semibold transition-all flex items-center gap-1.5 ${
+                      canvaCategoryTab === 'tutti'
                         ? 'font-bold shadow-md'
                         : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
                     }`}
                     style={
-                      isSelected
-                        ? { backgroundColor: primaryColor, color: contrastText }
+                      canvaCategoryTab === 'tutti'
+                        ? { backgroundColor: canvaAccent, color: canvaContrastText }
                         : {}
                     }
                   >
-                    <TabIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{tab.label}</span>
+                    <span>Tutti</span>
+                    <span className="text-[9px] opacity-75">
+                      ({canvaMenu.categories.reduce((a, c) => a + c.dishes.length, 0)})
+                    </span>
                   </button>
-                );
-              })}
-            </div>
-
-            {/* Scrollable Dish List */}
-            <div className="overflow-y-auto flex-1 space-y-2.5 pr-1 max-h-[48vh]">
-              {filteredMenuItems.length === 0 ? (
-                <div className="text-center py-8 text-zinc-500 text-xs">
-                  Nessun piatto trovato con questi criteri di ricerca.
-                </div>
-              ) : (
-                filteredMenuItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-colors space-y-1.5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <h4 className="text-xs font-bold text-white leading-tight">
-                          {item.name}
-                        </h4>
-                        {item.popular && (
-                          <span
-                            className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0"
-                            style={{ backgroundColor: `${primaryColor}25`, color: primaryColor }}
-                          >
-                            <Sparkles className="w-2 h-2" /> Top
-                          </span>
-                        )}
-                      </div>
-                      <span
-                        className="text-xs sm:text-sm font-extrabold font-mono shrink-0"
-                        style={{ color: primaryColor }}
+                  {canvaMenu.categories.map((cat) => {
+                    const isSelected = canvaCategoryTab === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          hapticTap();
+                          setCanvaCategoryTab(cat.id);
+                        }}
+                        className={`shrink-0 text-[11px] px-3.5 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'font-bold shadow-md'
+                            : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
+                        }`}
+                        style={
+                          isSelected
+                            ? { backgroundColor: canvaAccent, color: canvaContrastText }
+                            : {}
+                        }
                       >
-                        {item.price}
-                      </span>
-                    </div>
+                        <span>{cat.name}</span>
+                        <span className="text-[9px] opacity-75">({cat.dishes.length})</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      {item.description}
-                    </p>
-
-                    {item.tags && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {item.tags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="text-[9px] px-2 py-0.5 rounded-md bg-black/40 text-zinc-400 border border-white/5"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                {/* Dishes Rendered by Category */}
+                {visibleCanvaCategories.length === 0 ? (
+                  <div className="text-center py-12 text-zinc-500 text-xs space-y-2">
+                    <Utensils className="w-8 h-8 mx-auto opacity-30" />
+                    <p>Nessun piatto trovato per "{canvaSearchQuery}".</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCanvaSearchQuery('');
+                        setCanvaCategoryTab('tutti');
+                      }}
+                      className="text-[11px] underline"
+                      style={{ color: canvaAccent }}
+                    >
+                      Reimposta filtri
+                    </button>
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  <div className="space-y-6 pb-20">
+                    {visibleCanvaCategories.map((category) => (
+                      <div key={category.id} className="space-y-3">
+                        {/* Category Header */}
+                        <div className="flex items-baseline justify-between border-b pb-1.5" style={{ borderColor: canvaPreset.decorStyle.dividerColor }}>
+                          <div>
+                            <h3 className={`text-sm sm:text-base font-black ${canvaPreset.textClass}`}>
+                              {category.name}
+                            </h3>
+                            {category.subtitle && (
+                              <p className={`text-[10px] sm:text-[11px] ${canvaPreset.subtextClass}`}>
+                                {category.subtitle}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-zinc-500 font-mono font-medium">
+                            {category.dishes.length} {category.dishes.length === 1 ? 'portata' : 'portate'}
+                          </span>
+                        </div>
 
-            {/* Bottom Quick Order Footer */}
-            <div className="pt-2 border-t border-white/10 flex items-center gap-2">
-              <Link
-                href={`/call/${code}`}
-                onClick={() => {
-                  hapticWaiterCall();
-                  setShowMenuModal(false);
-                }}
-                className="flex-1 min-h-[42px] font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-lg active:scale-95"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: contrastText,
-                  boxShadow: `0 4px 18px ${primaryColor}40`,
-                }}
+                        {/* Dishes Cards */}
+                        <div className="grid grid-cols-1 gap-3">
+                          {category.dishes.map((dish) => {
+                            const inCartCount = tableCart[dish.id]?.quantity || 0;
+                            return (
+                              <div
+                                key={dish.id}
+                                className={`p-3.5 rounded-2xl border ${canvaPreset.borderClass} transition-all space-y-2.5 flex flex-col justify-between`}
+                                style={{
+                                  background: canvaPreset.decorStyle.cardBackground,
+                                }}
+                              >
+                                <div className="flex gap-3 items-start">
+                                  {/* Dish Image */}
+                                  {dish.imageUrl && (
+                                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 border border-white/10 relative shadow-md bg-black/40">
+                                      <img
+                                        src={dish.imageUrl}
+                                        alt={dish.name}
+                                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                                        loading="lazy"
+                                      />
+                                      {dish.popular && (
+                                        <span
+                                          className="absolute top-1 left-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md backdrop-blur-md shadow"
+                                          style={{ backgroundColor: `${canvaAccent}E6`, color: canvaContrastText }}
+                                        >
+                                          Top
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Info */}
+                                  <div className="flex-1 min-w-0 space-y-1">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <h4 className={`text-xs sm:text-sm font-bold leading-snug ${canvaPreset.textClass}`}>
+                                          {dish.name}
+                                        </h4>
+                                        {dish.popular && !dish.imageUrl && (
+                                          <span
+                                            className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0"
+                                            style={{ backgroundColor: `${canvaAccent}25`, color: canvaAccent }}
+                                          >
+                                            <Sparkles className="w-2 h-2" /> Top
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span
+                                        className="text-xs sm:text-sm font-extrabold font-mono shrink-0"
+                                        style={{ color: canvaAccent }}
+                                      >
+                                        {dish.price}
+                                      </span>
+                                    </div>
+
+                                    <p className={`text-[11px] leading-relaxed line-clamp-2 sm:line-clamp-3 ${canvaPreset.subtextClass}`}>
+                                      {dish.description}
+                                    </p>
+
+                                    {/* Tags */}
+                                    {dish.tags && dish.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 pt-1">
+                                        {dish.tags.map((tag, idx) => (
+                                          <span
+                                            key={idx}
+                                            className={`text-[9px] px-2 py-0.5 rounded-md font-medium border border-white/5 ${canvaPreset.badgeBgClass} ${canvaPreset.badgeTextClass}`}
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Order Controls (if allowTableOrders) */}
+                                {canvaMenu.allowTableOrders !== false && (
+                                  <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                                    <div className="text-[10px] text-zinc-400">
+                                      {inCartCount > 0 ? (
+                                        <span className="text-emerald-400 font-semibold">
+                                          Nel vassoio: {inCartCount}
+                                        </span>
+                                      ) : (
+                                        <span>Aggiungi al tavolo</span>
+                                      )}
+                                    </div>
+
+                                    {inCartCount > 0 ? (
+                                      <div className="flex items-center gap-1.5 bg-white/10 rounded-xl p-1 border border-white/10">
+                                        <button
+                                          type="button"
+                                          onClick={() => removeFromTableCart(dish.id)}
+                                          className="w-7 h-7 rounded-lg bg-black/40 hover:bg-black/60 text-white flex items-center justify-center active:scale-90 transition-all"
+                                          aria-label="Diminuisci quantità"
+                                        >
+                                          <Minus className="w-3.5 h-3.5" />
+                                        </button>
+                                        <span className="w-6 text-center text-xs font-bold font-mono text-white">
+                                          {inCartCount}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => addToTableCart(dish)}
+                                          className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold"
+                                          style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
+                                          aria-label="Aumenta quantità"
+                                        >
+                                          <Plus className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => addToTableCart(dish)}
+                                        className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow border border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                                        style={{
+                                          borderColor: `${canvaAccent}40`,
+                                        }}
+                                      >
+                                        <Plus className="w-3.5 h-3.5" style={{ color: canvaAccent }} />
+                                        <span>Aggiungi</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sticky Bottom Tray Bar inside modal */}
+              {canvaMenu.allowTableOrders !== false && totalCartCount > 0 && (
+                <div
+                  className="p-3.5 border-t border-white/10 flex items-center justify-between gap-3 shadow-2xl backdrop-blur-xl shrink-0 z-20"
+                  style={{ background: 'rgba(15, 17, 18, 0.95)' }}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 shadow"
+                      style={{ backgroundColor: `${canvaAccent}25`, color: canvaAccent }}
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-white truncate">
+                        Vassoio Tavolo ({totalCartCount} {totalCartCount === 1 ? 'piatto' : 'piatti'})
+                      </p>
+                      <p className="text-xs font-mono font-bold" style={{ color: canvaAccent }}>
+                        {formattedTotal}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setShowOrderModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 shrink-0"
+                    style={{
+                      backgroundColor: canvaAccent,
+                      color: canvaContrastText,
+                      boxShadow: `0 4px 18px ${canvaAccent}50`,
+                    }}
+                  >
+                    <Receipt className="w-4 h-4" />
+                    <span>Vedi Comanda</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Modal Bottom Footer */}
+              <div className="p-3 bg-black/40 border-t border-white/10 flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/call/${code}`}
+                  onClick={() => {
+                    hapticWaiterCall();
+                    setShowMenuModal(false);
+                  }}
+                  className="flex-1 min-h-[40px] font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow active:scale-95 bg-white/10 hover:bg-white/15 text-white"
+                >
+                  <BellRing className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Chiama Cameriere</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    hapticTap();
+                    setShowMenuModal(false);
+                  }}
+                  className="px-4 min-h-[40px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                >
+                  Chiudi
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3">
+              
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
+                    style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
+                  >
+                    <Utensils className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-extrabold text-white">Menù Digitale</h3>
+                    <p className="text-[10px] sm:text-[11px] text-zinc-400">{org.name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {(org.lunch_destination_url || org.website) && (
+                    <a
+                      href={org.lunch_destination_url || org.website!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1 text-white"
+                    >
+                      <span>PDF / Web</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => {
+                      hapticTap();
+                      setShowMenuModal(false);
+                    }}
+                    className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    aria-label="Chiudi menù"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Chef Notes & Daily Context Banner */}
+              {org.ai_menu_context && (
+                <div
+                  className="p-2.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2"
+                  style={{
+                    backgroundColor: `${primaryColor}15`,
+                    borderColor: `${primaryColor}30`,
+                    color: '#ffffff',
+                  }}
+                >
+                  <Sparkles className="w-4 h-4 shrink-0 mt-0.5" style={{ color: primaryColor }} />
+                  <div>
+                    <strong className="block text-[11px] uppercase tracking-wider font-bold" style={{ color: primaryColor }}>
+                      Consiglio dello Chef
+                    </strong>
+                    <span className="text-zinc-200">{org.ai_menu_context}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={menuSearch}
+                  onChange={(e) => setMenuSearch(e.target.value)}
+                  placeholder="Cerca piatti, ingredienti..."
+                  className="w-full bg-[#181b19] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none"
+                  style={{ borderColor: menuSearch ? primaryColor : undefined }}
+                />
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                {[
+                  { id: 'tutti', label: 'Tutti', icon: Utensils },
+                  { id: 'antipasti', label: 'Antipasti', icon: Pizza },
+                  { id: 'primi', label: 'Primi', icon: UtensilsCrossed },
+                  { id: 'secondi', label: 'Secondi', icon: Beef },
+                  { id: 'dolci', label: 'Dolci', icon: Cake },
+                  { id: 'bevande', label: 'Vini & Bar', icon: Wine },
+                ].map((tab) => {
+                  const TabIcon = tab.icon;
+                  const isSelected = menuTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        hapticTap();
+                        setMenuTab(tab.id as typeof menuTab);
+                      }}
+                      className={`shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'font-bold shadow-md'
+                          : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
+                      }`}
+                      style={
+                        isSelected
+                          ? { backgroundColor: primaryColor, color: contrastText }
+                          : {}
+                      }
+                    >
+                      <TabIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Scrollable Dish List */}
+              <div className="overflow-y-auto flex-1 space-y-2.5 pr-1 max-h-[48vh]">
+                {filteredMenuItems.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 text-xs">
+                    Nessun piatto trovato con questi criteri di ricerca.
+                  </div>
+                ) : (
+                  filteredMenuItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-colors space-y-1.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold text-white leading-tight">
+                            {item.name}
+                          </h4>
+                          {item.popular && (
+                            <span
+                              className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0"
+                              style={{ backgroundColor: `${primaryColor}25`, color: primaryColor }}
+                            >
+                              <Sparkles className="w-2 h-2" /> Top
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          className="text-xs sm:text-sm font-extrabold font-mono shrink-0"
+                          style={{ color: primaryColor }}
+                        >
+                          {item.price}
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        {item.description}
+                      </p>
+
+                      {item.tags && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {item.tags.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9px] px-2 py-0.5 rounded-md bg-black/40 text-zinc-400 border border-white/5"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Bottom Quick Order Footer */}
+              <div className="pt-2 border-t border-white/10 flex items-center gap-2">
+                <Link
+                  href={`/call/${code}`}
+                  onClick={() => {
+                    hapticWaiterCall();
+                    setShowMenuModal(false);
+                  }}
+                  className="flex-1 min-h-[42px] font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-lg active:scale-95"
+                  style={{
+                    backgroundColor: primaryColor,
+                    color: contrastText,
+                    boxShadow: `0 4px 18px ${primaryColor}40`,
+                  }}
+                >
+                  <BellRing className="w-3.5 h-3.5" />
+                  <span>Chiama Cameriere per Ordinare</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    hapticTap();
+                    setShowMenuModal(false);
+                  }}
+                  className="px-4 min-h-[42px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                >
+                  Chiudi
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )
+      )}
+
+      {/* ========================================================================= */}
+      {/* FLOATING TRAY BAR OUTSIDE MENU MODAL (ACTIVE TABLE ORDERING) */}
+      {/* ========================================================================= */}
+      {!showMenuModal && !showOrderModal && isRestaurant && canvaMenu.allowTableOrders !== false && totalCartCount > 0 && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md animate-fade-in">
+          <div
+            className="p-3 rounded-2xl border shadow-2xl backdrop-blur-md flex items-center justify-between gap-3"
+            style={{
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(20,24,22,0.95)',
+              borderColor: `${canvaAccent}50`,
+              boxShadow: `0 8px 30px rgba(0,0,0,0.5)`,
+            }}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0"
+                style={{ backgroundColor: `${canvaAccent}25`, color: canvaAccent }}
               >
-                <BellRing className="w-3.5 h-3.5" />
-                <span>Chiama Cameriere per Ordinare</span>
-              </Link>
+                <ShoppingBag className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className={`text-xs font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  Vassoio Tavolo ({totalCartCount} {totalCartCount === 1 ? 'piatto' : 'piatti'})
+                </p>
+                <p className="text-[11px] font-mono font-bold" style={{ color: canvaAccent }}>
+                  {formattedTotal}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                hapticTap();
+                setShowOrderModal(true);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 shrink-0"
+              style={{
+                backgroundColor: canvaAccent,
+                color: canvaContrastText,
+                boxShadow: `0 4px 16px ${canvaAccent}50`,
+              }}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Vedi Comanda</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TABLE ORDER SUMMARY (COMANDA TAVOLO) MODAL */}
+      {/* ========================================================================= */}
+      {showOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3.5">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
+                  style={{ backgroundColor: `${canvaAccent}25`, color: canvaAccent }}
+                >
+                  <Receipt className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-white">Riepilogo Comanda</h3>
+                  <p className="text-[10px] sm:text-[11px] text-zinc-400">
+                    Tavolo: <strong className="text-white font-semibold">{device?.name || 'Tavolo'}</strong>
+                  </p>
+                </div>
+              </div>
               <button
-                type="button"
                 onClick={() => {
                   hapticTap();
-                  setShowMenuModal(false);
+                  setShowOrderModal(false);
                 }}
-                className="px-4 min-h-[42px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
               >
-                Chiudi
+                <X className="w-5 h-5" />
               </button>
             </div>
 
+            {orderSuccessMessage ? (
+              <div className="py-6 px-4 text-center space-y-4">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 animate-bounce-short">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h4 className="text-base font-extrabold text-white">Comanda Inviata!</h4>
+                  <p className="text-xs text-zinc-300 leading-relaxed max-w-xs mx-auto">
+                    {orderSuccessMessage}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    hapticTap();
+                    setOrderSuccessMessage(null);
+                    setShowOrderModal(false);
+                  }}
+                  className="w-full py-3 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/15 transition-colors"
+                >
+                  Torna al Menù
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Dishes in Comanda */}
+                <div className="overflow-y-auto flex-1 space-y-2.5 max-h-[40vh] pr-1">
+                  {cartItems.length === 0 ? (
+                    <div className="text-center py-8 text-zinc-500 text-xs">
+                      Il vassoio è vuoto. Aggiungi qualche piatto dal menù.
+                    </div>
+                  ) : (
+                    cartItems.map(({ dish, quantity }) => {
+                      const cleanPrice = parseFloat(String(dish.price).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+                      const subtotal = cleanPrice * quantity;
+                      return (
+                        <div
+                          key={dish.id}
+                          className="p-3 rounded-2xl bg-white/[0.04] border border-white/5 flex items-center justify-between gap-2.5"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-bold text-white truncate">{dish.name}</h4>
+                            <p className="text-[10px] text-zinc-400 font-mono">
+                              {dish.price} cad. • Subtotale:{' '}
+                              <span style={{ color: canvaAccent }} className="font-bold">
+                                {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(subtotal)}
+                              </span>
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1 bg-black/40 rounded-xl p-1 border border-white/5">
+                            <button
+                              type="button"
+                              onClick={() => removeFromTableCart(dish.id)}
+                              className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-90 transition-all"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-5 text-center text-xs font-bold font-mono text-white">
+                              {quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => addToTableCart(dish)}
+                              className="w-6 h-6 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold"
+                              style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeDishEntirelyFromCart(dish.id)}
+                            className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors"
+                            aria-label="Rimuovi piatto"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Notes field */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-zinc-300 block">
+                    Note per la cucina o allergie (opzionale):
+                  </label>
+                  <textarea
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="Es. Senza pepe, allergia alle noci, bistecca al sangue..."
+                    rows={2}
+                    className="w-full bg-[#181b19] border border-white/10 rounded-xl p-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/25 resize-none"
+                  />
+                </div>
+
+                {orderErrorMessage && (
+                  <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{orderErrorMessage}</span>
+                  </div>
+                )}
+
+                {/* Total & Action */}
+                <div className="pt-2 border-t border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400">Totale Comanda:</span>
+                    <span className="text-base font-extrabold font-mono" style={{ color: canvaAccent }}>
+                      {formattedTotal}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSendOrder}
+                      disabled={orderSending || cartItems.length === 0}
+                      className="flex-1 min-h-[44px] font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        backgroundColor: canvaAccent,
+                        color: canvaContrastText,
+                        boxShadow: `0 4px 18px ${canvaAccent}40`,
+                      }}
+                    >
+                      {orderSending ? (
+                        <>
+                          <span className="animate-spin mr-1">⏳</span>
+                          <span>Invio in corso...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Invia Ordine alla Cassa</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        hapticTap();
+                        setShowOrderModal(false);
+                      }}
+                      className="px-4 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                    >
+                      Annulla
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

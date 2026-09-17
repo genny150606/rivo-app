@@ -94,8 +94,9 @@ export interface ServiceCall {
   id: string;
   organization_id: string;
   device_id: string | null;
-  type: 'waiter' | 'bill_pos' | 'bill_cash';
+  type: 'waiter' | 'bill_pos' | 'bill_cash' | 'dish_order';
   table_label: string | null;
+  order_details?: any;
   status: 'pending' | 'in_progress' | 'completed';
   created_at: string;
 }
