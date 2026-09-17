@@ -61,7 +61,9 @@ import {
   ArrowLeft,
   Crown,
   Building,
+  Printer,
 } from 'lucide-react';
+import TableStandPrintModal from '@/components/TableStandPrintModal';
 import { WhatsAppIcon, InstagramIcon } from '@/components/brand-icons';
 import {
   CommunityHubTemplate,
@@ -88,6 +90,15 @@ import {
   getBorderRadiusClass,
   getBorderRadiusStyle,
 } from '@/lib/hub-config';
+import {
+  hapticTap,
+  hapticSelection,
+  hapticSuccess,
+  hapticWarning,
+  hapticNfcPulse,
+  hapticStarRating,
+  hapticWaiterCall,
+} from '@/lib/haptics';
 
 interface DeviceOption {
   id: string;
@@ -152,6 +163,9 @@ export default function CustomHubStudioPage() {
   const [previewingTemplate, setPreviewingTemplate] = useState<CommunityHubTemplate | null>(null);
   const [previewModuleToast, setPreviewModuleToast] = useState<string | null>(null);
 
+  // Table Stand & NFC Print Modal State
+  const [showPrintModal, setShowPrintModal] = useState(false);
+
   // Share to Catalog Form State
   const [shareTplName, setShareTplName] = useState('');
   const [shareTplAuthor, setShareTplAuthor] = useState('');
@@ -161,6 +175,7 @@ export default function CustomHubStudioPage() {
   const [shareSuccessToast, setShareSuccessToast] = useState(false);
 
   const handleApplyTemplate = (tpl: CommunityHubTemplate) => {
+    hapticSuccess();
     setHubConfig(tpl.config);
     setShimmerKey((k) => k + 1);
     setIsShimmering(true);
@@ -241,9 +256,11 @@ export default function CustomHubStudioPage() {
   // Mockup NFC Tap Simulator Animation
   const [mockupNfcPhase, setMockupNfcPhase] = useState<'idle' | 'sensing' | 'synced' | 'assembling'>('idle');
   const triggerMockupNfcTap = () => {
+    hapticNfcPulse();
     setMockupNfcPhase('sensing');
     setTimeout(() => {
       setMockupNfcPhase('synced');
+      hapticSuccess();
       setTimeout(() => {
         setMockupNfcPhase('assembling');
         setTimeout(() => {
@@ -256,6 +273,7 @@ export default function CustomHubStudioPage() {
   // Reset Factory Settings to Original Hub with Direct Persistence
   const handleResetToOriginal = async () => {
     if (!orgId) return;
+    hapticWarning();
     setResetting(true);
     try {
       const defaultCfg = resetToDefaultHubConfig(category);
@@ -593,6 +611,7 @@ export default function CustomHubStudioPage() {
 
       if (error) throw error;
 
+      hapticSuccess();
       setSaved(true);
       setTimeout(() => setSaved(false), 3500);
     } catch (err: unknown) {
@@ -839,6 +858,17 @@ export default function CustomHubStudioPage() {
             <span className="hidden sm:inline">AI Architect</span>
           </button>
 
+          {/* Table Stand & NFC Print Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowPrintModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/25 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
+            title="Stampa stand da tavolo in plexiglass e adesivi NFC personalizzati"
+          >
+            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Stampa Stand NFC</span>
+          </button>
+
           {/* Reset to Original Hub Trigger */}
           <button
             type="button"
@@ -919,7 +949,10 @@ export default function CustomHubStudioPage() {
       <div className="lg:hidden flex items-center p-1 bg-[#121214] border border-white/10 rounded-2xl w-full max-w-sm mx-auto shadow-lg mb-2">
         <button
           type="button"
-          onClick={() => setMobileView('editor')}
+          onClick={() => {
+            hapticSelection();
+            setMobileView('editor');
+          }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             mobileView === 'editor'
               ? 'bg-[#18181B] text-[#BFFF00] shadow border border-white/10'
@@ -931,7 +964,10 @@ export default function CustomHubStudioPage() {
         </button>
         <button
           type="button"
-          onClick={() => setMobileView('preview')}
+          onClick={() => {
+            hapticSelection();
+            setMobileView('preview');
+          }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             mobileView === 'preview'
               ? 'bg-[#18181B] text-[#BFFF00] shadow border border-white/10'
@@ -988,7 +1024,10 @@ export default function CustomHubStudioPage() {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id as StudioTab)}
+                  onClick={() => {
+                    hapticSelection();
+                    setActiveTab(tab.id as StudioTab);
+                  }}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 snap-start transition-all min-h-[44px] touch-press active:scale-95 cursor-pointer ${
                     isActive
                       ? 'bg-[#1c1d20] text-[#BFFF00] shadow-md border border-[#BFFF00]/30 ring-1 ring-[#BFFF00]/20'
@@ -1039,7 +1078,10 @@ export default function CustomHubStudioPage() {
                       <button
                         key={f.id}
                         type="button"
-                        onClick={() => setHubConfig((prev) => ({ ...prev, fontFamily: f.id }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((prev) => ({ ...prev, fontFamily: f.id }));
+                        }}
                         className={`p-3.5 rounded-2xl border text-left transition-all relative touch-press active:scale-[0.98] cursor-pointer ${
                           isSelected
                             ? 'bg-white/10 border-[#BFFF00] shadow-lg ring-1 ring-[#BFFF00]/40'
@@ -1091,7 +1133,10 @@ export default function CustomHubStudioPage() {
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setHubConfig((prev) => ({ ...prev, themeMode: t.id }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((prev) => ({ ...prev, themeMode: t.id }));
+                        }}
                         className={`p-3 rounded-2xl border text-left transition-all relative touch-press active:scale-95 cursor-pointer ${
                           isSelected
                             ? 'bg-white/10 border-white shadow-xl ring-2 ring-white/30'
@@ -1135,7 +1180,10 @@ export default function CustomHubStudioPage() {
                       <button
                         key={s.id}
                         type="button"
-                        onClick={() => setHubConfig((prev) => ({ ...prev, cardStyle: s.id }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((prev) => ({ ...prev, cardStyle: s.id }));
+                        }}
                         className={`p-3.5 rounded-2xl border text-left transition-all relative touch-press active:scale-[0.98] cursor-pointer ${
                           isSelected
                             ? 'bg-white/10 border-white shadow-xl ring-2 ring-white/30'
@@ -1173,7 +1221,10 @@ export default function CustomHubStudioPage() {
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => setHubConfig((prev) => ({ ...prev, primaryColor: p.primary }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((prev) => ({ ...prev, primaryColor: p.primary }));
+                        }}
                         className={`p-3 rounded-2xl border text-left transition-all duration-200 relative touch-press active:scale-95 cursor-pointer ${
                           isSelected
                             ? 'bg-white/10 border-white text-white shadow-xl ring-2 ring-white/40 scale-[1.02]'
@@ -1473,7 +1524,10 @@ export default function CustomHubStudioPage() {
                       <button
                         key={br.id}
                         type="button"
-                        onClick={() => setHubConfig((prev) => ({ ...prev, borderRadius: br.id as HubConfig['borderRadius'] }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((prev) => ({ ...prev, borderRadius: br.id as HubConfig['borderRadius'] }));
+                        }}
                         className={`p-2.5 rounded-xl border text-center transition-all ${
                           isSelected
                             ? 'bg-white/15 border-white text-[#BFFF00] font-bold shadow'
@@ -1499,7 +1553,10 @@ export default function CustomHubStudioPage() {
                     <div className="grid grid-cols-2 gap-1.5 bg-[#181b19] p-1 rounded-xl border border-white/5">
                       <button
                         type="button"
-                        onClick={() => setHubConfig((p) => ({ ...p, cardDensity: 'comfortable' }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((p) => ({ ...p, cardDensity: 'comfortable' }));
+                        }}
                         className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
                           (hubConfig.cardDensity || 'comfortable') === 'comfortable'
                             ? 'bg-white/15 text-white shadow'
@@ -1510,7 +1567,10 @@ export default function CustomHubStudioPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setHubConfig((p) => ({ ...p, cardDensity: 'compact' }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((p) => ({ ...p, cardDensity: 'compact' }));
+                        }}
                         className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
                           hubConfig.cardDensity === 'compact'
                             ? 'bg-white/15 text-white shadow'
@@ -1530,7 +1590,10 @@ export default function CustomHubStudioPage() {
                     <div className="grid grid-cols-2 gap-1.5 bg-[#181b19] p-1 rounded-xl border border-white/5">
                       <button
                         type="button"
-                        onClick={() => setHubConfig((p) => ({ ...p, buttonGlow: true }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((p) => ({ ...p, buttonGlow: true }));
+                        }}
                         className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
                           hubConfig.buttonGlow !== false
                             ? 'bg-white/15 text-white shadow'
@@ -1541,7 +1604,10 @@ export default function CustomHubStudioPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setHubConfig((p) => ({ ...p, buttonGlow: false }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((p) => ({ ...p, buttonGlow: false }));
+                        }}
                         className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
                           hubConfig.buttonGlow === false
                             ? 'bg-white/15 text-white shadow'
@@ -1561,7 +1627,10 @@ export default function CustomHubStudioPage() {
                     <div className="grid grid-cols-2 gap-1.5 bg-[#181b19] p-1 rounded-xl border border-white/5">
                       <button
                         type="button"
-                        onClick={() => setHubConfig((p) => ({ ...p, showBottomDock: true }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((p) => ({ ...p, showBottomDock: true }));
+                        }}
                         className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
                           hubConfig.showBottomDock !== false
                             ? 'bg-white/15 text-white shadow'
@@ -1572,7 +1641,10 @@ export default function CustomHubStudioPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setHubConfig((p) => ({ ...p, showBottomDock: false }))}
+                        onClick={() => {
+                          hapticSelection();
+                          setHubConfig((p) => ({ ...p, showBottomDock: false }));
+                        }}
                         className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
                           hubConfig.showBottomDock === false
                             ? 'bg-white/15 text-white shadow'
@@ -2271,7 +2343,7 @@ export default function CustomHubStudioPage() {
           )}
 
           {/* ======================================================================= */}
-          {/* TAB 5: ⭐ RECENSIONI & PROMO (Review Shield & Banner Promozionale) */}
+          {/* TAB 5: RECENSIONI & PROMO (Review Shield & Banner Promozionale) */}
           {/* ======================================================================= */}
           {activeTab === 'reviews' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-4 shadow-xl animate-fade-in">
@@ -2630,7 +2702,8 @@ export default function CustomHubStudioPage() {
               {/* HERO HIGHLIGHT CARD */}
               {hubConfig.hero.enabled && (
                 <div
-                  className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] shadow-lg transition-all relative overflow-hidden ${
+                  onClick={() => hapticTap()}
+                  className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] shadow-lg transition-all relative overflow-hidden cursor-pointer touch-press active:scale-95 ${
                     mockupNfcPhase === 'assembling' ? 'animate-assemble-hero' : ''
                   }`}
                   style={{
@@ -2679,7 +2752,8 @@ export default function CustomHubStudioPage() {
                   return (
                     <div
                       key={m.id}
-                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} ${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden ${getCardStyleClass()} ${
+                      onClick={() => hapticTap()}
+                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} ${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden cursor-pointer touch-press active:scale-95 ${getCardStyleClass()} ${
                         mockupNfcPhase === 'assembling'
                           ? isLeft
                             ? 'animate-assemble-left'
@@ -2746,7 +2820,15 @@ export default function CustomHubStudioPage() {
                   style={getBorderRadiusStyle(hubConfig.borderRadius)}
                 >
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => hapticStarRating(s)}
+                      className="p-0.5 touch-press active:scale-125 focus:outline-none cursor-pointer"
+                      aria-label={`Simula ${s} stelle`}
+                    >
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    </button>
                   ))}
                 </div>
               </div>
@@ -2757,21 +2839,24 @@ export default function CustomHubStudioPage() {
               <div className={`rounded-full px-3 py-1.5 flex items-center justify-between shadow-xl border ${
                 isLight ? 'bg-white/95 border-slate-200 text-slate-600' : 'bg-[#141715]/95 border-white/10 text-zinc-400'
               }`}>
-                <span className="text-[8px] font-semibold">Home</span>
-                <span className="text-[8px] font-semibold">Menù</span>
+                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Home</button>
+                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Menù</button>
                 {/* Elevated Circle FAB */}
-                <div
-                  className="w-8 h-8 -mt-4 rounded-full flex items-center justify-center shadow-lg cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => hapticWaiterCall()}
+                  className="w-8 h-8 -mt-4 rounded-full flex items-center justify-center shadow-lg cursor-pointer touch-press active:scale-90"
                   style={{
                     backgroundColor: hubConfig.primaryColor,
                     color: contrastText,
                     boxShadow: `0 4px 12px ${hubConfig.primaryColor}60`,
                   }}
+                  aria-label="Simula Chiama Sala"
                 >
                   <BellRing className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[8px] font-semibold">Info</span>
-                <span className="text-[8px] font-semibold">Share</span>
+                </button>
+                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Info</button>
+                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Share</button>
               </div>
             </div>
 
@@ -3975,6 +4060,18 @@ export default function CustomHubStudioPage() {
           </div>
         </div>
       )}
+
+      {/* Table Stand & NFC Print Generator Modal */}
+      <TableStandPrintModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        name={name}
+        logoUrl={logoUrl}
+        category={category}
+        hubConfig={hubConfig}
+        devices={devices}
+        selectedDeviceCode={selectedDeviceCode}
+      />
 
     </div>
   );

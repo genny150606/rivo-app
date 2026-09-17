@@ -445,7 +445,7 @@ export function analyzePromptHeuristically(
           { id: 'menu', title: 'Menù Degustazione & Carta', subtitle: 'I percorsi della cucina e gli ingredienti rari di stagione', badge: 'Gourmet', colSpan: 1, iconName: 'UtensilsCrossed', enabled: true },
           { id: 'sommelier', title: 'AI Sommelier Privato', subtitle: 'Abbinamenti consigliati per ogni portata della serata', badge: 'Prestige', colSpan: 1, iconName: 'Wine', enabled: true },
           { id: 'service', title: 'Maître di Sala', subtitle: 'Assistenza dedicata e discreta direttamente al tuo tavolo', badge: 'Concierge', colSpan: 1, enabled: true },
-          { id: 'reviews', title: 'Condividi la tua Esperienza', subtitle: 'Aiuta gli altri appassionati di gastronomia su Google', badge: '5★', colSpan: 2, enabled: true },
+          { id: 'reviews', title: 'Condividi la tua Esperienza', subtitle: 'Aiuta gli altri appassionati di gastronomia su Google', badge: '5 Stelle', colSpan: 2, enabled: true },
         ],
       };
   }

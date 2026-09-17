@@ -72,6 +72,15 @@ import {
   getBorderRadiusClass,
   getBorderRadiusStyle,
 } from '@/lib/hub-config';
+import {
+  hapticTap,
+  hapticSelection,
+  hapticSuccess,
+  hapticWarning,
+  hapticNfcPulse,
+  hapticStarRating,
+  hapticWaiterCall,
+} from '@/lib/haptics';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -268,14 +277,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   // Replay NFC Tap & Assemble Magic Animation
   const replayNfcTap = () => {
     setNfcPhase('sensing');
+    hapticNfcPulse();
     setLoading(true);
     setTimeout(() => {
       setNfcPhase('synced');
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        try {
-          navigator.vibrate([20, 50, 25]);
-        } catch {}
-      }
+      hapticSuccess();
       setTimeout(() => {
         setLoading(false);
         setNfcPhase('assembling');
@@ -295,6 +301,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         setLoading(false);
         return;
       }
+
+      hapticNfcPulse();
 
       try {
         // 1. Fetch active device
@@ -390,11 +398,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             // Phase 2: NFC Tag Synced Feedback with Haptic Wave
             setNfcPhase('synced');
-            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-              try {
-                navigator.vibrate([20, 50, 25]);
-              } catch {}
-            }
+            hapticSuccess();
 
             // Phase 3: Transition to Hub with Spring Bloom Assembling
             setTimeout(() => {
@@ -429,6 +433,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
   // Handle rating click from the Hub review widget
   const handleRatingClick = (stars: number) => {
+    hapticStarRating(stars);
     setSelectedRating(stars);
     const primaryColor = org?.primary_color || DEFAULT_HUB_COLOR;
     if (stars >= 4) {
@@ -451,6 +456,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
   // Web Share or Copy Link
   const handleShare = async () => {
+    hapticTap();
     const shareData = {
       title: org?.name || 'RIVO Hub',
       text: `Scopri i servizi esclusivi e il menù di ${org?.name || 'questo locale'}!`,
@@ -879,7 +885,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {/* Notification Bell with Badge */}
             <button
               type="button"
-              onClick={() => setShowContactModal(true)}
+              onClick={() => {
+                hapticTap();
+                setShowContactModal(true);
+              }}
               aria-label="Notifiche e assistenza"
               className={`touch-press w-9 h-9 rounded-full border flex items-center justify-center transition-all relative active:scale-95 ${
                 isLight
@@ -958,6 +967,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           activeConfig.hero.destinationType === 'external' && activeConfig.hero.externalUrl ? (
             <a
               href={activeConfig.hero.externalUrl}
+              onClick={() => hapticTap()}
               target="_blank"
               rel="noopener noreferrer"
               className={`${
@@ -1014,7 +1024,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           ) : (
             <button
               type="button"
-              onClick={() => setShowMenuModal(true)}
+              onClick={() => {
+                hapticTap();
+                setShowMenuModal(true);
+              }}
               className={`${
                 nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
               } ${activeConfig.buttonGlow !== false ? 'animate-hero-glow' : ''} touch-press active:scale-[0.98] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer`}
@@ -1225,12 +1238,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <button
                     key={mod.id}
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      hapticTap();
                       setActiveCustomModal({
                         title: mod.modalTitle || mod.title,
                         content: mod.modalContent || '',
-                      })
-                    }
+                      });
+                    }}
                     className={cardClassName}
                     style={moduleCardStyle}
                   >
@@ -1243,6 +1257,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <a
                     key={mod.id}
                     href={mod.customUrl}
+                    onClick={() => hapticTap()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cardClassName}
@@ -1256,12 +1271,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <button
                   key={mod.id}
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    hapticTap();
                     setActiveCustomModal({
                       title: mod.title,
                       content: mod.subtitle || 'Nessun dettaglio aggiuntivo specificato.',
-                    })
-                  }
+                    });
+                  }}
                   className={cardClassName}
                   style={moduleCardStyle}
                 >
@@ -1274,50 +1290,50 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             switch (mod.id) {
               case 'service':
                 return (
-                  <Link key={mod.id} href={`/call/${code}`} className={cardClassName} style={moduleCardStyle}>
+                  <Link key={mod.id} href={`/call/${code}`} onClick={() => hapticTap()} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'sommelier':
                 return (
-                  <Link key={mod.id} href={`/ai-sommelier/${code}`} className={cardClassName} style={moduleCardStyle}>
+                  <Link key={mod.id} href={`/ai-sommelier/${code}`} onClick={() => hapticTap()} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'wifi':
                 return (
-                  <Link key={mod.id} href={`/wifi/${code}`} className={cardClassName} style={moduleCardStyle}>
+                  <Link key={mod.id} href={`/wifi/${code}`} onClick={() => hapticTap()} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'wheel':
                 return (
-                  <Link key={mod.id} href={`/wheel/${code}`} className={cardClassName} style={moduleCardStyle}>
+                  <Link key={mod.id} href={`/wheel/${code}`} onClick={() => hapticTap()} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'loyalty':
                 return (
-                  <Link key={mod.id} href={`/loyalty/${code}`} className={cardClassName} style={moduleCardStyle}>
+                  <Link key={mod.id} href={`/loyalty/${code}`} onClick={() => hapticTap()} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'reviews':
                 return (
-                  <Link key={mod.id} href={`/review/${code}`} className={cardClassName} style={moduleCardStyle}>
+                  <Link key={mod.id} href={`/review/${code}`} onClick={() => hapticTap()} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'guide':
                 if (mod.customUrl) {
                   return (
-                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
+                    <a key={mod.id} href={mod.customUrl} onClick={() => hapticTap()} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
                       {commonInner}
                     </a>
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowCityGuide(true)} className={cardClassName} style={moduleCardStyle}>
+                  <button key={mod.id} type="button" onClick={() => { hapticTap(); setShowCityGuide(true); }} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1330,6 +1346,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       href={`https://wa.me/${cleanNumber}?text=${encodeURIComponent(
                         `Ciao! Sono al ${device?.name || 'tavolo'} di ${org.name}.`
                       )}`}
+                      onClick={() => hapticTap()}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={cardClassName}
@@ -1340,7 +1357,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={moduleCardStyle}>
+                  <button key={mod.id} type="button" onClick={() => { hapticTap(); setShowContactModal(true); }} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1348,13 +1365,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               case 'menu':
                 if (mod.customUrl) {
                   return (
-                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
+                    <a key={mod.id} href={mod.customUrl} onClick={() => hapticTap()} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
                       {commonInner}
                     </a>
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowMenuModal(true)} className={cardClassName} style={moduleCardStyle}>
+                  <button key={mod.id} type="button" onClick={() => { hapticTap(); setShowMenuModal(true); }} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1363,6 +1380,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <a
                     key={mod.id}
                     href={mod.customUrl || org.instagram_url || org.website || '#'}
+                    onClick={() => hapticTap()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cardClassName}
@@ -1376,6 +1394,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <a
                     key={mod.id}
                     href={mod.customUrl || org.custom_cta_url || org.website || '#'}
+                    onClick={() => hapticTap()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cardClassName}
@@ -1387,13 +1406,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               default:
                 if (mod.customUrl) {
                   return (
-                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
+                    <a key={mod.id} href={mod.customUrl} onClick={() => hapticTap()} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
                       {commonInner}
                     </a>
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={moduleCardStyle}>
+                  <button key={mod.id} type="button" onClick={() => { hapticTap(); setShowContactModal(true); }} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1413,6 +1432,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           {hasCustomCta && !enabledModules.some((m) => m.id === 'custom_cta') && (
             <a
               href={org.custom_cta_url!}
+              onClick={() => hapticTap()}
               target="_blank"
               rel="noopener noreferrer"
               className={`touch-press group relative block ${getBorderRadiusClass(activeConfig.borderRadius)} border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden ${
@@ -1567,7 +1587,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {/* Home */}
             <button
               type="button"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              onClick={() => {
+                hapticTap();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               aria-label="Torna all'inizio"
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
@@ -1578,7 +1601,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {/* Menù / Servizi */}
             <button
               type="button"
-              onClick={() => setShowMenuModal(true)}
+              onClick={() => {
+                hapticTap();
+                setShowMenuModal(true);
+              }}
               aria-label="Apri Menù"
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
@@ -1589,6 +1615,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {/* CENTER ELEVATED FLOATING ACTION BUTTON (Primary Accent) */}
             <Link
               href={`/call/${code}`}
+              onClick={() => hapticWaiterCall()}
               aria-label="Chiama Sala Rapido"
               className="touch-press active:scale-90 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-2xl relative group"
               style={{
@@ -1610,7 +1637,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {/* Info & Assistenza */}
             <button
               type="button"
-              onClick={() => setShowContactModal(true)}
+              onClick={() => {
+                hapticTap();
+                setShowContactModal(true);
+              }}
               aria-label="Info e contatti"
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
@@ -1667,7 +1697,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   </a>
                 )}
                 <button
-                  onClick={() => setShowMenuModal(false)}
+                  onClick={() => {
+                    hapticTap();
+                    setShowMenuModal(false);
+                  }}
                   className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
                   aria-label="Chiudi menù"
                 >
@@ -1725,7 +1758,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setMenuTab(tab.id as typeof menuTab)}
+                    onClick={() => {
+                      hapticTap();
+                      setMenuTab(tab.id as typeof menuTab);
+                    }}
                     className={`shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
                       isSelected
                         ? 'font-bold shadow-md'
@@ -1758,13 +1794,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        <h4 className="text-xs sm:text-sm font-bold text-white">{item.name}</h4>
+                        <h4 className="text-xs font-bold text-white leading-tight">
+                          {item.name}
+                        </h4>
                         {item.popular && (
                           <span
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                            className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0"
                             style={{ backgroundColor: `${primaryColor}25`, color: primaryColor }}
                           >
-                            Top
+                            <Sparkles className="w-2 h-2" /> Top
                           </span>
                         )}
                       </div>
@@ -1801,7 +1839,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <div className="pt-2 border-t border-white/10 flex items-center gap-2">
               <Link
                 href={`/call/${code}`}
-                onClick={() => setShowMenuModal(false)}
+                onClick={() => {
+                  hapticWaiterCall();
+                  setShowMenuModal(false);
+                }}
                 className="flex-1 min-h-[42px] font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-lg active:scale-95"
                 style={{
                   backgroundColor: primaryColor,
@@ -1814,7 +1855,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </Link>
               <button
                 type="button"
-                onClick={() => setShowMenuModal(false)}
+                onClick={() => {
+                  hapticTap();
+                  setShowMenuModal(false);
+                }}
                 className="px-4 min-h-[42px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
               >
                 Chiudi
@@ -1845,7 +1889,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
               </div>
               <button
-                onClick={() => setShowContactModal(false)}
+                onClick={() => {
+                  hapticTap();
+                  setShowContactModal(false);
+                }}
                 className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
@@ -1938,7 +1985,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             <button
               type="button"
-              onClick={() => setShowContactModal(false)}
+              onClick={() => {
+                hapticTap();
+                setShowContactModal(false);
+              }}
               className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[42px]"
             >
               Chiudi
@@ -1959,7 +2009,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <span>Guida & Luoghi Consigliati</span>
               </div>
               <button
-                onClick={() => setShowCityGuide(false)}
+                onClick={() => {
+                  hapticTap();
+                  setShowCityGuide(false);
+                }}
                 className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
@@ -1983,7 +2036,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             <button
               type="button"
-              onClick={() => setShowCityGuide(false)}
+              onClick={() => {
+                hapticTap();
+                setShowCityGuide(false);
+              }}
               className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[44px]"
             >
               Chiudi Guida
@@ -2005,7 +2061,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </div>
               <button
                 type="button"
-                onClick={() => setActiveCustomModal(null)}
+                onClick={() => {
+                  hapticTap();
+                  setActiveCustomModal(null);
+                }}
                 className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
@@ -2022,7 +2081,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             <button
               type="button"
-              onClick={() => setActiveCustomModal(null)}
+              onClick={() => {
+                hapticTap();
+                setActiveCustomModal(null);
+              }}
               className="w-full py-2.5 rounded-2xl text-xs font-bold transition-all min-h-[44px] shadow-lg active:scale-95"
               style={{
                 backgroundColor: primaryColor,

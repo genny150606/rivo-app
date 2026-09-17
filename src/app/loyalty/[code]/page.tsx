@@ -12,8 +12,19 @@ import {
   Search, 
   Gift, 
   AlertCircle, 
-  Plus 
+  Plus,
+  Trophy,
+  PartyPopper
 } from 'lucide-react';
+import {
+  triggerHaptic,
+  hapticImpact,
+  hapticNotification,
+  hapticSelection,
+  hapticStamp,
+  hapticReward,
+  hapticConfirm,
+} from '@/lib/haptics';
 import Link from 'next/link';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -112,6 +123,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
     if (e) e.preventDefault();
     if (!device || !phone.trim()) return;
 
+    hapticSelection();
     setSearching(true);
     setMessage(null);
 
@@ -124,16 +136,20 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
         setCard(data.card);
         setNewlyStampedIndex(null);
         if (data.card.stamps_count >= data.card.max_stamps) {
-          setMessage('🎉 Traguardo raggiunto! Premio pronto per il ritiro al tavolo!');
+          hapticReward();
+          setMessage('Traguardo raggiunto! Premio pronto per il ritiro al tavolo!');
           triggerConfettiCelebration();
         } else {
+          hapticConfirm();
           setMessage(`Tessera trovata! Hai ${data.card.stamps_count} su ${data.card.max_stamps} timbri.`);
         }
       } else {
+        hapticNotification('warning');
         setMessage('Nessuna tessera trovata per questo numero. Aggiungi il tuo primo timbro!');
       }
     } catch (err) {
       console.warn('Loyalty lookup error:', err);
+      hapticNotification('error');
       setMessage('Errore durante la ricerca della tessera.');
     } finally {
       setSearching(false);
@@ -144,6 +160,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
     if (e) e.preventDefault();
     if (!device || !phone.trim()) return;
 
+    hapticSelection();
     setSubmitting(true);
     setMessage(null);
 
@@ -164,21 +181,21 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
         setCard(data.card);
         setNewlyStampedIndex(newCount - 1);
 
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate([40, 30, 40]);
-        }
-
         if (newCount >= data.card.max_stamps) {
-          setMessage('🎉 Traguardo completato! Il tuo premio è pronto da ritirare al tavolo!');
+          hapticReward();
+          setMessage('Traguardo completato! Il tuo premio è pronto da ritirare al tavolo!');
           triggerConfettiCelebration();
         } else {
-          setMessage(data.isNew ? '✨ Benvenuto! Primo timbro impresso sul tuo pass.' : '✅ Timbro a inchiostro impresso con successo!');
+          hapticStamp();
+          setMessage(data.isNew ? 'Benvenuto! Primo timbro impresso sul tuo pass.' : 'Timbro a inchiostro impresso con successo!');
         }
       } else {
+        hapticNotification('error');
         setMessage(data.error || 'Errore durante la timbratura.');
       }
     } catch (err) {
       console.warn('Loyalty error:', err);
+      hapticNotification('error');
       setMessage('Errore di connessione. Riprova tra poco.');
     } finally {
       setSubmitting(false);
@@ -284,9 +301,25 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
               const rotClass = stampRotations[index % stampRotations.length];
 
               return (
-                <div
+                <button
                   key={index}
-                  className={`aspect-square rounded-xl sm:rounded-2xl flex flex-col items-center justify-center relative transition-all duration-300 select-none overflow-hidden ${
+                  type="button"
+                  onClick={() => {
+                    if (isStamped) {
+                      hapticStamp();
+                    } else if (isRewardSlot) {
+                      if (isCompleted) {
+                        hapticReward();
+                        triggerConfettiCelebration();
+                      } else {
+                        hapticImpact('medium');
+                      }
+                    } else {
+                      hapticImpact('light');
+                    }
+                  }}
+                  aria-label={`Timbro ${index + 1}`}
+                  className={`aspect-square rounded-xl sm:rounded-2xl flex flex-col items-center justify-center relative transition-all duration-300 select-none overflow-hidden cursor-pointer touch-press active:scale-95 ${
                     isStamped
                       ? `bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.35)] scale-100 ${
                           isNewlyStamped ? 'animate-stamp-bounce ring-4 ring-emerald-400/30' : ''
@@ -321,23 +354,31 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
                   ) : (
                     <span className="text-xs font-mono font-semibold text-zinc-600">{index + 1}</span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
 
           {/* REWARD BADGE: GOLDEN GLOW ON COMPLETION (10 TIMBRI) */}
           {isCompleted ? (
-            <div className="rounded-xl p-3 border-2 border-yellow-400 bg-gradient-to-r from-amber-500/20 via-yellow-400/25 to-amber-500/20 animate-golden-glow flex flex-col gap-1.5 transition-all">
+            <button
+              type="button"
+              onClick={() => {
+                hapticReward();
+                triggerConfettiCelebration();
+              }}
+              className="w-full text-left rounded-xl p-3 border-2 border-yellow-400 bg-gradient-to-r from-amber-500/20 via-yellow-400/25 to-amber-500/20 animate-golden-glow flex flex-col gap-1.5 transition-all cursor-pointer touch-press active:scale-[0.98]"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-yellow-300">
-                  <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />
+                  <PartyPopper className="w-4 h-4 text-yellow-400 animate-bounce shrink-0" />
                   <span className="text-[11px] font-black uppercase tracking-wider">
-                    🎉 Premio Sbloccato • Al Tavolo!
+                    Premio Sbloccato • Al Tavolo!
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-yellow-400/30 border border-yellow-400/60 text-[10px] font-extrabold text-yellow-200 uppercase tracking-tight">
-                  Pronto al Ritiro
+                <span className="px-2 py-0.5 rounded-full bg-yellow-400/30 border border-yellow-400/60 text-[10px] font-extrabold text-yellow-200 uppercase tracking-tight flex items-center gap-1">
+                  <Trophy className="w-3 h-3 text-yellow-300" />
+                  <span>Pronto al Ritiro</span>
                 </span>
               </div>
               <div className="flex items-center justify-between pt-0.5">
@@ -349,7 +390,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
               <p className="text-[10px] text-yellow-200/90 italic text-center pt-0.5">
                 Mostra questa schermata al cameriere per ricevere il premio al tuo tavolo!
               </p>
-            </div>
+            </button>
           ) : (
             <div className="bg-black/50 rounded-xl p-2.5 border border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-zinc-400 text-[10px]">
@@ -366,8 +407,13 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
         {/* LOOKUP / ADD STAMP FORM */}
         <div className="rounded-2xl border border-white/10 bg-[#121214] p-3.5 shadow-xl space-y-2.5">
           {message && (
-            <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] text-center font-medium animate-fade-in">
-              {message}
+            <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-medium animate-fade-in flex items-center justify-center gap-1.5 text-center">
+              {isCompleted ? (
+                <PartyPopper className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              )}
+              <span>{message}</span>
             </div>
           )}
 
