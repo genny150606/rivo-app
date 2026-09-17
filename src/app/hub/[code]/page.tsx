@@ -35,7 +35,18 @@ import {
   Dumbbell,
   Award,
   ChevronRight,
+  Radio,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
+
+const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
+  <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9a6 6 0 0 1 0 6" />
+    <path d="M10 6a10 10 0 0 1 0 12" />
+    <path d="M14 3a14 14 0 0 1 0 18" />
+  </svg>
+);
 
 const Instagram = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -231,6 +242,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const code = resolvedParams.code ? resolvedParams.code.toUpperCase() : '';
 
   const [loading, setLoading] = useState(true);
+  const [nfcPhase, setNfcPhase] = useState<'sensing' | 'synced' | 'assembling' | 'ready'>('sensing');
   const [device, setDevice] = useState<DeviceData | null>(null);
   const [org, setOrg] = useState<OrgData | null>(null);
   const [hubConfig, setHubConfig] = useState<HubConfig | null>(null);
@@ -249,7 +261,30 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [, setIsLunchTime] = useState(false);
 
+  // Replay NFC Tap & Assemble Magic Animation
+  const replayNfcTap = () => {
+    setNfcPhase('sensing');
+    setLoading(true);
+    setTimeout(() => {
+      setNfcPhase('synced');
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([20, 50, 25]);
+        } catch {}
+      }
+      setTimeout(() => {
+        setLoading(false);
+        setNfcPhase('assembling');
+        setTimeout(() => {
+          setNfcPhase('ready');
+        }, 850);
+      }, 450);
+    }, 400);
+  };
+
   useEffect(() => {
+    let isCancelled = false;
+
     async function loadHub() {
       if (!code) {
         setNotFound(true);
@@ -267,11 +302,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           .single();
 
         if (devErr || !dev) {
-          setNotFound(true);
-          setLoading(false);
+          if (!isCancelled) {
+            setNotFound(true);
+            setLoading(false);
+          }
           return;
         }
 
+        if (isCancelled) return;
         setDevice(dev);
 
         // 2. Fetch organization
@@ -306,7 +344,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             .eq('id', dev.organization_id)
             .single();
 
-          if (!orgErr && orgData) {
+          if (!orgErr && orgData && !isCancelled) {
             const currentCategory = (orgData.category || 'restaurant') as BusinessCategory;
             setOrg({
               ...orgData,
@@ -345,17 +383,44 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 console.warn('Could not calculate Rome time:', e);
               }
             }
+
+            // Phase 2: NFC Tag Synced Feedback with Haptic Wave
+            setNfcPhase('synced');
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              try {
+                navigator.vibrate([20, 50, 25]);
+              } catch {}
+            }
+
+            // Phase 3: Transition to Hub with Spring Bloom Assembling
+            setTimeout(() => {
+              if (isCancelled) return;
+              setLoading(false);
+              setNfcPhase('assembling');
+
+              // Phase 4: Settle into ready state
+              setTimeout(() => {
+                if (isCancelled) return;
+                setNfcPhase('ready');
+              }, 850);
+            }, 460);
+            return;
           }
         }
       } catch (err) {
         console.error('Hub load error:', err);
-        setNotFound(true);
-      } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setNotFound(true);
+          setLoading(false);
+        }
       }
     }
 
     loadHub();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [code]);
 
   // Handle rating click from the Hub review widget
@@ -482,26 +547,136 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   }, [activeConfig.modules]);
 
   if (loading) {
+    const isSynced = nfcPhase === 'synced';
     return (
       <div
-        className="min-h-screen min-h-dvh flex flex-col items-center justify-center p-4 transition-colors duration-300"
+        className="min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden select-none transition-colors duration-300"
         style={{
           backgroundColor: activeTheme.bgHex,
           color: activeTheme.textHex,
           fontFamily: activeFont.cssFamily,
         }}
       >
-        <div
-          className={`w-14 h-14 rounded-2xl border flex items-center justify-center mb-3 animate-pulse ${
-            isLight ? 'bg-white border-slate-200 shadow-lg' : 'bg-[#141715] border-white/10'
-          }`}
-          style={{ boxShadow: `0 0 25px ${primaryColor}25` }}
-        >
-          <Sparkles className="w-7 h-7 animate-spin" style={{ color: primaryColor }} />
+        {/* Background Aurora Ambient Light */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] sm:w-[480px] h-[340px] sm:h-[480px] rounded-full blur-[120px] transition-all duration-700"
+            style={{
+              backgroundColor: primaryColor,
+              opacity: isSynced ? (isLight ? 0.35 : 0.6) : (isLight ? 0.18 : 0.35),
+              transform: isSynced ? 'translate(-50%, -50%) scale(1.15)' : 'translate(-50%, -50%) scale(1)',
+            }}
+          />
         </div>
-        <p className={`text-xs font-medium animate-pulse ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-          Caricamento esperienza RIVO...
-        </p>
+
+        {/* Central NFC Resonator Hub */}
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Concentric Radar / Sonar Rings */}
+          <div className="relative flex items-center justify-center w-40 h-40 sm:w-48 sm:h-48 mb-6">
+            {/* Pulsing Sonar Ring 1 */}
+            <div
+              className="absolute inset-0 rounded-full border border-dashed pointer-events-none animate-nfc-sonar-1"
+              style={{
+                borderColor: `${primaryColor}65`,
+                boxShadow: `0 0 25px ${primaryColor}20`,
+              }}
+            />
+            {/* Pulsing Sonar Ring 2 */}
+            <div
+              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-2"
+              style={{
+                borderColor: `${primaryColor}45`,
+                boxShadow: `0 0 35px ${primaryColor}15`,
+              }}
+            />
+            {/* Pulsing Sonar Ring 3 */}
+            <div
+              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-3"
+              style={{
+                borderColor: `${primaryColor}25`,
+              }}
+            />
+
+            {/* Core Floating Glass NFC Token */}
+            <div
+              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl border-2 flex items-center justify-center relative shadow-2xl transition-all duration-500 ${
+                isSynced ? 'animate-nfc-contact-flash' : 'animate-float-gentle'
+              } ${
+                isLight
+                  ? 'bg-white/90 border-slate-200/90 shadow-slate-300/60'
+                  : 'bg-[#141715]/90 border-white/20 shadow-black/80'
+              }`}
+              style={{
+                borderColor: isSynced ? primaryColor : undefined,
+                boxShadow: isSynced
+                  ? `0 0 45px ${primaryColor}60, inset 0 0 20px ${primaryColor}25`
+                  : `0 12px 35px rgba(0,0,0,0.35)`,
+              }}
+            >
+              {/* Internal Radiant Glow */}
+              <div
+                className="absolute inset-1 rounded-2xl opacity-25 pointer-events-none transition-opacity duration-300"
+                style={{
+                  backgroundColor: primaryColor,
+                  filter: 'blur(8px)',
+                }}
+              />
+
+              {isSynced ? (
+                <div className="flex flex-col items-center justify-center gap-1 animate-scale-in">
+                  <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12" style={{ color: primaryColor }} />
+                </div>
+              ) : (
+                <div className="relative flex items-center justify-center">
+                  <NfcWaveIcon className="w-9 h-9 sm:w-11 sm:h-11 animate-pulse" style={{ color: primaryColor }} />
+                  <span
+                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-[#141715] animate-ping"
+                    style={{ backgroundColor: primaryColor }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Dynamic Status Text with Magic Feedback */}
+          <div className="text-center max-w-xs px-4">
+            {isSynced ? (
+              <div className="space-y-1 animate-fade-in">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 mb-1">
+                  <Sparkles className="w-3 h-3 animate-spin" />
+                  <span>Tag NFC Riconosciuto</span>
+                </div>
+                <h2 className={`text-base sm:text-lg font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {device?.name || 'Tavolo Connesso'}
+                </h2>
+                <p className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                  {org?.name ? `Benvenuto da ${org.name}` : 'Apertura esperienza RIVO in corso...'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase bg-white/5 border border-white/10 text-zinc-400">
+                  <Radio className="w-3 h-3 animate-pulse text-emerald-400" />
+                  <span>Sincronizzazione 13.56 MHz</span>
+                </div>
+                <h2 className={`text-sm sm:text-base font-bold tracking-tight ${isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
+                  Avvicinamento al Tag NFC...
+                </h2>
+                <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+                  Connessione istantanea con il locale
+                </p>
+
+                {/* Shimmer Loading Beam */}
+                <div className="w-36 h-1 mx-auto mt-3 rounded-full bg-white/10 overflow-hidden relative">
+                  <div
+                    className="absolute inset-y-0 w-1/2 rounded-full animate-shimmer-beam"
+                    style={{ backgroundColor: primaryColor }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -595,13 +770,42 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         </div>
       )}
 
+      {/* NFC Magic Assemble Sparkle Burst from Center */}
+      {nfcPhase === 'assembling' && (
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center overflow-hidden">
+          {[...Array(12)].map((_, i) => {
+            const angle = (i * 30) * (Math.PI / 180);
+            const dist = 75 + (i % 4) * 28;
+            const tx = `${Math.round(Math.cos(angle) * dist)}px`;
+            const ty = `${Math.round(Math.sin(angle) * dist)}px`;
+            return (
+              <div
+                key={i}
+                className="absolute w-2 h-2 rounded-full animate-sparkle-drift"
+                style={{
+                  backgroundColor: i % 2 === 0 ? primaryColor : '#fbbf24',
+                  boxShadow: `0 0 14px ${primaryColor}`,
+                  '--tx': tx,
+                  '--ty': ty,
+                  '--s': i % 2 === 0 ? 1.3 : 0.8,
+                } as React.CSSProperties}
+              />
+            );
+          })}
+        </div>
+      )}
+
       {/* Center Phone-Proportioned Main Container */}
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-4 pt-2.5 sm:pt-4 pb-24 sm:pb-28 relative z-10 gap-2.5 sm:gap-3">
         
         {/* ========================================================================= */}
-        {/* TOP APP BAR / HEADER (Stagger 1) */}
+        {/* TOP APP BAR / HEADER */}
         {/* ========================================================================= */}
-        <header className="animate-nfc-stagger-1 flex items-center justify-between gap-3 pt-0.5">
+        <header
+          className={`${
+            nfcPhase === 'assembling' ? 'animate-assemble-header' : 'animate-nfc-stagger-1'
+          } flex items-center justify-between gap-3 pt-0.5`}
+        >
           {/* Left: Avatar / Logo + Business Name */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="shrink-0 relative group">
@@ -680,13 +884,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         </header>
 
         {/* ========================================================================= */}
-        {/* BADGE TAVOLO CONNESSO (Stagger 2) */}
+        {/* BADGE TAVOLO CONNESSO (Con supporto Replay Tap al tocco) */}
         {/* ========================================================================= */}
-        <div
-          className={`animate-nfc-stagger-2 flex items-center justify-between px-3.5 py-2 rounded-2xl backdrop-blur-md shadow-sm ${
+        <button
+          type="button"
+          onClick={replayNfcTap}
+          title="Tocca per riprodurre l'animazione di connessione NFC"
+          className={`${
+            nfcPhase === 'assembling' ? 'animate-assemble-badge' : 'animate-nfc-stagger-2'
+          } w-full text-left touch-press active:scale-[0.98] flex items-center justify-between px-3.5 py-2 rounded-2xl backdrop-blur-md shadow-sm transition-all cursor-pointer ${
             isLight
-              ? 'bg-white/90 border border-slate-200/90 text-slate-800'
-              : 'bg-[#141715]/90 border border-white/[0.08] text-white'
+              ? 'bg-white/90 border border-slate-200/90 text-slate-800 hover:bg-slate-50'
+              : 'bg-[#141715]/90 border border-white/[0.08] text-white hover:bg-[#1a1d1b]'
           }`}
         >
           <div className="flex items-center gap-2.5 min-w-0">
@@ -709,9 +918,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </div>
           </div>
           <div className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
-            {activeConfig.tableLiveTag || 'NFC LIVE'}
+            <Zap className="w-2.5 h-2.5 animate-pulse" />
+            <span>{activeConfig.tableLiveTag || 'NFC LIVE'}</span>
           </div>
-        </div>
+        </button>
 
         {/* ========================================================================= */}
         {/* CARD HERO (Se abilitata) */}
@@ -722,7 +932,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               href={activeConfig.hero.externalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left"
+              className={`${
+                nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
+              } animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
@@ -765,7 +977,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <button
               type="button"
               onClick={() => setShowMenuModal(true)}
-              className="animate-nfc-stagger-3 animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer"
+              className={`${
+                nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
+              } animate-hero-glow touch-press active:scale-[0.98] rounded-3xl p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
@@ -811,7 +1025,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* GRIGLIA MODULI DINAMICA (2 COLONNE) */}
         {/* ========================================================================= */}
         <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
-          {enabledModules.map((mod) => {
+          {enabledModules.map((mod, modIdx) => {
             const commonInner = (
               <>
                 <div className="flex items-start justify-between w-full mb-2">
@@ -889,7 +1103,17 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </>
             );
 
-            const cardClassName = `animate-nfc-stagger-4 touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all group relative overflow-hidden ${cardBaseClass}`;
+            const isLeft = modIdx % 2 === 0;
+            const cardAnimClass =
+              nfcPhase === 'assembling'
+                ? isLeft
+                  ? 'animate-assemble-left'
+                  : 'animate-assemble-right'
+                : isLeft
+                ? 'animate-nfc-stagger-3'
+                : 'animate-nfc-stagger-4';
+
+            const cardClassName = `${cardAnimClass} touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all group relative overflow-hidden ${cardBaseClass}`;
 
             switch (mod.id) {
               case 'service':
@@ -1024,7 +1248,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* ========================================================================= */}
         {/* WIDE BANNER CARD (Review Shield 5-Stars & Custom CTA Banner) */}
         {/* ========================================================================= */}
-        <div className="animate-nfc-stagger-4 space-y-2.5">
+        <div
+          className={`${
+            nfcPhase === 'assembling' ? 'animate-assemble-center' : 'animate-nfc-stagger-4'
+          } space-y-2.5`}
+        >
           {/* Custom CTA Banner if configured (and not already in modules) */}
           {hasCustomCta && !enabledModules.some((m) => m.id === 'custom_cta') && (
             <a
@@ -1159,6 +1387,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         <nav
           aria-label="Navigazione rapida"
           className={`pointer-events-auto backdrop-blur-2xl border rounded-full px-5 py-2 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)] ${
+            nfcPhase === 'assembling' ? 'animate-assemble-dock' : ''
+          } ${
             isLight
               ? 'bg-white/95 text-slate-700 border-slate-200/90 shadow-[0_12px_45px_rgba(0,0,0,0.12)]'
               : 'bg-[#141715]/95 text-zinc-300 border-white/10 shadow-[0_12px_45px_rgba(0,0,0,0.85)]'

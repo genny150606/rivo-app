@@ -122,6 +122,21 @@ export default function CustomHubStudioPage() {
   const [shimmerKey, setShimmerKey] = useState(0);
   const isInitialLoadDone = useRef(false);
 
+  // Mockup NFC Tap Simulator Animation
+  const [mockupNfcPhase, setMockupNfcPhase] = useState<'idle' | 'sensing' | 'synced' | 'assembling'>('idle');
+  const triggerMockupNfcTap = () => {
+    setMockupNfcPhase('sensing');
+    setTimeout(() => {
+      setMockupNfcPhase('synced');
+      setTimeout(() => {
+        setMockupNfcPhase('assembling');
+        setTimeout(() => {
+          setMockupNfcPhase('idle');
+        }, 850);
+      }, 450);
+    }, 400);
+  };
+
   // Trigger Glass Shimmer Effect on visual changes
   useEffect(() => {
     if (loading) return;
@@ -1692,9 +1707,15 @@ export default function CustomHubStudioPage() {
               <Eye className="w-3.5 h-3.5 text-[#BFFF00]" />
               <span>Simulatore Live Hub</span>
             </div>
-            <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-mono">
-              Font: {activeFont.name}
-            </span>
+            <button
+              type="button"
+              onClick={triggerMockupNfcTap}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#BFFF00]/10 hover:bg-[#BFFF00]/20 text-[#BFFF00] border border-[#BFFF00]/30 transition-all touch-press active:scale-95 cursor-pointer"
+              title="Riproduci l'animazione di sincronizzazione NFC e fioritura dal centro"
+            >
+              <Radio className="w-3 h-3 animate-pulse" />
+              <span>Simula Tap NFC</span>
+            </button>
           </div>
 
           {/* Smartphone Frame applying the Selected Theme, Font, and Card Styles */}
@@ -1707,6 +1728,47 @@ export default function CustomHubStudioPage() {
               fontFamily: activeFont.cssFamily,
             }}
           >
+            {/* Simulated NFC Tap Portal Overlay */}
+            {(mockupNfcPhase === 'sensing' || mockupNfcPhase === 'synced') && (
+              <div
+                className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 backdrop-blur-xl transition-all duration-300"
+                style={{ backgroundColor: activeTheme.bgHex }}
+              >
+                <div className="relative flex items-center justify-center w-36 h-36 mb-4">
+                  <div
+                    className="absolute inset-0 rounded-full border border-dashed animate-nfc-sonar-1 pointer-events-none"
+                    style={{ borderColor: `${hubConfig.primaryColor}70` }}
+                  />
+                  <div
+                    className="absolute inset-0 rounded-full border animate-nfc-sonar-2 pointer-events-none"
+                    style={{ borderColor: `${hubConfig.primaryColor}50` }}
+                  />
+                  <div
+                    className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center shadow-xl ${
+                      mockupNfcPhase === 'synced' ? 'animate-nfc-contact-flash' : 'animate-float-gentle'
+                    }`}
+                    style={{
+                      borderColor: hubConfig.primaryColor,
+                      backgroundColor: isLight ? '#ffffff' : '#141715',
+                      boxShadow: `0 0 35px ${hubConfig.primaryColor}40`,
+                    }}
+                  >
+                    {mockupNfcPhase === 'synced' ? (
+                      <CheckCircle2 className="w-9 h-9" style={{ color: hubConfig.primaryColor }} />
+                    ) : (
+                      <Radio className="w-8 h-8 animate-pulse" style={{ color: hubConfig.primaryColor }} />
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs font-bold text-center">
+                  {mockupNfcPhase === 'synced' ? 'Tag Riconosciuto!' : 'Avvicinamento Tag NFC...'}
+                </p>
+                <span className="text-[10px] text-zinc-400 mt-0.5">
+                  {mockupNfcPhase === 'synced' ? `${devices[0]?.name || 'Tavolo 1'} Connesso` : 'Frequenza 13.56 MHz'}
+                </span>
+              </div>
+            )}
+
             {/* Ambient inner glow based on chosen primary color */}
             {hubConfig.accentGlow && (
               <div
@@ -1756,8 +1818,34 @@ export default function CustomHubStudioPage() {
               </div>
             </div>
 
+            {/* NFC Magic Sparkle Burst inside Mockup */}
+            {mockupNfcPhase === 'assembling' && (
+              <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center overflow-hidden">
+                {[...Array(8)].map((_, i) => {
+                  const angle = (i * 45) * (Math.PI / 180);
+                  const dist = 50;
+                  const tx = `${Math.round(Math.cos(angle) * dist)}px`;
+                  const ty = `${Math.round(Math.sin(angle) * dist)}px`;
+                  return (
+                    <div
+                      key={i}
+                      className="absolute w-1.5 h-1.5 rounded-full animate-sparkle-drift"
+                      style={{
+                        backgroundColor: i % 2 === 0 ? hubConfig.primaryColor : '#fbbf24',
+                        boxShadow: `0 0 10px ${hubConfig.primaryColor}`,
+                        '--tx': tx,
+                        '--ty': ty,
+                      } as React.CSSProperties}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
             {/* Hub Header inside Mockup */}
-            <div className="flex items-center justify-between gap-2 relative z-10 mb-3">
+            <div className={`flex items-center justify-between gap-2 relative z-10 mb-3 ${
+              mockupNfcPhase === 'assembling' ? 'animate-assemble-header' : ''
+            }`}>
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -1803,7 +1891,9 @@ export default function CustomHubStudioPage() {
               {/* HERO HIGHLIGHT CARD */}
               {hubConfig.hero.enabled && (
                 <div
-                  className="rounded-2xl p-3 flex flex-col justify-between min-h-[96px] shadow-lg transition-all relative overflow-hidden"
+                  className={`rounded-2xl p-3 flex flex-col justify-between min-h-[96px] shadow-lg transition-all relative overflow-hidden ${
+                    mockupNfcPhase === 'assembling' ? 'animate-assemble-hero' : ''
+                  }`}
                   style={{
                     backgroundColor: hubConfig.primaryColor,
                     color: contrastText,
@@ -1834,14 +1924,21 @@ export default function CustomHubStudioPage() {
               {/* RENDER DYNAMIC MODULES ORDERED & ENABLED */}
               {hubConfig.modules
                 .filter((m) => m.enabled)
-                .map((m) => {
+                .map((m, idx) => {
                   const Icon = getModuleIcon(m.id);
                   const isNeon = hubConfig.cardStyle === 'neon';
+                  const isLeft = idx % 2 === 0;
 
                   return (
                     <div
                       key={m.id}
-                      className={`rounded-2xl p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden ${getCardStyleClass()}`}
+                      className={`rounded-2xl p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden ${getCardStyleClass()} ${
+                        mockupNfcPhase === 'assembling'
+                          ? isLeft
+                            ? 'animate-assemble-left'
+                            : 'animate-assemble-right'
+                          : ''
+                      }`}
                       style={{
                         boxShadow: isNeon ? `0 0 14px ${hubConfig.primaryColor}25` : undefined,
                       }}
