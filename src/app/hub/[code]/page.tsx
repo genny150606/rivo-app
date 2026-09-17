@@ -38,6 +38,13 @@ import {
   Radio,
   CheckCircle2,
   Zap,
+  Coffee,
+  Music,
+  Ticket,
+  Camera,
+  Heart,
+  HelpCircle,
+  Globe,
 } from 'lucide-react';
 
 const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -254,6 +261,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [menuTab, setMenuTab] = useState<'tutti' | 'antipasti' | 'primi' | 'secondi' | 'dolci' | 'bevande'>('tutti');
   const [menuSearch, setMenuSearch] = useState('');
   const [showContactModal, setShowContactModal] = useState(false);
+  const [activeCustomModal, setActiveCustomModal] = useState<{ title: string; content: string } | null>(null);
   const [sharedNotification, setSharedNotification] = useState(false);
 
   // Star Rating Bar
@@ -736,6 +744,26 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         fontFamily: activeFont.cssFamily,
       }}
     >
+      {/* Visual Atmosphere & Custom Background Layer */}
+      {activeConfig.bgType === 'image' && activeConfig.bgImageUrl && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-all duration-700"
+            style={{
+              backgroundImage: `url(${activeConfig.bgImageUrl})`,
+              filter: `blur(${activeConfig.bgBlur ?? 0}px)`,
+              transform: (activeConfig.bgBlur ?? 0) > 0 ? 'scale(1.08)' : 'scale(1)',
+            }}
+          />
+          <div
+            className="absolute inset-0 bg-black transition-opacity duration-300"
+            style={{
+              opacity: (activeConfig.bgOverlayOpacity ?? 50) / 100,
+            }}
+          />
+        </div>
+      )}
+
       {/* Dynamic Ambient Aurora Glow Mesh (60/120fps GPU-accelerated) */}
       {activeConfig.accentGlow !== false && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -1022,10 +1050,77 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         )}
 
         {/* ========================================================================= */}
-        {/* GRIGLIA MODULI DINAMICA (2 COLONNE) */}
+        {/* GRIGLIA MODULI DINAMICA (BENTO GRID CON SUPPORTO 1 E 2 COLONNE) */}
         {/* ========================================================================= */}
         <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
           {enabledModules.map((mod, modIdx) => {
+            const isFullWidth = mod.colSpan === 2;
+            const cardSpanClass = isFullWidth ? 'col-span-2' : 'col-span-1';
+
+            const renderModuleIcon = () => {
+              if (mod.isCustom || mod.iconName) {
+                switch (mod.iconName) {
+                  case 'Wine':
+                    return <Wine className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'Coffee':
+                    return <Coffee className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'Music':
+                    return <Music className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'Ticket':
+                    return <Ticket className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'ShoppingBag':
+                    return <ShoppingBag className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'Camera':
+                    return <Camera className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'Heart':
+                    return <Heart className="w-5 h-5 text-rose-400" />;
+                  case 'HelpCircle':
+                    return <HelpCircle className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'Globe':
+                    return <Globe className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'CalendarCheck':
+                    return <CalendarCheck className="w-5 h-5" style={{ color: primaryColor }} />;
+                  case 'UtensilsCrossed':
+                    return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                  case 'Sparkles':
+                  default:
+                    return <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                }
+              }
+
+              switch (mod.id) {
+                case 'service':
+                  return <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />;
+                case 'sommelier':
+                  return (
+                    <div className="relative">
+                      <Wine className="w-5 h-5" style={{ color: primaryColor }} />
+                      <Sparkles className="w-2.5 h-2.5 absolute -top-1 -right-1 text-amber-300 animate-pulse" />
+                    </div>
+                  );
+                case 'wifi':
+                  return <Wifi className="w-5 h-5 animate-pulse" style={{ color: primaryColor }} />;
+                case 'wheel':
+                  return <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                case 'loyalty':
+                  return <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />;
+                case 'reviews':
+                  return <Star className="w-5 h-5 fill-amber-400 text-amber-400" />;
+                case 'guide':
+                  return <BookOpen className="w-5 h-5" style={{ color: primaryColor }} />;
+                case 'whatsapp':
+                  return <MessageCircle className="w-5 h-5 text-emerald-400" />;
+                case 'menu':
+                  return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                case 'instagram':
+                  return <Instagram className="w-5 h-5 text-pink-400" />;
+                case 'custom_cta':
+                  return <ExternalLink className="w-5 h-5" style={{ color: primaryColor }} />;
+                default:
+                  return <CatIcon className="w-5 h-5" style={{ color: primaryColor }} />;
+              }
+            };
+
             const commonInner = (
               <>
                 <div className="flex items-start justify-between w-full mb-2">
@@ -1034,39 +1129,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.05] border border-white/5'
                     }`}
                   >
-                    {(() => {
-                      switch (mod.id) {
-                        case 'service':
-                          return <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />;
-                        case 'sommelier':
-                          return (
-                            <div className="relative">
-                              <Wine className="w-5 h-5" style={{ color: primaryColor }} />
-                              <Sparkles className="w-2.5 h-2.5 absolute -top-1 -right-1 text-amber-300 animate-pulse" />
-                            </div>
-                          );
-                        case 'wifi':
-                          return <Wifi className="w-5 h-5 animate-pulse" style={{ color: primaryColor }} />;
-                        case 'wheel':
-                          return <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
-                        case 'loyalty':
-                          return <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />;
-                        case 'reviews':
-                          return <Star className="w-5 h-5 fill-amber-400 text-amber-400" />;
-                        case 'guide':
-                          return <BookOpen className="w-5 h-5" style={{ color: primaryColor }} />;
-                        case 'whatsapp':
-                          return <MessageCircle className="w-5 h-5 text-emerald-400" />;
-                        case 'menu':
-                          return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
-                        case 'instagram':
-                          return <Instagram className="w-5 h-5 text-pink-400" />;
-                        case 'custom_cta':
-                          return <ExternalLink className="w-5 h-5" style={{ color: primaryColor }} />;
-                        default:
-                          return <CatIcon className="w-5 h-5" style={{ color: primaryColor }} />;
-                      }
-                    })()}
+                    {renderModuleIcon()}
                   </div>
                   {mod.badge && (
                     <span
@@ -1106,62 +1169,133 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             const isLeft = modIdx % 2 === 0;
             const cardAnimClass =
               nfcPhase === 'assembling'
-                ? isLeft
+                ? isFullWidth
+                  ? 'animate-assemble-hero'
+                  : isLeft
                   ? 'animate-assemble-left'
                   : 'animate-assemble-right'
                 : isLeft
                 ? 'animate-nfc-stagger-3'
                 : 'animate-nfc-stagger-4';
 
-            const cardClassName = `${cardAnimClass} touch-press active:scale-95 rounded-3xl p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all group relative overflow-hidden ${cardBaseClass}`;
+            const cardRadiusClass =
+              activeConfig.borderRadius === 'full'
+                ? 'rounded-full'
+                : activeConfig.borderRadius === 'none'
+                ? 'rounded-none'
+                : activeConfig.borderRadius === 'md'
+                ? 'rounded-xl'
+                : activeConfig.borderRadius === '3xl'
+                ? 'rounded-3xl'
+                : 'rounded-2xl';
 
+            const cardClassName = `${cardSpanClass} ${cardAnimClass} touch-press active:scale-95 ${cardRadiusClass} p-4 flex flex-col justify-between items-start text-left min-h-[115px] sm:min-h-[125px] transition-all group relative overflow-hidden ${cardBaseClass}`;
+
+            const moduleCardStyle: React.CSSProperties = {
+              ...cardCustomStyle,
+              ...(mod.cardColor ? { borderColor: `${mod.cardColor}50` } : {}),
+            };
+
+            // Custom modules or modal actions
+            if (mod.isCustom) {
+              if (mod.actionType === 'modal') {
+                return (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() =>
+                      setActiveCustomModal({
+                        title: mod.modalTitle || mod.title,
+                        content: mod.modalContent || '',
+                      })
+                    }
+                    className={cardClassName}
+                    style={moduleCardStyle}
+                  >
+                    {commonInner}
+                  </button>
+                );
+              }
+              if (mod.customUrl) {
+                return (
+                  <a
+                    key={mod.id}
+                    href={mod.customUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cardClassName}
+                    style={moduleCardStyle}
+                  >
+                    {commonInner}
+                  </a>
+                );
+              }
+              return (
+                <button
+                  key={mod.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveCustomModal({
+                      title: mod.title,
+                      content: mod.subtitle || 'Nessun dettaglio aggiuntivo specificato.',
+                    })
+                  }
+                  className={cardClassName}
+                  style={moduleCardStyle}
+                >
+                  {commonInner}
+                </button>
+              );
+            }
+
+            // Standard modules
             switch (mod.id) {
               case 'service':
                 return (
-                  <Link key={mod.id} href={`/call/${code}`} className={cardClassName} style={cardCustomStyle}>
+                  <Link key={mod.id} href={`/call/${code}`} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'sommelier':
                 return (
-                  <Link key={mod.id} href={`/ai-sommelier/${code}`} className={cardClassName} style={cardCustomStyle}>
+                  <Link key={mod.id} href={`/ai-sommelier/${code}`} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'wifi':
                 return (
-                  <Link key={mod.id} href={`/wifi/${code}`} className={cardClassName} style={cardCustomStyle}>
+                  <Link key={mod.id} href={`/wifi/${code}`} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'wheel':
                 return (
-                  <Link key={mod.id} href={`/wheel/${code}`} className={cardClassName} style={cardCustomStyle}>
+                  <Link key={mod.id} href={`/wheel/${code}`} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'loyalty':
                 return (
-                  <Link key={mod.id} href={`/loyalty/${code}`} className={cardClassName} style={cardCustomStyle}>
+                  <Link key={mod.id} href={`/loyalty/${code}`} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'reviews':
                 return (
-                  <Link key={mod.id} href={`/review/${code}`} className={cardClassName} style={cardCustomStyle}>
+                  <Link key={mod.id} href={`/review/${code}`} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </Link>
                 );
               case 'guide':
                 if (mod.customUrl) {
                   return (
-                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={cardCustomStyle}>
+                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
                       {commonInner}
                     </a>
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowCityGuide(true)} className={cardClassName} style={cardCustomStyle}>
+                  <button key={mod.id} type="button" onClick={() => setShowCityGuide(true)} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1177,14 +1311,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className={cardClassName}
-                      style={cardCustomStyle}
+                      style={moduleCardStyle}
                     >
                       {commonInner}
                     </a>
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={cardCustomStyle}>
+                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1192,13 +1326,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               case 'menu':
                 if (mod.customUrl) {
                   return (
-                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={cardCustomStyle}>
+                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
                       {commonInner}
                     </a>
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowMenuModal(true)} className={cardClassName} style={cardCustomStyle}>
+                  <button key={mod.id} type="button" onClick={() => setShowMenuModal(true)} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1210,7 +1344,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cardClassName}
-                    style={cardCustomStyle}
+                    style={moduleCardStyle}
                   >
                     {commonInner}
                   </a>
@@ -1223,7 +1357,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cardClassName}
-                    style={cardCustomStyle}
+                    style={moduleCardStyle}
                   >
                     {commonInner}
                   </a>
@@ -1231,13 +1365,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               default:
                 if (mod.customUrl) {
                   return (
-                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={cardCustomStyle}>
+                    <a key={mod.id} href={mod.customUrl} target="_blank" rel="noopener noreferrer" className={cardClassName} style={moduleCardStyle}>
                       {commonInner}
                     </a>
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={cardCustomStyle}>
+                  <button key={mod.id} type="button" onClick={() => setShowContactModal(true)} className={cardClassName} style={moduleCardStyle}>
                     {commonInner}
                   </button>
                 );
@@ -1795,6 +1929,49 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[44px]"
             >
               Chiudi Guida
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* CUSTOM MODULE DETAILS MODAL (Info/Testo personalizzato) */}
+      {/* ========================================================================= */}
+      {activeCustomModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-3xl p-5 shadow-2xl space-y-3.5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-white">
+                <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
+                <span>{activeCustomModal.title}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveCustomModal(null)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
+              {activeCustomModal.content ? (
+                <p>{activeCustomModal.content}</p>
+              ) : (
+                <p className="text-zinc-500 italic">Nessun dettaglio aggiuntivo disponibile al momento.</p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveCustomModal(null)}
+              className="w-full py-2.5 rounded-2xl text-xs font-bold transition-all min-h-[44px] shadow-lg active:scale-95"
+              style={{
+                backgroundColor: primaryColor,
+                color: contrastText,
+              }}
+            >
+              Chiudi
             </button>
           </div>
         </div>

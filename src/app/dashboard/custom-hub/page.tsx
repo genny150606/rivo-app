@@ -35,10 +35,26 @@ import {
   ChevronUp,
   ChevronDown,
   Compass,
-  Type,
-  Layers,
   Flame,
   Globe,
+  Plus,
+  Trash2,
+  HelpCircle,
+  Heart,
+  Camera,
+  Coffee,
+  Music,
+  Ticket,
+  ShoppingBag,
+  Wand2,
+  AlertTriangle,
+  Grid,
+  Maximize2,
+  Minimize2,
+  X,
+  CalendarCheck,
+  Layers,
+  Type,
 } from 'lucide-react';
 import { HUB_COLOR_PRESETS, DEFAULT_HUB_COLOR, getContrastColor } from '@/lib/palettes';
 import { BusinessCategory } from '@/lib/types';
@@ -50,6 +66,7 @@ import {
   getDefaultHubConfig,
   mergeHubConfig,
   getDefaultModules,
+  resetToDefaultHubConfig,
   HubConfig,
   HubModuleConfig,
   HubFontFamily,
@@ -64,7 +81,7 @@ interface DeviceOption {
   unique_code: string;
 }
 
-type StudioTab = 'theme' | 'modules' | 'hero' | 'services' | 'reviews' | 'contacts';
+type StudioTab = 'theme' | 'atmosphere' | 'modules' | 'hero' | 'services' | 'reviews' | 'contacts';
 
 export default function CustomHubStudioPage() {
   const [supabase] = useState(() => createClient());
@@ -88,6 +105,27 @@ export default function CustomHubStudioPage() {
 
   // Unified Hub Configuration State
   const [hubConfig, setHubConfig] = useState<HubConfig>(() => getDefaultHubConfig('restaurant'));
+
+  // Reset to Original Safety Modal State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  // Add Custom Module Modal State
+  const [showAddCustomModal, setShowAddCustomModal] = useState(false);
+  const [customTitle, setCustomTitle] = useState('');
+  const [customSubtitle, setCustomSubtitle] = useState('');
+  const [customBadge, setCustomBadge] = useState('');
+  const [customIconName, setCustomIconName] = useState('Sparkles');
+  const [customActionType, setCustomActionType] = useState<'link' | 'modal'>('link');
+  const [customUrl, setCustomUrl] = useState('');
+  const [customModalTitle, setCustomModalTitle] = useState('');
+  const [customModalContent, setCustomModalContent] = useState('');
+  const [customColSpan, setCustomColSpan] = useState<1 | 2>(1);
+
+  // AI Brand Architect Modal State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   // Secondary Service Configurations
   const [wifiSsid, setWifiSsid] = useState('');
@@ -135,6 +173,163 @@ export default function CustomHubStudioPage() {
         }, 850);
       }, 450);
     }, 400);
+  };
+
+  // Reset Factory Settings to Original Hub with Direct Persistence
+  const handleResetToOriginal = async () => {
+    if (!orgId) return;
+    setResetting(true);
+    try {
+      const defaultCfg = resetToDefaultHubConfig(category);
+      setHubConfig(defaultCfg);
+
+      // Persist to Supabase
+      const { error: resetErr } = await supabase
+        .from('organizations')
+        .update({
+          hub_config: defaultCfg,
+          primary_color: defaultCfg.primaryColor,
+        })
+        .eq('id', orgId);
+
+      if (resetErr) throw resetErr;
+
+      setShowResetModal(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Errore durante il ripristino';
+      console.error('Error resetting to original hub:', msg);
+      setErrorMsg('Errore durante il ripristino dell\'hub originale.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  // Add Custom Module Handler
+  const handleAddCustomModule = () => {
+    if (!customTitle.trim()) return;
+    const newModule: HubModuleConfig = {
+      id: `custom_${Date.now()}`,
+      isCustom: true,
+      enabled: true,
+      order: hubConfig.modules.length + 1,
+      title: customTitle.trim(),
+      subtitle: customSubtitle.trim(),
+      badge: customBadge.trim() || undefined,
+      iconName: customIconName,
+      actionType: customActionType,
+      customUrl: customActionType === 'link' ? customUrl.trim() : undefined,
+      modalTitle: customActionType === 'modal' ? (customModalTitle.trim() || customTitle.trim()) : undefined,
+      modalContent: customActionType === 'modal' ? customModalContent.trim() : undefined,
+      colSpan: customColSpan,
+    };
+
+    setHubConfig((prev) => ({
+      ...prev,
+      modules: [...prev.modules, newModule],
+    }));
+
+    // Reset Form
+    setCustomTitle('');
+    setCustomSubtitle('');
+    setCustomBadge('');
+    setCustomIconName('Sparkles');
+    setCustomActionType('link');
+    setCustomUrl('');
+    setCustomModalTitle('');
+    setCustomModalContent('');
+    setCustomColSpan(1);
+    setShowAddCustomModal(false);
+  };
+
+  // Delete Custom Module
+  const handleDeleteCustomModule = (id: string) => {
+    setHubConfig((prev) => ({
+      ...prev,
+      modules: prev.modules.filter((m) => m.id !== id).map((m, idx) => ({ ...m, order: idx + 1 })),
+    }));
+  };
+
+  // Toggle Bento ColSpan (1 Col vs 2 Cols)
+  const toggleModuleColSpan = (id: string) => {
+    setHubConfig((prev) => ({
+      ...prev,
+      modules: prev.modules.map((m) =>
+        m.id === id ? { ...m, colSpan: m.colSpan === 2 ? 1 : 2 } : m
+      ),
+    }));
+  };
+
+  // AI Brand Architect Generator
+  const handleApplyAiPreset = (presetKey: string) => {
+    setAiGenerating(true);
+    setTimeout(() => {
+      if (presetKey === 'pizzeria') {
+        setHubConfig((prev) => ({
+          ...prev,
+          themeMode: 'warm_charcoal',
+          fontFamily: 'dm_sans',
+          cardStyle: 'solid',
+          primaryColor: '#F59E0B',
+          borderRadius: '2xl',
+          hero: {
+            ...prev.hero,
+            title: 'I Nostri Impasti a Lenta Lievitazione',
+            subtitle: 'Farine macinate a pietra & ingredienti DOP',
+            badgeText: 'Fatto in Casa',
+          },
+        }));
+      } else if (presetKey === 'cocktail') {
+        setHubConfig((prev) => ({
+          ...prev,
+          themeMode: 'dark',
+          fontFamily: 'syne',
+          cardStyle: 'neon',
+          primaryColor: '#EC4899',
+          accentGlow: true,
+          borderRadius: '3xl',
+          hero: {
+            ...prev.hero,
+            title: 'Signature Cocktails & Mixology',
+            subtitle: 'Ricette esclusive & distillati rari',
+            badgeText: 'Nightlife',
+          },
+        }));
+      } else if (presetKey === 'gourmet') {
+        setHubConfig((prev) => ({
+          ...prev,
+          themeMode: 'midnight',
+          fontFamily: 'playfair',
+          cardStyle: 'glass',
+          primaryColor: '#D97706',
+          borderRadius: 'md',
+          hero: {
+            ...prev.hero,
+            title: 'Esperienza Gastronomica d\'Autore',
+            subtitle: 'Percorsi degustazione dello Chef',
+            badgeText: 'Eccellenza',
+          },
+        }));
+      } else if (presetKey === 'bistrot') {
+        setHubConfig((prev) => ({
+          ...prev,
+          themeMode: 'minimal_light',
+          fontFamily: 'jakarta',
+          cardStyle: 'bordered',
+          primaryColor: '#059669',
+          borderRadius: '2xl',
+          hero: {
+            ...prev.hero,
+            title: 'Brunch & Cucina Contemporanea',
+            subtitle: 'Ingredienti biologici a km zero',
+            badgeText: 'Freschezza',
+          },
+        }));
+      }
+      setAiGenerating(false);
+      setShowAiModal(false);
+    }, 450);
   };
 
   // Trigger Glass Shimmer Effect on visual changes
@@ -472,7 +667,23 @@ export default function CustomHubStudioPage() {
   );
 
   // Helper for Lucide module icon
-  const getModuleIcon = (id: HubModuleId) => {
+  const getModuleIcon = (id: HubModuleId, iconName?: string) => {
+    if (iconName) {
+      switch (iconName) {
+        case 'Wine': return Wine;
+        case 'Coffee': return Coffee;
+        case 'Music': return Music;
+        case 'Ticket': return Ticket;
+        case 'ShoppingBag': return ShoppingBag;
+        case 'Camera': return Camera;
+        case 'Heart': return Heart;
+        case 'HelpCircle': return HelpCircle;
+        case 'Globe': return Globe;
+        case 'CalendarCheck': return CalendarCheck;
+        case 'UtensilsCrossed': return UtensilsCrossed;
+        case 'Sparkles': return Sparkles;
+      }
+    }
     switch (id) {
       case 'menu':
         return UtensilsCrossed;
@@ -544,16 +755,38 @@ export default function CustomHubStudioPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* AI Brand Architect Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowAiModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/25 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
+            title="Genera il tema e i testi ideali in 1 click con l'AI"
+          >
+            <Wand2 className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">AI Architect</span>
+          </button>
+
+          {/* Reset to Original Hub Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowResetModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
+            title="Ripristina l'Hub originale di fabbrica con le dovute conferme"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ripristina Hub</span>
+          </button>
+
           {selectedDeviceCode && (
             <a
               href={`/hub/${selectedDeviceCode}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold border border-zinc-700 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold border border-zinc-700 transition-all active:scale-95 touch-press shadow-sm cursor-pointer"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Apri Hub Reale</span>
+              <span className="hidden md:inline">Apri Hub Reale</span>
             </a>
           )}
 
@@ -635,8 +868,9 @@ export default function CustomHubStudioPage() {
           {/* Studio Navigation Tabs */}
           <div className="flex items-center gap-2 p-1.5 bg-[#121214] border border-white/10 rounded-2xl overflow-x-auto scrollbar-none snap-x snap-mandatory touch-pan-x">
             {[
-              { id: 'theme', label: '🎨 Aspetto & Font', icon: Palette },
-              { id: 'modules', label: '📱 Moduli & Posizioni', icon: Sliders },
+              { id: 'theme', label: '🎨 Stile & Font', icon: Palette },
+              { id: 'atmosphere', label: '🌌 Sfondo & Texture', icon: Layers },
+              { id: 'modules', label: '📱 Moduli & Bento Grid', icon: Sliders },
               { id: 'hero', label: '✨ Hero & Badge', icon: Sparkles },
               { id: 'services', label: '🛎️ Servizi Tavolo', icon: UtensilsCrossed },
               { id: 'reviews', label: '⭐ Recensioni & Promo', icon: Star },
@@ -992,7 +1226,166 @@ export default function CustomHubStudioPage() {
           )}
 
           {/* ======================================================================= */}
-          {/* TAB 2: 📱 MODULI & POSIZIONI (Lista completa, Reorder, Toggle, Inline Edit) */}
+          {/* TAB 2: 🌌 SFONDO, TEXTURE & ATMOSFERA */}
+          {/* ======================================================================= */}
+          {activeTab === 'atmosphere' && (
+            <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-6 shadow-xl animate-fade-in">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-[#BFFF00]" />
+                  <span>Sfondo & Atmosfera Visiva</span>
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Scegli se usare i colori minimali del tema, un&apos;immagine reale del tuo locale o una texture materica di prestigio.
+                </p>
+              </div>
+
+              {/* Background Type Selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { id: 'theme', label: 'Colore Pieno / Tema', desc: 'Sfondo minimale a tinta scura o chiara' },
+                  { id: 'image', label: 'Foto / Texture Locale', desc: 'Immagine del locale o texture con blur' },
+                  { id: 'gradient', label: 'Gradiente Mesh Neon', desc: 'Onda sfumata dinamica bicolore' },
+                ].map((typeOption) => {
+                  const isSelected = (hubConfig.bgType || 'theme') === typeOption.id;
+                  return (
+                    <button
+                      key={typeOption.id}
+                      type="button"
+                      onClick={() => setHubConfig((prev) => ({ ...prev, bgType: typeOption.id as 'theme' | 'image' | 'gradient' }))}
+                      className={`p-3.5 rounded-2xl border text-left transition-all touch-press active:scale-95 cursor-pointer ${
+                        isSelected
+                          ? 'bg-white/10 border-white shadow-lg ring-2 ring-white/20'
+                          : 'bg-[#181b19] border-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-white">{typeOption.label}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-[#BFFF00] stroke-[3]" />}
+                      </div>
+                      <span className="text-[10px] text-zinc-400 block">{typeOption.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Image / Texture Controls */}
+              {hubConfig.bgType === 'image' && (
+                <div className="p-4 rounded-2xl bg-[#181b19] border border-white/10 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-white mb-1.5">
+                      Texture Rapide ad Alta Definizione
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { label: 'Marmo Noir', url: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1200&q=80' },
+                        { label: 'Legno Noce Caldo', url: 'https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?w=1200&q=80' },
+                        { label: 'Ardesia Pietra', url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&q=80' },
+                        { label: 'Cemento Minimal', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=1200&q=80' },
+                      ].map((tex) => (
+                        <button
+                          key={tex.label}
+                          type="button"
+                          onClick={() => setHubConfig((prev) => ({ ...prev, bgImageUrl: tex.url }))}
+                          className={`p-2 rounded-xl border text-center text-xs font-semibold transition-all ${
+                            hubConfig.bgImageUrl === tex.url
+                              ? 'bg-white/15 border-white text-[#BFFF00]'
+                              : 'bg-black/30 border-white/10 text-zinc-300 hover:text-white'
+                          }`}
+                        >
+                          {tex.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-300 mb-1">
+                      Oppure inserisci URL Immagine / Foto del Locale
+                    </label>
+                    <input
+                      type="url"
+                      value={hubConfig.bgImageUrl || ''}
+                      onChange={(e) => setHubConfig((prev) => ({ ...prev, bgImageUrl: e.target.value }))}
+                      placeholder="https://images.unsplash.com/... o link alla tua foto"
+                      className="w-full min-h-[40px] bg-[#121214] border border-white/10 rounded-xl px-3 text-xs text-white focus:outline-none focus:border-white font-mono"
+                    />
+                  </div>
+
+                  {/* Sliders: Blur & Overlay Opacity */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-semibold text-zinc-300">Sfocatura Sfondo (Blur)</span>
+                        <span className="font-mono text-[#BFFF00]">{hubConfig.bgBlur ?? 8}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="24"
+                        value={hubConfig.bgBlur ?? 8}
+                        onChange={(e) => setHubConfig((prev) => ({ ...prev, bgBlur: Number(e.target.value) }))}
+                        className="w-full accent-[#BFFF00] cursor-pointer"
+                      />
+                      <span className="text-[10px] text-zinc-500">Mantiene l&apos;attenzione totale sulle card</span>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-semibold text-zinc-300">Filtro Scuro Protettivo</span>
+                        <span className="font-mono text-[#BFFF00]">{hubConfig.bgOverlayOpacity ?? 50}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="90"
+                        value={hubConfig.bgOverlayOpacity ?? 50}
+                        onChange={(e) => setHubConfig((prev) => ({ ...prev, bgOverlayOpacity: Number(e.target.value) }))}
+                        className="w-full accent-[#BFFF00] cursor-pointer"
+                      />
+                      <span className="text-[10px] text-zinc-500">Garantisce leggibilità e contrasto perfetto WCAG</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Border Radius Setting */}
+              <div className="pt-2 border-t border-white/5">
+                <label className="block text-xs font-bold text-white mb-2">
+                  Raggio dei Bordi delle Card (Geometria)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { id: 'none', label: 'Squadrato', r: 'rounded-none' },
+                    { id: 'md', label: 'Morbido', r: 'rounded-xl' },
+                    { id: '2xl', label: 'Moderno (2XL)', r: 'rounded-2xl' },
+                    { id: '3xl', label: 'Accogliente (3XL)', r: 'rounded-3xl' },
+                    { id: 'full', label: 'Pillola', r: 'rounded-full' },
+                  ].map((br) => {
+                    const isSelected = (hubConfig.borderRadius || '2xl') === br.id;
+                    return (
+                      <button
+                        key={br.id}
+                        type="button"
+                        onClick={() => setHubConfig((prev) => ({ ...prev, borderRadius: br.id as HubConfig['borderRadius'] }))}
+                        className={`p-2.5 rounded-xl border text-center transition-all ${
+                          isSelected
+                            ? 'bg-white/15 border-white text-[#BFFF00] font-bold shadow'
+                            : 'bg-[#181b19] border-white/5 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        <div className={`w-6 h-4 mx-auto mb-1 border border-white/30 ${br.r} bg-white/10`} />
+                        <span className="text-[11px] block truncate">{br.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================================= */}
+          {/* TAB 3: 📱 MODULI & BENTO GRID (Lista completa, Reorder, Toggle, Custom Add, Bento) */}
           {/* ======================================================================= */}
           {activeTab === 'modules' && (
             <div className="rounded-3xl border border-white/10 bg-[#121413] p-5 sm:p-6 space-y-5 shadow-xl animate-fade-in">
@@ -1000,16 +1393,22 @@ export default function CustomHubStudioPage() {
                 <div>
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
                     <Sliders className="w-5 h-5 text-[#BFFF00]" />
-                    <span>Moduli dell&apos;Hub & Ordinamento Griglia</span>
+                    <span>Moduli dell&apos;Hub & Layout Bento Grid</span>
                   </h2>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Riordina le card con Sposta Su / Sposta Giù, attiva o nascondi i moduli e personalizza i testi.
+                    Riordina le card, scegli tra 1 colonna o 2 colonne a larghezza intera e aggiungi blocchi personalizzati illimitati.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
-                    {activeModulesCount} di {hubConfig.modules.length} Attivi
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-extrabold text-xs shadow-md transition-all active:scale-95 touch-press cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>Aggiungi Blocco</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={resetModulesToDefault}
@@ -1136,8 +1535,62 @@ export default function CustomHubStudioPage() {
                         </div>
                       </div>
 
+                      {/* Bento Grid ColSpan Selector & Custom Module Actions */}
+                      <div className="mt-2.5 pt-2.5 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-zinc-400 font-medium flex items-center gap-1">
+                            <Grid className="w-3 h-3 text-zinc-500" />
+                            <span>Formato Card Bento:</span>
+                          </span>
+                          <div className="flex items-center p-0.5 bg-black/40 border border-white/10 rounded-lg">
+                            <button
+                              type="button"
+                              onClick={() => toggleModuleColSpan(m.id)}
+                              className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                                (m.colSpan || 1) === 1
+                                  ? 'bg-[#BFFF00] text-black shadow-sm'
+                                  : 'text-zinc-400 hover:text-white'
+                              }`}
+                            >
+                              1 Colonna (1x1)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleModuleColSpan(m.id)}
+                              className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                                (m.colSpan || 1) === 2
+                                  ? 'bg-[#BFFF00] text-black shadow-sm'
+                                  : 'text-zinc-400 hover:text-white'
+                              }`}
+                            >
+                              2 Colonne (2x1 Full Width)
+                            </button>
+                          </div>
+                        </div>
+
+                        {m.isCustom && (
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 text-[10px] font-mono font-bold border border-purple-500/30">
+                              {m.actionType === 'modal' ? 'Popup Modale' : 'Link Esterno'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomModule(m.id)}
+                              title="Elimina blocco personalizzato"
+                              className="p-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Custom URL Field for modules that support direct links */}
-                      {(m.id === 'whatsapp' || m.id === 'instagram' || m.id === 'custom_cta' || m.id === 'guide') && (
+                      {((m.isCustom && m.actionType === 'link') ||
+                        m.id === 'whatsapp' ||
+                        m.id === 'instagram' ||
+                        m.id === 'custom_cta' ||
+                        m.id === 'guide') && (
                         <div className="mt-2 pt-2 border-t border-white/5">
                           <label className="block text-[10px] font-medium text-zinc-400 mb-0.5">
                             Link / URL di Destinazione Personalizzato
@@ -1155,6 +1608,50 @@ export default function CustomHubStudioPage() {
                             }
                             className="w-full bg-[#121214] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-white"
                           />
+                        </div>
+                      )}
+
+                      {/* Custom Modal Text Editor for Modal Custom Modules */}
+                      {m.isCustom && m.actionType === 'modal' && (
+                        <div className="mt-2 pt-2 border-t border-white/5 space-y-2">
+                          <div>
+                            <label className="block text-[10px] font-medium text-zinc-400 mb-0.5">
+                              Titolo della Schermata Popup
+                            </label>
+                            <input
+                              type="text"
+                              value={m.modalTitle || m.title}
+                              onChange={(e) =>
+                                setHubConfig((prev) => ({
+                                  ...prev,
+                                  modules: prev.modules.map((modItem) =>
+                                    modItem.id === m.id ? { ...modItem, modalTitle: e.target.value } : modItem
+                                  ),
+                                }))
+                              }
+                              className="w-full bg-[#121214] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-white"
+                              placeholder="es. Regole della Casa / Info Utili"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-medium text-zinc-400 mb-0.5">
+                              Contenuto del Popup Informativo
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={m.modalContent || ''}
+                              onChange={(e) =>
+                                setHubConfig((prev) => ({
+                                  ...prev,
+                                  modules: prev.modules.map((modItem) =>
+                                    modItem.id === m.id ? { ...modItem, modalContent: e.target.value } : modItem
+                                  ),
+                                }))
+                              }
+                              className="w-full bg-[#121214] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white resize-none"
+                              placeholder="Inserisci qui il testo che il cliente leggerà toccando questa card..."
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1925,14 +2422,15 @@ export default function CustomHubStudioPage() {
               {hubConfig.modules
                 .filter((m) => m.enabled)
                 .map((m, idx) => {
-                  const Icon = getModuleIcon(m.id);
+                  const Icon = getModuleIcon(m.id, m.iconName);
                   const isNeon = hubConfig.cardStyle === 'neon';
                   const isLeft = idx % 2 === 0;
+                  const isFullWidth = m.colSpan === 2;
 
                   return (
                     <div
                       key={m.id}
-                      className={`rounded-2xl p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden ${getCardStyleClass()} ${
+                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} rounded-2xl p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden ${getCardStyleClass()} ${
                         mockupNfcPhase === 'assembling'
                           ? isLeft
                             ? 'animate-assemble-left'
@@ -2083,6 +2581,329 @@ export default function CustomHubStudioPage() {
           </button>
         )}
       </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL 1: RIPRISTINO HUB ORIGINALE (SAFETY GUARD CON CONFERME) */}
+      {/* ========================================================================= */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#141514] border border-red-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Ripristina Hub Originale</h3>
+                <p className="text-xs text-zinc-400">Attenzione: operazione irreversibile</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-red-950/20 border border-red-500/20 text-xs text-zinc-300 leading-relaxed space-y-2">
+              <p>
+                Stai per ripristinare il tuo Hub alla <strong>configurazione originale di fabbrica</strong>.
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-zinc-400 text-[11px]">
+                <li>Font, colori e stili card torneranno ai default del settore.</li>
+                <li>I moduli riordinati torneranno nella disposizione standard.</li>
+                <li>Eventuali blocchi personalizzati aggiunti verranno rimossi.</li>
+                <li>Lo sfondo tornerà al colore scuro predefinito.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                disabled={resetting}
+                className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={handleResetToOriginal}
+                disabled={resetting}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-lg shadow-red-600/30 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                {resetting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Ripristino in corso...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Conferma e Ripristina</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: + AGGIUNGI BLOCCO PERSONALIZZATO */}
+      {/* ========================================================================= */}
+      {showAddCustomModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#141514] border border-white/15 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#BFFF00]/10 border border-[#BFFF00]/25 flex items-center justify-center text-[#BFFF00]">
+                  <Plus className="w-5 h-5 stroke-[3]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Nuovo Blocco Personalizzato</h3>
+                  <p className="text-xs text-zinc-400">Aggiungi qualsiasi servizio o informazione al tuo Hub</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddCustomModal(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-white mb-1">Titolo Card (Obbligatorio)</label>
+                <input
+                  type="text"
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  placeholder="es. Tour Virtuale 3D, Carta Vini Riserva, Prenota Lettino"
+                  className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-white font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Sottotitolo / Didascalia</label>
+                <input
+                  type="text"
+                  value={customSubtitle}
+                  onChange={(e) => setCustomSubtitle(e.target.value)}
+                  placeholder="es. Esplora le sale interne a 360°"
+                  className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">Badge (Opzionale)</label>
+                  <input
+                    type="text"
+                    value={customBadge}
+                    onChange={(e) => setCustomBadge(e.target.value)}
+                    placeholder="es. 3D, Novità, VIP, Info"
+                    className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">Dimensione Bento</label>
+                  <select
+                    value={customColSpan}
+                    onChange={(e) => setCustomColSpan(Number(e.target.value) as 1 | 2)}
+                    className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3 text-xs text-white focus:outline-none focus:border-white cursor-pointer"
+                  >
+                    <option value={1} className="bg-[#18181B]">1 Colonna (1x1 Compatta)</option>
+                    <option value={2} className="bg-[#18181B]">2 Colonne (2x1 In Evidenza)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Icon Picker */}
+              <div>
+                <label className="block text-xs font-bold text-white mb-1.5">Scegli l&apos;Icona</label>
+                <div className="grid grid-cols-6 gap-2">
+                  {[
+                    { name: 'Sparkles', icon: Sparkles },
+                    { name: 'Wine', icon: Wine },
+                    { name: 'Coffee', icon: Coffee },
+                    { name: 'Music', icon: Music },
+                    { name: 'Ticket', icon: Ticket },
+                    { name: 'ShoppingBag', icon: ShoppingBag },
+                    { name: 'Camera', icon: Camera },
+                    { name: 'Heart', icon: Heart },
+                    { name: 'Globe', icon: Globe },
+                    { name: 'CalendarCheck', icon: CalendarCheck },
+                    { name: 'HelpCircle', icon: HelpCircle },
+                    { name: 'UtensilsCrossed', icon: UtensilsCrossed },
+                  ].map((ic) => {
+                    const IcComponent = ic.icon;
+                    const isSelected = customIconName === ic.name;
+                    return (
+                      <button
+                        key={ic.name}
+                        type="button"
+                        onClick={() => setCustomIconName(ic.name)}
+                        className={`p-2.5 rounded-xl border flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-[#BFFF00] shadow'
+                            : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        <IcComponent className="w-4 h-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Action Type */}
+              <div className="pt-2 border-t border-white/5">
+                <label className="block text-xs font-bold text-white mb-2">Azione al Tap del Cliente</label>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setCustomActionType('link')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      customActionType === 'link'
+                        ? 'bg-white/15 border-white text-white font-bold'
+                        : 'bg-white/5 border-white/10 text-zinc-400'
+                    }`}
+                  >
+                    <span className="block text-xs">Link Esterno</span>
+                    <span className="text-[10px] text-zinc-400">TheFork, Spotify, TikTok, Sito Web</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCustomActionType('modal')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      customActionType === 'modal'
+                        ? 'bg-white/15 border-white text-white font-bold'
+                        : 'bg-white/5 border-white/10 text-zinc-400'
+                    }`}
+                  >
+                    <span className="block text-xs">Popup Informativo</span>
+                    <span className="text-[10px] text-zinc-400">Testo a comparsa, regole, orari, FAQ</span>
+                  </button>
+                </div>
+
+                {customActionType === 'link' ? (
+                  <div>
+                    <label className="block text-[11px] text-zinc-400 mb-1">URL di Destinazione</label>
+                    <input
+                      type="url"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full min-h-[42px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white font-mono focus:outline-none focus:border-white"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1">Titolo Popup</label>
+                      <input
+                        type="text"
+                        value={customModalTitle}
+                        onChange={(e) => setCustomModalTitle(e.target.value)}
+                        placeholder={customTitle || 'Titolo schermata'}
+                        className="w-full min-h-[40px] bg-[#18181B] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1">Testo / Contenuto Informativo</label>
+                      <textarea
+                        rows={3}
+                        value={customModalContent}
+                        onChange={(e) => setCustomModalContent(e.target.value)}
+                        placeholder="Descrivi in dettaglio le informazioni che vuoi mostrare ai tuoi ospiti..."
+                        className="w-full bg-[#18181B] border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-white resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setShowAddCustomModal(false)}
+                className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={handleAddCustomModule}
+                disabled={!customTitle.trim()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-extrabold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Inserisci Blocco</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: ✨ AI BRAND ARCHITECT (GENERATORE MAGICO IN 1-CLICK) */}
+      {/* ========================================================================= */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#141514] border border-purple-500/30 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                  <Wand2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">AI Brand Architect</h3>
+                  <p className="text-xs text-zinc-400">Genera l&apos;identità ideale per il tuo locale in 1 click</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiModal(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              Scegli lo stile della tua attività o descrivi l&apos;atmosfera che desideri. L&apos;AI configurerà palette di colori, font coordinato, stile delle card e testi promozionali armoniosi:
+            </p>
+
+            {/* Quick Presets */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {[
+                { id: 'pizzeria', title: '🍕 Pizzeria & Trattoria', desc: 'Caldo, rustico, accogliente e tradizionale' },
+                { id: 'cocktail', title: '🍸 Cocktail Bar & Club', desc: 'Vibes notturne, neon fucsia e font audace' },
+                { id: 'gourmet', title: '🍷 Fine Dining & Gourmet', desc: 'Lusso sobrio, serif classico e calde luci soffuse' },
+                { id: 'bistrot', title: '🥗 Bistrot Contemporaneo', desc: 'Minimal chiaro, fresco, naturale e moderno' },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleApplyAiPreset(p.id)}
+                  disabled={aiGenerating}
+                  className="p-3.5 rounded-2xl border border-white/10 bg-[#18181B] hover:border-purple-500/40 hover:bg-purple-950/20 text-left transition-all group touch-press active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  <span className="text-xs font-bold text-white group-hover:text-purple-300 block mb-0.5">
+                    {p.title}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 block">{p.desc}</span>
+                </button>
+              ))}
+            </div>
+
+            {aiGenerating && (
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center gap-2 text-purple-300 text-xs font-bold animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Generazione e armonia design in corso...</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

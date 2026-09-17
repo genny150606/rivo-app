@@ -154,7 +154,8 @@ export type HubModuleId =
   | 'guide'
   | 'instagram'
   | 'whatsapp'
-  | 'custom_cta';
+  | 'custom_cta'
+  | (string & {});
 
 export interface HubModuleConfig {
   id: HubModuleId;
@@ -164,20 +165,28 @@ export interface HubModuleConfig {
   subtitle: string;
   badge?: string;
   customUrl?: string;
+  // Bento Grid & Custom Modules Enhancements
+  isCustom?: boolean;
+  iconName?: string;
+  actionType?: 'link' | 'modal';
+  modalTitle?: string;
+  modalContent?: string;
+  colSpan?: 1 | 2; // 1 = standard half, 2 = full width bento span
+  cardColor?: string;
 }
 
 export const ALL_HUB_MODULE_TEMPLATES: Omit<HubModuleConfig, 'order'>[] = [
-  { id: 'menu', enabled: true, title: 'Menù Digitale', subtitle: 'Piatti, prezzi & vini', badge: 'Carta' },
-  { id: 'service', enabled: true, title: 'Chiama Sala', subtitle: 'Cameriere o conto', badge: '1-Tap' },
-  { id: 'sommelier', enabled: true, title: 'AI Sommelier', subtitle: 'Consigli abbinamento vini', badge: 'AI' },
-  { id: 'wifi', enabled: true, title: 'Wi-Fi Ospiti', subtitle: 'Accesso rapido 1-tap', badge: 'Gratis' },
-  { id: 'wheel', enabled: true, title: 'Ruota Premi', subtitle: 'Gira & vinci un dolce/caffè', badge: 'Bonus' },
-  { id: 'loyalty', enabled: true, title: 'Fidelity Pass', subtitle: 'Timbri digitali al tavolo', badge: 'Fedeltà' },
-  { id: 'reviews', enabled: true, title: 'Lascia Recensione', subtitle: 'Valuta l’esperienza su Google', badge: '5★' },
-  { id: 'guide', enabled: false, title: 'Guida Locale', subtitle: 'Cosa vedere & fare nei dintorni', badge: 'Consigli' },
-  { id: 'instagram', enabled: false, title: 'Canale Instagram', subtitle: 'Foto, storie & novità', badge: '@Social' },
-  { id: 'whatsapp', enabled: false, title: 'Chat WhatsApp', subtitle: 'Scrivi allo staff', badge: 'Chat' },
-  { id: 'custom_cta', enabled: false, title: 'Offerta Speciale', subtitle: 'Scopri la promozione attiva', badge: 'Promo' },
+  { id: 'menu', enabled: true, title: 'Menù Digitale', subtitle: 'Piatti, prezzi & vini', badge: 'Carta', colSpan: 1 },
+  { id: 'service', enabled: true, title: 'Chiama Sala', subtitle: 'Cameriere o conto', badge: '1-Tap', colSpan: 1 },
+  { id: 'sommelier', enabled: true, title: 'AI Sommelier', subtitle: 'Consigli abbinamento vini', badge: 'AI', colSpan: 1 },
+  { id: 'wifi', enabled: true, title: 'Wi-Fi Ospiti', subtitle: 'Accesso rapido 1-tap', badge: 'Gratis', colSpan: 1 },
+  { id: 'wheel', enabled: true, title: 'Ruota Premi', subtitle: 'Gira & vinci un dolce/caffè', badge: 'Bonus', colSpan: 1 },
+  { id: 'loyalty', enabled: true, title: 'Fidelity Pass', subtitle: 'Timbri digitali al tavolo', badge: 'Fedeltà', colSpan: 1 },
+  { id: 'reviews', enabled: true, title: 'Lascia Recensione', subtitle: 'Valuta l’esperienza su Google', badge: '5★', colSpan: 2 },
+  { id: 'guide', enabled: false, title: 'Guida Locale', subtitle: 'Cosa vedere & fare nei dintorni', badge: 'Consigli', colSpan: 1 },
+  { id: 'instagram', enabled: false, title: 'Canale Instagram', subtitle: 'Foto, storie & novità', badge: '@Social', colSpan: 1 },
+  { id: 'whatsapp', enabled: false, title: 'Chat WhatsApp', subtitle: 'Scrivi allo staff', badge: 'Chat', colSpan: 1 },
+  { id: 'custom_cta', enabled: false, title: 'Offerta Speciale', subtitle: 'Scopri la promozione attiva', badge: 'Promo', colSpan: 2 },
 ];
 
 export interface HubHeroConfig {
@@ -200,6 +209,13 @@ export interface HubConfig {
   hero: HubHeroConfig;
   modules: HubModuleConfig[];
   footerNote?: string;
+  // Visual Atmosphere & Custom Background
+  bgType?: 'theme' | 'image' | 'gradient';
+  bgImageUrl?: string;
+  bgBlur?: number; // 0-20px
+  bgOverlayOpacity?: number; // 0-90% dark overlay for guaranteed WCAG legibility
+  bgGradientStops?: [string, string];
+  borderRadius?: 'none' | 'md' | '2xl' | '3xl' | 'full';
 }
 
 export function getDefaultModules(category: BusinessCategory = 'restaurant'): HubModuleConfig[] {
@@ -480,6 +496,13 @@ export function mergeHubConfig(
         subtitle: saved.subtitle ?? def?.subtitle ?? '',
         badge: saved.badge ?? def?.badge ?? '',
         customUrl: saved.customUrl || def?.customUrl || '',
+        isCustom: saved.isCustom ?? false,
+        iconName: saved.iconName || 'Sparkles',
+        actionType: saved.actionType || 'link',
+        modalTitle: saved.modalTitle || saved.title,
+        modalContent: saved.modalContent || '',
+        colSpan: saved.colSpan ?? def?.colSpan ?? 1,
+        cardColor: saved.cardColor,
       });
       seenIds.add(saved.id);
     }
@@ -490,6 +513,7 @@ export function mergeHubConfig(
     if (!seenIds.has(def.id)) {
       mergedModules.push({
         ...def,
+        colSpan: def.colSpan ?? 1,
         order: mergedModules.length + 1,
       });
       seenIds.add(def.id);
@@ -502,6 +526,7 @@ export function mergeHubConfig(
       mergedModules.push({
         ...tpl,
         enabled: false,
+        colSpan: tpl.colSpan ?? 1,
         order: mergedModules.length + 1,
       });
       seenIds.add(tpl.id);
@@ -537,5 +562,16 @@ export function mergeHubConfig(
     },
     modules: mergedModules,
     footerNote: conf.footerNote ?? defaults.footerNote,
+    // Visual Atmosphere & Custom Background
+    bgType: conf.bgType || 'theme',
+    bgImageUrl: conf.bgImageUrl || '',
+    bgBlur: typeof conf.bgBlur === 'number' ? conf.bgBlur : 8,
+    bgOverlayOpacity: typeof conf.bgOverlayOpacity === 'number' ? conf.bgOverlayOpacity : 50,
+    bgGradientStops: conf.bgGradientStops || ['#0c0f0d', '#1a241b'],
+    borderRadius: conf.borderRadius || '2xl',
   };
+}
+
+export function resetToDefaultHubConfig(category: BusinessCategory = 'restaurant'): HubConfig {
+  return JSON.parse(JSON.stringify(getDefaultHubConfig(category)));
 }
