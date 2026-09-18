@@ -14,8 +14,19 @@ import {
   Sparkles,
   Layers,
   UtensilsCrossed,
-  MessageSquareText
+  MessageSquareText,
+  Music,
+  Play,
+  X,
+  Check,
+  Sliders,
 } from 'lucide-react';
+import {
+  SERVICE_SOUND_OPTIONS,
+  ServiceSoundId,
+  playServiceSound,
+} from '@/lib/service-sounds';
+import { hapticTap, hapticSelection, hapticSuccess } from '@/lib/haptics';
 
 interface ServiceCallRecord {
   id: string;
@@ -37,12 +48,31 @@ export default function ServiceDashboardPage() {
   const [calls, setCalls] = useState<ServiceCallRecord[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isRealtimeLive, setIsRealtimeLive] = useState(false);
+  const [selectedSound, setSelectedSound] = useState<ServiceSoundId>('reception_bell');
+  const [showSoundModal, setShowSoundModal] = useState(false);
   const soundEnabledRef = useRef(soundEnabled);
+  const selectedSoundRef = useRef(selectedSound);
   const previousCallsCountRef = useRef(0);
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
+
+  useEffect(() => {
+    selectedSoundRef.current = selectedSound;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('rivo_service_sound', selectedSound);
+    }
+  }, [selectedSound]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('rivo_service_sound') as ServiceSoundId | null;
+      if (saved && SERVICE_SOUND_OPTIONS.some((o) => o.id === saved)) {
+        setSelectedSound(saved);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -166,21 +196,7 @@ export default function ServiceDashboardPage() {
   }
 
   function playChime() {
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.6);
-    } catch (e) {
-      console.warn('Audio not available:', e);
-    }
+    playServiceSound(selectedSoundRef.current);
   }
 
   const handleResolve = async (id: string) => {
@@ -266,6 +282,22 @@ export default function ServiceDashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Custom Sound Picker */}
+          <button
+            type="button"
+            onClick={() => {
+              hapticTap();
+              setShowSoundModal(true);
+            }}
+            className="p-2.5 rounded-xl border text-xs font-medium flex items-center gap-2 transition-all touch-press bg-[#18181B] hover:bg-[#27272A] border-[#27272A] text-zinc-300 hover:text-white"
+            title="Scegli suono chiamate"
+          >
+            <Music className="w-4 h-4 text-amber-400" />
+            <span className="hidden sm:inline">
+              {SERVICE_SOUND_OPTIONS.find((s) => s.id === selectedSound)?.name || 'Campanello'}
+            </span>
+          </button>
+
           {/* Sound Toggle */}
           <button
             type="button"
@@ -410,6 +442,114 @@ export default function ServiceDashboardPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Sound Selection Modal */}
+      {showSoundModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center font-bold">
+                  <Music className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Suono Chiamate Sala</h3>
+                  <p className="text-xs text-zinc-400">
+                    Scegli e ascolta il segnale acustico per cassa e camerieri
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  hapticTap();
+                  setShowSoundModal(false);
+                }}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* List of sound options */}
+            <div className="space-y-2 overflow-y-auto flex-1 pr-0.5">
+              {SERVICE_SOUND_OPTIONS.map((opt) => {
+                const isSelected = selectedSound === opt.id;
+                return (
+                  <div
+                    key={opt.id}
+                    onClick={() => {
+                      hapticSelection();
+                      setSelectedSound(opt.id);
+                      playServiceSound(opt.id);
+                    }}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'bg-amber-500/10 border-amber-500/40 shadow-xs'
+                        : 'bg-white/[0.03] border-white/5 hover:border-white/15 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-xs font-bold ${isSelected ? 'text-amber-400' : 'text-white'}`}>
+                          {opt.name}
+                        </span>
+                        <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-white/10 text-zinc-400">
+                          {opt.category}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 leading-tight">
+                        {opt.tagline}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Play Preview Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap();
+                          playServiceSound(opt.id);
+                        }}
+                        className="p-2 rounded-xl bg-white/10 hover:bg-amber-500 hover:text-black text-zinc-300 transition-colors"
+                        title="Ascolta anteprima"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                      </button>
+
+                      {/* Selection Checkmark */}
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
+                          isSelected
+                            ? 'bg-amber-500 border-amber-400 text-black'
+                            : 'border-zinc-700 bg-black/40 text-transparent'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-2 border-t border-white/10 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  hapticSuccess();
+                  setShowSoundModal(false);
+                }}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                Conferma Suono
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
