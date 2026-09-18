@@ -95,6 +95,12 @@ import {
   hapticStarRating,
   hapticWaiterCall,
 } from '@/lib/haptics';
+import {
+  SupportedLanguage,
+  SUPPORTED_LANGUAGES,
+  TRANSLATIONS,
+  getTagTranslation,
+} from '@/lib/translations';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -293,6 +299,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeCustomModal, setActiveCustomModal] = useState<{ title: string; content: string } | null>(null);
   const [sharedNotification, setSharedNotification] = useState(false);
+
+  // Language Selector & Multi-Language Translation
+  const [selectedLang, setSelectedLang] = useState<SupportedLanguage>('it');
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const t = useMemo(() => TRANSLATIONS[selectedLang] || TRANSLATIONS.it, [selectedLang]);
+
+  // Automatic browser language detection for tourists
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.language) {
+      const browserLang = navigator.language.slice(0, 2).toLowerCase();
+      if (['it', 'en', 'de', 'fr', 'es'].includes(browserLang)) {
+        setSelectedLang(browserLang as SupportedLanguage);
+      }
+    }
+  }, []);
 
   // Star Rating Bar
   const [ratingHover, setRatingHover] = useState<number | null>(null);
@@ -557,6 +578,23 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     }
     return canvaPreset.cssFamily;
   }, [canvaMenu.fontFamily, canvaPreset]);
+
+  const getLocalizedModule = (mod: HubModuleConfig) => {
+    if (selectedLang === 'it' || mod.isCustom) return { title: mod.title, subtitle: mod.subtitle };
+    switch (mod.id) {
+      case 'menu': return { title: t.menuTitle, subtitle: t.menuSubtitle };
+      case 'service': return { title: t.serviceTitle, subtitle: t.serviceSubtitle };
+      case 'sommelier': return { title: t.sommelierTitle, subtitle: t.sommelierSubtitle };
+      case 'wifi': return { title: t.wifiTitle, subtitle: t.wifiSubtitle };
+      case 'wheel': return { title: t.wheelTitle, subtitle: t.wheelSubtitle };
+      case 'loyalty': return { title: t.loyaltyTitle, subtitle: t.loyaltySubtitle };
+      case 'reviews': return { title: t.reviewTitle, subtitle: t.reviewSubtitle };
+      case 'guide': return { title: t.guideTitle, subtitle: t.guideSubtitle };
+      case 'whatsapp': return { title: t.whatsappTitle, subtitle: t.whatsappSubtitle };
+      case 'instagram': return { title: t.instagramTitle, subtitle: t.instagramSubtitle };
+      default: return { title: mod.title, subtitle: mod.subtitle };
+    }
+  };
 
   const cartItems = useMemo(() => {
     return Object.values(tableCart).filter((entry) => entry.quantity > 0);
@@ -1072,8 +1110,63 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </div>
           </div>
 
-          {/* Right: Quick Notification & Action Icons */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right: Language Switcher, Notification & Share Icons */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Language Selector Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  hapticSelection();
+                  setShowLangMenu(!showLangMenu);
+                }}
+                aria-label="Cambia lingua"
+                className={`touch-press h-9 px-2.5 rounded-full border flex items-center gap-1.5 transition-all text-xs font-bold active:scale-95 ${
+                  isLight
+                    ? 'bg-white border-slate-200 text-slate-800 shadow-xs'
+                    : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-200'
+                }`}
+              >
+                <span>{SUPPORTED_LANGUAGES.find((l) => l.code === selectedLang)?.flag || '🇮🇹'}</span>
+                <span className="uppercase text-[10px] tracking-wider font-mono">{selectedLang}</span>
+              </button>
+
+              {showLangMenu && (
+                <div
+                  className={`absolute right-0 top-11 z-50 py-1.5 px-1 rounded-2xl shadow-2xl border min-w-[135px] animate-fade-in backdrop-blur-xl ${
+                    isLight
+                      ? 'bg-white/95 border-slate-200 text-slate-900 shadow-[0_10px_35px_rgba(0,0,0,0.15)]'
+                      : 'bg-[#161816]/95 border-white/10 text-white shadow-[0_10px_35px_rgba(0,0,0,0.7)]'
+                  }`}
+                >
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        hapticSelection();
+                        setSelectedLang(lang.code);
+                        setShowLangMenu(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                        selectedLang === lang.code
+                          ? 'bg-amber-500/20 text-amber-400 font-bold'
+                          : isLight
+                          ? 'hover:bg-slate-100 text-slate-700'
+                          : 'hover:bg-white/5 text-zinc-300'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </span>
+                      {selectedLang === lang.code && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Notification Bell with Badge */}
             <button
               type="button"
@@ -1084,7 +1177,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               aria-label="Notifiche e assistenza"
               className={`touch-press w-9 h-9 rounded-full border flex items-center justify-center transition-all relative active:scale-95 ${
                 isLight
-                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm'
+                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
                   : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
               }`}
             >
@@ -1099,7 +1192,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               aria-label="Condividi locale"
               className={`touch-press w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${
                 isLight
-                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm'
+                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
                   : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
               }`}
             >
@@ -1377,22 +1470,29 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
 
                 <div className="w-full">
-                  <h3
-                    className={`text-sm sm:text-base font-bold tracking-tight leading-none mb-1 truncate ${
-                      isLight ? 'text-slate-900' : 'text-white'
-                    }`}
-                  >
-                    {mod.title}
-                  </h3>
-                  {mod.subtitle && (
-                    <p
-                      className={`text-[11px] leading-tight truncate ${
-                        isLight ? 'text-slate-500' : 'text-zinc-400'
-                      }`}
-                    >
-                      {mod.subtitle}
-                    </p>
-                  )}
+                  {(() => {
+                    const loc = getLocalizedModule(mod);
+                    return (
+                      <>
+                        <h3
+                          className={`text-sm sm:text-base font-bold tracking-tight leading-none mb-1 truncate ${
+                            isLight ? 'text-slate-900' : 'text-white'
+                          }`}
+                        >
+                          {loc.title}
+                        </h3>
+                        {loc.subtitle && (
+                          <p
+                            className={`text-[11px] leading-tight truncate ${
+                              isLight ? 'text-slate-500' : 'text-zinc-400'
+                            }`}
+                          >
+                            {loc.subtitle}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </>
             );
@@ -1787,7 +1887,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
               <Home className="w-5 h-5" />
-              <span className="text-[9px] font-medium mt-0.5">Home</span>
+              <span className="text-[9px] font-medium mt-0.5">{t.home}</span>
             </button>
 
             {/* Menù / Servizi */}
@@ -1801,7 +1901,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
               <BookOpen className="w-5 h-5" />
-              <span className="text-[9px] font-medium mt-0.5">Menù</span>
+              <span className="text-[9px] font-medium mt-0.5">{t.menu}</span>
             </button>
 
             {/* CENTER ELEVATED FLOATING ACTION BUTTON (Primary Accent) */}
@@ -1837,7 +1937,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
               <Info className="w-5 h-5" />
-              <span className="text-[9px] font-medium mt-0.5">Info</span>
+              <span className="text-[9px] font-medium mt-0.5">{t.info}</span>
             </button>
 
             {/* Condividi */}
@@ -1848,7 +1948,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
               <Share2 className="w-5 h-5" />
-              <span className="text-[9px] font-medium mt-0.5">Share</span>
+              <span className="text-[9px] font-medium mt-0.5">{t.share}</span>
             </button>
           </nav>
         </div>
@@ -2026,7 +2126,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         : {}
                     }
                   >
-                    <span>Tutti</span>
+                    <span>{t.all}</span>
                     <span className="text-[9px] opacity-75">
                       ({canvaMenu.categories.reduce((a, c) => a + c.dishes.length, 0)})
                     </span>
@@ -2142,7 +2242,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                             className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0"
                                             style={{ backgroundColor: `${canvaAccent}25`, color: canvaAccent }}
                                           >
-                                            <Sparkles className="w-2 h-2" /> Top
+                                            <Sparkles className="w-2 h-2" /> {t.topBadge}
                                           </span>
                                         )}
                                       </div>
@@ -2166,7 +2266,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                             key={idx}
                                             className={`text-[9px] px-2 py-0.5 rounded-md font-medium border border-white/5 ${canvaPreset.badgeBgClass} ${canvaPreset.badgeTextClass}`}
                                           >
-                                            {tag}
+                                            {getTagTranslation(tag, selectedLang)}
                                           </span>
                                         ))}
                                       </div>
@@ -2180,10 +2280,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                     <div className="text-[10px] text-zinc-400">
                                       {inCartCount > 0 ? (
                                         <span className="text-emerald-400 font-semibold">
-                                          Nel vassoio: {inCartCount}
+                                          {t.tableTray}: {inCartCount}
                                         </span>
                                       ) : (
-                                        <span>Aggiungi al tavolo</span>
+                                        <span>{t.orderAtTable}</span>
                                       )}
                                     </div>
 
@@ -2220,7 +2320,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                         }}
                                       >
                                         <Plus className="w-3.5 h-3.5" style={{ color: canvaAccent }} />
-                                        <span>Aggiungi</span>
+                                        <span>{t.addToCart}</span>
                                       </button>
                                     )}
                                   </div>
@@ -2529,7 +2629,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </div>
               <div className="min-w-0">
                 <p className={`text-xs font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  Vassoio Tavolo ({totalCartCount} {totalCartCount === 1 ? 'piatto' : 'piatti'})
+                  {t.tableTray} ({totalCartCount} {t.orderAtTable})
                 </p>
                 <p className="text-[11px] font-mono font-bold" style={{ color: canvaAccent }}>
                   {formattedTotal}
@@ -2550,7 +2650,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               }}
             >
               <Receipt className="w-3.5 h-3.5" />
-              <span>Vedi Comanda</span>
+              <span>{t.viewOrder}</span>
             </button>
           </div>
         </div>
@@ -2572,9 +2672,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <Receipt className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-white">Riepilogo Comanda</h3>
+                  <h3 className="text-sm sm:text-base font-extrabold text-white">{t.orderSummary}</h3>
                   <p className="text-[10px] sm:text-[11px] text-zinc-400">
-                    Tavolo: <strong className="text-white font-semibold">{device?.name || 'Tavolo'}</strong>
+                    {t.table}: <strong className="text-white font-semibold">{device?.name || 'Tavolo'}</strong>
                   </p>
                 </div>
               </div>
@@ -2595,7 +2695,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <div className="space-y-1.5">
-                  <h4 className="text-base font-extrabold text-white">Comanda Inviata!</h4>
+                  <h4 className="text-base font-extrabold text-white">{t.orderSentSuccess}</h4>
                   <p className="text-xs text-zinc-300 leading-relaxed max-w-xs mx-auto">
                     {orderSuccessMessage}
                   </p>
@@ -2609,7 +2709,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   }}
                   className="w-full py-3 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/15 transition-colors"
                 >
-                  Torna al Menù
+                  {t.close}
                 </button>
               </div>
             ) : (
@@ -2618,7 +2718,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <div className="overflow-y-auto flex-1 space-y-2.5 max-h-[40vh] pr-1">
                   {cartItems.length === 0 ? (
                     <div className="text-center py-8 text-zinc-500 text-xs">
-                      Il vassoio è vuoto. Aggiungi qualche piatto dal menù.
+                      {t.emptyTrayDesc}
                     </div>
                   ) : (
                     cartItems.map(({ dish, quantity }) => {
@@ -2639,11 +2739,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-1 bg-black/40 rounded-xl p-1 border border-white/5">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
                               onClick={() => removeFromTableCart(dish.id)}
-                              className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-90 transition-all"
+                              className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-all"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
@@ -2653,21 +2753,20 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                             <button
                               type="button"
                               onClick={() => addToTableCart(dish)}
-                              className="w-6 h-6 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-95 transition-all"
                               style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
                             >
                               <Plus className="w-3 h-3" />
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => removeDishEntirelyFromCart(dish.id)}
+                              className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center active:scale-95 ml-1 transition-all"
+                              title="Rimuovi"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => removeDishEntirelyFromCart(dish.id)}
-                            className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors"
-                            aria-label="Rimuovi piatto"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         </div>
                       );
                     })
@@ -2677,12 +2776,12 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 {/* Notes field */}
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-semibold text-zinc-300 block">
-                    Note per la cucina o allergie (opzionale):
+                    {t.kitchenNotes}:
                   </label>
                   <textarea
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="Es. Senza pepe, allergia alle noci, bistecca al sangue..."
+                    placeholder={t.kitchenNotesPlaceholder}
                     rows={2}
                     className="w-full bg-[#181b19] border border-white/10 rounded-xl p-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/25 resize-none"
                   />
@@ -2698,7 +2797,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 {/* Total & Action */}
                 <div className="pt-2 border-t border-white/10 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400">Totale Comanda:</span>
+                    <span className="text-xs text-zinc-400">{t.total}:</span>
                     <span className="text-base font-extrabold font-mono" style={{ color: canvaAccent }}>
                       {formattedTotal}
                     </span>
@@ -2724,7 +2823,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       ) : (
                         <>
                           <Send className="w-3.5 h-3.5" />
-                          <span>Invia Ordine alla Cassa</span>
+                          <span>{t.sendOrderToCashier}</span>
                         </>
                       )}
                     </button>
@@ -2736,7 +2835,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       }}
                       className="px-4 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
                     >
-                      Annulla
+                      {t.close}
                     </button>
                   </div>
                 </div>

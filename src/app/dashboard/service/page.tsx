@@ -21,7 +21,7 @@ interface ServiceCallRecord {
   id: string;
   type: 'waiter' | 'bill_pos' | 'bill_cash' | 'dish_order';
   table_label: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   created_at: string;
   order_details?: {
     items?: Array<{ id?: string; name: string; quantity: number; price: string }>;
@@ -36,13 +36,71 @@ export default function ServiceDashboardPage() {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [calls, setCalls] = useState<ServiceCallRecord[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isRealtimeLive, setIsRealtimeLive] = useState(false);
+  const soundEnabledRef = useRef(soundEnabled);
   const previousCallsCountRef = useRef(0);
 
   useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
+
+  useEffect(() => {
     loadData();
-    const interval = setInterval(loadCallsOnly, 5000); // live polling every 5s
-    return () => clearInterval(interval);
   }, []);
+
+  // Supabase Realtime Live WebSocket Channel (Zero-Refresh)
+  useEffect(() => {
+    if (!orgId) return;
+
+    const channelName = `realtime-service-calls-${orgId}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_calls',
+          filter: `organization_id=eq.${orgId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newRecord = payload.new as ServiceCallRecord;
+            if (newRecord.status === 'pending' || newRecord.status === 'in_progress') {
+              setCalls((prev) => {
+                if (prev.some((c) => c.id === newRecord.id)) return prev;
+                return [newRecord, ...prev];
+              });
+              if (soundEnabledRef.current) {
+                playChime();
+              }
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedRecord = payload.new as ServiceCallRecord;
+            setCalls((prev) => {
+              if (updatedRecord.status === 'completed' || updatedRecord.status === 'cancelled') {
+                return prev.filter((c) => c.id !== updatedRecord.id);
+              }
+              return prev.map((c) => (c.id === updatedRecord.id ? updatedRecord : c));
+            });
+          } else if (payload.eventType === 'DELETE') {
+            const oldRecord = payload.old as { id: string };
+            setCalls((prev) => prev.filter((c) => c.id !== oldRecord.id));
+          }
+        }
+      )
+      .subscribe((status) => {
+        setIsRealtimeLive(status === 'SUBSCRIBED');
+      });
+
+    // Fallback sync interval every 8s in case of temporary network dropout
+    const interval = setInterval(loadCallsOnly, 8000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [orgId, supabase]);
 
   async function loadData() {
     setLoading(true);
@@ -94,8 +152,8 @@ export default function ServiceDashboardPage() {
         const data = await res.json();
         const newCalls = data.calls || [];
 
-        // If new call came in, trigger web audio chime if sound is enabled
-        if (newCalls.length > previousCallsCountRef.current && soundEnabled) {
+        // If count increased from polling, sound chime as fallback
+        if (newCalls.length > previousCallsCountRef.current && soundEnabledRef.current) {
           playChime();
         }
 
@@ -103,7 +161,7 @@ export default function ServiceDashboardPage() {
         setCalls(newCalls);
       }
     } catch (e) {
-      console.warn('Polling error:', e);
+      console.warn('Polling fallback error:', e);
     }
   }
 
@@ -183,16 +241,27 @@ export default function ServiceDashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1 flex items-center gap-2.5">
-            <span>Chiamate Sala & Richieste Conto</span>
+          <h1 className="text-2xl font-bold tracking-tight text-white mb-1 flex flex-wrap items-center gap-2.5">
+            <span>Chiamate Sala &amp; Richieste Conto</span>
             {calls.length > 0 && (
               <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-[#BFFF00] text-black animate-pulse">
                 {calls.length} ATTIVE
               </span>
             )}
+            {isRealtimeLive ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span className="font-mono text-[11px] tracking-wider uppercase">Live Realtime</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0" />
+                <span className="font-mono text-[11px] uppercase">Connessione...</span>
+              </span>
+            )}
           </h1>
           <p className="text-sm text-zinc-400">
-            Monitor in tempo reale per camerieri e cassa: evadi le chiamate con un tocco.
+            Monitor live WebSocket per camerieri e cassa: le chiamate e le comande compaiono all'istante senza ricaricare.
           </p>
         </div>
 
