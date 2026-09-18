@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
@@ -33,6 +33,9 @@ import {
   ShieldCheck,
   Info,
   CheckCheck,
+  Upload,
+  FolderOpen,
+  Loader2,
 } from 'lucide-react';
 import {
   CanvaMenuConfig,
@@ -93,10 +96,79 @@ export default function CanvaMenuStudioPage() {
     photoUrl: '',
   });
 
+  // Photo Upload & File Picker
+  const [uploadingDishPhoto, setUploadingDishPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Photo Catalog Picker Modal
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [photoFilterCategory, setPhotoFilterCategory] = useState('Tutti');
   const [photoSearchQuery, setPhotoSearchQuery] = useState('');
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Seleziona un file immagine valido (PNG, JPG, WEBP).');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      alert("L'immagine supera la dimensione massima di 8MB.");
+      return;
+    }
+
+    setUploadingDishPhoto(true);
+    setUploadError(null);
+    hapticTap();
+
+    try {
+      if (orgId) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('orgId', orgId);
+
+        const res = await fetch('/api/upload/dish-photo', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            setDishForm((prev) => ({ ...prev, photoUrl: data.url }));
+            hapticSuccess();
+            setUploadingDishPhoto(false);
+            return;
+          }
+        }
+      }
+
+      // Fallback: local FileReader data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          setDishForm((prev) => ({ ...prev, photoUrl: result }));
+          hapticSuccess();
+        }
+        setUploadingDishPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('Upload error, using local file reader preview:', err);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          setDishForm((prev) => ({ ...prev, photoUrl: result }));
+          hapticSuccess();
+        }
+        setUploadingDishPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Category Add Modal
   const [showAddCatModal, setShowAddCatModal] = useState(false);
@@ -1481,40 +1553,137 @@ export default function CanvaMenuStudioPage() {
                 </div>
               </div>
 
-              {/* Foto Piatto (Catalog or Custom URL) */}
+              {/* Foto Piatto (Upload da Dispositivo, Catalog o URL) */}
               <div className="space-y-2 pt-1">
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
-                  Foto ad Alta Risoluzione
-                </label>
-                <div className="flex items-center gap-3">
-                  {dishForm.photoUrl ? (
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-zinc-300 dark:border-white/15">
-                      <Image
-                        src={dishForm.photoUrl}
-                        alt="Preview"
-                        fill
-                        sizes="56px"
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : null}
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                    Fotografia del Piatto
+                  </label>
+                  <span className="text-[10px] text-zinc-400">JPG, PNG, WEBP fino a 8MB</span>
+                </div>
 
-                  <div className="flex-1 space-y-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowPhotoPicker(true)}
-                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-bold transition-colors cursor-pointer"
-                    >
-                      <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Scegli da Catalogo Cibo HD</span>
-                    </button>
-                    <input
-                      type="url"
-                      value={dishForm.photoUrl}
-                      onChange={(e) => setDishForm((prev) => ({ ...prev, photoUrl: e.target.value }))}
-                      placeholder="Oppure incolla URL foto..."
-                      className="w-full text-[11px] px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/30 text-zinc-900 dark:text-white focus:outline-none"
-                    />
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleFileUpload(e.target.files[0]);
+                    }
+                  }}
+                  accept="image/png, image/jpeg, image/webp, image/gif"
+                  className="hidden"
+                />
+
+                {/* Dropzone & Device Upload Area */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(true);
+                  }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(false);
+                    if (e.dataTransfer.files?.[0]) {
+                      handleFileUpload(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  className={`relative p-3.5 rounded-2xl border-2 border-dashed transition-all ${
+                    isDragOver
+                      ? 'border-amber-500 bg-amber-500/10 scale-[1.01]'
+                      : 'border-zinc-300 dark:border-white/15 bg-zinc-50/50 dark:bg-white/[0.02] hover:border-zinc-400 dark:hover:border-white/25'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    {/* Thumbnail preview if photo exists */}
+                    {dishForm.photoUrl ? (
+                      <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-zinc-200 dark:border-white/20 shadow-md group">
+                        <Image
+                          src={dishForm.photoUrl}
+                          alt="Anteprima piatto"
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDishForm((prev) => ({ ...prev, photoUrl: '' }));
+                            hapticTap();
+                          }}
+                          className="absolute top-1 right-1 p-1 rounded-full bg-black/75 hover:bg-red-600 text-white transition-colors"
+                          title="Rimuovi foto"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 flex flex-col items-center justify-center text-zinc-400 shrink-0">
+                        {uploadingDishPhoto ? (
+                          <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                        ) : (
+                          <Upload className="w-6 h-6 text-zinc-400" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="flex-1 w-full space-y-2 text-center sm:text-left">
+                      <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                        {/* Choose from device file button */}
+                        <button
+                          type="button"
+                          disabled={uploadingDishPhoto}
+                          onClick={() => {
+                            hapticTap();
+                            fileInputRef.current?.click();
+                          }}
+                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          {uploadingDishPhoto ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Caricamento in corso...</span>
+                            </>
+                          ) : (
+                            <>
+                              <FolderOpen className="w-3.5 h-3.5" />
+                              <span>Scegli dal tuo Dispositivo</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* HD Catalog button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            hapticTap();
+                            setShowPhotoPicker(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Catalogo Cibo HD</span>
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Trascina qui la foto oppure scatta dal telefono o seleziona dalla galleria.
+                      </p>
+
+                      {/* Direct URL input */}
+                      <div className="pt-0.5">
+                        <input
+                          type="url"
+                          value={dishForm.photoUrl}
+                          onChange={(e) => setDishForm((prev) => ({ ...prev, photoUrl: e.target.value }))}
+                          placeholder="Oppure incolla un URL immagine web..."
+                          className="w-full text-[11px] px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1594,6 +1763,33 @@ export default function CanvaMenuStudioPage() {
                   className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none"
                 />
               </div>
+            </div>
+
+            {/* Direct Device Upload Banner */}
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">
+                    Hai già la foto reale del tuo piatto?
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                    Caricala subito dalla fotocamera o dai file del tuo dispositivo.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  fileInputRef.current?.click();
+                  setShowPhotoPicker(false);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shrink-0 cursor-pointer shadow-sm transition-all active:scale-95"
+              >
+                Carica dal File
+              </button>
             </div>
 
             {/* Photo Grid */}
