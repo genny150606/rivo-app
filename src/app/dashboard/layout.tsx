@@ -44,21 +44,26 @@ function SidebarContent({ pathname, navItems, onLogout, onNavigate }: SidebarCon
   return (
     <>
       <div>
-        {/* Brand */}
-        <div className="flex items-center gap-2.5 px-3 py-4 mb-4">
-          <Image
-            src="/brand/rivo-icon.png"
-            alt="RIVO"
-            width={28}
-            height={28}
-            priority
-            className="rounded-sm"
-          />
-          <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-white">RIVO</span>
+        {/* Brand Header */}
+        <div className="flex items-center gap-3 px-3 py-3.5 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-white flex items-center justify-center shadow-xs shrink-0 p-1">
+            <Image
+              src="/brand/rivo-icon.png"
+              alt="RIVO"
+              width={22}
+              height={22}
+              priority
+              className="rounded-xs dark:invert-0"
+            />
+          </div>
+          <div className="min-w-0 flex flex-col">
+            <span className="font-bold text-sm tracking-tight text-zinc-950 dark:text-white leading-tight">RIVO</span>
+            <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 tracking-tight">Hospitality OS</span>
+          </div>
         </div>
 
-        {/* Nav List */}
-        <nav className="space-y-1">
+        {/* Navigation List */}
+        <nav className="space-y-0.5" aria-label="Menu principale">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
@@ -68,16 +73,24 @@ function SidebarContent({ pathname, navItems, onLogout, onNavigate }: SidebarCon
                 href={item.href}
                 prefetch={true}
                 onClick={onNavigate}
-                className={`flex items-center gap-3 px-3.5 min-h-[44px] rounded-lg text-sm font-medium transition-all active:scale-[0.98] ${
+                className={`group flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-lg text-[13px] font-medium transition-all duration-150 active:scale-[0.99] ${
                   isActive
-                    ? 'bg-zinc-200/90 dark:bg-[#18181B] text-zinc-950 dark:text-[#BFFF00] font-semibold shadow-xs'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181B]/50'
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 shadow-xs'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
+                <Icon className={`w-4 h-4 shrink-0 transition-colors ${
+                  isActive 
+                    ? 'text-white dark:text-zinc-100' 
+                    : 'text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200'
+                }`} />
+                <span className="truncate flex-1">{item.label}</span>
                 {item.badge && (
-                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                  <span className={`text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded ${
+                    isActive
+                      ? 'bg-white/20 text-white dark:bg-white/15 dark:text-white'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60'
+                  }`}>
                     {item.badge}
                   </span>
                 )}
@@ -87,15 +100,15 @@ function SidebarContent({ pathname, navItems, onLogout, onNavigate }: SidebarCon
         </nav>
       </div>
 
-      {/* Footer info / Theme / Logout */}
-      <div className="pt-3 space-y-1.5 border-t border-zinc-200 dark:border-[#27272A]/60">
+      {/* Footer / Account / Theme */}
+      <div className="pt-3 space-y-1 border-t border-zinc-200/80 dark:border-zinc-800/80">
         <ThemeToggle showLabel={true} />
         <button
           onClick={onLogout}
-          className="flex items-center gap-3 w-full px-3.5 min-h-[44px] rounded-lg text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-[#18181B]/50 active:scale-[0.98] transition-all touch-press"
+          className="flex items-center gap-3 w-full px-3 py-2 min-h-[40px] rounded-lg text-[13px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/80 dark:hover:bg-rose-950/20 transition-all touch-press"
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          <span>Esci</span>
+          <span>Disconnetti</span>
         </button>
       </div>
     </>
@@ -203,9 +216,9 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="flex min-h-screen min-h-dvh bg-zinc-100/70 dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
+    <div className="flex min-h-screen min-h-dvh bg-zinc-50 dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 transition-colors duration-200 font-sans">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-zinc-200 dark:border-[#27272A] flex-col justify-between p-4 bg-white dark:bg-[#0D0D10] shrink-0 fixed inset-y-0 left-0 z-30 overflow-y-auto overscroll-contain">
+      <aside className="hidden lg:flex w-64 border-r border-zinc-200/80 dark:border-white/[0.06] flex-col justify-between p-4 bg-white dark:bg-[#0C0D0E] shrink-0 fixed inset-y-0 left-0 z-30 overflow-y-auto overscroll-contain">
         <SidebarContent pathname={pathname} navItems={navItems} onLogout={handleLogout} />
       </aside>
 
@@ -220,7 +233,7 @@ export default function DashboardLayout({
 
       {/* Mobile Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] h-full max-h-screen max-h-dvh bg-white dark:bg-[#0D0D10] border-r border-zinc-200 dark:border-[#27272A] flex flex-col justify-between p-4 overflow-y-auto overscroll-contain touch-pan-y transform transition-transform duration-300 ease-out will-change-transform gpu-layer lg:hidden shadow-2xl ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] h-full max-h-screen max-h-dvh bg-white dark:bg-[#0C0D0E] border-r border-zinc-200/80 dark:border-white/[0.06] flex flex-col justify-between p-4 overflow-y-auto overscroll-contain touch-pan-y transform transition-transform duration-300 ease-out will-change-transform gpu-layer lg:hidden shadow-2xl ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Menu di navigazione mobile"
@@ -229,7 +242,7 @@ export default function DashboardLayout({
         <button
           onClick={closeSidebar}
           aria-label="Chiudi menu"
-          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181B] active:scale-95 transition-all touch-press z-10"
+          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95 transition-all touch-press z-10"
         >
           <X className="w-5 h-5" />
         </button>
@@ -239,13 +252,13 @@ export default function DashboardLayout({
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Header */}
-        <header className="h-14 lg:h-16 border-b border-zinc-200 dark:border-[#27272A] px-3 sm:px-5 lg:px-6 flex items-center justify-between bg-white/80 dark:bg-[#09090B]/90 backdrop-blur shrink-0 sticky top-0 z-20 transition-colors duration-200">
+        <header className="h-14 lg:h-16 border-b border-zinc-200/80 dark:border-white/[0.06] px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-white/80 dark:bg-[#09090B]/85 backdrop-blur-md shrink-0 sticky top-0 z-20 transition-colors duration-200">
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Hamburger with >= 44x44px touch target */}
             <button
               onClick={() => setSidebarOpen(true)}
               aria-label="Apri menu di navigazione"
-              className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181B] active:scale-95 transition-all touch-press"
+              className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95 transition-all touch-press"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -258,24 +271,28 @@ export default function DashboardLayout({
                 width={22}
                 height={22}
                 priority
-                className="rounded-sm"
+                className="rounded-xs"
               />
               <span className="font-bold text-sm tracking-tight text-zinc-900 dark:text-white">RIVO</span>
             </div>
 
             {/* Desktop label */}
-            <div className="hidden lg:block text-sm font-semibold text-zinc-800 dark:text-zinc-200">Client Portal</div>
+            <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              <span>Attività</span>
+              <span>/</span>
+              <span className="text-zinc-900 dark:text-zinc-200 font-semibold capitalize">{category === 'restaurant' ? 'Ristorazione' : 'Retail & Business'}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-200/60 dark:bg-zinc-800/80 border border-zinc-300/60 dark:border-zinc-700/60">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 dark:bg-[#BFFF00] shadow-[0_0_6px_rgba(16,185,129,0.8)] dark:shadow-[0_0_6px_rgba(191,255,0,0.8)] animate-pulse" />
-              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 hidden sm:inline">Live Network</span>
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+              <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hidden sm:inline tracking-tight">Rete Operativa</span>
             </div>
           </div>
         </header>
 
-        <div className="p-3 sm:p-5 md:p-6 lg:p-7 max-w-7xl w-full mx-auto min-w-0">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto min-w-0">
           {children}
         </div>
       </main>

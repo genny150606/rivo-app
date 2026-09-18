@@ -78,6 +78,7 @@ const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.C
 );
 
 import { WhatsAppIcon, InstagramIcon } from '@/components/brand-icons';
+import SmartBillModal from '@/components/SmartBillModal';
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 import { BusinessCategory } from '@/lib/types';
@@ -303,6 +304,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [orderSending, setOrderSending] = useState(false);
   const [orderSuccessMessage, setOrderSuccessMessage] = useState<string | null>(null);
   const [orderErrorMessage, setOrderErrorMessage] = useState<string | null>(null);
+  const [showBillInvoiceModal, setShowBillInvoiceModal] = useState(false);
 
   // AI Sommelier & Wine Pairing State
   const [showWinePairingModal, setShowWinePairingModal] = useState(false);
@@ -1778,9 +1780,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             switch (mod.id) {
               case 'service':
                 return (
-                  <Link key={mod.id} href={`/call/${code}`} onClick={() => hapticTap()} className={cardClassName} style={moduleCardStyle}>
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setShowBillInvoiceModal(true);
+                    }}
+                    className={cardClassName}
+                    style={moduleCardStyle}
+                  >
                     {commonInner}
-                  </Link>
+                  </button>
                 );
               case 'sommelier':
                 return (
@@ -3067,7 +3078,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     >
                       {orderSending ? (
                         <>
-                          <span className="animate-spin mr-1">⏳</span>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
                           <span>Invio in corso...</span>
                         </>
                       ) : (
@@ -3088,6 +3099,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       {t.close}
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setShowOrderModal(false);
+                      setShowBillInvoiceModal(true);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Receipt className="w-3.5 h-3.5" />
+                    <span>Chiedi il Conto / Dividi Spesa / Fattura Elettronica</span>
+                  </button>
                 </div>
               </>
             )}
@@ -3600,6 +3624,20 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             )}
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SMART BILL & ELECTRONIC INVOICE MODAL (FEATURE 3: POS/RESTO & ALLA ROMANA) */}
+      {/* ========================================================================= */}
+      {org && (
+        <SmartBillModal
+          isOpen={showBillInvoiceModal}
+          onClose={() => setShowBillInvoiceModal(false)}
+          organizationId={org.id}
+          deviceId={device?.id}
+          tableLabel={device?.name || `Tavolo ${code}`}
+          estimatedTotal={formattedTotal}
+        />
       )}
 
     </div>

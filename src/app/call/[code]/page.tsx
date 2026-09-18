@@ -11,9 +11,12 @@ import {
   AlertCircle,
   ArrowLeft,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Receipt,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
+import SmartBillModal from '@/components/SmartBillModal';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -43,6 +46,7 @@ export default function CallServicePage({ params }: CallPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submittingType, setSubmittingType] = useState<string | null>(null);
   const [requestedTime, setRequestedTime] = useState<Date | null>(null);
+  const [showBillModal, setShowBillModal] = useState<boolean>(false);
 
   useEffect(() => {
     async function loadData() {
@@ -235,8 +239,40 @@ export default function CallServicePage({ params }: CallPageProps) {
             </div>
           </div>
         ) : (
-          /* ACTION CARDS (3 OPTIONS) */
+          /* ACTION CARDS */
           <div className="space-y-2.5">
+            {/* Action 0: Split Bill & Electronic Invoice (Feature Killer) */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowBillModal(true);
+              }}
+              disabled={submitting}
+              className="w-full text-left rounded-2xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 via-[#18181B] to-[#121214] hover:border-cyan-400 p-4 transition-all flex items-center justify-between group touch-press active:scale-95 shadow-xl shadow-cyan-500/5 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-28 h-28 bg-cyan-500/10 blur-xl pointer-events-none rounded-full" />
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Receipt className="w-6 h-6 text-cyan-300" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="text-sm font-bold text-white">Chiedi il Conto / Fattura</h3>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30">
+                      Alla Romana
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#BFFF00]/20 text-[#BFFF00] font-semibold border border-[#BFFF00]/30">
+                      Fattura SDI
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 mt-0.5">
+                    Calcola quota per persona e compila i dati fiscali con QR AdE
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-cyan-400 group-hover:text-white transition-colors shrink-0 relative z-10" />
+            </button>
+
             {/* Action 1: Call Waiter */}
             <button
               type="button"
@@ -290,7 +326,7 @@ export default function CallServicePage({ params }: CallPageProps) {
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-bold text-white">Conto con POS</h3>
+                    <h3 className="text-sm font-bold text-white">Conto Rapido POS</h3>
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-semibold">Carte/Apple Pay</span>
                   </div>
                   <p className="text-[11px] text-zinc-400">
@@ -322,7 +358,7 @@ export default function CallServicePage({ params }: CallPageProps) {
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-bold text-white">Conto in Contanti</h3>
+                    <h3 className="text-sm font-bold text-white">Conto Rapido Contanti</h3>
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Cassa</span>
                   </div>
                   <p className="text-[11px] text-zinc-400">
@@ -335,6 +371,21 @@ export default function CallServicePage({ params }: CallPageProps) {
           </div>
         )}
       </main>
+
+      {/* Smart Bill & Invoice Modal */}
+      {device && device.organization_id && (
+        <SmartBillModal
+          isOpen={showBillModal}
+          onClose={() => setShowBillModal(false)}
+          organizationId={device.organization_id}
+          deviceId={device.id}
+          tableLabel={device.name || `Tavolo ${code}`}
+          onSuccess={() => {
+            setActiveRequest('bill_invoice');
+            setRequestedTime(new Date());
+          }}
+        />
+      )}
 
       {/* Minimal Footer */}
       <footer className="w-full max-w-md mx-auto text-center pb-2 text-[11px] text-zinc-600 flex items-center justify-center gap-1">

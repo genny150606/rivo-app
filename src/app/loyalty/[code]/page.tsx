@@ -26,6 +26,7 @@ import {
   hapticConfirm,
 } from '@/lib/haptics';
 import Link from 'next/link';
+import WalletLoyaltyBanner from '@/components/WalletLoyaltyBanner';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -403,6 +404,19 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
             </div>
           )}
         </div>
+
+        {/* NATIVE DIGITAL WALLET PASS ENGINE (APPLE & GOOGLE WALLET ZERO-APP) */}
+        {device && (
+          <WalletLoyaltyBanner
+            cardId={card?.id || 'demo_pass'}
+            organizationId={device.organization_id}
+            customerName={card?.customer_name || name || undefined}
+            stampsCount={currentStamps}
+            maxStamps={maxStamps}
+            rewardText={org?.loyalty_reward_text}
+            orgName={org?.name}
+          />
+        )}
 
         {/* LOOKUP / ADD STAMP FORM */}
         <div className="rounded-2xl border border-white/10 bg-[#121214] p-3.5 shadow-xl space-y-2.5">

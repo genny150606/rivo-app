@@ -218,40 +218,42 @@ export default function ReviewsPage() {
       </div>
 
       {/* SHIELD CONTROL BANNER */}
-      <div className={`rounded-2xl border p-5 sm:p-6 transition-all relative overflow-hidden ${
+      <div className={`rounded-xl border p-5 sm:p-6 transition-all relative overflow-hidden ${
         shieldEnabled 
-          ? 'bg-gradient-to-r from-[#121214] via-[#151a10] to-[#121214] border-[#BFFF00]/30 shadow-[0_0_25px_rgba(191,255,0,0.06)]'
-          : 'bg-[#121214] border-[#27272A]'
+          ? 'bg-white dark:bg-zinc-900/60 border-zinc-200/90 dark:border-white/[0.08] shadow-xs'
+          : 'bg-white dark:bg-zinc-900/40 border-zinc-200/80 dark:border-white/[0.05]'
       }`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="flex items-start gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 border ${
               shieldEnabled 
-                ? 'bg-[#BFFF00]/15 text-[#BFFF00] shadow-[0_0_15px_rgba(191,255,0,0.3)]'
-                : 'bg-zinc-800 text-zinc-400'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/40'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border-zinc-200 dark:border-zinc-700'
             }`}>
-              {shieldEnabled ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+              {shieldEnabled ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
             </div>
 
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">
+                <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
                   {shieldEnabled ? 'Review Shield Attivo' : 'Review Shield Disattivato'}
                 </h2>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                  shieldEnabled ? 'bg-[#BFFF00]/15 text-[#BFFF00]' : 'bg-zinc-800 text-zinc-400'
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                  shieldEnabled 
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40' 
+                    : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
                 }`}>
                   {shieldEnabled ? 'Protetto' : 'Libero'}
                 </span>
               </div>
-              <p className="text-xs text-zinc-300 max-w-xl leading-relaxed">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xl leading-relaxed">
                 {shieldEnabled ? (
                   <>
-                    I clienti che valutano <strong>4 o 5 stelle</strong> vengono reindirizzati istantaneamente a Google Reviews. Chi valuta <strong>1, 2 o 3 stelle</strong> invia una segnalazione privata che puoi leggere qui sotto senza danneggiare il punteggio pubblico.
+                    I clienti che valutano <strong className="text-zinc-800 dark:text-zinc-200">4 o 5 stelle</strong> vengono reindirizzati istantaneamente alla pagina Google del locale. Le valutazioni da <strong className="text-zinc-800 dark:text-zinc-200">1 a 3 stelle</strong> generano un feedback privato interno, preservando il punteggio pubblico e l&apos;algoritmo di raccomandazione.
                   </>
                 ) : (
                   <>
-                    Il filtro intelligente è spento. Tutti i clienti che toccano i dispositivi NFC/QR vengono inviati direttamente all&apos;URL di Google senza alcun filtro.
+                    Il filtro intelligente è disattivato. Tutti i clienti che aprono l&apos;Hub vengono inviati direttamente all&apos;URL di Google senza protezione preventiva.
                   </>
                 )}
               </p>
@@ -264,25 +266,25 @@ export default function ReviewsPage() {
               type="button"
               onClick={handleToggleShield}
               disabled={updatingShield}
-              className={`min-h-[46px] px-6 py-2.5 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2.5 transition-all touch-press ${
+              className={`min-h-[40px] px-5 py-2 rounded-lg font-semibold text-xs flex items-center gap-2 transition-all touch-press active:scale-[0.98] ${
                 shieldEnabled
-                  ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
-                  : 'bg-[#BFFF00] hover:bg-[#a8e000] text-black shadow-lg shadow-[#BFFF00]/20'
+                  ? 'bg-zinc-100 hover:bg-zinc-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs'
+                  : 'bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 shadow-xs'
               }`}
             >
               {updatingShield ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   <span>Salvataggio...</span>
                 </>
               ) : shieldEnabled ? (
                 <>
-                  <ShieldAlert className="w-4 h-4 text-zinc-400" />
+                  <ShieldAlert className="w-3.5 h-3.5 text-zinc-500" />
                   <span>Disattiva Shield</span>
                 </>
               ) : (
                 <>
-                  <ShieldCheck className="w-4 h-4 text-black" />
+                  <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Attiva Review Shield</span>
                 </>
               )}
@@ -291,7 +293,7 @@ export default function ReviewsPage() {
         </div>
 
         {shieldMessage && (
-          <div className="mt-4 pt-3 border-t border-zinc-800 text-xs font-medium text-[#BFFF00] flex items-center gap-2">
+          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{shieldMessage}</span>
           </div>
@@ -300,24 +302,24 @@ export default function ReviewsPage() {
 
       {/* KPI METRICS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 block mb-1">
-            Recensioni Negative Intercettate
+        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs relative overflow-hidden">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">
+            Recensioni Salve
           </span>
-          <div className="text-2xl sm:text-3xl font-bold text-[#BFFF00] tracking-tight">
+          <div className="text-2xl sm:text-3xl font-semibold text-zinc-950 dark:text-zinc-50 tracking-tight font-mono">
             {interceptedCount}
           </div>
-          <div className="mt-2 text-[11px] text-zinc-400 flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#BFFF00]" />
-            <span>Salvate dal web pubblico</span>
+          <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Filtro privato attivo</span>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 block mb-1">
-            Nuovi Messaggi da Leggere
+        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs relative overflow-hidden">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">
+            Messaggi da Leggere
           </span>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          <div className="text-2xl sm:text-3xl font-semibold text-zinc-950 dark:text-zinc-50 tracking-tight font-mono">
             {newFeedbacksCount}
           </div>
           <div className="mt-2 text-[11px] text-zinc-400 flex items-center gap-1">
@@ -326,32 +328,32 @@ export default function ReviewsPage() {
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 block mb-1">
+        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs relative overflow-hidden">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">
             Tasso di Protezione
           </span>
-          <div className="text-2xl sm:text-3xl font-bold text-emerald-400 tracking-tight">
+          <div className="text-2xl sm:text-3xl font-semibold text-zinc-950 dark:text-zinc-50 tracking-tight font-mono">
             {shieldEnabled ? '100%' : '0%'}
           </div>
-          <div className="mt-2 text-[11px] text-zinc-400 flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Filtro anti 1-3 stelle attivo</span>
+          <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Filtro preventivo attivo</span>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A] relative overflow-hidden">
-          <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 block mb-1">
-            Destinazione Google Reviews
+        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs relative overflow-hidden">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">
+            Google Reviews
           </span>
-          <div className="text-xs font-mono text-zinc-300 truncate mt-1">
+          <div className="text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate mt-1">
             {googleReviewUrl ? googleReviewUrl.replace('https://', '') : 'Non configurato'}
           </div>
           <div className="mt-3">
             <Link
               href="/dashboard/profile"
-              className="text-[11px] text-[#BFFF00] hover:underline font-medium inline-flex items-center gap-1"
+              className="text-[11px] text-zinc-900 dark:text-zinc-100 hover:underline font-medium inline-flex items-center gap-1"
             >
-              <span>Modifica link</span>
+              <span>Configura URL</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
           </div>
@@ -362,32 +364,32 @@ export default function ReviewsPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-[#BFFF00]" />
+            <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-zinc-400" />
               <span>Segnalazioni e Reclami Intercettati ({feedbacks.length})</span>
             </h2>
-            <p className="text-xs text-zinc-400">
-              Clienti che hanno assegnato 1-3 stelle e hanno lasciato una nota privata prima di pubblicare online.
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Ospiti che hanno valutato da 1 a 3 stelle lasciando una nota interna prima dell&apos;uscita.
             </p>
           </div>
 
           <button
             onClick={loadData}
             title="Ricarica lista"
-            className="p-2 rounded-lg bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] text-zinc-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-2xs cursor-pointer"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {feedbacks.length === 0 ? (
-          <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-8 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-[#BFFF00]/10 text-[#BFFF00] flex items-center justify-center mx-auto">
-              <Sparkles className="w-6 h-6" />
+          <div className="rounded-xl border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900/40 p-10 text-center space-y-3">
+            <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 flex items-center justify-center mx-auto">
+              <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h3 className="text-base font-semibold text-white">Nessuna recensione negativa intercettata!</h3>
-            <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-              Ottimo lavoro! Quando un ospite assegnerà 1, 2 o 3 stelle tramite NFC o QR, la sua segnalazione comparirà qui con tutti i dettagli per consentirti di risolvere il problema internamente.
+            <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">Nessuna recensione negativa intercettata</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
+              Il sistema è in ascolto. Quando un ospite inserisce una valutazione da 1 a 3 stelle, la segnalazione comparirà qui in forma riservata per consentire di gestire l&apos;esperienza internamente.
             </p>
           </div>
         ) : (
@@ -395,91 +397,91 @@ export default function ReviewsPage() {
             {feedbacks.map((item) => (
               <div
                 key={item.id}
-                className={`rounded-xl border p-4 sm:p-5 transition-all ${
+                className={`rounded-xl border p-4 sm:p-5 transition-all shadow-xs ${
                   item.status === 'new'
-                    ? 'bg-[#18181B] border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.05)]'
-                    : 'bg-[#121214] border-[#27272A] opacity-80'
+                    ? 'bg-white dark:bg-zinc-900/80 border-amber-300 dark:border-amber-500/30'
+                    : 'bg-white/60 dark:bg-zinc-900/40 border-zinc-200/80 dark:border-white/[0.05] opacity-90'
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3">
                     {/* Stars badge */}
-                    <div className="flex items-center gap-1 bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800">
+                    <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-200 dark:border-zinc-700">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
-                          className={`w-3.5 h-3.5 ${
+                          className={`w-3 h-3 ${
                             star <= item.rating
-                              ? 'text-amber-400 fill-amber-400'
-                              : 'text-zinc-700'
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'text-zinc-300 dark:text-zinc-600'
                           }`}
                         />
                       ))}
-                      <span className="text-xs font-bold text-amber-400 ml-1">
+                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 ml-1 font-mono">
                         {item.rating}/5
                       </span>
                     </div>
 
                     {/* Customer name */}
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                       {item.customer_name || 'Ospite Anonimo'}
                     </span>
 
                     {/* Status badge */}
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase ${
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider ${
                         item.status === 'new'
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                          : 'bg-zinc-800 text-zinc-400'
+                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40'
+                          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
                       }`}
                     >
                       {item.status === 'new' ? 'Nuovo' : 'Letto'}
                     </span>
                   </div>
 
-                  <div className="text-xs text-zinc-500 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
+                  <div className="text-[11px] font-mono text-zinc-400 flex items-center gap-1.5">
+                    <Clock className="w-3 h-3" />
                     <span>{new Date(item.created_at).toLocaleString('it-IT')}</span>
                   </div>
                 </div>
 
                 {/* Comment */}
-                <div className="bg-[#121214] p-3.5 rounded-lg border border-[#27272A] text-xs sm:text-sm text-zinc-200 leading-relaxed italic mb-3">
+                <div className="bg-zinc-50 dark:bg-zinc-950/60 p-3 rounded-lg border border-zinc-200/80 dark:border-white/[0.05] text-xs sm:text-sm text-zinc-800 dark:text-zinc-200 leading-relaxed italic mb-3">
                   &ldquo;{item.comment}&rdquo;
                 </div>
 
                 {/* Footer bar with contact info & mark read button */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-[#27272A]/70 text-xs">
-                  <div className="flex items-center gap-4 text-zinc-400">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-zinc-100 dark:border-zinc-800 text-xs">
+                  <div className="flex items-center gap-4 text-zinc-500 dark:text-zinc-400">
                     {item.customer_contact ? (
                       <div className="flex items-center gap-2">
                         {item.customer_contact.includes('@') ? (
                           <a
                             href={`mailto:${item.customer_contact}`}
-                            className="inline-flex items-center gap-1.5 text-blue-400 hover:underline"
+                            className="inline-flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100 hover:underline font-mono text-xs"
                           >
-                            <Mail className="w-3.5 h-3.5" />
+                            <Mail className="w-3.5 h-3.5 text-zinc-400" />
                             <span>{item.customer_contact}</span>
                           </a>
                         ) : (
                           <a
                             href={`tel:${item.customer_contact}`}
-                            className="inline-flex items-center gap-1.5 text-emerald-400 hover:underline"
+                            className="inline-flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100 hover:underline font-mono text-xs"
                           >
-                            <Phone className="w-3.5 h-3.5" />
+                            <Phone className="w-3.5 h-3.5 text-zinc-400" />
                             <span>{item.customer_contact}</span>
                           </a>
                         )}
                       </div>
                     ) : (
-                      <span className="text-zinc-500 italic">Nessun recapito lasciato</span>
+                      <span className="text-zinc-400 dark:text-zinc-500 italic text-[11px]">Nessun recapito rilasciato</span>
                     )}
                   </div>
 
                   <button
                     type="button"
                     onClick={() => handleToggleStatus(item)}
-                    className="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs transition-colors touch-press"
+                    className="self-start sm:self-auto px-2.5 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors shadow-2xs cursor-pointer"
                   >
                     {item.status === 'new' ? 'Segna come letto' : 'Segna come da leggere'}
                   </button>
@@ -491,29 +493,28 @@ export default function ReviewsPage() {
       </div>
 
       {/* HOW IT WORKS CARD */}
-      <div className="rounded-2xl border border-[#27272A] bg-gradient-to-b from-[#18181B] to-[#121214] p-5 sm:p-7">
-        <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#BFFF00]" />
-          <span>Come funziona l&apos;algoritmo del Review Shield</span>
+      <div className="rounded-xl border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900/40 p-5 sm:p-6 shadow-xs">
+        <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50 mb-3 flex items-center gap-2">
+          <span>Funzionamento del Review Shield</span>
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm text-zinc-300">
-          <div className="p-4 rounded-xl bg-[#121214] border border-[#27272A] space-y-2">
-            <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-              <Star className="w-4 h-4 fill-emerald-400" />
-              <span>Valutazioni 4 e 5 Stelle (Ospiti Entusiasti)</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200/80 dark:border-white/[0.06] space-y-1.5">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
+              <Star className="w-3.5 h-3.5 fill-current" />
+              <span>Valutazioni 4 e 5 Stelle • Inoltro a Google</span>
             </div>
-            <p className="text-zinc-400 text-xs leading-relaxed">
-              Il cliente tocca 4 o 5 stelle: un&apos;animazione a coriandoli conferma il gradimento e la pagina reindirizza all&apos;istante alla scheda Google Maps per raccogliere una recensione certificata.
+            <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Il cliente tocca 4 o 5 stelle: la piattaforma apre istantaneamente la scheda Google Maps del locale con il form precompilato a 5 stelle, massimizzando il volume di recensioni positive.
             </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#121214] border border-[#27272A] space-y-2">
-            <div className="flex items-center gap-2 text-amber-400 font-semibold">
-              <ShieldAlert className="w-4 h-4" />
-              <span>Valutazioni 1, 2 e 3 Stelle (Ospiti Insoddisfatti)</span>
+          <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200/80 dark:border-white/[0.06] space-y-1.5">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Valutazioni 1, 2 e 3 Stelle • Intercettazione Protetta</span>
             </div>
-            <p className="text-zinc-400 text-xs leading-relaxed">
-              Invece di approdare su Google rovinando il tuo rating medio, il cliente trova un form dedicato per spiegare cosa non è andato. La recensione resta 100% privata e ti dà l&apos;opportunità di ricontattarlo.
+            <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Invece di approdare su Google rovinando il rating medio, il cliente compila un feedback riservato. La segnalazione arriva qui e su Telegram per consentirti di rimediare prima che sia troppo tardi.
             </p>
           </div>
         </div>

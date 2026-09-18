@@ -89,7 +89,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ID dispositivo non valido' }, { status: 400 });
     }
 
-    const validTypes = ['waiter', 'bill_pos', 'bill_cash', 'dish_order'];
+    const validTypes = [
+      'waiter',
+      'bill_pos',
+      'bill_cash',
+      'dish_order',
+      'bill_invoice',
+      'negative_review_alert',
+      'in_dining_review_alert',
+    ];
     const cleanType = String(type).trim().toLowerCase();
     if (!validTypes.includes(cleanType)) {
       return NextResponse.json({ error: 'Tipo di chiamata non valido' }, { status: 400 });
