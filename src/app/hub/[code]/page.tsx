@@ -50,6 +50,11 @@ import {
   Trash2,
   Send,
   Receipt,
+  Mic,
+  MicOff,
+  ShieldAlert,
+  Wand2,
+  Loader2,
 } from 'lucide-react';
 
 import {
@@ -60,6 +65,9 @@ import {
   CANVA_PRESETS,
   getDefaultCanvaMenuConfig,
 } from '@/lib/canva-menu';
+
+import { VoiceOrderRecognizer, matchSpokenDishes, isSpeechRecognitionSupported } from '@/lib/voice-ordering';
+import { fetchWinePairing, WinePairingData } from '@/lib/wine-pairing';
 
 const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -296,6 +304,31 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [orderSuccessMessage, setOrderSuccessMessage] = useState<string | null>(null);
   const [orderErrorMessage, setOrderErrorMessage] = useState<string | null>(null);
 
+  // AI Sommelier & Wine Pairing State
+  const [showWinePairingModal, setShowWinePairingModal] = useState(false);
+  const [pairingDish, setPairingDish] = useState<CanvaDish | null>(null);
+  const [winePairingResult, setWinePairingResult] = useState<{ reply: string; winePairing: WinePairingData } | null>(null);
+  const [winePairingLoading, setWinePairingLoading] = useState(false);
+
+  // AI Intolerance & Allergy Filter
+  const [activeAllergyFilter, setActiveAllergyFilter] = useState<string>('all');
+
+  // AI Voice-to-Cart Ordering State
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [voiceLiveTranscript, setVoiceLiveTranscript] = useState('');
+  const [voiceFeedbackToast, setVoiceFeedbackToast] = useState<string | null>(null);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+
+  // Dynamic Upselling State
+  const [upsellSuggestion, setUpsellSuggestion] = useState<{ dish: CanvaDish; message: string } | null>(null);
+
+  // AI In-Dining Review Shield State
+  const [showInDiningShieldModal, setShowInDiningShieldModal] = useState(false);
+  const [inDiningFeedbackText, setInDiningFeedbackText] = useState('');
+  const [inDiningSending, setInDiningSending] = useState(false);
+  const [inDiningSuccess, setInDiningSuccess] = useState(false);
+
   const [showContactModal, setShowContactModal] = useState(false);
   const [activeCustomModal, setActiveCustomModal] = useState<{ title: string; content: string } | null>(null);
   const [sharedNotification, setSharedNotification] = useState(false);
@@ -493,11 +526,127 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       } catch (e) {
         console.warn('Confetti error:', e);
       }
+      setTimeout(() => {
+        window.location.href = `/review/${code}`;
+      }, 650);
+    } else {
+      // 1, 2, or 3 stars: IN-DINING REVIEW SHIELD!
+      // Opens immediate intervention modal before the customer leaves
+      hapticWarning();
+      setShowInDiningShieldModal(true);
     }
-    // Redirect to review shield page after brief animation
-    setTimeout(() => {
-      window.location.href = `/review/${code}`;
-    }, 650);
+  };
+
+  const handleSendInDiningReviewAlert = async () => {
+    if (!org) return;
+    setInDiningSending(true);
+    hapticTap();
+    try {
+      await fetch('/api/service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organization_id: org.id,
+          device_id: device?.id || null,
+          type: 'negative_review_alert',
+          table_label: device?.name || `Tavolo ${code}`,
+          order_details: {
+            rating: selectedRating,
+            notes: inDiningFeedbackText.trim() || 'Valutazione bassa prima del pagamento',
+          },
+        }),
+      });
+      hapticSuccess();
+      setInDiningSuccess(true);
+      setTimeout(() => {
+        setShowInDiningShieldModal(false);
+        setInDiningSuccess(false);
+        setInDiningFeedbackText('');
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to send in-dining review alert:', err);
+    } finally {
+      setInDiningSending(false);
+    }
+  };
+
+  const handleOpenWinePairing = async (dish: CanvaDish) => {
+    hapticTap();
+    setPairingDish(dish);
+    setShowWinePairingModal(true);
+    setWinePairingLoading(true);
+    setWinePairingResult(null);
+    try {
+      const res = await fetchWinePairing(dish.name, dish.description, org?.id);
+      setWinePairingResult(res);
+      hapticSuccess();
+    } catch (e) {
+      console.error('Wine pairing error:', e);
+    } finally {
+      setWinePairingLoading(false);
+    }
+  };
+
+  const handleToggleVoiceOrdering = () => {
+    hapticTap();
+    if (isVoiceListening) {
+      setIsVoiceListening(false);
+      return;
+    }
+
+    setShowVoiceModal(true);
+    setIsVoiceListening(true);
+    setVoiceLiveTranscript('');
+    setVoiceFeedbackToast(null);
+
+    const allDishes = canvaMenu.categories.flatMap((c) => c.dishes);
+
+    const recognizer = new VoiceOrderRecognizer(
+      (transcript, isFinal) => {
+        setVoiceLiveTranscript(transcript);
+        if (isFinal) {
+          const result = matchSpokenDishes(transcript, allDishes);
+          if (result.matchedItems.length > 0) {
+            hapticSuccess();
+            setTableCart((prev) => {
+              const next = { ...prev };
+              for (const item of result.matchedItems) {
+                const current = next[item.dish.id]?.quantity || 0;
+                next[item.dish.id] = {
+                  dish: item.dish,
+                  quantity: current + item.quantity,
+                };
+              }
+              return next;
+            });
+            if (result.extractedNotes) {
+              setOrderNotes((prev) => (prev ? `${prev}, ${result.extractedNotes}` : result.extractedNotes));
+            }
+            const addedNames = result.matchedItems.map((i) => `${i.quantity}x ${i.dish.name}`).join(', ');
+            setVoiceFeedbackToast(`Aggiunto al vassoio: ${addedNames}!`);
+            setTimeout(() => {
+              setShowVoiceModal(false);
+              setIsVoiceListening(false);
+            }, 1800);
+          } else {
+            setVoiceFeedbackToast(`Ascoltato: "${transcript}". Prova a dire "Due pizze margherite" o "Una tagliata".`);
+          }
+        }
+      },
+      (err) => {
+        console.warn('Voice recognition error:', err);
+        setIsVoiceListening(false);
+      },
+      () => {
+        setIsVoiceListening(false);
+      }
+    );
+
+    const started = recognizer.start();
+    if (!started) {
+      setIsVoiceListening(false);
+      alert('Riconoscimento vocale non consentito dal browser. Verifica i permessi microfono.');
+    }
   };
 
   // Web Share or Copy Link
@@ -628,6 +777,25 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         },
       };
     });
+
+    // Dynamic Upselling: suggest matching drink, side or dessert
+    const lowerName = dish.name.toLowerCase();
+    const isBeverage = lowerName.includes('vino') || lowerName.includes('birra') || lowerName.includes('acqua') || lowerName.includes('spritz') || lowerName.includes('caffè');
+    if (!isBeverage && !upsellSuggestion) {
+      const companion = canvaMenu?.categories
+        ?.flatMap((c) => c.dishes)
+        ?.find((d) => {
+          const l = d.name.toLowerCase();
+          return (l.includes('birra') || l.includes('vino') || l.includes('patat') || l.includes('tiramis')) && d.id !== dish.id;
+        });
+      if (companion) {
+        setUpsellSuggestion({
+          dish: companion,
+          message: 'Abbinamento consigliato per completare la portata:',
+        });
+        setTimeout(() => setUpsellSuggestion(null), 6000);
+      }
+    }
   };
 
   const removeFromTableCart = (dishId: string) => {
@@ -721,6 +889,28 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       .filter((cat) => canvaCategoryTab === 'tutti' || cat.id === canvaCategoryTab)
       .map((cat) => {
         const filteredDishes = cat.dishes.filter((dish) => {
+          // Allergy filter
+          if (activeAllergyFilter !== 'all') {
+            const tags = (dish.tags || []).map((t) => t.toLowerCase());
+            const text = `${dish.name} ${dish.description}`.toLowerCase();
+            if (activeAllergyFilter === 'Gluten Free') {
+              const hasGf = tags.some((t) => t.includes('gluten free') || t.includes('senza glutine'));
+              if (!hasGf && !text.includes('gluten free') && !text.includes('senza glutine')) return false;
+            } else if (activeAllergyFilter === 'Lattosio') {
+              const hasDairy = tags.some((t) => t.includes('lattosio')) || text.includes('formagg') || text.includes('mozzarella') || text.includes('burrata') || text.includes('parmigiano');
+              if (hasDairy) return false;
+            } else if (activeAllergyFilter === 'Vegetariano') {
+              const isVeg = tags.some((t) => t.includes('vegetariano') || t.includes('vegano'));
+              if (!isVeg && !text.includes('vegetariano') && !text.includes('vegano')) return false;
+            } else if (activeAllergyFilter === 'Vegano') {
+              const isVegan = tags.some((t) => t.includes('vegano'));
+              if (!isVegan && !text.includes('vegano')) return false;
+            } else if (activeAllergyFilter === 'Crostacei') {
+              const hasShellfish = tags.some((t) => t.includes('crostacei') || t.includes('molluschi')) || text.includes('gamber') || text.includes('scamp') || text.includes('cozz') || text.includes('vongol');
+              if (hasShellfish) return false;
+            }
+          }
+
           if (!query) return true;
           const inName = dish.name.toLowerCase().includes(query);
           const inDesc = dish.description.toLowerCase().includes(query);
@@ -733,7 +923,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         };
       })
       .filter((cat) => cat.dishes.length > 0);
-  }, [canvaMenu?.categories, canvaCategoryTab, canvaSearchQuery]);
+  }, [canvaMenu?.categories, canvaCategoryTab, canvaSearchQuery, activeAllergyFilter]);
 
   const activeFont = useMemo(() => {
     return HUB_FONT_OPTIONS.find((f) => f.id === activeConfig.fontFamily) || HUB_FONT_OPTIONS[0];
@@ -2085,26 +2275,40 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   </div>
                 )}
 
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={canvaSearchQuery}
-                    onChange={(e) => setCanvaSearchQuery(e.target.value)}
-                    placeholder="Cerca piatti, allergeni, ingredienti..."
-                    className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
-                    style={{ borderColor: canvaSearchQuery ? canvaAccent : undefined }}
-                  />
-                  {canvaSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setCanvaSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                {/* Search Bar & Voice Order Action */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={canvaSearchQuery}
+                      onChange={(e) => setCanvaSearchQuery(e.target.value)}
+                      placeholder="Cerca piatti, allergeni, ingredienti..."
+                      className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
+                      style={{ borderColor: canvaSearchQuery ? canvaAccent : undefined }}
+                    />
+                    {canvaSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setCanvaSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* AI Voice-to-Cart Button */}
+                  <button
+                    type="button"
+                    onClick={handleToggleVoiceOrdering}
+                    className="px-3 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 cursor-pointer shadow-xs"
+                    title="Comanda Vocale AI: parla per ordinare"
+                  >
+                    <Mic className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+                    <span className="hidden sm:inline">Comanda Vocale</span>
+                    <span className="sm:hidden">Voce</span>
+                  </button>
                 </div>
 
                 {/* Category Filter Pills */}
@@ -2154,6 +2358,41 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       >
                         <span>{cat.name}</span>
                         <span className="text-[9px] opacity-75">({cat.dishes.length})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* AI Intolerance & Dietary Filter Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-0.5">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    <span>Filtro AI:</span>
+                  </span>
+                  {[
+                    { id: 'all', label: 'Tutti i piatti' },
+                    { id: 'Gluten Free', label: 'Senza Glutine' },
+                    { id: 'Lattosio', label: 'Senza Lattosio' },
+                    { id: 'Vegetariano', label: 'Vegetariano' },
+                    { id: 'Vegano', label: 'Vegano' },
+                    { id: 'Crostacei', label: 'No Frutti di Mare' },
+                  ].map((filter) => {
+                    const active = activeAllergyFilter === filter.id;
+                    return (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        onClick={() => {
+                          hapticTap();
+                          setActiveAllergyFilter(filter.id);
+                        }}
+                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
+                          active
+                            ? 'bg-emerald-500 text-black border-emerald-400 font-bold shadow-xs'
+                            : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        {filter.label}
                       </button>
                     );
                   })}
@@ -2274,57 +2513,62 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                   </div>
                                 </div>
 
-                                {/* Order Controls (if allowTableOrders) */}
-                                {canvaMenu.allowTableOrders !== false && (
-                                  <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                                    <div className="text-[10px] text-zinc-400">
-                                      {inCartCount > 0 ? (
-                                        <span className="text-emerald-400 font-semibold">
-                                          {t.tableTray}: {inCartCount}
-                                        </span>
-                                      ) : (
-                                        <span>{t.orderAtTable}</span>
-                                      )}
-                                    </div>
+                                {/* Controls & Wine Pairing */}
+                                <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                                  {/* AI Wine Pairing Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenWinePairing(dish)}
+                                    className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 transition-all active:scale-95 cursor-pointer shrink-0 shadow-xs"
+                                    title="Chiedi al Sommelier AI quale vino abbinare a questo piatto"
+                                  >
+                                    <Wine className="w-3 h-3 text-purple-400" />
+                                    <Sparkles className="w-2 h-2 text-amber-300" />
+                                    <span>Abbina Vino</span>
+                                  </button>
 
-                                    {inCartCount > 0 ? (
-                                      <div className="flex items-center gap-1.5 bg-white/10 rounded-xl p-1 border border-white/10">
-                                        <button
-                                          type="button"
-                                          onClick={() => removeFromTableCart(dish.id)}
-                                          className="w-7 h-7 rounded-lg bg-black/40 hover:bg-black/60 text-white flex items-center justify-center active:scale-90 transition-all"
-                                          aria-label="Diminuisci quantità"
-                                        >
-                                          <Minus className="w-3.5 h-3.5" />
-                                        </button>
-                                        <span className="w-6 text-center text-xs font-bold font-mono text-white">
-                                          {inCartCount}
-                                        </span>
+                                  {/* Order Controls (if allowTableOrders) */}
+                                  {canvaMenu.allowTableOrders !== false && (
+                                    <div className="flex items-center gap-2 ml-auto">
+                                      {inCartCount > 0 ? (
+                                        <div className="flex items-center gap-1.5 bg-white/10 rounded-xl p-1 border border-white/10">
+                                          <button
+                                            type="button"
+                                            onClick={() => removeFromTableCart(dish.id)}
+                                            className="w-7 h-7 rounded-lg bg-black/40 hover:bg-black/60 text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+                                            aria-label="Diminuisci quantità"
+                                          >
+                                            <Minus className="w-3.5 h-3.5" />
+                                          </button>
+                                          <span className="w-6 text-center text-xs font-bold font-mono text-white">
+                                            {inCartCount}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => addToTableCart(dish)}
+                                            className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold cursor-pointer"
+                                            style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
+                                            aria-label="Aumenta quantità"
+                                          >
+                                            <Plus className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      ) : (
                                         <button
                                           type="button"
                                           onClick={() => addToTableCart(dish)}
-                                          className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold"
-                                          style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
-                                          aria-label="Aumenta quantità"
+                                          className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow border border-white/10 bg-white/5 hover:bg-white/10 text-white cursor-pointer"
+                                          style={{
+                                            borderColor: `${canvaAccent}40`,
+                                          }}
                                         >
-                                          <Plus className="w-3.5 h-3.5" />
+                                          <Plus className="w-3.5 h-3.5" style={{ color: canvaAccent }} />
+                                          <span>{t.addToCart}</span>
                                         </button>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => addToTableCart(dish)}
-                                        className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow border border-white/10 bg-white/5 hover:bg-white/10 text-white"
-                                        style={{
-                                          borderColor: `${canvaAccent}40`,
-                                        }}
-                                      >
-                                        <Plus className="w-3.5 h-3.5" style={{ color: canvaAccent }} />
-                                        <span>{t.addToCart}</span>
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
@@ -3069,6 +3313,285 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             >
               Chiudi
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* FLOATING DYNAMIC UPSELLING BANNER */}
+      {/* ========================================================================= */}
+      {upsellSuggestion && (
+        <div className="fixed bottom-24 inset-x-4 max-w-sm mx-auto z-40 animate-slide-up pointer-events-auto">
+          <div className="p-3.5 rounded-2xl bg-zinc-900/95 border border-amber-500/40 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3 text-white">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] text-amber-400 font-bold block uppercase tracking-wider">
+                  Suggerimento dello Chef:
+                </span>
+                <p className="text-xs font-bold truncate">
+                  {upsellSuggestion.dish.name} ({upsellSuggestion.dish.price})
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  addToTableCart(upsellSuggestion.dish);
+                  setUpsellSuggestion(null);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-black transition-all active:scale-95 cursor-pointer shadow"
+              >
+                + Aggiungi
+              </button>
+              <button
+                type="button"
+                onClick={() => setUpsellSuggestion(null)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: AI SOMMELIER & WINE PAIRING */}
+      {/* ========================================================================= */}
+      {showWinePairingModal && pairingDish && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-sm bg-[#141615] border border-purple-500/30 rounded-3xl p-5 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center">
+                  <Wine className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Sommelier Virtuale AI</span>
+                    <Sparkles className="w-3 h-3 text-amber-300" />
+                  </h3>
+                  <p className="text-[10px] text-zinc-400">Abbinamento per: {pairingDish.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWinePairingModal(false)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {winePairingLoading ? (
+              <div className="py-10 text-center space-y-3">
+                <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
+                <p className="text-xs text-zinc-300">
+                  Il sommelier sta selezionando l&apos;abbinamento perfetto per &quot;{pairingDish.name}&quot;...
+                </p>
+              </div>
+            ) : winePairingResult ? (
+              <div className="space-y-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-purple-950/40 border border-purple-500/30 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                        {winePairingResult.winePairing.type} • {winePairingResult.winePairing.region}
+                      </span>
+                      <h4 className="text-sm font-bold text-white mt-1">
+                        {winePairingResult.winePairing.name}
+                      </h4>
+                    </div>
+                    <span className="text-xs font-extrabold font-mono text-amber-400 shrink-0">
+                      {winePairingResult.winePairing.priceEstimate}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-zinc-300 leading-relaxed italic">
+                    &quot;{winePairingResult.winePairing.tastingNotes}&quot;
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5 space-y-1">
+                  <strong className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                    Perché si abbina:
+                  </strong>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                    {winePairingResult.winePairing.whyItWorks}
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSuccess();
+                      addToTableCart({
+                        id: `wine-${Date.now()}`,
+                        name: winePairingResult.winePairing.name,
+                        description: `${winePairingResult.winePairing.type} • ${winePairingResult.winePairing.region}`,
+                        price: winePairingResult.winePairing.priceEstimate,
+                        tags: ['Carta Vini', winePairingResult.winePairing.type],
+                      });
+                      setShowWinePairingModal(false);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Aggiungi Calice/Bottiglia al Vassoio</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: AI VOICE-TO-CART ORDERING */}
+      {/* ========================================================================= */}
+      {showVoiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-sm bg-[#141715] border border-purple-500/40 rounded-3xl p-6 shadow-2xl space-y-5 text-center text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <span className="text-xs font-bold text-purple-400 flex items-center gap-1">
+                <Mic className="w-3.5 h-3.5 animate-pulse" />
+                <span>Comanda Vocale AI</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowVoiceModal(false)}
+                className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Pulsing Mic Graphic */}
+            <div className="relative py-4 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-purple-500/20 animate-ping absolute inset-0 m-auto" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg relative z-10">
+                <Mic className="w-8 h-8 text-white animate-pulse" />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-white">
+                {isVoiceListening ? 'Ti sto ascoltando...' : 'Elaborazione comanda...'}
+              </h3>
+              <p className="text-xs text-zinc-400">
+                Parla liberamente, ad esempio: <br />
+                <span className="text-purple-300 font-semibold italic">
+                  &quot;Due margherite e una tagliata di manzo&quot;
+                </span>
+              </p>
+            </div>
+
+            {/* Live Transcript Display */}
+            {voiceLiveTranscript && (
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-purple-200">
+                &quot;{voiceLiveTranscript}&quot;
+              </div>
+            )}
+
+            {/* Feedback / Added Toast */}
+            {voiceFeedbackToast && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold animate-fade-in">
+                {voiceFeedbackToast}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowVoiceModal(false)}
+              className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer"
+            >
+              Chiudi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: AI IN-DINING REVIEW SHIELD */}
+      {/* ========================================================================= */}
+      {showInDiningShieldModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-sm bg-[#171918] border border-amber-500/30 rounded-3xl p-5 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <ShieldAlert className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Ci dispiace molto!</h3>
+                  <p className="text-[10px] text-zinc-400">Risolviamo subito al tuo tavolo</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInDiningShieldModal(false)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {inDiningSuccess ? (
+              <div className="py-6 text-center space-y-2">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-2">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-white">Segnalazione inviata al Maître!</h4>
+                <p className="text-xs text-zinc-300">
+                  Un responsabile dello staff sta arrivando subito al vostro tavolo per assistervi. Grazie per avercelo detto!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  Vogliamo che la tua esperienza da <strong>{org.name}</strong> sia perfetta. Dicci cosa non è andato (es. piatto freddo, cottura o tempi d&apos;attesa):
+                </p>
+
+                <textarea
+                  rows={3}
+                  value={inDiningFeedbackText}
+                  onChange={(e) => setInDiningFeedbackText(e.target.value)}
+                  placeholder="Es. La carne è troppo cotta / Stiamo aspettando da molto..."
+                  className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 resize-none"
+                />
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowInDiningShieldModal(false)}
+                    className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-semibold cursor-pointer"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    disabled={inDiningSending}
+                    onClick={handleSendInDiningReviewAlert}
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {inDiningSending ? (
+                      <span>Invio in corso...</span>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Allerta Staff al Tavolo</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -20,6 +20,7 @@ import {
   X,
   Check,
   Sliders,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   SERVICE_SOUND_OPTIONS,
@@ -30,7 +31,7 @@ import { hapticTap, hapticSelection, hapticSuccess } from '@/lib/haptics';
 
 interface ServiceCallRecord {
   id: string;
-  type: 'waiter' | 'bill_pos' | 'bill_cash' | 'dish_order';
+  type: 'waiter' | 'bill_pos' | 'bill_cash' | 'dish_order' | 'negative_review_alert' | 'in_dining_review_alert';
   table_label: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   created_at: string;
@@ -38,6 +39,7 @@ interface ServiceCallRecord {
     items?: Array<{ id?: string; name: string; quantity: number; price: string }>;
     total?: string;
     notes?: string;
+    rating?: number;
   };
 }
 
@@ -236,6 +238,16 @@ export default function ServiceDashboardPage() {
       icon: UtensilsCrossed,
       color: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
     },
+    negative_review_alert: {
+      label: 'AI ALERT: Insoddisfazione Segnalata',
+      icon: ShieldAlert,
+      color: 'bg-rose-500/15 text-rose-400 border-rose-500/40 ring-1 ring-rose-500/40 animate-pulse',
+    },
+    in_dining_review_alert: {
+      label: 'AI ALERT: Insoddisfazione Segnalata',
+      icon: ShieldAlert,
+      color: 'bg-rose-500/15 text-rose-400 border-rose-500/40 ring-1 ring-rose-500/40 animate-pulse',
+    },
   };
 
   if (loading) {
@@ -426,6 +438,24 @@ export default function ServiceDashboardPage() {
                         </span>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Dettaglio Alert Recensione / Insoddisfazione In-Dining */}
+                {(call.type === 'negative_review_alert' || call.type === 'in_dining_review_alert') && call.order_details && (
+                  <div className="bg-rose-950/25 rounded-xl p-3.5 border border-rose-500/40 space-y-2">
+                    <div className="flex items-center gap-2 text-rose-400 font-bold text-xs">
+                      <ShieldAlert className="w-4 h-4 shrink-0" />
+                      <span>Valutazione: {call.order_details.rating || '1-3'} Stelle • Intervento Immediato Richiesto</span>
+                    </div>
+                    {call.order_details.notes && (
+                      <p className="text-xs text-rose-200 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20 italic">
+                        &quot;{call.order_details.notes}&quot;
+                      </p>
+                    )}
+                    <p className="text-[11px] text-zinc-400">
+                      Raggiungete il tavolo per scusarvi o rimediare prima che il cliente paghi e lasci il locale.
+                    </p>
                   </div>
                 )}
 

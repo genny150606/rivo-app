@@ -36,6 +36,9 @@ import {
   Upload,
   FolderOpen,
   Loader2,
+  Camera,
+  FileText,
+  Wand2,
 } from 'lucide-react';
 import {
   CanvaMenuConfig,
@@ -107,6 +110,19 @@ export default function CanvaMenuStudioPage() {
   const [photoFilterCategory, setPhotoFilterCategory] = useState('Tutti');
   const [photoSearchQuery, setPhotoSearchQuery] = useState('');
 
+  // AI Dish Enhancer State
+  const [aiEnhancing, setAiEnhancing] = useState(false);
+
+  // AI Menu Scanner State
+  const [showAiScannerModal, setShowAiScannerModal] = useState(false);
+  const [aiScanning, setAiScanning] = useState(false);
+  const [aiScanInputMode, setAiScanInputMode] = useState<'photo' | 'text'>('photo');
+  const [aiScanPhotoBase64, setAiScanPhotoBase64] = useState<string | null>(null);
+  const [aiScanText, setAiScanText] = useState('');
+  const [aiScanResults, setAiScanResults] = useState<CanvaMenuCategory[] | null>(null);
+  const [aiScanMergeMode, setAiScanMergeMode] = useState<'replace' | 'append'>('replace');
+  const scanFileInputRef = useRef<HTMLInputElement>(null);
+
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -168,6 +184,112 @@ export default function CanvaMenuStudioPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleAiEnhanceDish = async () => {
+    if (!dishForm.name.trim()) return;
+    setAiEnhancing(true);
+    hapticTap();
+    try {
+      const res = await fetch('/api/ai/dish-enhancer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dishName: dishForm.name,
+          rawIngredients: dishForm.description,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.description) {
+          setDishForm((prev) => {
+            const newTags = Array.from(new Set([...prev.tags, ...(data.tags || [])]));
+            return {
+              ...prev,
+              description: data.description,
+              tags: newTags,
+            };
+          });
+          hapticSuccess();
+        }
+      }
+    } catch (err) {
+      console.error('AI enhancer error:', err);
+    } finally {
+      setAiEnhancing(false);
+    }
+  };
+
+  const handleScanFileUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAiScanPhotoBase64(e.target?.result as string);
+      hapticTap();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleStartAiScan = async () => {
+    if (!aiScanPhotoBase64 && !aiScanText.trim()) {
+      alert('Inserisci una foto del menù o incolla il testo prima di avviare la scansione.');
+      return;
+    }
+    setAiScanning(true);
+    hapticTap();
+    try {
+      const res = await fetch('/api/ai/menu-scanner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: aiScanInputMode === 'photo' ? aiScanPhotoBase64 : undefined,
+          text: aiScanInputMode === 'text' ? aiScanText : undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.categories && data.categories.length > 0) {
+          setAiScanResults(data.categories);
+          hapticSuccess();
+        } else {
+          alert('Nessun piatto identificato. Prova con una foto più nitida o incolla il testo del menù.');
+        }
+      } else {
+        const err = await res.json();
+        alert(`Errore scansione: ${err.error || 'Impossibile elaborare il menù'}`);
+      }
+    } catch (err) {
+      console.error('Scan error:', err);
+      alert('Si è verificato un errore durante la scansione AI.');
+    } finally {
+      setAiScanning(false);
+    }
+  };
+
+  const handleApplyAiScanResults = () => {
+    if (!aiScanResults || aiScanResults.length === 0) return;
+    hapticSuccess();
+    if (aiScanMergeMode === 'replace') {
+      setMenuConfig((prev) => ({
+        ...prev,
+        categories: aiScanResults,
+      }));
+      if (aiScanResults[0]) {
+        setActiveCategoryTab(aiScanResults[0].id);
+      }
+    } else {
+      setMenuConfig((prev) => ({
+        ...prev,
+        categories: [...prev.categories, ...aiScanResults],
+      }));
+    }
+    setShowAiScannerModal(false);
+    setAiScanResults(null);
+    setAiScanPhotoBase64(null);
+    setAiScanText('');
+    setToastMessage('Menù digitalizzato con AI e importato!');
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 4000);
   };
 
   // Category Add Modal
@@ -650,6 +772,21 @@ export default function CanvaMenuStudioPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              hapticTap();
+              setShowAiScannerModal(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-600 dark:text-purple-400 font-bold text-xs transition-all active:scale-95 touch-press cursor-pointer shadow-xs"
+            title="Digitalizza menù cartaceo da foto o testo con AI"
+          >
+            <Camera className="w-3.5 h-3.5 text-purple-500" />
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">Scansiona Cartaceo con AI</span>
+            <span className="sm:hidden">Scanner AI</span>
+          </button>
+
           <button
             type="button"
             onClick={handleResetDefault}
@@ -1515,9 +1652,30 @@ export default function CanvaMenuStudioPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                  Descrizione &amp; Ingredienti
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Descrizione &amp; Ingredienti
+                  </label>
+                  <button
+                    type="button"
+                    disabled={aiEnhancing || !dishForm.name.trim()}
+                    onClick={handleAiEnhanceDish}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500 hover:text-amber-400 disabled:opacity-40 transition-colors cursor-pointer"
+                    title="Genera testo gourmet ed estrai allergeni in automatico con l'AI"
+                  >
+                    {aiEnhancing ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
+                        <span>Generazione AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3" />
+                        <span>✨ Perfeziona con AI</span>
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   rows={2}
                   value={dishForm.description}
@@ -1888,6 +2046,254 @@ export default function CanvaMenuStudioPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================================= */}
+      {/* MODAL: AI MENU SCANNER */}
+      {/* ======================================================================= */}
+      {showAiScannerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl bg-white dark:bg-[#151719] border border-zinc-200 dark:border-white/10 p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                    <span>Scanner Menù Cartaceo con AI</span>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Trasforma una foto del tuo menù cartaceo o un testo in categorie e piatti interattivi.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAiScannerModal(false);
+                  setAiScanResults(null);
+                }}
+                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* If Results are ready, show preview and import */}
+            {aiScanResults ? (
+              <div className="flex-1 overflow-y-auto space-y-4 py-2">
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>Scansione completata: rilevate {aiScanResults.length} categorie e {aiScanResults.reduce((acc, c) => acc + c.dishes.length, 0)} piatti!</span>
+                  </div>
+                </div>
+
+                {/* Import Mode Options */}
+                <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-2">
+                  <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                    Modalità di importazione:
+                  </span>
+                  <div className="flex flex-col sm:flex-row gap-3 text-xs">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
+                      <input
+                        type="radio"
+                        name="mergeMode"
+                        checked={aiScanMergeMode === 'replace'}
+                        onChange={() => setAiScanMergeMode('replace')}
+                        className="text-amber-500"
+                      />
+                      <span>Sostituisci il menù attuale</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
+                      <input
+                        type="radio"
+                        name="mergeMode"
+                        checked={aiScanMergeMode === 'append'}
+                        onChange={() => setAiScanMergeMode('append')}
+                        className="text-amber-500"
+                      />
+                      <span>Aggiungi alle categorie esistenti</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Extracted Categories Preview */}
+                <div className="space-y-3">
+                  <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                    Anteprima categorie estratte:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {aiScanResults.map((cat, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-2xl bg-zinc-50 dark:bg-black/30 border border-zinc-200 dark:border-white/10 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {cat.name}
+                          </h4>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 font-mono font-bold">
+                            {cat.dishes.length} piatti
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                          {cat.dishes.map((d) => d.name).slice(0, 3).join(', ')}
+                          {cat.dishes.length > 3 && '...'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setAiScanResults(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 cursor-pointer"
+                  >
+                    Rifai scansione
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyAiScanResults}
+                    className="px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>Conferma e Importa nel Menù</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 py-1 flex-1 overflow-y-auto">
+                {/* Input mode switcher */}
+                <div className="flex rounded-2xl bg-zinc-100 dark:bg-white/5 p-1 border border-zinc-200 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setAiScanInputMode('photo')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      aiScanInputMode === 'photo'
+                        ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs'
+                        : 'text-zinc-500 dark:text-zinc-400'
+                    }`}
+                  >
+                    <Camera className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Foto Menù Cartaceo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiScanInputMode('text')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      aiScanInputMode === 'text'
+                        ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs'
+                        : 'text-zinc-500 dark:text-zinc-400'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Incolla Testo Menù</span>
+                  </button>
+                </div>
+
+                {/* Hidden scan file input */}
+                <input
+                  type="file"
+                  ref={scanFileInputRef}
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleScanFileUpload(e.target.files[0]);
+                    }
+                  }}
+                  accept="image/png, image/jpeg, image/webp"
+                  className="hidden"
+                />
+
+                {aiScanInputMode === 'photo' ? (
+                  <div className="space-y-3">
+                    <div
+                      onClick={() => scanFileInputRef.current?.click()}
+                      className="p-6 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-white/15 hover:border-purple-400 dark:hover:border-purple-400 bg-zinc-50/50 dark:bg-white/[0.02] flex flex-col items-center justify-center text-center cursor-pointer transition-all"
+                    >
+                      {aiScanPhotoBase64 ? (
+                        <div className="relative w-full max-h-48 rounded-xl overflow-hidden shadow-md">
+                          <img
+                            src={aiScanPhotoBase64}
+                            alt="Anteprima foto menù"
+                            className="w-full h-44 object-contain rounded-xl"
+                          />
+                          <span className="inline-block mt-2 text-xs text-purple-400 font-semibold underline">
+                            Clicca per cambiare foto
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-2">
+                            <Upload className="w-6 h-6" />
+                          </div>
+                          <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                            Carica una foto del menù cartaceo o scatta dal telefono
+                          </span>
+                          <span className="text-[11px] text-zinc-400 mt-1">
+                            PNG, JPG, WEBP fino a 10MB
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                      Incolla il testo del tuo menù:
+                    </label>
+                    <textarea
+                      rows={6}
+                      value={aiScanText}
+                      onChange={(e) => setAiScanText(e.target.value)}
+                      placeholder="Esempio:
+ANTIPASTI
+- Tagliere di Salumi Tipici: 14€
+- Crostone ai Funghi Porcini: 9€
+
+PRIMI PIATTI
+- Spaghetti alla Carbonara: 13€
+- Risotto al Tartufo: 16€"
+                      className="w-full text-xs p-3 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+                    />
+                  </div>
+                )}
+
+                <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setShowAiScannerModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 cursor-pointer"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="button"
+                    disabled={aiScanning || (!aiScanPhotoBase64 && !aiScanText.trim())}
+                    onClick={handleStartAiScan}
+                    className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+                  >
+                    {aiScanning ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Lettura ed estrazione AI in corso...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-amber-300" />
+                        <span>Avvia Scansione AI</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
