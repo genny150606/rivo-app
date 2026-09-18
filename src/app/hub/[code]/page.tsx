@@ -1254,7 +1254,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         <header
           className={`${
             nfcPhase === 'assembling' ? 'animate-assemble-header' : 'animate-nfc-stagger-1'
-          } flex items-center justify-between gap-3 pt-0.5`}
+          } relative z-50 flex items-center justify-between gap-3 pt-0.5`}
         >
           {/* Left: Avatar / Logo + Business Name */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1311,7 +1311,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setShowLangMenu(!showLangMenu);
                 }}
                 aria-label="Cambia lingua"
-                className={`touch-press h-9 px-2.5 rounded-full border flex items-center gap-1.5 transition-all text-xs font-bold active:scale-95 ${
+                className={`touch-press h-9 px-2.5 rounded-full border flex items-center gap-1.5 transition-all text-xs font-bold active:scale-95 cursor-pointer ${
                   isLight
                     ? 'bg-white border-slate-200 text-slate-800 shadow-xs'
                     : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-200'
@@ -1322,38 +1322,44 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </button>
 
               {showLangMenu && (
-                <div
-                  className={`absolute right-0 top-11 z-50 py-1.5 px-1 rounded-2xl shadow-2xl border min-w-[135px] animate-fade-in backdrop-blur-xl ${
-                    isLight
-                      ? 'bg-white/95 border-slate-200 text-slate-900 shadow-[0_10px_35px_rgba(0,0,0,0.15)]'
-                      : 'bg-[#161816]/95 border-white/10 text-white shadow-[0_10px_35px_rgba(0,0,0,0.7)]'
-                  }`}
-                >
-                  {SUPPORTED_LANGUAGES.map((lang) => (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      onClick={() => {
-                        hapticSelection();
-                        setSelectedLang(lang.code);
-                        setShowLangMenu(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                        selectedLang === lang.code
-                          ? 'bg-amber-500/20 text-amber-400 font-bold'
-                          : isLight
-                          ? 'hover:bg-slate-100 text-slate-700'
-                          : 'hover:bg-white/5 text-zinc-300'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>{lang.flag}</span>
-                        <span>{lang.label}</span>
-                      </span>
-                      {selectedLang === lang.code && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowLangMenu(false)}
+                  />
+                  <div
+                    className={`absolute right-0 top-11 z-50 py-1.5 px-1 rounded-2xl shadow-2xl border min-w-[145px] animate-fade-in backdrop-blur-2xl ${
+                      isLight
+                        ? 'bg-white/95 border-slate-200 text-slate-900 shadow-[0_10px_35px_rgba(0,0,0,0.15)]'
+                        : 'bg-[#161816]/95 border-white/10 text-white shadow-[0_10px_35px_rgba(0,0,0,0.7)]'
+                    }`}
+                  >
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => {
+                          hapticSelection();
+                          setSelectedLang(lang.code);
+                          setShowLangMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                          selectedLang === lang.code
+                            ? 'bg-amber-500/20 text-amber-400 font-bold'
+                            : isLight
+                            ? 'hover:bg-slate-100 text-slate-700'
+                            : 'hover:bg-white/5 text-zinc-300'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{lang.flag}</span>
+                          <span>{lang.label}</span>
+                        </span>
+                        {selectedLang === lang.code && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
