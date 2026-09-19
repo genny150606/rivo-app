@@ -1026,7 +1026,7 @@ export default function CustomHubStudioPage() {
               { id: 'atmosphere', label: 'Sfondo & Texture', icon: Layers },
               { id: 'modules', label: 'Moduli & Bento Grid', icon: Sliders },
               { id: 'hero', label: 'Hero & Badge', icon: Sparkles },
-              { id: 'services', label: 'Servizi Tavolo', icon: UtensilsCrossed },
+              { id: 'services', label: 'Servizi Tavolo & Wi-Fi', icon: UtensilsCrossed },
               { id: 'reviews', label: 'Recensioni & Promo', icon: Star },
               { id: 'contacts', label: 'Contatti & Info', icon: Phone },
             ].map((tab) => {
@@ -1968,6 +1968,26 @@ export default function CustomHubStudioPage() {
                               placeholder="Inserisci qui il testo che il cliente leggerà toccando questa card..."
                             />
                           </div>
+                        </div>
+                      )}
+
+                      {/* Wi-Fi Bridge 1-Tap shortcut helper */}
+                      {m.id === 'wifi' && (
+                        <div className="mt-2.5 pt-2.5 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 bg-sky-500/10 border border-sky-500/20 rounded-xl p-2.5">
+                          <div className="flex items-center gap-2 text-sky-400 text-[11px] font-medium min-w-0">
+                            <Wifi className="w-3.5 h-3.5 shrink-0" />
+                            <span>Vuoi il <strong>Ponte Wi-Fi 1-Tap</strong> automatico al tavolo (Opzione D)?</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              hapticSelection();
+                              setActiveTab('services');
+                            }}
+                            className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-sky-500 text-black hover:bg-sky-400 shrink-0 transition-all cursor-pointer"
+                          >
+                            Configura Ponte Wi-Fi &rarr;
+                          </button>
                         </div>
                       )}
                     </div>
