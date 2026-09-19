@@ -11,6 +11,7 @@ const PUBLIC_PREFIXES = [
   '/loyalty/',
   '/ai-sommelier/',
   '/wifi/',
+  '/invite/',
   '/api/',
   '/login',
   '/auth/',

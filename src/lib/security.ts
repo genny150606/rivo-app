@@ -15,8 +15,21 @@ export function sanitizeString(val: unknown, maxLength = 255): string | null {
   return str.slice(0, maxLength);
 }
 
+export interface UserProfile {
+  id: string;
+  auth_user_id: string;
+  organization_id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
+  status?: string | null;
+  location_id?: string | null;
+  permissions?: string[] | null;
+}
+
 export type AuthCheckResult =
-  | { authorized: true; user: unknown; profile: unknown }
+  | { authorized: true; user: any; profile: UserProfile }
   | { authorized: false; errorResponse: NextResponse };
 
 export async function verifyUserOrgAccess(
@@ -50,13 +63,44 @@ export async function verifyUserOrgAccess(
 
   const { data: profile } = await sessionClient
     .from('profiles')
-    .select('organization_id, role')
+    .select('id, auth_user_id, organization_id, email, first_name, last_name, role, status, location_id, permissions')
     .eq('auth_user_id', user.id)
     .single();
 
+  if (!profile) {
+    return {
+      authorized: false,
+      errorResponse: NextResponse.json(
+        { error: 'Profilo utente non trovato.' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  // Check if profile is active
+  if (profile.status === 'deactivated') {
+    return {
+      authorized: false,
+      errorResponse: NextResponse.json(
+        { error: 'Questo account collaboratore è stato disattivato.' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  if (profile.status === 'suspended') {
+    return {
+      authorized: false,
+      errorResponse: NextResponse.json(
+        { error: 'Questo account collaboratore è temporaneamente sospeso.' },
+        { status: 403 }
+      ),
+    };
+  }
+
   if (targetOrgId) {
-    const isOwnerOrStaff = profile?.organization_id === targetOrgId;
-    const isAdmin = profile?.role === 'admin';
+    const isOwnerOrStaff = profile.organization_id === targetOrgId;
+    const isAdmin = profile.role === 'admin';
 
     if (!isOwnerOrStaff && !isAdmin) {
       return {

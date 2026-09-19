@@ -31,15 +31,31 @@ export default function LoginPage() {
     }
 
     if (data.user) {
-      // Check user role from profile
+      // Check user role and status from profile
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, status')
         .eq('auth_user_id', data.user.id)
         .single();
 
+      if (profile?.status === 'deactivated') {
+        await supabase.auth.signOut();
+        setErrorMsg('Questo account collaboratore è stato disattivato dal responsabile.');
+        setLoading(false);
+        return;
+      }
+
+      if (profile?.status === 'suspended') {
+        await supabase.auth.signOut();
+        setErrorMsg('Questo account collaboratore è temporaneamente sospeso.');
+        setLoading(false);
+        return;
+      }
+
       if (profile?.role === 'admin') {
         router.push('/admin');
+      } else if (profile?.role === 'waiter') {
+        router.push('/dashboard/waiter');
       } else {
         router.push('/dashboard');
       }

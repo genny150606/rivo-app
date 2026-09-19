@@ -105,6 +105,22 @@ export async function POST(request: NextRequest) {
 
     const cleanTableLabel = sanitizeString(table_label, 50) || 'Tavolo';
 
+    // Staff Routing: Look up assigned waiter for this table/device if available
+    let assignedWaiterId: string | null = null;
+    if (device_id) {
+      const { data: activeAssignment } = await supabase
+        .from('table_assignments')
+        .select('waiter_id')
+        .eq('organization_id', organization_id)
+        .eq('device_id', device_id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (activeAssignment?.waiter_id) {
+        assignedWaiterId = activeAssignment.waiter_id;
+      }
+    }
+
     const { data, error } = await supabase
       .from('service_calls')
       .insert({
@@ -114,6 +130,7 @@ export async function POST(request: NextRequest) {
         table_label: cleanTableLabel,
         status: 'pending',
         order_details: order_details || null,
+        assigned_waiter_id: assignedWaiterId,
       })
       .select()
       .single();

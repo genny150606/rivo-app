@@ -124,6 +124,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [category, setCategory] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
@@ -142,6 +143,10 @@ export default function DashboardLayout({
           .select('organization_id, role')
           .eq('auth_user_id', user.id)
           .single();
+
+        if (profile?.role && isMounted) {
+          setUserRole(profile.role);
+        }
 
         let targetOrgId = profile?.organization_id;
         if (!targetOrgId && profile?.role === 'admin') {
@@ -175,23 +180,32 @@ export default function DashboardLayout({
     };
   }, []);
 
-  const navItems: NavItem[] = [
-    { label: 'Overview', href: '/dashboard', icon: BarChart3 },
-    { label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone },
-    ...(category === 'restaurant'
-      ? [{ label: 'Menù Canvas', href: '/dashboard/menu', icon: UtensilsCrossed, badge: 'Ristoranti' }]
-      : []),
-    { label: 'Analytics', href: '/dashboard/analytics', icon: Radio },
-    { label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing },
-    { label: 'Review Shield', href: '/dashboard/reviews', icon: Star },
-    { label: 'Ruota & Coupon', href: '/dashboard/coupons', icon: Gift },
-    { label: 'Fidelity Pass', href: '/dashboard/loyalty', icon: Award },
-    { label: 'Clienti & CRM', href: '/dashboard/leads', icon: Users },
-    { label: 'Devices', href: '/dashboard/devices', icon: Layers },
-    { label: 'Locations', href: '/dashboard/locations', icon: MapPin },
-    { label: 'Profile & Routing', href: '/dashboard/profile', icon: User },
-    { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-  ];
+  const isStaffRole = userRole === 'waiter';
+
+  const navItems: NavItem[] = isStaffRole
+    ? [
+        { label: 'Il Mio Turno', href: '/dashboard/waiter', icon: BellRing, badge: 'Live' },
+        { label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers },
+      ]
+    : [
+        { label: 'Overview', href: '/dashboard', icon: BarChart3 },
+        { label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers, badge: 'Staff' },
+        { label: 'Gestione Staff', href: '/dashboard/staff', icon: Users, badge: 'Team' },
+        { label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone },
+        ...(category === 'restaurant'
+          ? [{ label: 'Menù Canvas', href: '/dashboard/menu', icon: UtensilsCrossed, badge: 'Ristoranti' }]
+          : []),
+        { label: 'Analytics', href: '/dashboard/analytics', icon: Radio },
+        { label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing },
+        { label: 'Review Shield', href: '/dashboard/reviews', icon: Star },
+        { label: 'Ruota & Coupon', href: '/dashboard/coupons', icon: Gift },
+        { label: 'Fidelity Pass', href: '/dashboard/loyalty', icon: Award },
+        { label: 'Clienti & CRM', href: '/dashboard/leads', icon: Users },
+        { label: 'Devices', href: '/dashboard/devices', icon: Layers },
+        { label: 'Locations', href: '/dashboard/locations', icon: MapPin },
+        { label: 'Profile & Routing', href: '/dashboard/profile', icon: User },
+        { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+      ];
 
   // Prevent body/window scroll when mobile sidebar drawer is open
   useEffect(() => {

@@ -161,6 +161,22 @@ export async function POST(request: NextRequest) {
     const numSplit = Math.max(1, Math.min(50, Number(split_count) || 1));
     const splitQuota = numTotal > 0 ? Number((numTotal / numSplit).toFixed(2)) : null;
 
+    // Staff Routing: Look up assigned waiter for this table/device if available
+    let assignedWaiterId: string | null = null;
+    if (device_id && isValidUUID(device_id)) {
+      const { data: activeAssignment } = await supabase
+        .from('table_assignments')
+        .select('waiter_id')
+        .eq('organization_id', organization_id)
+        .eq('device_id', device_id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (activeAssignment?.waiter_id) {
+        assignedWaiterId = activeAssignment.waiter_id;
+      }
+    }
+
     // 3. Atomic Insert into bill_requests table
     const { data: billRequest, error: billErr } = await supabase
       .from('bill_requests')
@@ -177,6 +193,7 @@ export async function POST(request: NextRequest) {
         split_quota_amount: splitQuota,
         invoice_data: invoice_data || null,
         notes: notes ? sanitizeString(notes, 300) : null,
+        assigned_waiter_id: assignedWaiterId,
       })
       .select()
       .single();
@@ -218,6 +235,7 @@ export async function POST(request: NextRequest) {
           bill_request_id: billRequest.id,
           invoice: invoice_data || null,
         },
+        assigned_waiter_id: assignedWaiterId,
       })
       .select()
       .single();
