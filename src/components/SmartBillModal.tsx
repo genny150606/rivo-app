@@ -27,6 +27,7 @@ import {
   BillRequestInvoiceData 
 } from '@/lib/types/smart-bill';
 import { parseAdeQrCode } from '@/lib/invoice-helpers';
+import { enqueueOutboxItem } from '@/lib/offline-outbox';
 
 interface SmartBillModalProps {
   isOpen: boolean;
@@ -97,6 +98,7 @@ export default function SmartBillModal({
   // Lifecycle & Anti-Spam Rate Limit
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [isOfflineSuccess, setIsOfflineSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
 
@@ -248,30 +250,70 @@ export default function SmartBillModal({
     setSubmitting(true);
     safeHaptic(20);
 
+    const billPayload = {
+      organization_id: organizationId,
+      device_id: deviceId || null,
+      table_label: tableLabel || 'Tavolo',
+      payment_method_intent: computedIntent,
+      total_amount: numericTotal,
+      banknote_denomination: mainMethod === 'cash' && !isExactCash ? effectiveBanknote : null,
+      split_count: splitCount,
+      invoice_data: wantsInvoice ? {
+        companyName: invoiceData.companyName.trim(),
+        vatNumber: invoiceData.vatNumber.trim().toUpperCase(),
+        sdiCode: (invoiceData.sdiCode.trim() || '0000000').toUpperCase(),
+        pec: invoiceData.pec?.trim() || '',
+        address: invoiceData.address?.trim() || '',
+      } : null,
+    };
+
+    const handleSuccessState = (offline: boolean = false) => {
+      // Set 90 seconds anti-spam cooldown lock in sessionStorage
+      const expiresAt = Date.now() + 90 * 1000;
+      sessionStorage.setItem(`rivo_bill_cooldown_${organizationId}_${tableLabel}`, expiresAt.toString());
+      setCooldownRemaining(90);
+
+      safeHaptic([20, 50, 30]);
+      setIsOfflineSuccess(offline);
+      setIsSuccess(true);
+      if (onSuccess) {
+        onSuccess({ status: 'bill_requested', intent: computedIntent });
+      }
+
+      setTimeout(() => {
+        setIsSuccess(false);
+        setIsOfflineSuccess(false);
+        onClose();
+      }, 3500);
+    };
+
+    // Pre-flight check: if browser is currently offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        await enqueueOutboxItem({
+          type: 'bill',
+          url: '/api/bill-request',
+          body: billPayload,
+        });
+        handleSuccessState(true);
+      } catch (enqueueErr) {
+        console.warn('Failed to enqueue bill offline:', enqueueErr);
+        setErrorMsg('Errore nel salvataggio offline della richiesta.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     try {
       // Direct submission to the atomic bill request API
       const res = await fetch('/api/bill-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organization_id: organizationId,
-          device_id: deviceId || null,
-          table_label: tableLabel || 'Tavolo',
-          payment_method_intent: computedIntent,
-          total_amount: numericTotal,
-          banknote_denomination: mainMethod === 'cash' && !isExactCash ? effectiveBanknote : null,
-          split_count: splitCount,
-          invoice_data: wantsInvoice ? {
-            companyName: invoiceData.companyName.trim(),
-            vatNumber: invoiceData.vatNumber.trim().toUpperCase(),
-            sdiCode: (invoiceData.sdiCode.trim() || '0000000').toUpperCase(),
-            pec: invoiceData.pec?.trim() || '',
-            address: invoiceData.address?.trim() || '',
-          } : null,
-        }),
+        body: JSON.stringify(billPayload),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         // Concurrency lock conflict: another guest already requested the bill
@@ -281,22 +323,27 @@ export default function SmartBillModal({
         throw new Error(data.error || 'Impossibile inviare la richiesta del conto.');
       }
 
-      // Set 90 seconds anti-spam cooldown lock in sessionStorage
-      const expiresAt = Date.now() + 90 * 1000;
-      sessionStorage.setItem(`rivo_bill_cooldown_${organizationId}_${tableLabel}`, expiresAt.toString());
-      setCooldownRemaining(90);
+      handleSuccessState(false);
+    } catch (err: unknown) {
+      const isNetworkError =
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        (err instanceof TypeError) ||
+        (err instanceof Error && /network|fetch|failed to fetch/i.test(err.message));
 
-      safeHaptic([20, 50, 30]);
-      setIsSuccess(true);
-      if (onSuccess) {
-        onSuccess({ status: 'bill_requested', intent: computedIntent });
+      if (isNetworkError) {
+        try {
+          await enqueueOutboxItem({
+            type: 'bill',
+            url: '/api/bill-request',
+            body: billPayload,
+          });
+          handleSuccessState(true);
+          return;
+        } catch (enqueueErr) {
+          console.warn('Failed to enqueue bill on network error:', enqueueErr);
+        }
       }
 
-      setTimeout(() => {
-        setIsSuccess(false);
-        onClose();
-      }, 3500);
-    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Errore di connessione.';
       setErrorMsg(msg);
       safeHaptic([40, 80]);
@@ -326,16 +373,13 @@ export default function SmartBillModal({
                 </span>
               </h2>
               <p className="text-xs text-zinc-400">
-                Pre-seleziona POS o Resto per velocizzare la cassa
+                Invia allo staff il metodo di pagamento e i dettagli fattura
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => {
-              safeHaptic(10);
-              onClose();
-            }}
+            onClick={onClose}
             className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
@@ -345,13 +389,15 @@ export default function SmartBillModal({
         {/* Success Screen */}
         {isSuccess ? (
           <div className="py-8 text-center space-y-4 relative z-10 animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
-              <CheckCircle2 className="w-9 h-9 animate-bounce" />
+            <div className={`w-16 h-16 rounded-full ${isOfflineSuccess ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'} flex items-center justify-center mx-auto border`}>
+              {isOfflineSuccess ? <Wifi className="w-9 h-9 animate-pulse" /> : <CheckCircle2 className="w-9 h-9 animate-bounce" />}
             </div>
             <div className="space-y-1.5">
-              <h3 className="text-lg font-bold text-white">Cameriere Allertato al Tavolo!</h3>
+              <h3 className="text-lg font-bold text-white">
+                {isOfflineSuccess ? 'Richiesta conto registrata offline!' : 'Cameriere Allertato al Tavolo!'}
+              </h3>
               <p className="text-xs text-zinc-300 max-w-xs mx-auto">
-                Lo staff sa già come intendi pagare:
+                {isOfflineSuccess ? 'Sarà recapitata alla cassa appena torna la connessione.' : 'Lo staff sa già come intendi pagare:'}
               </p>
               <div className="inline-block px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-semibold text-[#BFFF00]">
                 {mainMethod === 'pos' 
@@ -361,7 +407,9 @@ export default function SmartBillModal({
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 border border-zinc-800 text-xs text-zinc-400">
               <ShieldCheck className="w-3.5 h-3.5 text-[#BFFF00]" />
-              <span>Nessuna attesa in fila: il servizio arriva direttamente qui</span>
+              <span>
+                {isOfflineSuccess ? 'Nessuna preoccupazione: la richiesta è salvata in locale e verrà recapitata non appena torna linea' : 'Nessuna attesa in fila: il servizio arriva direttamente qui'}
+              </span>
             </div>
           </div>
         ) : (

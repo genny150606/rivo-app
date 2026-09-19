@@ -55,7 +55,9 @@ import {
   ShieldAlert,
   Wand2,
   Loader2,
+  QrCode,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 
 import {
   CanvaMenuConfig,
@@ -94,7 +96,14 @@ import {
   HubModuleConfig,
   getBorderRadiusClass,
   getBorderRadiusStyle,
+  generateWifiQrPayload,
 } from '@/lib/hub-config';
+import {
+  cacheLocalHubData,
+  getLocalHubData,
+  enqueueOutboxItem,
+  initOfflineSyncListeners,
+} from '@/lib/offline-outbox';
 import {
   hapticTap,
   hapticSelection,
@@ -335,6 +344,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [activeCustomModal, setActiveCustomModal] = useState<{ title: string; content: string } | null>(null);
   const [sharedNotification, setSharedNotification] = useState(false);
 
+  // Offline & Wi-Fi Bridge State
+  const [wifiConnected, setWifiConnected] = useState(false);
+  const [wifiQrModalOpen, setWifiQrModalOpen] = useState(false);
+  const [wifiQrDataUrl, setWifiQrDataUrl] = useState<string | null>(null);
+  const [wifiPasswordCopied, setWifiPasswordCopied] = useState(false);
+
+  // Initialize offline sync listeners for resilient queue draining
+  useEffect(() => {
+    const cleanup = initOfflineSyncListeners();
+    return cleanup;
+  }, []);
+
   // Language Selector & Multi-Language Translation
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>('it');
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -385,6 +406,28 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
       hapticNfcPulse();
 
+      let hasLoadedFromCache = false;
+
+      // 0ms First-Hydration from local IndexedDB Cache
+      try {
+        const cached = await getLocalHubData(code);
+        if (cached && !isCancelled) {
+          if (cached.device) setDevice(cached.device);
+          if (cached.org) setOrg(cached.org);
+          if (cached.hubConfig) setHubConfig(cached.hubConfig);
+          hasLoadedFromCache = true;
+
+          // If browser is offline, finish loading immediately
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setLoading(false);
+            setNfcPhase('ready');
+            return;
+          }
+        }
+      } catch (cacheErr) {
+        console.warn('[Offline] Cache load error:', cacheErr);
+      }
+
       try {
         // 1. Fetch active device
         const { data: dev, error: devErr } = await supabase
@@ -396,8 +439,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
         if (devErr || !dev) {
           if (!isCancelled) {
-            setNotFound(true);
-            setLoading(false);
+            if (!hasLoadedFromCache) {
+              setNotFound(true);
+              setLoading(false);
+            } else {
+              setLoading(false);
+              setNfcPhase('ready');
+            }
           }
           return;
         }
@@ -439,10 +487,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
           if (!orgErr && orgData && !isCancelled) {
             const currentCategory = (orgData.category || 'restaurant') as BusinessCategory;
-            setOrg({
+            const fullOrgData = {
               ...orgData,
               category: currentCategory,
-            });
+            };
+            setOrg(fullOrgData);
 
             // Initialize/Merge HubConfig with absolute backwards compatibility
             const merged = mergeHubConfig(
@@ -456,6 +505,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               }
             );
             setHubConfig(merged);
+
+            // Cache data locally for offline 0ms subsequent visits
+            await cacheLocalHubData(code, {
+              device: dev,
+              org: fullOrgData,
+              hubConfig: merged,
+            });
 
             // Check if lunch hours apply
             if (orgData.smart_routing_enabled && orgData.lunch_destination_url) {
@@ -499,8 +555,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       } catch (err) {
         console.error('Hub load error:', err);
         if (!isCancelled) {
-          setNotFound(true);
-          setLoading(false);
+          if (!hasLoadedFromCache) {
+            setNotFound(true);
+            setLoading(false);
+          } else {
+            setLoading(false);
+            setNfcPhase('ready');
+          }
         }
       }
     }
@@ -543,21 +604,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     if (!org) return;
     setInDiningSending(true);
     hapticTap();
-    try {
-      await fetch('/api/service', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organization_id: org.id,
-          device_id: device?.id || null,
-          type: 'negative_review_alert',
-          table_label: device?.name || `Tavolo ${code}`,
-          order_details: {
-            rating: selectedRating,
-            notes: inDiningFeedbackText.trim() || 'Valutazione bassa prima del pagamento',
-          },
-        }),
-      });
+
+    const payload = {
+      organization_id: org.id,
+      device_id: device?.id || null,
+      type: 'negative_review_alert',
+      table_label: device?.name || `Tavolo ${code}`,
+      order_details: {
+        rating: selectedRating,
+        notes: inDiningFeedbackText.trim() || 'Valutazione bassa prima del pagamento',
+      },
+    };
+
+    const handleSuccessState = () => {
       hapticSuccess();
       setInDiningSuccess(true);
       setTimeout(() => {
@@ -565,11 +624,104 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         setInDiningSuccess(false);
         setInDiningFeedbackText('');
       }, 3000);
-    } catch (err) {
+    };
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        await enqueueOutboxItem({
+          type: 'call',
+          url: '/api/service',
+          body: payload,
+        });
+        handleSuccessState();
+      } catch (err) {
+        console.warn('Failed to enqueue review alert offline:', err);
+      } finally {
+        setInDiningSending(false);
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to send in-dining review alert');
+      }
+      handleSuccessState();
+    } catch (err: unknown) {
+      const isNetworkError =
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        (err instanceof TypeError) ||
+        (err instanceof Error && /network|fetch|failed to fetch/i.test(err.message));
+
+      if (isNetworkError) {
+        try {
+          await enqueueOutboxItem({
+            type: 'call',
+            url: '/api/service',
+            body: payload,
+          });
+          handleSuccessState();
+          return;
+        } catch (enqueueErr) {
+          console.warn('Failed to enqueue review alert on network error:', enqueueErr);
+        }
+      }
       console.error('Failed to send in-dining review alert:', err);
     } finally {
       setInDiningSending(false);
     }
+  };
+
+  const handleConnectWifi = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!activeConfig.wifiBridge?.ssid) return;
+
+    hapticSuccess();
+    setWifiConnected(true);
+    setTimeout(() => setWifiConnected(false), 3000);
+
+    const wifiPayload = generateWifiQrPayload({
+      ssid: activeConfig.wifiBridge.ssid,
+      password: activeConfig.wifiBridge.password,
+      securityType: activeConfig.wifiBridge.securityType,
+    });
+
+    if (activeConfig.wifiBridge.password && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(activeConfig.wifiBridge.password);
+        setWifiPasswordCopied(true);
+        setTimeout(() => setWifiPasswordCopied(false), 3000);
+      } catch {}
+    }
+
+    try {
+      window.location.href = wifiPayload;
+    } catch (err) {
+      console.warn('WIFI protocol navigation error:', err);
+    }
+  };
+
+  const handleOpenWifiQrModal = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    hapticTap();
+    if (!activeConfig.wifiBridge?.ssid) return;
+    const wifiPayload = generateWifiQrPayload({
+      ssid: activeConfig.wifiBridge.ssid,
+      password: activeConfig.wifiBridge.password,
+      securityType: activeConfig.wifiBridge.securityType,
+    });
+    try {
+      const url = await QRCode.toDataURL(wifiPayload, { width: 300, margin: 1 });
+      setWifiQrDataUrl(url);
+    } catch (err) {
+      console.warn('QR code generation error:', err);
+    }
+    setWifiQrModalOpen(true);
   };
 
   const handleOpenWinePairing = async (dish: CanvaDish) => {
@@ -835,31 +987,54 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     hapticSuccess();
     hapticNfcPulse();
 
-    try {
-      const payloadItems = cartItems.map((item) => ({
-        id: item.dish.id,
-        name: item.dish.name,
-        quantity: item.quantity,
-        price: item.dish.price,
-      }));
+    const payloadItems = cartItems.map((item) => ({
+      id: item.dish.id,
+      name: item.dish.name,
+      quantity: item.quantity,
+      price: item.dish.price,
+    }));
 
+    const payload = {
+      organization_id: org.id,
+      device_id: device?.id || null,
+      type: 'dish_order',
+      table_label: device?.name || 'Tavolo',
+      order_details: {
+        items: payloadItems,
+        total: formattedTotal,
+        notes: orderNotes.trim() || undefined,
+      },
+    };
+
+    // Pre-flight check: if browser is currently offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        await enqueueOutboxItem({
+          type: 'order',
+          url: '/api/service',
+          body: payload,
+        });
+        setOrderSuccessMessage('Ordine registrato offline! Verrà inviato alla cassa non appena si riaggancia la linea.');
+        setTableCart({});
+        setOrderNotes('');
+        hapticSuccess();
+      } catch (enqueueErr) {
+        console.warn('Failed to enqueue order offline:', enqueueErr);
+        setOrderErrorMessage('Errore nel salvataggio offline dell’ordine.');
+      } finally {
+        setOrderSending(false);
+      }
+      return;
+    }
+
+    try {
       const res = await fetch('/api/service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organization_id: org.id,
-          device_id: device?.id || null,
-          type: 'dish_order',
-          table_label: device?.name || 'Tavolo',
-          order_details: {
-            items: payloadItems,
-            total: formattedTotal,
-            notes: orderNotes.trim() || undefined,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
         throw new Error(json.error || 'Errore durante l’invio dell’ordine');
       }
@@ -877,6 +1052,28 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         });
       } catch {}
     } catch (err: any) {
+      const isNetworkError =
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        (err instanceof TypeError) ||
+        (typeof err?.message === 'string' && /network|fetch|failed to fetch/i.test(err.message));
+
+      if (isNetworkError) {
+        try {
+          await enqueueOutboxItem({
+            type: 'order',
+            url: '/api/service',
+            body: payload,
+          });
+          setOrderSuccessMessage('Ordine registrato offline! Verrà inviato alla cassa non appena si riaggancia la linea.');
+          setTableCart({});
+          setOrderNotes('');
+          hapticSuccess();
+          return;
+        } catch (enqueueErr) {
+          console.warn('Failed to enqueue order on network error:', enqueueErr);
+        }
+      }
+
       hapticWarning();
       setOrderErrorMessage(err?.message || 'Impossibile inviare la comanda. Riprova o chiama il cameriere.');
     } finally {
@@ -1442,6 +1639,86 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <span>{activeConfig.tableLiveTag || 'NFC LIVE'}</span>
           </div>
         </button>
+
+        {/* ========================================================================= */}
+        {/* PONTE WI-FI OSPITI (OPZIONE D - Solo ed esclusivamente se abilitato con SSID) */}
+        {/* ========================================================================= */}
+        {activeConfig.wifiBridge?.enabled && Boolean(activeConfig.wifiBridge.ssid?.trim()) && (
+          <div
+            onClick={handleConnectWifi}
+            className={`w-full p-2.5 mb-2.5 relative z-10 border transition-all cursor-pointer touch-press active:scale-[0.98] ${cardBaseClass} ${
+              nfcPhase === 'assembling' ? 'animate-assemble-badge' : 'animate-nfc-stagger-2'
+            } ${getBorderRadiusClass(activeConfig.borderRadius)}`}
+            style={{
+              boxShadow: `0 4px 16px ${primaryColor}20`,
+              ...cardCustomStyle,
+              ...getBorderRadiusStyle(activeConfig.borderRadius),
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`w-7 h-7 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center shrink-0 ${
+                    isLight ? 'bg-sky-50 text-sky-600' : 'bg-sky-500/15 text-sky-400'
+                  }`}
+                  style={getBorderRadiusStyle(activeConfig.borderRadius)}
+                >
+                  <Wifi className="w-3.5 h-3.5 animate-pulse" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-bold truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      Wi-Fi: {activeConfig.wifiBridge.ssid}
+                    </span>
+                    <span className="text-[7.5px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 shrink-0">
+                      1-Tap
+                    </span>
+                  </div>
+                  <span className={`text-[8.5px] block truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                    {activeConfig.wifiBridge.welcomeNotice || 'Connessione rapida al Wi-Fi del locale'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenWifiQrModal}
+                  className={`p-1.5 rounded-lg border transition-all ${
+                    isLight
+                      ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                      : 'border-white/10 text-zinc-300 hover:bg-white/10'
+                  }`}
+                  title="Mostra QR Code o Password"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConnectWifi}
+                  className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1 shadow-sm transition-transform active:scale-95 cursor-pointer"
+                  style={{
+                    backgroundColor: wifiConnected ? '#10b981' : primaryColor,
+                    color: wifiConnected ? '#ffffff' : contrastText,
+                  }}
+                >
+                  {wifiConnected ? (
+                    <>
+                      <Check className="w-2.5 h-2.5" />
+                      <span>Connesso!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Wifi className="w-2.5 h-2.5" />
+                      <span>Connetti</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* CARD HERO (Se abilitata) */}
@@ -3622,6 +3899,95 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* WI-FI BRIDGE MODAL (QR CODE & DETAILS) */}
+      {/* ========================================================================= */}
+      {wifiQrModalOpen && activeConfig.wifiBridge?.ssid && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div
+            className={`w-full max-w-sm border p-6 shadow-2xl relative space-y-4 ${
+              isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#121214] border-zinc-800 text-white'
+            } ${getBorderRadiusClass(activeConfig.borderRadius)}`}
+            style={getBorderRadiusStyle(activeConfig.borderRadius)}
+          >
+            <button
+              type="button"
+              onClick={() => setWifiQrModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center space-y-1">
+              <div
+                className={`w-12 h-12 mx-auto rounded-2xl flex items-center justify-center ${
+                  isLight ? 'bg-sky-50 text-sky-600' : 'bg-sky-500/20 text-sky-400'
+                }`}
+              >
+                <Wifi className="w-6 h-6 animate-pulse" />
+              </div>
+              <h3 className="text-base font-bold">Wi-Fi Ospiti</h3>
+              <p className="text-xs text-zinc-400">
+                {activeConfig.wifiBridge.welcomeNotice || 'Inquadra il QR con la fotocamera per connetterti'}
+              </p>
+            </div>
+
+            {wifiQrDataUrl && (
+              <div className="p-3 bg-white rounded-2xl flex justify-center max-w-[220px] mx-auto shadow-inner">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={wifiQrDataUrl} alt="QR Wi-Fi" className="w-48 h-48 rounded-lg" />
+              </div>
+            )}
+
+            <div
+              className={`p-3 rounded-xl border text-xs space-y-1 ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900 border-zinc-800'
+              }`}
+            >
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Rete:</span>
+                <span className="font-bold">{activeConfig.wifiBridge.ssid}</span>
+              </div>
+              {activeConfig.wifiBridge.password && (
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-400">Password:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-bold">{activeConfig.wifiBridge.password}</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(activeConfig.wifiBridge!.password!);
+                          setWifiPasswordCopied(true);
+                          hapticSuccess();
+                          setTimeout(() => setWifiPasswordCopied(false), 2000);
+                        } catch {}
+                      }}
+                      className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-300 hover:text-white"
+                    >
+                      {wifiPasswordCopied ? 'Copiata!' : 'Copia'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleConnectWifi}
+              className="w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer"
+              style={{
+                backgroundColor: primaryColor,
+                color: contrastText,
+              }}
+            >
+              <Wifi className="w-4 h-4" />
+              <span>{wifiConnected ? 'Connesso!' : 'Connetti Subito'}</span>
+            </button>
           </div>
         </div>
       )}

@@ -83,6 +83,8 @@ import {
   resetToDefaultHubConfig,
   HubConfig,
   HubModuleConfig,
+  WifiBridgeConfig,
+  generateWifiQrPayload,
   HubFontFamily,
   HubThemeMode,
   HubCardStyle,
@@ -247,6 +249,7 @@ export default function CustomHubStudioPage() {
   // Active Tab & View Mode
   const [activeTab, setActiveTab] = useState<StudioTab>('theme');
   const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
+  const [simulatedWifiConnected, setSimulatedWifiConnected] = useState(false);
 
   // Glass Shimmer Animation for Simulator Mockup
   const [isShimmering, setIsShimmering] = useState(false);
@@ -465,8 +468,10 @@ export default function CustomHubStudioPage() {
           setHubConfig(merged);
 
           // Services
-          setWifiSsid(org.wifi_ssid || '');
-          setWifiPassword(org.wifi_password || '');
+          const loadedWifiSsid = merged.wifiBridge?.ssid || org.wifi_ssid || '';
+          const loadedWifiPassword = merged.wifiBridge?.password || org.wifi_password || '';
+          setWifiSsid(loadedWifiSsid);
+          setWifiPassword(loadedWifiPassword);
           setAiMenuContext(org.ai_menu_context || '');
           setLoyaltyRewardText(org.loyalty_reward_text || '10% di sconto al 10° timbro');
 
@@ -576,6 +581,13 @@ export default function CustomHubStudioPage() {
           badge: (m.badge || '').trim(),
           customUrl: (m.customUrl || '').trim(),
         })),
+        wifiBridge: {
+          enabled: Boolean(hubConfig.wifiBridge?.enabled),
+          ssid: (hubConfig.wifiBridge?.ssid || wifiSsid || '').trim(),
+          password: (hubConfig.wifiBridge?.password || wifiPassword || '').trim(),
+          securityType: hubConfig.wifiBridge?.securityType || 'WPA',
+          welcomeNotice: (hubConfig.wifiBridge?.welcomeNotice || '').trim(),
+        },
       };
 
       const { error } = await supabase
@@ -592,8 +604,8 @@ export default function CustomHubStudioPage() {
             currentHubConfig.hero.destinationType === 'external'
               ? (currentHubConfig.hero.externalUrl || '').trim() || null
               : null,
-          wifi_ssid: (wifiSsid || '').trim() || null,
-          wifi_password: (wifiPassword || '').trim() || null,
+          wifi_ssid: (currentHubConfig.wifiBridge?.ssid || wifiSsid || '').trim() || null,
+          wifi_password: (currentHubConfig.wifiBridge?.password || wifiPassword || '').trim() || null,
           ai_menu_context: (aiMenuContext || '').trim() || null,
           loyalty_reward_text: (loyaltyRewardText || '').trim() || null,
           telegram_alerts_enabled: Boolean(telegramAlertsEnabled),
@@ -2333,34 +2345,170 @@ export default function CustomHubStudioPage() {
                 </div>
               </div>
 
-              {/* Wi-Fi Settings */}
-              <div className="p-4 rounded-2xl bg-[#181b19] border border-white/5 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-white">
-                  <Wifi className="w-4 h-4 text-sky-400" />
-                  <span>Wi-Fi Ospiti (Connessione 1-Tap)</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] text-zinc-400 mb-1">Nome Rete Wi-Fi (SSID)</label>
-                    <input
-                      type="text"
-                      value={wifiSsid}
-                      onChange={(e) => setWifiSsid(e.target.value)}
-                      placeholder="es. BarCentrale_Guest"
-                      className="w-full min-h-[40px] bg-[#121214] border border-white/10 rounded-xl px-3 text-xs text-white focus:outline-none focus:border-white"
-                    />
+              {/* Ponte Wi-Fi Ospiti (Opzionale) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#181b19] border border-white/5 space-y-4">
+                <div className="flex items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center shrink-0 text-sky-400 shadow-sm">
+                      <Wifi className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-white tracking-tight">Ponte Wi-Fi Ospiti (Opzionale)</span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                          Opzione D
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        Offri ai clienti la connessione istantanea al Wi-Fi del locale per azzerare i problemi di segnale 4G/5G debole al tavolo.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-zinc-400 mb-1">Password Wi-Fi</label>
-                    <input
-                      type="text"
-                      value={wifiPassword}
-                      onChange={(e) => setWifiPassword(e.target.value)}
-                      placeholder="es. estate2026"
-                      className="w-full min-h-[40px] bg-[#121214] border border-white/10 rounded-xl px-3 text-xs text-white font-mono focus:outline-none focus:border-white"
-                    />
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="text-xs font-semibold text-zinc-300 hidden sm:inline">
+                      Abilita Ponte Wi-Fi
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        hapticSelection();
+                        setHubConfig((prev) => {
+                          const currentBridge = prev.wifiBridge || { enabled: false, securityType: 'WPA' };
+                          const nextEnabled = !currentBridge.enabled;
+                          return {
+                            ...prev,
+                            wifiBridge: {
+                              ...currentBridge,
+                              enabled: nextEnabled,
+                              ssid: currentBridge.ssid ?? wifiSsid,
+                              password: currentBridge.password ?? wifiPassword,
+                              securityType: currentBridge.securityType || 'WPA',
+                            },
+                          };
+                        });
+                      }}
+                      className={`w-12 h-7 rounded-full p-1 transition-colors touch-press ${
+                        hubConfig.wifiBridge?.enabled ? 'bg-sky-500' : 'bg-zinc-800'
+                      }`}
+                      aria-label="Abilita Ponte Wi-Fi"
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                          hubConfig.wifiBridge?.enabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
+
+                {/* When enabled, show fields */}
+                {hubConfig.wifiBridge?.enabled && (
+                  <div className="space-y-4 pt-3 border-t border-white/5 animate-fade-in">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-[11px] font-medium text-zinc-300 mb-1.5">
+                          Nome Rete (SSID) <span className="text-sky-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={hubConfig.wifiBridge?.ssid ?? wifiSsid}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setWifiSsid(val);
+                            setHubConfig((prev) => ({
+                              ...prev,
+                              wifiBridge: {
+                                ...(prev.wifiBridge || { enabled: true, securityType: 'WPA' }),
+                                ssid: val,
+                              },
+                            }));
+                          }}
+                          placeholder="es. BarCentrale_Guest"
+                          className="w-full min-h-[42px] bg-[#121214] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-zinc-300 mb-1.5">
+                          Password Wi-Fi {hubConfig.wifiBridge?.securityType === 'nopass' ? '(Rete Aperta)' : ''}
+                        </label>
+                        <input
+                          type="text"
+                          disabled={hubConfig.wifiBridge?.securityType === 'nopass'}
+                          value={hubConfig.wifiBridge?.securityType === 'nopass' ? '' : (hubConfig.wifiBridge?.password ?? wifiPassword)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setWifiPassword(val);
+                            setHubConfig((prev) => ({
+                              ...prev,
+                              wifiBridge: {
+                                ...(prev.wifiBridge || { enabled: true, securityType: 'WPA' }),
+                                password: val,
+                              },
+                            }));
+                          }}
+                          placeholder={hubConfig.wifiBridge?.securityType === 'nopass' ? 'Nessuna password richiesta' : 'es. estate2026'}
+                          className="w-full min-h-[42px] bg-[#121214] border border-white/10 rounded-xl px-3.5 text-xs text-white font-mono focus:outline-none focus:border-sky-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-[11px] font-medium text-zinc-300 mb-1.5">
+                          Tipo di sicurezza
+                        </label>
+                        <select
+                          value={hubConfig.wifiBridge?.securityType || 'WPA'}
+                          onChange={(e) => {
+                            const val = e.target.value as 'WPA' | 'WEP' | 'nopass';
+                            setHubConfig((prev) => ({
+                              ...prev,
+                              wifiBridge: {
+                                ...(prev.wifiBridge || { enabled: true }),
+                                securityType: val,
+                              },
+                            }));
+                          }}
+                          className="w-full min-h-[42px] bg-[#121214] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-sky-400 transition-colors cursor-pointer"
+                        >
+                          <option value="WPA">WPA / WPA2 / WPA3 (Standard consigliato)</option>
+                          <option value="WEP">WEP</option>
+                          <option value="nopass">Aperta / Nessuna password</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-zinc-300 mb-1.5">
+                          Messaggio di cortesia <span className="text-zinc-500 font-normal">(opzionale)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={hubConfig.wifiBridge?.welcomeNotice || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setHubConfig((prev) => ({
+                              ...prev,
+                              wifiBridge: {
+                                ...(prev.wifiBridge || { enabled: true, securityType: 'WPA' }),
+                                welcomeNotice: val,
+                              },
+                            }));
+                          }}
+                          placeholder="es. Buona permanenza da tutto lo staff!"
+                          className="w-full min-h-[42px] bg-[#121214] border border-white/10 rounded-xl px-3.5 text-xs text-white focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-300 text-xs flex items-start gap-2.5">
+                      <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+                      <span>
+                        Quando abilitato, gli ospiti vedranno la card del Wi-Fi in evidenza nell&apos;Hub e potranno connettersi istantaneamente al tavolo con 1 tap senza inserire la password.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* AI Assistant Context */}
@@ -2752,6 +2900,77 @@ export default function CustomHubStudioPage() {
                 <span>{hubConfig.tableLiveTag || 'NFC LIVE'}</span>
               </div>
             </div>
+
+            {/* Wi-Fi Bridge Live Simulator Card (Strictly only when enabled and ssid present) */}
+            {hubConfig.wifiBridge?.enabled && Boolean(hubConfig.wifiBridge.ssid?.trim()) && (
+              <div
+                onClick={() => {
+                  hapticTap();
+                  setSimulatedWifiConnected(true);
+                  setTimeout(() => setSimulatedWifiConnected(false), 2800);
+                }}
+                className={`w-full p-2.5 mb-2.5 relative z-10 border transition-all cursor-pointer touch-press active:scale-[0.98] ${getCardStyleClass()} ${
+                  mockupNfcPhase === 'assembling' ? 'animate-assemble-badge' : ''
+                } ${getBorderRadiusClass(hubConfig.borderRadius)}`}
+                style={{
+                  boxShadow: `0 4px 16px ${hubConfig.primaryColor}20`,
+                  ...getBorderRadiusStyle(hubConfig.borderRadius),
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} flex items-center justify-center shrink-0 ${
+                        isLight ? 'bg-sky-50 text-sky-600' : 'bg-sky-500/15 text-sky-400'
+                      }`}
+                      style={getBorderRadiusStyle(hubConfig.borderRadius)}
+                    >
+                      <Wifi className="w-3.5 h-3.5 animate-pulse" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-bold truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          Wi-Fi: {hubConfig.wifiBridge.ssid}
+                        </span>
+                        <span className="text-[7.5px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 shrink-0">
+                          1-Tap
+                        </span>
+                      </div>
+                      <span className={`text-[8.5px] block truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                        {hubConfig.wifiBridge.welcomeNotice || 'Connessione rapida al Wi-Fi del locale'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      hapticSuccess();
+                      setSimulatedWifiConnected(true);
+                      setTimeout(() => setSimulatedWifiConnected(false), 2800);
+                    }}
+                    className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1 shadow-sm transition-transform active:scale-95 cursor-pointer"
+                    style={{
+                      backgroundColor: simulatedWifiConnected ? '#10b981' : hubConfig.primaryColor,
+                      color: simulatedWifiConnected ? '#ffffff' : contrastText,
+                    }}
+                  >
+                    {simulatedWifiConnected ? (
+                      <>
+                        <Check className="w-2.5 h-2.5" />
+                        <span>Connesso!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wifi className="w-2.5 h-2.5" />
+                        <span>Connetti</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Dynamic Grid of Cards inside Mockup: Hero + Reordered Modules */}
             <div className="grid grid-cols-2 gap-2.5 relative z-10 mb-3 flex-1 content-start">

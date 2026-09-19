@@ -14,9 +14,16 @@ import {
   ChevronRight,
   Receipt,
   Users,
+  Wifi,
 } from 'lucide-react';
 import Link from 'next/link';
 import SmartBillModal from '@/components/SmartBillModal';
+import { 
+  cacheLocalHubData, 
+  getLocalHubData, 
+  enqueueOutboxItem, 
+  initOfflineSyncListeners 
+} from '@/lib/offline-outbox';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -43,40 +50,84 @@ export default function CallServicePage({ params }: CallPageProps) {
   } | null>(null);
 
   const [activeRequest, setActiveRequest] = useState<string | null>(null);
+  const [isOfflineRequest, setIsOfflineRequest] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittingType, setSubmittingType] = useState<string | null>(null);
   const [requestedTime, setRequestedTime] = useState<Date | null>(null);
   const [showBillModal, setShowBillModal] = useState<boolean>(false);
 
+  // Initialize offline sync listeners for auto-drain
   useEffect(() => {
+    const cleanup = initOfflineSyncListeners();
+    return cleanup;
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
     async function loadData() {
       if (!code) {
         setLoading(false);
         return;
       }
 
-      const { data: dev } = await supabase
-        .from('devices')
-        .select('id, name, organization_id, destination_url, status')
-        .eq('unique_code', code)
-        .single();
-
-      if (dev) {
-        setDevice(dev);
-        if (dev.organization_id) {
-          const { data: orgData } = await supabase
-            .from('organizations')
-            .select('name, logo_url')
-            .eq('id', dev.organization_id)
-            .single();
-          if (orgData) setOrg(orgData);
+      // Check IndexedDB local cache for 0ms initial render
+      try {
+        const cached = await getLocalHubData(code);
+        if (cached && !isCancelled) {
+          if (cached.device) setDevice(cached.device);
+          if (cached.org) setOrg(cached.org);
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setLoading(false);
+            return;
+          }
         }
+      } catch (cacheErr) {
+        console.warn('[Offline] Cache load in call page:', cacheErr);
       }
 
-      setLoading(false);
+      try {
+        const { data: dev } = await supabase
+          .from('devices')
+          .select('id, name, organization_id, destination_url, status')
+          .eq('unique_code', code)
+          .single();
+
+        if (dev && !isCancelled) {
+          setDevice(dev);
+          let fetchedOrg: { name: string; logo_url: string | null } | null = null;
+          if (dev.organization_id) {
+            const { data: orgData } = await supabase
+              .from('organizations')
+              .select('name, logo_url')
+              .eq('id', dev.organization_id)
+              .single();
+            if (orgData && !isCancelled) {
+              fetchedOrg = orgData;
+              setOrg(orgData);
+            }
+          }
+
+          // Cache locally for instant next renders
+          await cacheLocalHubData(code, {
+            device: dev,
+            org: fetchedOrg,
+          });
+        }
+      } catch (err) {
+        console.warn('Network load in call error:', err);
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
     }
 
     loadData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [code]);
 
   const handleCall = async (type: 'waiter' | 'bill_pos' | 'bill_cash') => {
@@ -84,24 +135,69 @@ export default function CallServicePage({ params }: CallPageProps) {
     setSubmitting(true);
     setSubmittingType(type);
 
+    const callPayload = {
+      organization_id: device.organization_id,
+      device_id: device.id,
+      type,
+      table_label: device.name || `Tavolo (${code})`,
+    };
+
+    // If offline before fetch
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        await enqueueOutboxItem({
+          type: 'call',
+          url: '/api/service',
+          body: callPayload,
+        });
+        setIsOfflineRequest(true);
+        setActiveRequest(type);
+        setRequestedTime(new Date());
+      } catch (enqueueErr) {
+        console.warn('Failed to enqueue call offline:', enqueueErr);
+      } finally {
+        setSubmitting(false);
+        setSubmittingType(null);
+      }
+      return;
+    }
+
     try {
       const res = await fetch('/api/service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organization_id: device.organization_id,
-          device_id: device.id,
-          type,
-          table_label: device.name || `Tavolo (${code})`,
-        }),
+        body: JSON.stringify(callPayload),
       });
 
       if (res.ok) {
+        setIsOfflineRequest(false);
         setActiveRequest(type);
         setRequestedTime(new Date());
+      } else {
+        throw new Error('Service response not ok');
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Call error:', e);
+      const isNetworkError =
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        (e instanceof TypeError) ||
+        (e instanceof Error && /network|fetch|failed to fetch/i.test(e.message));
+
+      if (isNetworkError) {
+        try {
+          await enqueueOutboxItem({
+            type: 'call',
+            url: '/api/service',
+            body: callPayload,
+          });
+          // Reassure the guest with active confirmation
+          setIsOfflineRequest(true);
+          setActiveRequest(type);
+          setRequestedTime(new Date());
+        } catch (enqueueErr) {
+          console.warn('Failed to enqueue call on network error:', enqueueErr);
+        }
+      }
     } finally {
       setSubmitting(false);
       setSubmittingType(null);
@@ -197,14 +293,16 @@ export default function CallServicePage({ params }: CallPageProps) {
               </div>
             </div>
 
-            {/* Badge di stato pulsante ("Segnale ricevuto dallo staff • In arrivo") con dot animate-ping */}
+            {/* Badge di stato pulsante ("Segnale ricevuto dallo staff • In arrivo" o fallback offline) */}
             <div className="flex justify-center">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs shadow-inner">
+              <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs shadow-inner ${isOfflineRequest ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'}`}>
                 <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isOfflineRequest ? 'bg-amber-400' : 'bg-emerald-400'} opacity-75`}></span>
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isOfflineRequest ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                 </span>
-                <span className="font-semibold tracking-tight">Segnale ricevuto dallo staff • In arrivo</span>
+                <span className="font-semibold tracking-tight">
+                  {isOfflineRequest ? 'Richiesta salvata offline • Coda Outbox' : 'Segnale ricevuto dallo staff • In arrivo'}
+                </span>
               </div>
             </div>
 
@@ -213,7 +311,9 @@ export default function CallServicePage({ params }: CallPageProps) {
                 {typeLabels[activeRequest]}!
               </h2>
               <p className="text-xs text-zinc-300 mt-1 max-w-xs mx-auto">
-                La sala ha ricevuto l&apos;alert per <strong>{device.name}</strong>. Il cameriere arriverà a breve.
+                {isOfflineRequest 
+                  ? `Richiesta memorizzata per ${device.name}. Verrà recapitata allo staff non appena si riaggancia la linea.` 
+                  : <>La sala ha ricevuto l&apos;alert per <strong>{device.name}</strong>. Il cameriere arriverà a breve.</>}
               </p>
             </div>
 

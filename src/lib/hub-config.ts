@@ -205,6 +205,14 @@ export const ALL_HUB_MODULE_TEMPLATES: Omit<HubModuleConfig, 'order'>[] = [
   { id: 'custom_cta', enabled: false, title: 'Offerta Speciale', subtitle: 'Scopri la promozione attiva', badge: 'Promo', colSpan: 2 },
 ];
 
+export interface WifiBridgeConfig {
+  enabled: boolean; // STRICT DEFAULT: false
+  ssid?: string;
+  password?: string;
+  securityType?: 'WPA' | 'WEP' | 'nopass';
+  welcomeNotice?: string;
+}
+
 export interface HubHeroConfig {
   enabled: boolean;
   title: string;
@@ -237,6 +245,7 @@ export interface HubConfig {
   buttonGlow?: boolean;
   showBottomDock?: boolean;
   canvaMenu?: CanvaMenuConfig;
+  wifiBridge?: WifiBridgeConfig;
 }
 
 export function getDefaultModules(category: BusinessCategory = 'restaurant'): HubModuleConfig[] {
@@ -468,8 +477,11 @@ export function getDefaultHubConfig(category: BusinessCategory = 'restaurant'): 
     },
     modules: getDefaultModules(category),
     footerNote: 'Tocca il simbolo NFC o inquadra il QR con la fotocamera',
+    wifiBridge: { enabled: false, securityType: 'WPA' },
   };
 }
+
+export const DEFAULT_HUB_CONFIG: HubConfig = getDefaultHubConfig('restaurant');
 
 export function mergeHubConfig(
   rawConfig: unknown,
@@ -595,6 +607,15 @@ export function mergeHubConfig(
     buttonGlow: conf.buttonGlow ?? true,
     showBottomDock: conf.showBottomDock ?? true,
     canvaMenu: conf.canvaMenu || undefined,
+    wifiBridge: conf.wifiBridge
+      ? {
+          enabled: Boolean(conf.wifiBridge.enabled),
+          ssid: conf.wifiBridge.ssid || '',
+          password: conf.wifiBridge.password || '',
+          securityType: conf.wifiBridge.securityType || 'WPA',
+          welcomeNotice: conf.wifiBridge.welcomeNotice || '',
+        }
+      : defaults.wifiBridge || { enabled: false, securityType: 'WPA' },
   };
 }
 
@@ -635,3 +656,11 @@ export function getBorderRadiusStyle(radius?: HubConfig['borderRadius']): CSSPro
       return { borderRadius: '20px' };
   }
 }
+
+export function generateWifiQrPayload(wifi: { ssid: string; password?: string; securityType?: 'WPA' | 'WEP' | 'nopass' }): string {
+  const t = wifi.securityType || 'WPA';
+  const s = wifi.ssid || '';
+  const p = wifi.password || '';
+  return `WIFI:T:${t};S:${s};P:${p};;`;
+}
+
