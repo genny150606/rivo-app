@@ -2,7 +2,7 @@ import React from "react";
 import {
   AbsoluteFill,
   Easing,
-  Img,
+  Img,\n  staticFile,
   interpolate,
   spring,
   useCurrentFrame,
@@ -15,7 +15,7 @@ const BG = "#070708";
 const PANEL = "#101012";
 const MUTED = "#8E8E96";
 const WHITE = "#F7F7F8";
-const LOGO = "https://raw.githubusercontent.com/genny150606/rivo-app/main/public/brand/rivo-logo-full.png";
+const LOGO = staticFile("brand/rivo-logo-full.png");
 
 const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
 
