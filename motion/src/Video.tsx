@@ -3,198 +3,221 @@ import {
   AbsoluteFill,
   Easing,
   Img,
-  staticFile,
   interpolate,
+  Sequence,
   spring,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
 
 export const VIDEO = { width: 1080, height: 1920, fps: 30, duration: 900 };
-const LIME = "#B4F02A";
-const BG = "#070708";
-const PANEL = "#101012";
-const MUTED = "#8E8E96";
-const WHITE = "#F7F7F8";
-const LOGO = staticFile("brand/rivo-logo-full.png");
 
+const C = {
+  bg: "#060607",
+  white: "#F7F7F8",
+  muted: "#777780",
+  panel: "#111113",
+  line: "#29292E",
+  lime: "#B4F02A",
+  black: "#080808",
+};
+
+const LOGO = staticFile("brand/rivo-logo-full.png");
 const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
 
-function Fade({ start, end, children, y = 0, scale = 1 }: { start: number; end: number; children: React.ReactNode; y?: number; scale?: number }) {
-  const f = useCurrentFrame();
-  const opacity = interpolate(f, [start, start + 12, end - 12, end], [0, 1, 1, 0], clamp);
-  const translate = interpolate(f, [start, end], [y, -y], clamp);
-  const s = interpolate(f, [start, start + 14, end], [scale * 0.97, scale, scale * 1.01], clamp);
-  return <div style={{ position: "absolute", inset: 0, opacity, transform: `translateY(${translate}px) scale(${s})` }}>{children}</div>;
-}
+const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
-function RivoMark({ size = 92 }: { size?: number }) {
-  return <Img src={LOGO} style={{ width: size, height: "auto", objectFit: "contain" }} />;
-}
-
-function Background() {
+function bg(frame: number) {
+  const pulse = interpolate(frame % 180, [0, 90, 180], [0.04, 0.09, 0.04], clamp);
   return (
-    <AbsoluteFill style={{ background: BG, color: WHITE, fontFamily: 'Inter, "SF Pro Display", "Helvetica Neue", Arial, sans-serif' }}>
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 42%, rgba(180,240,42,.08), transparent 34%), radial-gradient(circle at 20% 90%, rgba(180,240,42,.035), transparent 28%)" }} />
-      <div style={{ position: "absolute", inset: 0, opacity: 0.055, backgroundImage: "linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px)", backgroundSize: "72px 72px" }} />
+    <AbsoluteFill style={{ background: C.bg, overflow: "hidden" }}>
+      <div style={{ position: "absolute", inset: -300, background: `radial-gradient(circle at 50% 45%, rgba(180,240,42,${pulse}), transparent 34%)` }} />
+      <div style={{ position: "absolute", inset: 0, opacity: 0.035, backgroundImage: "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)", backgroundSize: "90px 90px" }} />
     </AbsoluteFill>
   );
 }
 
-function Device({ x = 0, y = 0, s = 1 }: { x?: number; y?: number; s?: number }) {
+function Logo({ size = 180, opacity = 1 }: { size?: number; opacity?: number }) {
+  return <Img src={LOGO} style={{ width: size, height: "auto", objectFit: "contain", opacity }} />;
+}
+
+function Reveal({ from, children, direction = 1 }: { from: number; children: React.ReactNode; direction?: number }) {
+  const f = useCurrentFrame();
+  const p = spring({ frame: Math.max(0, f - from), fps: VIDEO.fps, config: { damping: 18, stiffness: 120, mass: 0.65 } });
+  const y = interpolate(p, [0, 1], [70 * direction, 0]);
+  return <div style={{ opacity: p, transform: `translateY(${y}px)` }}>{children}</div>;
+}
+
+function Title({ text, sub, from = 0 }: { text: string; sub?: string; from?: number }) {
+  const f = useCurrentFrame();
+  const p = spring({ frame: Math.max(0, f - from), fps: VIDEO.fps, config: { damping: 20, stiffness: 110 } });
+  const y = interpolate(p, [0, 1], [90, 0]);
+  const blur = interpolate(p, [0, 1], [14, 0]);
   return (
-    <div style={{ position: "absolute", left: "50%", top: "50%", transform: `translate(-50%, -50%) translate(${x}px,${y}px) scale(${s})`, width: 340, height: 245, borderRadius: 28, background: "linear-gradient(145deg,#fafafa,#bdbdc1)", boxShadow: "0 35px 80px rgba(0,0,0,.5), inset 0 1px 0 #fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 128, height: 128, borderRadius: 32, border: "2px solid #242426", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-        <div style={{ width: 78, height: 78, borderRadius: 22, border: "3px solid #242426", opacity: .9 }} />
-        <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: LIME, boxShadow: `0 0 28px ${LIME}` }} />
-      </div>
+    <div style={{ position: "absolute", top: 125, left: 50, right: 50, textAlign: "center", opacity: p, transform: `translateY(${y}px)`, filter: `blur(${blur}px)` }}>
+      <div style={{ fontSize: 72, fontWeight: 760, letterSpacing: -4, lineHeight: 0.98 }}>{text}</div>
+      {sub && <div style={{ marginTop: 22, color: C.muted, fontSize: 21 }}>{sub}</div>}
     </div>
   );
 }
 
-function Phone({ x = 0, y = 0, s = 1, tilt = 0 }: { x?: number; y?: number; s?: number; tilt?: number }) {
+function TapDevice() {
+  const f = useCurrentFrame();
+  const tap = spring({ frame: Math.max(0, f - 26), fps: VIDEO.fps, config: { damping: 9, stiffness: 280, mass: 0.35 } });
+  const phoneX = interpolate(f, [0, 24, 38, 72], [260, 100, -5, -5], { ...clamp, easing: ease });
+  const phoneR = interpolate(f, [0, 24, 38, 72], [-8, -4, 0, 0], clamp);
+  const glow = interpolate(f, [25, 38, 70], [0, 1, 0], clamp);
   return (
-    <div style={{ position: "absolute", left: "50%", top: "50%", width: 285, height: 575, borderRadius: 42, background: "#0e0e10", border: "2px solid #303035", boxShadow: "0 40px 100px rgba(0,0,0,.65)", transform: `translate(-50%,-50%) translate(${x}px,${y}px) scale(${s}) rotate(${tilt}deg)`, padding: 9 }}>
-      <div style={{ width: "100%", height: "100%", borderRadius: 34, background: "linear-gradient(160deg,#171719,#0a0a0b)", overflow: "hidden", position: "relative" }}>
-        <div style={{ position: "absolute", top: 13, left: "50%", transform: "translateX(-50%)", width: 82, height: 22, borderRadius: 20, background: "#050506" }} />
-        <div style={{ padding: "62px 24px 24px" }}>
-          <div style={{ fontSize: 14, color: MUTED, marginBottom: 8 }}>CONNECTED EXPERIENCE</div>
-          <div style={{ fontSize: 31, fontWeight: 700, letterSpacing: -1.5 }}>Welcome to<br /><span style={{ color: LIME }}>RIVO.</span></div>
-          <div style={{ marginTop: 32, display: "grid", gap: 10 }}>
-            {["Google Review", "Chiama Sala", "Loyalty", "Coupon"].map((t, i) => (
-              <div key={t} style={{ padding: "14px 15px", borderRadius: 15, background: "#171719", border: "1px solid #29292d", fontSize: 14, display: "flex", justifyContent: "space-between" }}>
-                <span>{t}</span><span style={{ color: i === 0 ? LIME : "#77777f" }}>→</span>
-              </div>
-            ))}
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", left: "50%", top: "59%", width: 430, height: 300, borderRadius: 42, background: "linear-gradient(145deg,#f7f7f8,#9d9da2)", transform: "translate(-50%,-50%) rotate(-3deg)", boxShadow: "0 50px 100px #000b, inset 0 2px 0 #fff" }}>
+        <div style={{ position: "absolute", left: "50%", top: "50%", width: 132, height: 132, border: "2px solid #202024", borderRadius: 34, transform: "translate(-50%,-50%)", display: "grid", placeItems: "center" }}>
+          <div style={{ width: 76, height: 76, border: "3px solid #202024", borderRadius: 21 }} />
+          <div style={{ position: "absolute", width: 20, height: 20, borderRadius: "50%", background: C.lime, boxShadow: `0 0 35px ${C.lime}` }} />
+        </div>
+      </div>
+      <div style={{ position: "absolute", left: "50%", top: "42%", width: 285, height: 575, borderRadius: 43, background: "#0b0b0d", border: "2px solid #343439", padding: 9, boxShadow: "0 50px 120px #000", transform: `translate(-50%,-50%) translateX(${phoneX}px) rotate(${phoneR}deg) scale(.82)` }}>
+        <div style={{ height: "100%", borderRadius: 35, background: "#101012", overflow: "hidden", position: "relative" }}>
+          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", width: 82, height: 22, borderRadius: 20, background: "#050506" }} />
+          <div style={{ padding: "70px 24px" }}>
+            <div style={{ color: C.muted, fontSize: 12 }}>CONNECTED EXPERIENCE</div>
+            <div style={{ fontSize: 33, fontWeight: 750, marginTop: 10 }}>Welcome to<br/><span style={{ color: C.lime }}>RIVO.</span></div>
+            <div style={{ marginTop: 35, display: "grid", gap: 9 }}>
+              {["Google Review","Chiama Sala","Loyalty","Coupon"].map((x,i) => <div key={x} style={{ padding: "15px", border: "1px solid #29292d", borderRadius: 14, background: "#161618", display:"flex",justifyContent:"space-between", fontSize:13, transform:`translateX(${interpolate(f,[30+i*4,48+i*4],[40,0],clamp)}px)`, opacity:interpolate(f,[30+i*4,48+i*4],[0,1],clamp) }}>{x}<span style={{color:i===0?C.lime:"#666"}}>→</span></div>)}
+            </div>
           </div>
         </div>
       </div>
+      <div style={{ position:"absolute", left:"50%", top:"59%", width:170, height:170, borderRadius:"50%", border:`3px solid ${C.lime}`, transform:`translate(-50%,-50%) scale(${interpolate(f,[27,42],[0.35,3.8],clamp)})`, opacity:glow, boxShadow:`0 0 50px ${C.lime}` }} />
+      <div style={{ position:"absolute", left:"50%", top:"59%", width:18, height:18, borderRadius:"50%", background:C.lime, transform:`translate(-50%,-50%) scale(${tap})`, opacity:glow }} />
     </div>
   );
 }
 
-function NfcPulse() {
+const features = [
+  ["REVIEWS","★"],["LOYALTY","◎"],["WI-FI","⌁"],["SERVICE","↗"],["COUPONS","%"],
+];
+
+function FeatureExplosion() {
   const f = useCurrentFrame();
+  const centerScale = spring({ frame: Math.max(0,f-8), fps:30, config:{damping:14,stiffness:160} });
   return (
-    <>
-      {[0, 1, 2].map(i => {
-        const p = interpolate(f, [0 + i * 5, 34 + i * 5], [0.2, 2.6], clamp);
-        const o = interpolate(f, [0 + i * 5, 34 + i * 5], [.75, 0], clamp);
-        return <div key={i} style={{ position: "absolute", left: "50%", top: "50%", width: 120, height: 120, borderRadius: "50%", border: `2px solid ${LIME}`, opacity: o, transform: `translate(-50%,-50%) scale(${p})`, boxShadow: `0 0 30px ${LIME}55` }} />;
+    <div style={{position:"absolute",inset:0}}>
+      <div style={{position:"absolute",left:"50%",top:"55%",width:150,height:150,borderRadius:"50%",background:C.lime,color:C.black,display:"grid",placeItems:"center",fontWeight:800,fontSize:22,transform:`translate(-50%,-50%) scale(${centerScale})`,boxShadow:`0 0 100px ${C.lime}66`}}>NFC</div>
+      {features.map(([name,icon],i)=>{
+        const a = -Math.PI/2 + (i-2)*0.55;
+        const tx = Math.cos(a)*390;
+        const ty = Math.sin(a)*390;
+        const p = spring({frame:Math.max(0,f-18-i*5),fps:30,config:{damping:12,stiffness:115,mass:.6}});
+        const lineP = interpolate(p,[0,1],[0,1],clamp);
+        return <React.Fragment key={name}>
+          <div style={{position:"absolute",left:"50%",top:"55%",width:260,padding:"19px 21px",borderRadius:20,border:"1px solid #303035",background:"#121214",display:"flex",alignItems:"center",gap:14,transform:`translate(-50%,-50%) translate(${tx*p}px,${ty*p}px) scale(${.8+.2*p})`,opacity:p,boxShadow:"0 25px 60px #0009"}}>
+            <div style={{width:46,height:46,borderRadius:14,background:`${C.lime}16`,border:`1px solid ${C.lime}44`,display:"grid",placeItems:"center",color:C.lime,fontSize:20}}>{icon}</div>
+            <div><div style={{fontWeight:700,fontSize:16}}>{name}</div><div style={{fontSize:10,color:C.muted,marginTop:4}}>CONNECTED VIA RIVO</div></div>
+          </div>
+          <div style={{position:"absolute",left:"50%",top:"55%",height:2,width:390,background:`linear-gradient(90deg,${C.lime},transparent)`,transformOrigin:"left center",transform:`rotate(${Math.atan2(ty,tx)}rad) scaleX(${lineP})`,opacity:p*.35}}/>
+        </React.Fragment>
       })}
-    </>
+    </div>
   );
 }
 
-function FeatureCard({ label, icon, x, y, delay }: { label: string; icon: string; x: number; y: number; delay: number }) {
-  const f = useCurrentFrame();
-  const p = spring({ frame: Math.max(0, f - delay), fps: VIDEO.fps, config: { damping: 14, stiffness: 110, mass: .7 } });
-  return <div style={{ position: "absolute", left: "50%", top: "50%", transform: `translate(-50%,-50%) translate(${x * p}px,${y * p}px)`, opacity: p, width: 255, padding: "22px 24px", borderRadius: 22, background: "rgba(18,18,20,.92)", border: "1px solid #2b2b30", boxShadow: "0 20px 60px rgba(0,0,0,.35)", display: "flex", alignItems: "center", gap: 15 }}>
-    <div style={{ width: 44, height: 44, borderRadius: 14, background: `${LIME}18`, border: `1px solid ${LIME}40`, display: "grid", placeItems: "center", color: LIME, fontSize: 20 }}>{icon}</div>
-    <div><div style={{ fontSize: 16, fontWeight: 650 }}>{label}</div><div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Connected via RIVO</div></div>
+function DashboardMotion() {
+  const f=useCurrentFrame();
+  const enter=spring({frame:Math.max(0,f-4),fps:30,config:{damping:16,stiffness:100}});
+  const pan=interpolate(f,[0,55,120],[0,-70,-25],{...clamp,easing:ease});
+  const taps=Math.round(interpolate(f,[5,55],[0,12842],clamp));
+  const reviews=Math.round(interpolate(f,[8,62],[0,184],clamp));
+  const customers=Math.round(interpolate(f,[10,68],[0,2391],clamp));
+  const line=interpolate(f,[10,100],[0,1],clamp);
+  return <div style={{position:"absolute",left:"50%",top:"58%",width:930,height:1120,transform:`translate(-50%,-50%) translateY(${pan}px) scale(${.82+.18*enter}) rotateX(${interpolate(f,[0,70],[8,0],clamp)}deg)`,transformOrigin:"center",background:"#0c0c0e",border:"1px solid #303035",borderRadius:28,boxShadow:"0 60px 140px #000b",overflow:"hidden"}}>
+    <div style={{height:74,borderBottom:"1px solid #252529",display:"flex",alignItems:"center",padding:"0 24px",justifyContent:"space-between"}}><div style={{display:"flex",alignItems:"center",gap:10}}><Logo size={34}/><b>Control Room</b></div><span style={{fontSize:10,color:C.muted,letterSpacing:1}}>LIVE FLEET · NAPOLI</span></div>
+    <div style={{padding:28}}>
+      <div style={{fontSize:30,fontWeight:750}}>Your customer experience.</div>
+      <div style={{color:C.muted,marginTop:7}}>Every touchpoint, connected.</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:25}}>
+        {[["TOTAL TAPS",taps.toLocaleString("en-US")],["REVIEWS","+"+reviews],["CUSTOMERS",customers.toLocaleString("en-US")],["CONVERSION","+"+interpolate(f,[10,72],[0,24.8],clamp).toFixed(1)+"%"]].map(([a,b],i)=><div key={a} style={{padding:20,borderRadius:17,background:"#131316",border:"1px solid #25252a",transform:`translateY(${interpolate(f,[i*5,25+i*5],[35,0],clamp)}px)`,opacity:interpolate(f,[i*5,25+i*5],[0,1],clamp)}}><div style={{fontSize:9,letterSpacing:1.4,color:C.muted}}>{a}</div><div style={{fontSize:31,fontWeight:750,marginTop:9}}>{b}</div><div style={{fontSize:10,color:C.lime,marginTop:8}}>LIVE ↑</div></div>)}
+      </div>
+      <div style={{marginTop:13,padding:22,borderRadius:17,background:"#131316",border:"1px solid #25252a"}}>
+        <div style={{fontSize:10,color:C.muted}}>INTERACTIONS · LAST 30 DAYS</div>
+        <svg viewBox="0 0 820 220" width="100%" style={{marginTop:15}}>
+          <path d="M0 190 C90 175 120 185 170 145 S255 175 310 120 S400 155 455 91 S550 125 610 75 S700 95 820 25" fill="none" stroke={C.lime} strokeWidth="5" strokeLinecap="round" strokeDasharray="1100" strokeDashoffset={1100-1100*line}/>
+        </svg>
+      </div>
+      <div style={{marginTop:13,padding:18,borderRadius:17,background:"#151517",border:"1px solid #25252a",display:"flex",gap:14,alignItems:"center",transform:`translateY(${interpolate(f,[55,78],[40,0],clamp)}px)`,opacity:interpolate(f,[55,78],[0,1],clamp)}}><div style={{width:42,height:42,borderRadius:13,background:`${C.lime}16`,display:"grid",placeItems:"center",color:C.lime}}>↗</div><div><b style={{fontSize:13}}>New private feedback</b><div style={{fontSize:10,color:C.muted,marginTop:4}}>Review Shield · 2★ routed privately</div></div><div style={{marginLeft:"auto",width:7,height:7,borderRadius:"50%",background:C.lime,boxShadow:`0 0 15px ${C.lime}`}}/></div>
+    </div>
   </div>;
 }
 
-function Dashboard() {
-  const f = useCurrentFrame();
-  const p = spring({ frame: Math.max(0, f - 0), fps: VIDEO.fps, config: { damping: 18, stiffness: 85 } });
-  const count = Math.round(interpolate(f, [0, 42], [0, 12842], clamp));
-  const reviews = Math.round(interpolate(f, [0, 48], [0, 184], clamp));
-  const customers = Math.round(interpolate(f, [0, 52], [0, 2391], clamp));
-  const conversion = interpolate(f, [0, 56], [0, 24.8], clamp).toFixed(1);
-  return (
-    <div style={{ width: 900, height: 1220, borderRadius: 28, background: "#0d0d0f", border: "1px solid #2a2a2e", boxShadow: "0 45px 100px rgba(0,0,0,.55)", overflow: "hidden", transform: `scale(${p})` }}>
-      <div style={{ height: 76, borderBottom: "1px solid #252529", display: "flex", alignItems: "center", padding: "0 26px", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}><RivoMark size={38}/><span style={{ fontWeight: 700, letterSpacing: -.5 }}>Control Room</span></div>
-        <div style={{ fontSize: 12, color: "#777780" }}>LIVE FLEET · NAPOLI</div>
-      </div>
-      <div style={{ padding: 28 }}>
-        <div style={{ fontSize: 31, fontWeight: 700, letterSpacing: -1.2 }}>Your customer experience.</div>
-        <div style={{ color: MUTED, marginTop: 7, fontSize: 14 }}>Every touchpoint, connected.</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 30 }}>
-          {[
-            ["TOTAL TAPS", count.toLocaleString("en-US"), "+18.4%"],
-            ["REVIEWS", "+" + reviews, "+32.1%"],
-            ["CUSTOMERS", customers.toLocaleString("en-US"), "+11.8%"],
-            ["CONVERSION", "+" + conversion + "%", "+6.4%"],
-          ].map(([a,b,c]) => <div key={a} style={{ padding: 21, borderRadius: 18, background: "#131316", border: "1px solid #242429" }}><div style={{ fontSize: 10, letterSpacing: 1.2, color: "#777780" }}>{a}</div><div style={{ fontSize: 31, fontWeight: 700, marginTop: 9, letterSpacing: -1 }}>{b}</div><div style={{ fontSize: 11, color: LIME, marginTop: 9 }}>{c} <span style={{ color: "#64646b" }}>vs last period</span></div></div>)}
-        </div>
-        <div style={{ marginTop: 14, padding: 22, borderRadius: 18, background: "#131316", border: "1px solid #242429" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#7a7a83" }}><span>INTERACTIONS</span><span>LAST 30 DAYS</span></div>
-          <svg viewBox="0 0 820 240" width="100%" style={{ marginTop: 18 }}>
-            <path d="M0 196 C90 176 110 184 165 151 S245 173 300 124 S385 151 440 92 S525 130 580 80 S660 99 720 48 S785 68 820 28" fill="none" stroke={LIME} strokeWidth="5" strokeLinecap="round"/>
-            <path d="M0 196 C90 176 110 184 165 151 S245 173 300 124 S385 151 440 92 S525 130 580 80 S660 99 720 48 S785 68 820 28 V240 H0 Z" fill="url(#fill)" opacity=".08"/>
-            <defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor={LIME}/><stop offset="1" stopColor={LIME} stopOpacity="0"/></linearGradient></defs>
-          </svg>
-        </div>
-        <div style={{ marginTop: 14, padding: 18, borderRadius: 18, background: "#151517", border: "1px solid #242429", display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 13, background: `${LIME}16`, display: "grid", placeItems: "center", color: LIME, fontSize: 19 }}>↗</div>
-          <div><div style={{ fontSize: 13, fontWeight: 650 }}>New private feedback</div><div style={{ color: "#777780", fontSize: 11, marginTop: 4 }}>Review Shield · 2★ routed privately</div></div>
-          <div style={{ marginLeft: "auto", width: 7, height: 7, borderRadius: "50%", background: LIME, boxShadow: `0 0 12px ${LIME}` }} />
-        </div>
-      </div>
+function ShieldMotion() {
+  const f=useCurrentFrame();
+  const p=spring({frame:Math.max(0,f-3),fps:30,config:{damping:17,stiffness:100}});
+  const progress=interpolate(f,[18,52],[0,1],clamp);
+  const route=interpolate(f,[48,70],[0,1],clamp);
+  return <div style={{position:"absolute",left:"50%",top:"57%",transform:"translate(-50%,-50%)",display:"flex",alignItems:"center",gap:25,scale:.95+p*.05}}>
+    <div style={{width:320,padding:30,borderRadius:25,background:"#131316",border:"1px solid #2c2c31",boxShadow:"0 30px 70px #0008",transform:`translateX(${interpolate(f,[0,30],[90,0],clamp)}px)`,opacity:p}}>
+      <div style={{fontSize:10,color:C.muted}}>CUSTOMER FEEDBACK</div><div style={{fontSize:21,fontWeight:750,marginTop:16}}>How was your experience?</div>
+      <div style={{display:"flex",gap:8,marginTop:23}}>{[1,2,3,4,5].map(n=><div key={n} style={{width:40,height:40,borderRadius:12,background:n<=2?"#252528":`${C.lime}1c`,color:n<=2?"#777":C.lime,display:"grid",placeItems:"center"}}>★</div>)}</div>
+      <div style={{marginTop:20,height:3,background:"#252528",overflow:"hidden"}}><div style={{height:"100%",width:`${progress*100}%`,background:C.lime}}/></div>
     </div>
-  );
+    <div style={{fontSize:40,color:C.lime,opacity:route,transform:`translateX(${interpolate(f,[45,65],[-30,0],clamp)}px)`}}>→</div>
+    <div style={{width:320,padding:30,borderRadius:25,background:"#131316",border:"1px solid #2c2c31",boxShadow:"0 30px 70px #0008",transform:`translateX(${interpolate(f,[40,68],[100,0],clamp)}px) scale(${.92+.08*route})`,opacity:route}}>
+      <div style={{fontSize:10,color:C.muted}}>RIVO ROUTING</div><div style={{fontSize:21,fontWeight:750,marginTop:16}}>Private feedback</div><div style={{fontSize:13,color:C.muted,lineHeight:1.5,marginTop:10}}>The guest can tell the business what went wrong.</div>
+      <div style={{marginTop:20,padding:12,borderRadius:12,background:`${C.lime}12`,color:C.lime,fontSize:11}}>NEW · 2★ ROUTED PRIVATELY</div>
+    </div>
+  </div>;
 }
 
-function ReviewShield() {
-  const f = useCurrentFrame();
-  const p = spring({ frame: Math.max(0, f - 4), fps: VIDEO.fps, config: { damping: 15, stiffness: 100 } });
-  return (
-    <div style={{ display: "flex", gap: 24, alignItems: "center", transform: `scale(${p})` }}>
-      <div style={{ width: 310, padding: 28, borderRadius: 24, background: "#131316", border: "1px solid #2a2a2f" }}>
-        <div style={{ fontSize: 11, color: MUTED }}>CUSTOMER FEEDBACK</div><div style={{ fontSize: 20, fontWeight: 700, marginTop: 15 }}>How was your experience?</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 22 }}>{[1,2,3,4,5].map(n => <div key={n} style={{ width: 37, height: 37, borderRadius: 11, background: n <= 2 ? "#242427" : `${LIME}1c`, display: "grid", placeItems: "center", color: n <= 2 ? "#777780" : LIME, fontSize: 16 }}>★</div>)}</div>
-      </div>
-      <div style={{ fontSize: 36, color: "#44444a" }}>→</div>
-      <div style={{ width: 310, padding: 28, borderRadius: 24, background: "#131316", border: "1px solid #2a2a2f" }}>
-        <div style={{ fontSize: 11, color: MUTED }}>RIVO ROUTING</div><div style={{ fontSize: 20, fontWeight: 700, marginTop: 15 }}>Private feedback</div><div style={{ color: MUTED, fontSize: 13, lineHeight: 1.5, marginTop: 10 }}>The guest can share what went wrong directly with the business.</div>
-        <div style={{ marginTop: 20, padding: "10px 12px", borderRadius: 12, background: `${LIME}12`, color: LIME, fontSize: 11 }}>New private feedback · 2★</div>
-      </div>
-    </div>
-  );
-}
-
-function Ecosystem() {
-  const f = useCurrentFrame();
-  const labels = ["REVIEWS","LOYALTY","WI-FI","SERVICE","COUPONS","ANALYTICS","CRM","SMART ROUTING"];
-  return <div style={{ position: "relative", width: 880, height: 760 }}>
-    <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 230, height: 230, borderRadius: 72, background: "#151517", border: `1px solid ${LIME}55`, boxShadow: `0 0 80px ${LIME}15`, display: "grid", placeItems: "center" }}><RivoMark size={120}/></div>
-    {labels.map((label,i) => {
-      const a = (i / labels.length) * Math.PI * 2 - Math.PI / 2;
-      const radius = 305;
-      const x = Math.cos(a) * radius;
-      const y = Math.sin(a) * radius;
-      const p = spring({ frame: Math.max(0, f - i * 3), fps: VIDEO.fps, config: { damping: 16, stiffness: 90 } });
-      return <React.Fragment key={label}><div style={{ position: "absolute", left: "50%", top: "50%", width: 170, padding: "14px 16px", borderRadius: 15, background: "#111113", border: "1px solid #2a2a2e", textAlign: "center", fontSize: 11, letterSpacing: 1, color: "#d7d7db", transform: `translate(-50%,-50%) translate(${x*p}px,${y*p}px)`, opacity: p }}>{label}</div><svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: p*.45 }}><line x1="50%" y1="50%" x2={`calc(50% + ${x}px)`} y2={`calc(50% + ${y}px)`} stroke={LIME} strokeWidth="1"/></svg></React.Fragment>
+function Orbit() {
+  const f=useCurrentFrame();
+  const labels=["REVIEWS","LOYALTY","WI-FI","SERVICE","COUPONS","ANALYTICS","CRM","SMART ROUTING"];
+  const rot=interpolate(f,[0,150],[0,Math.PI*2],clamp);
+  return <div style={{position:"absolute",left:"50%",top:"58%",width:900,height:850,transform:"translate(-50%,-50%)"}}>
+    <div style={{position:"absolute",left:"50%",top:"50%",width:235,height:235,borderRadius:70,background:"#141416",border:`1px solid ${C.lime}66`,boxShadow:`0 0 100px ${C.lime}18`,display:"grid",placeItems:"center",transform:`translate(-50%,-50%) rotate(${-rot}rad)`}}><Logo size={125}/></div>
+    {labels.map((label,i)=>{
+      const a=i/labels.length*Math.PI*2-Math.PI/2+rot;
+      const x=Math.cos(a)*330,y=Math.sin(a)*330;
+      const p=spring({frame:Math.max(0,f-8-i*3),fps:30,config:{damping:15,stiffness:100}});
+      return <React.Fragment key={label}><div style={{position:"absolute",left:"50%",top:"50%",width:170,padding:"15px",textAlign:"center",borderRadius:15,border:"1px solid #2b2b30",background:"#101012",fontSize:10,letterSpacing:1.1,transform:`translate(-50%,-50%) translate(${x*p}px,${y*p}px)`,opacity:p}}>{label}</div><div style={{position:"absolute",left:"50%",top:"50%",height:1,width:330,background:C.lime,transformOrigin:"left",transform:`rotate(${a}rad) scaleX(${p})`,opacity:.2*p}}/></React.Fragment>;
     })}
   </div>;
 }
 
-function SceneText({ title, subtitle }: { title: string; subtitle?: string }) {
-  return <div style={{ position: "absolute", top: 135, left: 0, right: 0, textAlign: "center", padding: "0 70px" }}><div style={{ fontSize: 67, fontWeight: 720, letterSpacing: -3.5, lineHeight: 1.02 }}>{title}</div>{subtitle && <div style={{ marginTop: 22, fontSize: 21, color: MUTED, letterSpacing: -.3 }}>{subtitle}</div>}</div>;
+function FinalReveal() {
+  const f=useCurrentFrame();
+  const p=spring({frame:Math.max(0,f-8),fps:30,config:{damping:18,stiffness:100}});
+  const wave=interpolate(f,[0,75],[0,900],clamp);
+  return <div style={{position:"absolute",inset:0,display:"grid",placeItems:"center"}}>
+    <div style={{position:"absolute",left:"50%",top:"42%",width:wave,height:wave,borderRadius:"50%",border:`1px solid ${C.lime}`,transform:"translate(-50%,-50%)",opacity:interpolate(f,[0,40],[.7,0],clamp),boxShadow:`0 0 50px ${C.lime}33`}}/>
+    <div style={{textAlign:"center",opacity:p,transform:`translateY(${interpolate(p,[0,1],[60,0])}px) scale(${.9+.1*p})`}}>
+      <Logo size={210}/>
+      <div style={{marginTop:32,fontSize:27,letterSpacing:4,color:C.lime,fontWeight:700}}>ONE TAP. EVERYTHING CONNECTED.</div>
+      <div style={{marginTop:25,fontSize:19,color:C.muted}}>Connected experiences for physical businesses.</div>
+      <div style={{marginTop:45,display:"inline-block",padding:"17px 30px",borderRadius:999,background:C.lime,color:C.black,fontSize:14,fontWeight:800}}>DISCOVER RIVO</div>
+    </div>
+  </div>;
 }
 
 export const RivoAd: React.FC = () => {
-  const f = useCurrentFrame();
-  const { width, height } = useVideoConfig();
-  const scale = Math.min(width / 1080, height / 1920);
-  const offsetX = (width - 1080 * scale) / 2;
-  const offsetY = (height - 1920 * scale) / 2;
-
-  const scene = (from: number, to: number, node: React.ReactNode) => {
-    const op = interpolate(f, [from, from + 12, to - 12, to], [0, 1, 1, 0], clamp);
-    return <div style={{ position: "absolute", left: offsetX, top: offsetY, width: 1080, height: 1920, transform: `scale(${scale})`, transformOrigin: "top left", opacity: op }}>{node}</div>;
+  const f=useCurrentFrame();
+  const {width,height}=useVideoConfig();
+  const s=Math.min(width/1080,height/1920);
+  const ox=(width-1080*s)/2,oy=(height-1920*s)/2;
+  const scene=(from:number,to:number,node:React.ReactNode,zoom=[1,1])=>{
+    const local=f-from;
+    const opacity=interpolate(local,[0,10,to-from-10,to-from],[0,1,1,0],clamp);
+    const z=interpolate(local,[0,to-from],[zoom[0],zoom[1]],{...clamp,easing:ease});
+    const y=interpolate(local,[0,to-from],[35,-35],{...clamp,easing:ease});
+    return <div style={{position:"absolute",left:ox,top:oy,width:1080,height:1920,transform:`scale(${s*z}) translateY(${y}px)`,transformOrigin:"top center",opacity}}>{node}</div>;
   };
-
-  return <AbsoluteFill><Background />
-    {scene(0, 90, <><SceneText title="Every table is an opportunity." subtitle="Physical spaces are full of untapped digital potential."/><div style={{ position:"absolute", left:"50%", top:"57%", transform:"translate(-50%,-50%)", width:600, height:330, borderRadius:40, border:"1px solid #252529", background:"#0c0c0e", boxShadow:"0 30px 80px rgba(0,0,0,.35)" }}><div style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%,-50%)", width:150, height:90, borderRadius:18, border:"1px solid #333338" }}/></div></>)}
-    {scene(78, 180, <><SceneText title="One tap." subtitle="A single physical touch opens a connected experience."/><Device/><Phone x={150} y={20} s={.72} tilt={-8}/><NfcPulse/></>)}
-    {scene(165, 300, <><SceneText title="Endless possibilities." subtitle="One signal becomes every next step."/><div style={{ position:"absolute", left:"50%", top:"54%", transform:"translate(-50%,-50%)" }}><div style={{ width:100, height:100, borderRadius:"50%", background:LIME, boxShadow:`0 0 80px ${LIME}55`, display:"grid", placeItems:"center", color:"#080808", fontSize:28 }}>NFC</div></div><FeatureCard label="Google Review" icon="★" x={-315} y={-205} delay={8}/><FeatureCard label="Chiama Sala" icon="↗" x={315} y={-205} delay={14}/><FeatureCard label="Loyalty" icon="◎" x={-315} y={190} delay={20}/><FeatureCard label="Coupon" icon="%" x={315} y={190} delay={26}/><FeatureCard label="Wi-Fi" icon="⌁" x={0} y={350} delay={32}/></>)}
-    {scene(285, 470, <><SceneText title="Your entire experience." subtitle="One control room for what happens after the tap."/><div style={{ position:"absolute", left:"50%", top:"56%", transform:"translate(-50%,-50%)" }}><Dashboard/></div></>)}
-    {scene(455, 570, <><SceneText title="Protect the experience." subtitle="Review Shield routes unhappy guests privately — and keeps the conversation open."/><div style={{ position:"absolute", left:"50%", top:"57%", transform:"translate(-50%,-50%)" }}><ReviewShield/></div></>)}
-    {scene(555, 720, <><SceneText title="One platform." subtitle="Your entire customer experience, connected."/><div style={{ position:"absolute", left:"50%", top:"57%", transform:"translate(-50%,-50%)" }}><Ecosystem/></div></>)}
-    {scene(705, 810, <><div style={{ position:"absolute", left:"50%", top:"46%", transform:"translate(-50%,-50%)", textAlign:"center" }}><RivoMark size={260}/><div style={{ marginTop:30, fontSize:26, letterSpacing:4, color:LIME, fontWeight:650 }}>ONE TAP. EVERYTHING CONNECTED.</div></div><div style={{ position:"absolute", left:"50%", top:"75%", width:680, height:1, background:`linear-gradient(90deg, transparent, ${LIME}, transparent)`, boxShadow:`0 0 30px ${LIME}` }}/></>)}
-    {scene(795, 900, <><div style={{ position:"absolute", left:"50%", top:"42%", transform:"translate(-50%,-50%)", textAlign:"center", width:900 }}><RivoMark size={190}/><div style={{ marginTop:38, fontSize:31, color:WHITE, letterSpacing:-.8 }}>Connected experiences for physical businesses.</div><div style={{ marginTop:46, display:"inline-flex", padding:"17px 30px", borderRadius:999, background:LIME, color:"#080808", fontSize:15, fontWeight:750, letterSpacing:.2 }}>Discover RIVO</div></div><div style={{ position:"absolute", left:60, right:60, bottom:75, display:"flex", justifyContent:"space-between", fontSize:11, color:"#5e5e66", letterSpacing:1.4 }}><span>RIVO</span><span>ONE TAP. EVERYTHING CONNECTED.</span><span>2026</span></div></>)}
+  return <AbsoluteFill style={{fontFamily:'Inter,"SF Pro Display","Helvetica Neue",Arial,sans-serif',color:C.white,background:C.bg,overflow:"hidden"}}>
+    {bg(f)}
+    {scene(0,82,<><Title text="Every table is an opportunity." sub="The physical world is still waiting to be connected." from={4}/><div style={{position:"absolute",left:"50%",top:"59%",width:620,height:390,borderRadius:44,border:"1px solid #29292e",background:"#0d0d0f",transform:`translate(-50%,-50%) perspective(900px) rotateX(${interpolate(f,[0,82],[16,0],clamp)}deg)`}}><div style={{position:"absolute",left:"50%",top:"50%",width:190,height:110,borderRadius:22,border:"1px solid #38383d",transform:"translate(-50%,-50%)"}}/></div></>,[.94,1.04])}
+    {scene(70,185,<><Title text="One tap." sub="Watch what happens after the touch." from={4}/><TapDevice/></>,[.9,1.08])}
+    {scene(170,310,<><Title text="One signal. Five actions." sub="RIVO turns one physical touch into a connected journey." from={3}/><FeatureExplosion/></>,[.92,1.03])}
+    {scene(295,470,<><Title text="Everything after the tap." sub="One control room. Live." from={4}/><DashboardMotion/></>,[1.04,.92])}
+    {scene(455,570,<><Title text="Bad experience?" sub="Don't send it straight to Google." from={3}/><ShieldMotion/></>,[.94,1.04])}
+    {scene(555,735,<><Title text="One platform." sub="Every touchpoint becomes part of the same system." from={3}/><Orbit/></>,[.92,1.02])}
+    {scene(720,900,<><FinalReveal/></>,[1.08,1])}
   </AbsoluteFill>;
 };
