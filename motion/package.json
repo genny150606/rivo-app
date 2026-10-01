@@ -1,0 +1,23 @@
+{
+  "name": "rivo-motion-ad",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "preview": "remotion preview src/index.ts",
+    "render": "remotion render src/index.ts RivoAd out/rivo-ad-vertical.mp4",
+    "render:16x9": "remotion render src/index.ts RivoAd16x9 out/rivo-ad-landscape.mp4",
+    "render:1x1": "remotion render src/index.ts RivoAd1x1 out/rivo-ad-square.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "remotion": "^4.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.0.0"
+  }
+}
