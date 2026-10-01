@@ -24,6 +24,9 @@ const C = {
 };
 
 const LOGO = staticFile("brand/rivo-logo-full.png");
+function makeTone(freq:number,duration:number,kind:"tap"|"whoosh"|"impact"){const sr=11025,n=Math.floor(sr*duration),bytes=new Uint8Array(44+n*2),v=new DataView(bytes.buffer),put=(o:number,s:string)=>[...s].forEach((x,i)=>v.setUint8(o+i,x.charCodeAt(0)));put(0,"RIFF");v.setUint32(4,bytes.length-8,true);put(8,"WAVE");put(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);put(36,"data");v.setUint32(40,n*2,true);for(let i=0;i<n;i++){const t=i/sr;let f=freq,a=.18;if(kind==="whoosh"){f=freq+1900*Math.pow(t/duration,2);a=.12*Math.sin(Math.PI*t/duration)}if(kind==="impact"){f=70+260*Math.exp(-7*t);a=.42*Math.exp(-6*t)}if(kind==="tap")a=.35*Math.exp(-18*t);v.setInt16(44+i*2,Math.max(-1,Math.min(1,Math.sin(2*Math.PI*f*t)*a+(kind==="tap"?Math.sin(2*Math.PI*180*t)*.12*Math.exp(-12*t):0)))*32767,true)}let b="";for(const x of bytes)b+=String.fromCharCode(x);return `data:audio/wav;base64,${btoa(b)}`}
+const TAP_SFX=makeTone(1150,.18,"tap"),WHOOSH_SFX=makeTone(520,.65,"whoosh"),IMPACT_SFX=makeTone(70,.55,"impact");
+function Sfx({src,from,volume=.4}:{src:string;from:number;volume?:number}){return <Sequence from={from} durationInFrames={2}><Audio src={src} volume={volume}/></Sequence>}
 const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
@@ -70,13 +73,13 @@ function TapDevice() {
   const glow = interpolate(f, [25, 38, 70], [0, 1, 0], clamp);
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div style={{ position: "absolute", left: "50%", top: "59%", width: 430, height: 300, borderRadius: 42, background: "linear-gradient(145deg,#f7f7f8,#9d9da2)", transform: "translate(-50%,-50%) rotate(-3deg)", boxShadow: "0 50px 100px #000b, inset 0 2px 0 #fff" }}>
+      <div style={{ position: "absolute", left: "50%", top: "59%", width: 430, height: 300, borderRadius: 42, background: "linear-gradient(145deg,#f7f7f8,#9d9da2)", transform: "translate(-50%,-50%) perspective(1000px) rotateX(52deg) rotateY(-5deg) rotateZ(-3deg) translateZ(40px)", transformStyle:"preserve-3d", boxShadow: "0 50px 100px #000b, inset 0 2px 0 #fff" }}>
         <div style={{ position: "absolute", left: "50%", top: "50%", width: 132, height: 132, border: "2px solid #202024", borderRadius: 34, transform: "translate(-50%,-50%)", display: "grid", placeItems: "center" }}>
           <div style={{ width: 76, height: 76, border: "3px solid #202024", borderRadius: 21 }} />
           <div style={{ position: "absolute", width: 20, height: 20, borderRadius: "50%", background: C.lime, boxShadow: `0 0 35px ${C.lime}` }} />
         </div>
       </div>
-      <div style={{ position: "absolute", left: "50%", top: "42%", width: 285, height: 575, borderRadius: 43, background: "#0b0b0d", border: "2px solid #343439", padding: 9, boxShadow: "0 50px 120px #000", transform: `translate(-50%,-50%) translateX(${phoneX}px) rotate(${phoneR}deg) scale(.82)` }}>
+      <div style={{ position: "absolute", left: "50%", top: "42%", width: 285, height: 575, borderRadius: 43, background: "#0b0b0d", border: "2px solid #343439", padding: 9, boxShadow: "0 50px 120px #000", transform: `translate(-50%,-50%) perspective(1100px) translate3d(${phoneX}px,0,${interpolate(f,[0,30,70],[120,360,40],clamp)}px) rotateY(${interpolate(f,[0,30,70],[-18,-2,0],clamp)}deg) rotateX(${interpolate(f,[0,30],[5,0],clamp)}deg) rotate(${phoneR}deg) scale(.82)`, transformStyle:"preserve-3d" }}>
         <div style={{ height: "100%", borderRadius: 35, background: "#101012", overflow: "hidden", position: "relative" }}>
           <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", width: 82, height: 22, borderRadius: 20, background: "#050506" }} />
           <div style={{ padding: "70px 24px" }}>
@@ -103,7 +106,7 @@ function FeatureExplosion() {
   const centerScale = spring({ frame: Math.max(0,f-8), fps:30, config:{damping:14,stiffness:160} });
   return (
     <div style={{position:"absolute",inset:0}}>
-      <div style={{position:"absolute",left:"50%",top:"55%",width:150,height:150,borderRadius:"50%",background:C.lime,color:C.black,display:"grid",placeItems:"center",fontWeight:800,fontSize:22,transform:`translate(-50%,-50%) scale(${centerScale})`,boxShadow:`0 0 100px ${C.lime}66`}}>NFC</div>
+      <div style={{position:"absolute",left:"50%",top:"55%",width:150,height:150,borderRadius:"50%",background:C.lime,color:C.black,display:"grid",placeItems:"center",fontWeight:800,fontSize:22,transform:`translate(-50%,-50%) perspective(900px) translateZ(180px) rotateX(55deg) rotateZ(${interpolate(f,[0,120],[0,420],clamp)}deg) scale(${centerScale})`,transformStyle:"preserve-3d",boxShadow:`0 0 100px ${C.lime}66`}}>NFC</div>
       {features.map(([name,icon],i)=>{
         const a = -Math.PI/2 + (i-2)*0.55;
         const tx = Math.cos(a)*390;
@@ -111,7 +114,7 @@ function FeatureExplosion() {
         const p = spring({frame:Math.max(0,f-18-i*5),fps:30,config:{damping:12,stiffness:115,mass:.6}});
         const lineP = interpolate(p,[0,1],[0,1],clamp);
         return <React.Fragment key={name}>
-          <div style={{position:"absolute",left:"50%",top:"55%",width:260,padding:"19px 21px",borderRadius:20,border:"1px solid #303035",background:"#121214",display:"flex",alignItems:"center",gap:14,transform:`translate(-50%,-50%) translate(${tx*p}px,${ty*p}px) scale(${.8+.2*p})`,opacity:p,boxShadow:"0 25px 60px #0009"}}>
+          <div style={{position:"absolute",left:"50%",top:"55%",width:260,padding:"19px 21px",borderRadius:20,border:"1px solid #303035",background:"#121214",display:"flex",alignItems:"center",gap:14,transform:`translate(-50%,-50%) translate3d(${tx*p}px,${ty*p}px,${interpolate(f,[0,80],[-120,180],clamp)}px) rotateY(${tx>0?12:-12}deg) scale(${.8+.2*p})`,opacity:p,boxShadow:"0 25px 60px #0009"}}>
             <div style={{width:46,height:46,borderRadius:14,background:`${C.lime}16`,border:`1px solid ${C.lime}44`,display:"grid",placeItems:"center",color:C.lime,fontSize:20}}>{icon}</div>
             <div><div style={{fontWeight:700,fontSize:16}}>{name}</div><div style={{fontSize:10,color:C.muted,marginTop:4}}>CONNECTED VIA RIVO</div></div>
           </div>
@@ -130,7 +133,7 @@ function DashboardMotion() {
   const reviews=Math.round(interpolate(f,[8,62],[0,184],clamp));
   const customers=Math.round(interpolate(f,[10,68],[0,2391],clamp));
   const line=interpolate(f,[10,100],[0,1],clamp);
-  return <div style={{position:"absolute",left:"50%",top:"58%",width:930,height:1120,transform:`translate(-50%,-50%) translateY(${pan}px) scale(${.82+.18*enter}) rotateX(${interpolate(f,[0,70],[8,0],clamp)}deg)`,transformOrigin:"center",background:"#0c0c0e",border:"1px solid #303035",borderRadius:28,boxShadow:"0 60px 140px #000b",overflow:"hidden"}}>
+  return <div style={{position:"absolute",left:"50%",top:"58%",width:930,height:1120,transform:`translate(-50%,-50%) perspective(1500px) translate3d(0,${pan}px,${interpolate(f,[0,120],[320,-80],clamp)}px) scale(${.82+.18*enter}) rotateY(${interpolate(f,[0,120],[-12,3],clamp)}deg) rotateX(${interpolate(f,[0,70],[8,0],clamp)}deg)`,transformOrigin:"center",background:"#0c0c0e",border:"1px solid #303035",borderRadius:28,boxShadow:"0 60px 140px #000b",overflow:"hidden"}}>
     <div style={{height:74,borderBottom:"1px solid #252529",display:"flex",alignItems:"center",padding:"0 24px",justifyContent:"space-between"}}><div style={{display:"flex",alignItems:"center",gap:10}}><Logo size={34}/><b>Control Room</b></div><span style={{fontSize:10,color:C.muted,letterSpacing:1}}>LIVE FLEET · NAPOLI</span></div>
     <div style={{padding:28}}>
       <div style={{fontSize:30,fontWeight:750}}>Your customer experience.</div>
@@ -173,12 +176,12 @@ function Orbit() {
   const labels=["REVIEWS","LOYALTY","WI-FI","SERVICE","COUPONS","ANALYTICS","CRM","SMART ROUTING"];
   const rot=interpolate(f,[0,150],[0,Math.PI*2],clamp);
   return <div style={{position:"absolute",left:"50%",top:"58%",width:900,height:850,transform:"translate(-50%,-50%)"}}>
-    <div style={{position:"absolute",left:"50%",top:"50%",width:235,height:235,borderRadius:70,background:"#141416",border:`1px solid ${C.lime}66`,boxShadow:`0 0 100px ${C.lime}18`,display:"grid",placeItems:"center",transform:`translate(-50%,-50%) rotate(${-rot}rad)`}}><Logo size={125}/></div>
+    <div style={{position:"absolute",left:"50%",top:"50%",width:235,height:235,borderRadius:70,background:"#141416",border:`1px solid ${C.lime}66`,boxShadow:`0 0 100px ${C.lime}18`,display:"grid",placeItems:"center",transform:`translate(-50%,-50%) perspective(1200px) rotateX(66deg) rotateZ(${-rot}rad) translateZ(120px)`}}><Logo size={125}/></div>
     {labels.map((label,i)=>{
       const a=i/labels.length*Math.PI*2-Math.PI/2+rot;
       const x=Math.cos(a)*330,y=Math.sin(a)*330;
       const p=spring({frame:Math.max(0,f-8-i*3),fps:30,config:{damping:15,stiffness:100}});
-      return <React.Fragment key={label}><div style={{position:"absolute",left:"50%",top:"50%",width:170,padding:"15px",textAlign:"center",borderRadius:15,border:"1px solid #2b2b30",background:"#101012",fontSize:10,letterSpacing:1.1,transform:`translate(-50%,-50%) translate(${x*p}px,${y*p}px)`,opacity:p}}>{label}</div><div style={{position:"absolute",left:"50%",top:"50%",height:1,width:330,background:C.lime,transformOrigin:"left",transform:`rotate(${a}rad) scaleX(${p})`,opacity:.2*p}}/></React.Fragment>;
+      return <React.Fragment key={label}><div style={{position:"absolute",left:"50%",top:"50%",width:170,padding:"15px",textAlign:"center",borderRadius:15,border:"1px solid #2b2b30",background:"#101012",fontSize:10,letterSpacing:1.1,transform:`translate(-50%,-50%) perspective(1200px) translate3d(${x*p}px,${y*p}px,${Math.sin(a)*220}px) rotateY(${a*8}deg)`,opacity:p}}>{label}</div><div style={{position:"absolute",left:"50%",top:"50%",height:1,width:330,background:C.lime,transformOrigin:"left",transform:`rotate(${a}rad) scaleX(${p})`,opacity:.2*p}}/></React.Fragment>;
     })}
   </div>;
 }
@@ -213,11 +216,11 @@ export const RivoAd: React.FC = () => {
   return <AbsoluteFill style={{fontFamily:'Inter,"SF Pro Display","Helvetica Neue",Arial,sans-serif',color:C.white,background:C.bg,overflow:"hidden"}}>
     {bg(f)}
     {scene(0,82,<><Title text="Every table is an opportunity." sub="The physical world is still waiting to be connected." from={4}/><div style={{position:"absolute",left:"50%",top:"59%",width:620,height:390,borderRadius:44,border:"1px solid #29292e",background:"#0d0d0f",transform:`translate(-50%,-50%) perspective(900px) rotateX(${interpolate(f,[0,82],[16,0],clamp)}deg)`}}><div style={{position:"absolute",left:"50%",top:"50%",width:190,height:110,borderRadius:22,border:"1px solid #38383d",transform:"translate(-50%,-50%)"}}/></div></>,[.94,1.04])}
-    {scene(70,185,<><Title text="One tap." sub="Watch what happens after the touch." from={4}/><TapDevice/></>,[.9,1.08])}
-    {scene(170,310,<><Title text="One signal. Five actions." sub="RIVO turns one physical touch into a connected journey." from={3}/><FeatureExplosion/></>,[.92,1.03])}
-    {scene(295,470,<><Title text="Everything after the tap." sub="One control room. Live." from={4}/><DashboardMotion/></>,[1.04,.92])}
-    {scene(455,570,<><Title text="Bad experience?" sub="Don't send it straight to Google." from={3}/><ShieldMotion/></>,[.94,1.04])}
-    {scene(555,735,<><Title text="One platform." sub="Every touchpoint becomes part of the same system." from={3}/><Orbit/></>,[.92,1.02])}
-    {scene(720,900,<><FinalReveal/></>,[1.08,1])}
+    {scene(70,185,<><Title text="One tap." sub="Watch what happens after the touch." from={4}/><TapDevice/><Sfx src={TAP_SFX} from={28} volume={.8}/><Sfx src={WHOOSH_SFX} from={0} volume={.25}/></>,[.9,1.08])}
+    {scene(170,310,<><Title text="One signal. Five actions." sub="RIVO turns one physical touch into a connected journey." from={3}/><FeatureExplosion/><Sfx src={WHOOSH_SFX} from={18} volume={.45}/></>,[.92,1.03])}
+    {scene(295,470,<><Title text="Everything after the tap." sub="One control room. Live." from={4}/><DashboardMotion/><Sfx src={WHOOSH_SFX} from={4} volume={.25}/><Sfx src={IMPACT_SFX} from={48} volume={.35}/></>,[1.04,.92])}
+    {scene(455,570,<><Title text="Bad experience?" sub="Don't send it straight to Google." from={3}/><ShieldMotion/><Sfx src={WHOOSH_SFX} from={42} volume={.35}/></>,[.94,1.04])}
+    {scene(555,735,<><Title text="One platform." sub="Every touchpoint becomes part of the same system." from={3}/><Orbit/><Sfx src={WHOOSH_SFX} from={12} volume={.3}/></>,[.92,1.02])}
+    {scene(720,900,<><FinalReveal/><Sfx src={IMPACT_SFX} from={10} volume={.5}/></>,[1.08,1])}
   </AbsoluteFill>;
 };
