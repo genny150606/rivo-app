@@ -1,0 +1,24 @@
+name: Render RIVO Motion Ad
+
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: motion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: motion/package.json
+      - run: npm install
+      - run: npx remotion render src/index.ts RivoAd out/rivo-ad-vertical.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rivo-motion-ad
+          path: motion/out/rivo-ad-vertical.mp4
