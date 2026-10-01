@@ -21,6 +21,9 @@ import {
   Users,
   Smartphone,
   UtensilsCrossed,
+  ShoppingBag,
+  Boxes,
+  SearchCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -125,6 +128,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [category, setCategory] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [activeModules, setActiveModules] = useState<Set<string>>(new Set());
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
@@ -168,6 +172,36 @@ export default function DashboardLayout({
           if (org?.category && isMounted) {
             setCategory(org.category);
           }
+
+          // Fetch organization modules
+          const { data: orgMods } = await supabase
+            .from('organization_modules')
+            .select(`
+              enabled,
+              modules:module_id (
+                slug
+              )
+            `)
+            .eq('organization_id', targetOrgId);
+
+          if (orgMods && orgMods.length > 0 && isMounted) {
+            const enabledSet = new Set<string>();
+            for (const om of orgMods) {
+              const mod = om.modules as any;
+              if (om.enabled && mod?.slug) {
+                enabledSet.add(mod.slug);
+              }
+            }
+            setActiveModules(enabledSet);
+          } else if (isMounted) {
+            // Default fallback based on category
+            const isRestaurant = !org?.category || ['restaurant', 'bar', 'pizzeria'].includes(org.category);
+            if (isRestaurant) {
+              setActiveModules(new Set(['table_service', 'staff', 'service_calls', 'canva_menu', 'analytics', 'nfc_qr', 'review_shield', 'loyalty', 'coupons', 'crm']));
+            } else {
+              setActiveModules(new Set(['products', 'inventory', 'analytics', 'nfc_qr', 'review_shield', 'loyalty', 'crm']));
+            }
+          }
         }
       } catch (err) {
         console.error('Error fetching org category in layout:', err);
@@ -182,26 +216,63 @@ export default function DashboardLayout({
 
   const isStaffRole = userRole === 'waiter';
 
+  // Helper to test if a module is enabled (or allowed by default if activeModules not yet loaded)
+  const hasModule = (slug: string) => {
+    if (activeModules.size === 0) return true; // optimistic default during hydration
+    return activeModules.has(slug);
+  };
+
   const navItems: NavItem[] = isStaffRole
     ? [
         { label: 'Il Mio Turno', href: '/dashboard/waiter', icon: BellRing, badge: 'Live' },
-        { label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers },
+        ...(hasModule('table_service')
+          ? [{ label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers }]
+          : []),
       ]
     : [
         { label: 'Overview', href: '/dashboard', icon: BarChart3 },
-        { label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers, badge: 'Staff' },
-        { label: 'Gestione Staff', href: '/dashboard/staff', icon: Users, badge: 'Team' },
-        { label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone },
-        ...(category === 'restaurant'
+        ...(hasModule('table_service')
+          ? [{ label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers, badge: 'Staff' }]
+          : []),
+        ...(hasModule('staff')
+          ? [{ label: 'Gestione Staff', href: '/dashboard/staff', icon: Users, badge: 'Team' }]
+          : []),
+        ...(hasModule('products')
+          ? [{ label: 'Catalogo Prodotti', href: '/dashboard/products', icon: ShoppingBag, badge: 'Retail' }]
+          : []),
+        ...(hasModule('inventory')
+          ? [
+              { label: 'Magazzino & Scorte', href: '/dashboard/inventory', icon: Boxes, badge: 'Stock' },
+              { label: 'Verifica Taglie', href: '/dashboard/stock-check', icon: SearchCheck, badge: 'Live' },
+            ]
+          : []),
+        ...(hasModule('universal_hub')
+          ? [{ label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone }]
+          : []),
+        ...(hasModule('canva_menu') && (category === 'restaurant' || !category)
           ? [{ label: 'Menù Canvas', href: '/dashboard/menu', icon: UtensilsCrossed, badge: 'Ristoranti' }]
           : []),
-        { label: 'Analytics', href: '/dashboard/analytics', icon: Radio },
-        { label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing },
-        { label: 'Review Shield', href: '/dashboard/reviews', icon: Star },
-        { label: 'Ruota & Coupon', href: '/dashboard/coupons', icon: Gift },
-        { label: 'Fidelity Pass', href: '/dashboard/loyalty', icon: Award },
-        { label: 'Clienti & CRM', href: '/dashboard/leads', icon: Users },
-        { label: 'Devices', href: '/dashboard/devices', icon: Layers },
+        ...(hasModule('analytics')
+          ? [{ label: 'Analytics', href: '/dashboard/analytics', icon: Radio }]
+          : []),
+        ...(hasModule('service_calls')
+          ? [{ label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing }]
+          : []),
+        ...(hasModule('review_shield')
+          ? [{ label: 'Review Shield', href: '/dashboard/reviews', icon: Star }]
+          : []),
+        ...(hasModule('coupons')
+          ? [{ label: 'Ruota & Coupon', href: '/dashboard/coupons', icon: Gift }]
+          : []),
+        ...(hasModule('loyalty')
+          ? [{ label: 'Fidelity Pass', href: '/dashboard/loyalty', icon: Award }]
+          : []),
+        ...(hasModule('crm')
+          ? [{ label: 'Clienti & CRM', href: '/dashboard/leads', icon: Users }]
+          : []),
+        ...(hasModule('nfc_qr')
+          ? [{ label: 'Devices', href: '/dashboard/devices', icon: Layers }]
+          : []),
         { label: 'Locations', href: '/dashboard/locations', icon: MapPin },
         { label: 'Profile & Routing', href: '/dashboard/profile', icon: User },
         { label: 'Settings', href: '/dashboard/settings', icon: Settings },

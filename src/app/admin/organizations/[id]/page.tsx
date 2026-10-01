@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, Smartphone } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import AddDeviceModal from '@/components/admin/AddDeviceModal';
 import CopyTrackingButtons from '@/components/ui/CopyTrackingButtons';
+import OrgModulesManager from '@/components/admin/OrgModulesManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,6 +149,8 @@ export default async function AdminOrgDetailPage({
           </div>
         )}
       </div>
+      {/* Moduli & Funzionalità Piattaforma (Multi-Vertical Engine) */}
+      <OrgModulesManager organizationId={org.id} organizationName={org.name} />
     </div>
   );
 }

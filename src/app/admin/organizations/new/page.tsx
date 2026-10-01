@@ -20,7 +20,8 @@ import {
   KeyRound, 
   Search,
   SlidersHorizontal,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Boxes
 } from 'lucide-react';
 
 function InstagramIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
@@ -40,6 +41,7 @@ import {
   getCategoryDefinition 
 } from '@/lib/categories';
 import { BusinessCategory } from '@/lib/types';
+import { MODULE_CATALOG, BUSINESS_TYPE_DEFINITIONS, ModuleSlug, BusinessTypeSlug } from '@/lib/modules/catalog';
 
 export default function NewOrganizationWizard() {
   const router = useRouter();
@@ -54,6 +56,10 @@ export default function NewOrganizationWizard() {
 
   // Form State - Step 1: Identità & Brand
   const [category, setCategory] = useState<BusinessCategory>('restaurant');
+  const [businessType, setBusinessType] = useState<BusinessTypeSlug>('restaurant');
+  const [selectedModules, setSelectedModules] = useState<Set<ModuleSlug>>(
+    () => new Set(BUSINESS_TYPE_DEFINITIONS.restaurant.defaultModules)
+  );
   const [businessName, setBusinessName] = useState('');
   const [vatNumber, setVatNumber] = useState('');
   const [description, setDescription] = useState('');
@@ -122,6 +128,22 @@ export default function NewOrganizationWizard() {
     setCategory(catId);
     const def = getCategoryDefinition(catId);
     setCustomCtaLabel(def.defaultCtaLabel);
+
+    // Map category to business type slug
+    let mappedBt: BusinessTypeSlug = 'restaurant';
+    if (catId === 'hotel') mappedBt = 'hotel';
+    else if (catId === 'bnb') mappedBt = 'bb';
+    else if (catId === 'bar') mappedBt = 'bar';
+    else if (catId === 'pizzeria') mappedBt = 'pizzeria';
+    else if (catId === 'retail' || catId === 'store') mappedBt = 'retail';
+    else if (catId === 'fitness') mappedBt = 'gym';
+    else if (catId === 'medical' || catId === 'dental') mappedBt = 'medical_studio';
+    else mappedBt = 'restaurant';
+
+    setBusinessType(mappedBt);
+    const btDef = BUSINESS_TYPE_DEFINITIONS[mappedBt] || BUSINESS_TYPE_DEFINITIONS.restaurant;
+    setSelectedModules(new Set(btDef.defaultModules));
+
     if (catId === 'hotel' || catId === 'bnb') {
       setDeviceName('Camera 101');
     } else if (catId === 'salon' || catId === 'barber' || catId === 'beauty') {
@@ -133,6 +155,32 @@ export default function NewOrganizationWizard() {
     } else {
       setDeviceName('Tavolo 1');
     }
+  };
+
+  const handleToggleModule = (slug: ModuleSlug) => {
+    const btDef = BUSINESS_TYPE_DEFINITIONS[businessType] || BUSINESS_TYPE_DEFINITIONS.restaurant;
+    if (btDef.requiredModules.includes(slug)) {
+      // Cannot toggle required modules
+      return;
+    }
+    const next = new Set(selectedModules);
+    if (next.has(slug)) {
+      next.delete(slug);
+      // If module has dependents (e.g. inventory depends on products), remove them
+      Object.entries(MODULE_CATALOG).forEach(([k, def]) => {
+        if (def.dependencies?.includes(slug)) {
+          next.delete(k as ModuleSlug);
+        }
+      });
+    } else {
+      next.add(slug);
+      // Auto-enable required dependencies
+      const def = MODULE_CATALOG[slug];
+      if (def?.dependencies) {
+        def.dependencies.forEach(dep => next.add(dep));
+      }
+    }
+    setSelectedModules(next);
   };
 
   const handleCreateOrg = async () => {
@@ -151,6 +199,8 @@ export default function NewOrganizationWizard() {
           email,
           website,
           category,
+          businessTypeSlug: businessType,
+          selectedModuleSlugs: Array.from(selectedModules),
           hubMode,
           customCtaLabel,
           customCtaUrl,
@@ -373,6 +423,62 @@ export default function NewOrganizationWizard() {
                         <span className="text-[10px] text-zinc-500 block mt-0.5 line-clamp-2 leading-tight">{cat.desc}</span>
                       </div>
                     </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modular Platform Presets Configurator */}
+            <div className="p-4 rounded-xl bg-[#18181B]/80 border border-[#27272A] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-zinc-200 font-semibold text-xs uppercase tracking-wider">
+                  <Boxes className="w-4 h-4 text-[#BFFF00]" /> Moduli & Preset Piattaforma ({selectedModules.size} attivi)
+                </div>
+                <span className="text-[11px] text-zinc-400">
+                  Preset: <strong className="text-white">{BUSINESS_TYPE_DEFINITIONS[businessType]?.name || businessType}</strong>
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400">
+                In base al tipo di business selezionato, RIVO pre-configura i moduli ideali. Puoi abilitare o disabilitare funzionalità su misura per questo cliente.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
+                {Object.values(MODULE_CATALOG).map((mod) => {
+                  const isChecked = selectedModules.has(mod.slug);
+                  const isReq = (BUSINESS_TYPE_DEFINITIONS[businessType]?.requiredModules || []).includes(mod.slug);
+                  return (
+                    <div
+                      key={mod.slug}
+                      onClick={() => !isReq && handleToggleModule(mod.slug)}
+                      className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2.5 select-none ${
+                        isReq
+                          ? 'bg-[#18181B] border-zinc-700/60 opacity-80 cursor-not-allowed'
+                          : isChecked
+                          ? 'bg-[#BFFF00]/10 border-[#BFFF00]/50 hover:bg-[#BFFF00]/15 cursor-pointer'
+                          : 'bg-[#121214] border-[#27272A] hover:border-zinc-700 cursor-pointer opacity-60'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={isReq}
+                        onChange={() => {}}
+                        className="mt-0.5 rounded border-zinc-700 text-[#BFFF00] focus:ring-[#BFFF00] cursor-pointer"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 justify-between">
+                          <span className="text-xs font-semibold text-white truncate">{mod.name}</span>
+                          {isReq && (
+                            <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0">
+                              Obbligatorio
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-zinc-500 line-clamp-1 block mt-0.5">
+                          {mod.description}
+                        </span>
+                      </div>
+                    </div>
                   );
                 })}
               </div>

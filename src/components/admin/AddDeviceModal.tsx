@@ -85,15 +85,43 @@ export default function AddDeviceModal({ organizationId, locations }: AddDeviceM
 
         <form onSubmit={handleCreate} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Nome Dispositivo *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-zinc-400">Nome Dispositivo *</label>
+              <span className="text-[10px] text-zinc-500">Preset rapidi cliccabili:</span>
+            </div>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="es. Tavolo 5 o Ingresso"
+              placeholder="es. Banco Cassa, Vetrina o Tavolo 5"
               className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white"
             />
+            {/* Quick Presets for Retail & Restaurant */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {[
+                'Vetrina Principale',
+                'Banco Cassa',
+                'Camerino 1',
+                'Camerino 2',
+                'Corner Ingresso',
+                'Tavolo 1',
+                'Bancone Bar',
+              ].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setName(preset)}
+                  className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
+                    name === preset
+                      ? 'bg-[#BFFF00] text-black font-bold border-[#BFFF00]'
+                      : 'bg-zinc-800/80 text-zinc-400 hover:text-white border-zinc-700/60'
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>

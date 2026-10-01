@@ -37,15 +37,14 @@ export async function logAuditEvent(params: LogAuditParams): Promise<boolean> {
 
     const { error } = await adminClient.from('audit_logs').insert({
       organization_id: params.organizationId,
-      actor_user_id: params.actor.id || null,
-      actor_email: params.actor.email || null,
+      actor_id: params.actor.id || null,
+      actor_name: params.actor.email || null,
       actor_role: params.actor.role || null,
       action: params.action,
       entity_type: params.entityType,
       entity_id: params.entityId || null,
       details: params.details || {},
       ip_address: params.ipAddress || null,
-      user_agent: params.userAgent || null,
     });
 
     if (error) {

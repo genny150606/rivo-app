@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { 
   Users, 
   UserPlus, 
@@ -19,7 +20,8 @@ import {
   X,
   Send,
   Loader2,
-  Lock
+  Lock,
+  Building
 } from 'lucide-react';
 import { StaffRole } from '@/lib/rbac';
 
@@ -89,7 +91,11 @@ const ROLE_INFO: Record<string, { label: string; badgeClass: string; desc: strin
 };
 
 export default function StaffManagementPage() {
+  const [supabase] = useState(() => createClient());
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<Array<{ id: string; name: string }>>([]);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [invitations, setInvitations] = useState<StaffInvitation[]>([]);
   const [assignments, setAssignments] = useState<TableAssignment[]>([]);
@@ -111,11 +117,13 @@ export default function StaffManagementPage() {
   // Action states
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
-  const fetchStaffData = async () => {
+  const fetchStaffData = async (orgIdOverride?: string) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/staff');
+      const activeOrg = orgIdOverride || currentOrgId;
+      const url = activeOrg ? `/api/staff?organization_id=${activeOrg}` : '/api/staff';
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!res.ok) {
@@ -135,7 +143,48 @@ export default function StaffManagementPage() {
   };
 
   useEffect(() => {
-    fetchStaffData();
+    async function initUserAndOrg() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          fetchStaffData();
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id, role')
+          .eq('auth_user_id', user.id)
+          .single();
+
+        let resolvedOrgId = profile?.organization_id;
+        const role = profile?.role;
+        setUserRole(role);
+
+        if (role === 'admin') {
+          const { data: allOrgs } = await supabase
+            .from('organizations')
+            .select('id, name')
+            .order('name', { ascending: true });
+
+          if (allOrgs && allOrgs.length > 0) {
+            setOrganizations(allOrgs);
+            if (!resolvedOrgId) {
+              resolvedOrgId = allOrgs[0].id;
+            }
+          }
+        }
+
+        if (resolvedOrgId) {
+          setCurrentOrgId(resolvedOrgId);
+        }
+        fetchStaffData(resolvedOrgId);
+      } catch (e) {
+        console.error('Staff init error:', e);
+        fetchStaffData();
+      }
+    }
+    initUserAndOrg();
   }, []);
 
   const handleCreateInvite = async (e: React.FormEvent) => {
@@ -158,6 +207,7 @@ export default function StaffManagementPage() {
           lastName: inviteLastName,
           role: inviteRole,
           locationId: inviteLocationId || null,
+          organizationId: currentOrgId || undefined,
         }),
       });
 
@@ -183,7 +233,7 @@ export default function StaffManagementPage() {
       const res = await fetch('/api/staff', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ staffId, status }),
+        body: JSON.stringify({ staffId, status, organizationId: currentOrgId || undefined }),
       });
 
       const data = await res.json();
@@ -201,7 +251,10 @@ export default function StaffManagementPage() {
   const handleRevokeInvite = async (inviteId: string) => {
     setActionInProgress(inviteId);
     try {
-      const res = await fetch(`/api/staff/invite?id=${inviteId}`, {
+      const deleteUrl = currentOrgId 
+        ? `/api/staff/invite?id=${inviteId}&organization_id=${currentOrgId}`
+        : `/api/staff/invite?id=${inviteId}`;
+      const res = await fetch(deleteUrl, {
         method: 'DELETE',
       });
 
@@ -258,6 +311,27 @@ export default function StaffManagementPage() {
           </p>
         </div>
 
+        {userRole === 'admin' && organizations.length > 0 && (
+          <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800/80 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <Building className="w-4 h-4 text-[#bfff00] shrink-0" />
+            <span className="text-xs text-zinc-500 font-medium shrink-0">Attività:</span>
+            <select
+              value={currentOrgId || ''}
+              onChange={(e) => {
+                const newOrg = e.target.value;
+                setCurrentOrgId(newOrg);
+                fetchStaffData(newOrg);
+              }}
+              className="bg-transparent text-xs font-semibold text-zinc-900 dark:text-white focus:outline-none cursor-pointer max-w-[180px] truncate"
+            >
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white">
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <button
           onClick={() => setIsInviteModalOpen(true)}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 font-medium text-sm hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all active:scale-[0.98] shadow-sm shrink-0"
@@ -324,7 +398,7 @@ export default function StaffManagementPage() {
             <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">({staffList.length} membri)</span>
           </h2>
           <button
-            onClick={fetchStaffData}
+            onClick={() => fetchStaffData()}
             disabled={loading}
             className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors"
             title="Aggiorna lista"

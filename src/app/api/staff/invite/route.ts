@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { verifyUserOrgAccess, isValidUUID, sanitizeString } from '@/lib/security';
+import { verifyUserOrgAccess, isValidUUID, sanitizeString, UserProfile } from '@/lib/security';
 import { can } from '@/lib/rbac';
 import { logAuditEvent } from '@/lib/audit';
 
@@ -11,6 +11,33 @@ function getAdminClient() {
   return createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   });
+}
+
+async function resolveOrganizationId(
+  profile: UserProfile,
+  explicitOrgId?: string | null
+): Promise<string | null> {
+  const adminClient = getAdminClient();
+  const isAdmin = profile.role === 'admin';
+
+  if (isAdmin) {
+    if (explicitOrgId && isValidUUID(explicitOrgId)) {
+      return explicitOrgId;
+    }
+    if (profile.organization_id) {
+      return profile.organization_id;
+    }
+    const { data: firstOrg } = await adminClient
+      .from('organizations')
+      .select('id')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    return firstOrg?.id || null;
+  }
+
+  return profile.organization_id || null;
 }
 
 /**
@@ -72,27 +99,31 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const token = sanitizeString(body.token);
+    const token = body.token;
     const password = body.password;
     const firstName = sanitizeString(body.firstName, 100);
     const lastName = sanitizeString(body.lastName, 100);
 
-    if (!token || !password || password.length < 8) {
-      return NextResponse.json({ error: 'Dati incompleti o password troppo breve (minimo 8 caratteri).' }, { status: 400 });
+    if (!token || typeof token !== 'string' || token.length < 32) {
+      return NextResponse.json({ error: 'Token invito non valido.' }, { status: 400 });
+    }
+
+    if (!password || password.length < 8) {
+      return NextResponse.json({ error: 'La password deve avere almeno 8 caratteri.' }, { status: 400 });
     }
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const adminClient = getAdminClient();
 
-    // Fetch invitation
-    const { data: invite, error: inviteErr } = await adminClient
+    // Verify invitation exists and is pending
+    const { data: invite, error: invError } = await adminClient
       .from('staff_invitations')
-      .select('id, email, first_name, last_name, role, status, expires_at, organization_id, location_id')
+      .select('*')
       .eq('token_hash', tokenHash)
       .single();
 
-    if (inviteErr || !invite) {
-      return NextResponse.json({ error: 'Invito non valido o inesistente.' }, { status: 404 });
+    if (invError || !invite) {
+      return NextResponse.json({ error: 'Invito non trovato o scaduto.' }, { status: 404 });
     }
 
     if (invite.status !== 'pending') {
@@ -103,109 +134,79 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Questo invito è scaduto.' }, { status: 410 });
     }
 
-    const email = invite.email.toLowerCase().trim();
-    const effectiveFirstName = firstName || invite.first_name || '';
-    const effectiveLastName = lastName || invite.last_name || '';
+    const email = invite.email.toLowerCase();
+    const role = invite.role;
+    const organizationId = invite.organization_id;
+    const locationId = invite.location_id;
+    const finalFirstName = firstName || invite.first_name || '';
+    const finalLastName = lastName || invite.last_name || '';
 
-    // Check if auth user already exists for this email
+    // Check if an auth user already exists for this email
+    // List users by email using admin client
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const existingAuthUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email);
+    const existingAuthUser = existingUsers?.users?.find(
+      (u) => u.email?.toLowerCase() === email
+    );
 
     let authUserId: string;
 
     if (existingAuthUser) {
-      // Update password of existing auth user
-      const { data: updatedUser, error: updateAuthErr } = await adminClient.auth.admin.updateUserById(
-        existingAuthUser.id,
-        {
-          password,
-          email_confirm: true,
-          user_metadata: {
-            first_name: effectiveFirstName,
-            last_name: effectiveLastName,
-          },
-        }
-      );
-
-      if (updateAuthErr || !updatedUser.user) {
-        console.error('[API Invite POST] Update auth error:', updateAuthErr);
-        return NextResponse.json({ error: 'Errore nell’aggiornamento dell’account.' }, { status: 500 });
-      }
-      authUserId = updatedUser.user.id;
-    } else {
-      // Create new Supabase auth user
-      const { data: newAuthUser, error: createAuthErr } = await adminClient.auth.admin.createUser({
-        email,
-        password,
+      authUserId = existingAuthUser.id;
+      // Update password
+      const { error: pwdErr } = await adminClient.auth.admin.updateUserById(authUserId, {
+        password: password,
         email_confirm: true,
         user_metadata: {
-          first_name: effectiveFirstName,
-          last_name: effectiveLastName,
+          first_name: finalFirstName,
+          last_name: finalLastName,
+          role: role,
+        },
+      });
+      if (pwdErr) {
+        console.error('[API Staff Invite Accept] Password update error:', pwdErr);
+        return NextResponse.json({ error: 'Errore nell’aggiornamento dell’account.' }, { status: 500 });
+      }
+    } else {
+      // Create new user in Supabase Auth
+      const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
+        email: email,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          first_name: finalFirstName,
+          last_name: finalLastName,
+          role: role,
         },
       });
 
-      if (createAuthErr || !newAuthUser.user) {
-        console.error('[API Invite POST] Create auth error:', createAuthErr);
-        return NextResponse.json({ error: 'Errore nella creazione dell’account: ' + (createAuthErr?.message || '') }, { status: 500 });
+      if (createErr || !newUser.user) {
+        console.error('[API Staff Invite Accept] User create error:', createErr);
+        return NextResponse.json({ error: 'Errore nella creazione dell’account: ' + (createErr?.message || '') }, { status: 500 });
       }
-      authUserId = newAuthUser.user.id;
+
+      authUserId = newUser.user.id;
     }
 
-    // Check if profile exists
-    const { data: existingProfile } = await adminClient
+    // Upsert public.profiles record
+    const { data: profile, error: profileErr } = await adminClient
       .from('profiles')
-      .select('id')
-      .eq('auth_user_id', authUserId)
-      .maybeSingle();
+      .upsert({
+        auth_user_id: authUserId,
+        email: email,
+        first_name: finalFirstName,
+        last_name: finalLastName,
+        organization_id: organizationId,
+        location_id: locationId,
+        role: role,
+        status: 'active',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'auth_user_id' })
+      .select()
+      .single();
 
-    let profileId: string;
-
-    if (existingProfile) {
-      // Update profile
-      const { data: updatedProfile, error: profUpdateErr } = await adminClient
-        .from('profiles')
-        .update({
-          organization_id: invite.organization_id,
-          location_id: invite.location_id,
-          email,
-          first_name: effectiveFirstName,
-          last_name: effectiveLastName,
-          role: invite.role,
-          status: 'active',
-          last_login_at: new Date().toISOString(),
-        })
-        .eq('id', existingProfile.id)
-        .select()
-        .single();
-
-      if (profUpdateErr || !updatedProfile) {
-        console.error('[API Invite POST] Profile update err:', profUpdateErr);
-        return NextResponse.json({ error: 'Errore nella configurazione del profilo.' }, { status: 500 });
-      }
-      profileId = updatedProfile.id;
-    } else {
-      // Insert new profile
-      const { data: newProfile, error: profInsertErr } = await adminClient
-        .from('profiles')
-        .insert({
-          auth_user_id: authUserId,
-          organization_id: invite.organization_id,
-          location_id: invite.location_id,
-          email,
-          first_name: effectiveFirstName,
-          last_name: effectiveLastName,
-          role: invite.role,
-          status: 'active',
-          last_login_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (profInsertErr || !newProfile) {
-        console.error('[API Invite POST] Profile insert err:', profInsertErr);
-        return NextResponse.json({ error: 'Errore nel salvataggio del profilo: ' + (profInsertErr?.message || '') }, { status: 500 });
-      }
-      profileId = newProfile.id;
+    if (profileErr) {
+      console.error('[API Staff Invite Accept] Profile upsert error:', profileErr);
+      return NextResponse.json({ error: 'Errore nel salvataggio del profilo collaboratore.' }, { status: 500 });
     }
 
     // Mark invitation as accepted
@@ -219,20 +220,19 @@ export async function POST(request: NextRequest) {
 
     // Audit log
     await logAuditEvent({
-      organizationId: invite.organization_id,
-      actor: { id: profileId, email, role: invite.role },
+      organizationId,
+      actor: { id: profile.id, email, role },
       action: 'staff.invitation_accepted',
       entityType: 'staff_invitation',
       entityId: invite.id,
-      details: { email, role: invite.role, profileId },
+      details: { email, role, profileId: profile.id },
       ipAddress: request.headers.get('x-forwarded-for') || null,
       userAgent: request.headers.get('user-agent') || null,
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Account attivato con successo! Ora puoi effettuare il login.',
-      role: invite.role,
+      message: 'Account attivato con successo! Ora puoi accedere.',
     });
   } catch (err: any) {
     console.error('[API Staff Invite Accept] Exception:', err);
@@ -256,13 +256,18 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const inviteId = searchParams.get('id');
+    const requestedOrgId = searchParams.get('organization_id') || searchParams.get('organizationId');
 
     if (!isValidUUID(inviteId)) {
       return NextResponse.json({ error: 'ID invito non valido.' }, { status: 400 });
     }
 
+    const orgId = await resolveOrganizationId(profile, requestedOrgId);
+    if (!orgId) {
+      return NextResponse.json({ error: 'Nessuna organizzazione selezionata.' }, { status: 400 });
+    }
+
     const adminClient = getAdminClient();
-    const orgId = profile.organization_id;
 
     const { data: invite, error: fetchErr } = await adminClient
       .from('staff_invitations')

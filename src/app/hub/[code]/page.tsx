@@ -81,6 +81,7 @@ const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.C
 
 import { WhatsAppIcon, InstagramIcon } from '@/components/brand-icons';
 import SmartBillModal from '@/components/SmartBillModal';
+import RetailCatalogModal, { RetailProduct } from '@/components/hub/RetailCatalogModal';
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 import { BusinessCategory } from '@/lib/types';
@@ -301,6 +302,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   // Modals & Interactivity
   const [showCityGuide, setShowCityGuide] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
+  const [showRetailCatalogModal, setShowRetailCatalogModal] = useState(false);
+  const [retailProducts, setRetailProducts] = useState<RetailProduct[]>([]);
   const [menuTab, setMenuTab] = useState<'tutti' | 'antipasti' | 'primi' | 'secondi' | 'dolci' | 'bevande'>('tutti');
   const [menuSearch, setMenuSearch] = useState('');
   
@@ -512,6 +515,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               org: fullOrgData,
               hubConfig: merged,
             });
+
+            // If retail / shoe store, fetch public products catalog
+            const isRetailOrg = ['shoe_store', 'retail', 'store', 'boutique', 'other'].includes(fullOrgData.category || '');
+            if (isRetailOrg) {
+              fetch(`/api/hub/catalog?organization_id=${dev.organization_id}`)
+                .then(res => res.json())
+                .then(catalogData => {
+                  if (catalogData && catalogData.products && !isCancelled) {
+                    setRetailProducts(catalogData.products);
+                  }
+                })
+                .catch(catErr => console.warn('Catalog load error:', catErr));
+            }
 
             // Check if lunch hours apply
             if (orgData.smart_routing_enabled && orgData.lunch_destination_url) {
@@ -855,6 +871,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const contrastText = getContrastColor(primaryColor);
 
   const isRestaurant = org?.category === 'restaurant';
+  const isRetail = ['shoe_store', 'retail', 'store', 'boutique'].includes(org?.category || '');
 
   const canvaMenu: CanvaMenuConfig = useMemo(() => {
     if (org?.category === 'restaurant') {
@@ -2147,7 +2164,20 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   );
                 }
                 return (
-                  <button key={mod.id} type="button" onClick={() => { hapticTap(); setShowMenuModal(true); }} className={cardClassName} style={moduleCardStyle}>
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      if (isRetail) {
+                        setShowRetailCatalogModal(true);
+                      } else {
+                        setShowMenuModal(true);
+                      }
+                    }}
+                    className={cardClassName}
+                    style={moduleCardStyle}
+                  >
                     {commonInner}
                   </button>
                 );
@@ -2374,18 +2404,24 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <span className="text-[9px] font-medium mt-0.5">{t.home}</span>
             </button>
 
-            {/* Menù / Servizi */}
+            {/* Menù (per ristoranti) o Catalogo Prodotti (per retail/negozi) */}
             <button
               type="button"
               onClick={() => {
                 hapticTap();
-                setShowMenuModal(true);
+                if (isRetail) {
+                  setShowRetailCatalogModal(true);
+                } else {
+                  setShowMenuModal(true);
+                }
               }}
-              aria-label="Apri Menù"
+              aria-label={isRetail ? 'Apri Catalogo' : 'Apri Menù'}
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
-              <BookOpen className="w-5 h-5" />
-              <span className="text-[9px] font-medium mt-0.5">{t.menu}</span>
+              {isRetail ? <ShoppingBag className="w-5 h-5 text-amber-400" /> : <BookOpen className="w-5 h-5" />}
+              <span className="text-[9px] font-medium mt-0.5">
+                {isRetail ? 'Catalogo' : t.menu}
+              </span>
             </button>
 
             {/* CENTER ELEVATED FLOATING ACTION BUTTON (Primary Accent) */}
@@ -2437,6 +2473,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           </nav>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* RETAIL PRODUCT CATALOG & SIZE AVAILABILITY MODAL (FOR STORES & RETAIL) */}
+      {/* ========================================================================= */}
+      <RetailCatalogModal
+        isOpen={showRetailCatalogModal}
+        onClose={() => setShowRetailCatalogModal(false)}
+        products={retailProducts}
+        orgName={org.name}
+        primaryColor={primaryColor}
+        isLight={isLight}
+      />
 
       {/* ========================================================================= */}
       {/* DIGITAL MENU MODAL (CANVA STYLE FOR RESTAURANTS / STANDARD FOR OTHERS) */}

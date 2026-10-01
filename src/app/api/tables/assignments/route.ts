@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyUserOrgAccess, isValidUUID } from '@/lib/security';
+import { verifyUserOrgAccess, isValidUUID, UserProfile } from '@/lib/security';
 import { can } from '@/lib/rbac';
 import { logAuditEvent } from '@/lib/audit';
 
@@ -10,6 +10,33 @@ function getAdminClient() {
   return createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   });
+}
+
+async function resolveOrganizationId(
+  profile: UserProfile,
+  explicitOrgId?: string | null
+): Promise<string | null> {
+  const adminClient = getAdminClient();
+  const isAdmin = profile.role === 'admin';
+
+  if (isAdmin) {
+    if (explicitOrgId && isValidUUID(explicitOrgId)) {
+      return explicitOrgId;
+    }
+    if (profile.organization_id) {
+      return profile.organization_id;
+    }
+    const { data: firstOrg } = await adminClient
+      .from('organizations')
+      .select('id')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    return firstOrg?.id || null;
+  }
+
+  return profile.organization_id || null;
 }
 
 /**
@@ -26,19 +53,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Permesso negato.' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const requestedOrgId = searchParams.get('organization_id') || searchParams.get('organizationId');
+    const orgId = await resolveOrganizationId(profile, requestedOrgId);
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Nessuna organizzazione trovata.' }, { status: 400 });
+    }
+
     const adminClient = getAdminClient();
-    const orgId = profile.organization_id;
 
     // Fetch all devices (tables) for this organization
     const { data: devices, error: devErr } = await adminClient
       .from('devices')
-      .select('id, name, unique_code, location_id, is_active')
+      .select('id, name, unique_code, location_id, status')
       .eq('organization_id', orgId)
       .order('name', { ascending: true });
 
     if (devErr) {
       console.error('[API Table Assignments GET] Devices error:', devErr);
-      return NextResponse.json({ error: 'Errore nel recupero dei tavoli.' }, { status: 500 });
+      return NextResponse.json({ error: `Errore nel recupero dei tavoli: ${devErr.message}` }, { status: 500 });
     }
 
     // Fetch active assignments with waiter details
@@ -75,6 +109,7 @@ export async function GET(request: NextRequest) {
       .in('role', ['waiter', 'manager', 'owner', 'client']);
 
     return NextResponse.json({
+      organization_id: orgId,
       tables: devices || [],
       assignments: assignments || [],
       staff: staffList || [],
@@ -99,6 +134,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const deviceId = body.deviceId;
     let targetWaiterId = body.waiterId;
+    const requestedOrgId = body.organizationId || body.organization_id;
 
     if (!isValidUUID(deviceId)) {
       return NextResponse.json({ error: 'ID tavolo (device) non valido.' }, { status: 400 });
@@ -125,8 +161,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const orgId = await resolveOrganizationId(profile, requestedOrgId);
+    if (!orgId) {
+      return NextResponse.json({ error: 'Nessuna organizzazione selezionata.' }, { status: 400 });
+    }
+
     const adminClient = getAdminClient();
-    const orgId = profile.organization_id;
 
     // Verify target waiter exists and is active in this org
     const { data: targetWaiter, error: waiterErr } = await adminClient
@@ -137,7 +177,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (waiterErr || !targetWaiter || targetWaiter.status !== 'active') {
-      return NextResponse.json({ error: 'Collaboratore non trovato o non attivo.' }, { status: 400 });
+      return NextResponse.json({ error: 'Collaboratore non trovato o non attivo in questa organizzazione.' }, { status: 400 });
     }
 
     // Check device belongs to this org
@@ -190,8 +230,9 @@ export async function POST(request: NextRequest) {
       .insert({
         organization_id: orgId,
         device_id: deviceId,
+        table_label: device.name,
         waiter_id: targetWaiterId,
-        assigned_by: profile.id,
+        assigned_by: user.id,
         status: 'active',
         assigned_at: new Date().toISOString(),
       })
@@ -245,9 +286,14 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const assignmentId = searchParams.get('assignmentId');
     const deviceId = searchParams.get('deviceId');
+    const requestedOrgId = searchParams.get('organization_id') || searchParams.get('organizationId');
+
+    const orgId = await resolveOrganizationId(profile, requestedOrgId);
+    if (!orgId) {
+      return NextResponse.json({ error: 'Nessuna organizzazione selezionata.' }, { status: 400 });
+    }
 
     const adminClient = getAdminClient();
-    const orgId = profile.organization_id;
 
     let query = adminClient
       .from('table_assignments')
@@ -269,7 +315,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Assegnazione attiva non trovata.' }, { status: 404 });
     }
 
-    // Permission check: Waiter can release their own table; Manager/Owner can release any
+    // Permission check: Waiter can release their own table; Manager/Owner/Admin can release any
     if (assignment.waiter_id !== profile.id && !can(profile, 'tables.assign')) {
       return NextResponse.json({ error: 'Non hai i permessi per liberare questo tavolo.' }, { status: 403 });
     }

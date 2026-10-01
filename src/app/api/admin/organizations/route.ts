@@ -81,6 +81,8 @@ export async function POST(request: NextRequest) {
       deviceType,
       deviceCode,
       destinationUrl,
+      businessTypeSlug,
+      selectedModuleSlugs,
     } = body;
 
     if (!businessName || !ownerEmail || !ownerPassword) {
@@ -95,6 +97,23 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Resolve Business Type
+    let targetBtSlug = businessTypeSlug;
+    if (!targetBtSlug) {
+      if (category === 'hotel') targetBtSlug = 'hotel';
+      else if (category === 'bnb') targetBtSlug = 'bb';
+      else if (category === 'bar') targetBtSlug = 'bar';
+      else if (category === 'pizzeria') targetBtSlug = 'pizzeria';
+      else if (category === 'retail' || category === 'store') targetBtSlug = 'retail';
+      else targetBtSlug = 'restaurant';
+    }
+
+    const { data: btData } = await supabase
+      .from('business_types')
+      .select('id, slug')
+      .eq('slug', targetBtSlug)
+      .single();
 
     // 1. Get Plan
     const { data: plan } = await supabase
@@ -116,6 +135,7 @@ export async function POST(request: NextRequest) {
         website: website || null,
         plan_id: plan?.id || null,
         category: category || 'restaurant',
+        business_type_id: btData?.id || null,
         hub_mode: hubMode || 'hub',
         custom_cta_label: customCtaLabel || null,
         custom_cta_url: customCtaUrl || null,
@@ -138,6 +158,45 @@ export async function POST(request: NextRequest) {
 
     if (orgErr || !org) {
       return NextResponse.json({ error: orgErr?.message || 'Errore creazione attività' }, { status: 400 });
+    }
+
+    // 2.1 Provision Organization Modules
+    if (btData?.id) {
+      // Get all modules from catalog
+      const { data: allModules } = await supabase.from('modules').select('id, slug');
+      const moduleMap = new Map((allModules || []).map((m: any) => [m.slug, m.id]));
+
+      if (Array.isArray(selectedModuleSlugs) && selectedModuleSlugs.length > 0) {
+        // Use explicitly selected modules
+        const moduleInserts = selectedModuleSlugs
+          .filter((slug: string) => moduleMap.has(slug))
+          .map((slug: string) => ({
+            organization_id: org.id,
+            module_id: moduleMap.get(slug),
+            enabled: true,
+            source: 'admin_override',
+          }));
+
+        if (moduleInserts.length > 0) {
+          await supabase.from('organization_modules').insert(moduleInserts);
+        }
+      } else {
+        // Fall back to preset defaults from business_type_modules
+        const { data: presetModules } = await supabase
+          .from('business_type_modules')
+          .select('module_id, enabled_by_default')
+          .eq('business_type_id', btData.id);
+
+        if (presetModules && presetModules.length > 0) {
+          const moduleInserts = presetModules.map((pm: any) => ({
+            organization_id: org.id,
+            module_id: pm.module_id,
+            enabled: pm.enabled_by_default,
+            source: 'preset',
+          }));
+          await supabase.from('organization_modules').insert(moduleInserts);
+        }
+      }
     }
 
     // 3. Insert Location

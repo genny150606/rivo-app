@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { verifyUserOrgAccess, isValidUUID, sanitizeString } from '@/lib/security';
+import { verifyUserOrgAccess, isValidUUID, sanitizeString, UserProfile } from '@/lib/security';
 import { can, normalizeRole, StaffRole } from '@/lib/rbac';
 import { logAuditEvent } from '@/lib/audit';
 import { sendStaffInvitationEmail } from '@/lib/email/invitation-email';
@@ -12,6 +12,41 @@ function getAdminClient() {
   return createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   });
+}
+
+/**
+ * Helper to resolve the active organization ID:
+ * - If user has profile.organization_id, that is primary.
+ * - If user is admin (profile.role === 'admin'):
+ *     - If an organization_id was passed explicitly and is valid UUID, use that.
+ *     - Otherwise, fallback to the first active organization.
+ */
+async function resolveOrganizationId(
+  profile: UserProfile,
+  explicitOrgId?: string | null
+): Promise<string | null> {
+  const adminClient = getAdminClient();
+  const isAdmin = profile.role === 'admin';
+
+  if (isAdmin) {
+    if (explicitOrgId && isValidUUID(explicitOrgId)) {
+      return explicitOrgId;
+    }
+    if (profile.organization_id) {
+      return profile.organization_id;
+    }
+    // Fallback to first organization in database
+    const { data: firstOrg } = await adminClient
+      .from('organizations')
+      .select('id')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    return firstOrg?.id || null;
+  }
+
+  return profile.organization_id || null;
 }
 
 /**
@@ -28,8 +63,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Permesso negato.' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const requestedOrgId = searchParams.get('organization_id') || searchParams.get('organizationId');
+
+    const orgId = await resolveOrganizationId(profile, requestedOrgId);
+    if (!orgId) {
+      return NextResponse.json({ error: 'Nessuna organizzazione trovata o selezionata.' }, { status: 400 });
+    }
+
     const adminClient = getAdminClient();
-    const orgId = profile.organization_id;
 
     // Fetch staff profiles
     const { data: staffMembers, error: staffError } = await adminClient
@@ -69,6 +111,7 @@ export async function GET(request: NextRequest) {
       .eq('organization_id', orgId);
 
     return NextResponse.json({
+      organization_id: orgId,
       staff: staffMembers || [],
       invitations: pendingInvitations || [],
       assignments: assignments || [],
@@ -100,6 +143,7 @@ export async function POST(request: NextRequest) {
     const lastName = sanitizeString(body.lastName, 100);
     const role = (body.role as StaffRole) || 'waiter';
     const locationId = body.locationId && isValidUUID(body.locationId) ? body.locationId : null;
+    const requestedOrgId = body.organizationId || body.organization_id;
 
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: 'Email non valida.' }, { status: 400 });
@@ -117,8 +161,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const orgId = await resolveOrganizationId(profile, requestedOrgId);
+    if (!orgId) {
+      return NextResponse.json({ error: 'Nessuna organizzazione selezionata.' }, { status: 400 });
+    }
+
     const adminClient = getAdminClient();
-    const orgId = profile.organization_id;
 
     // Check if user with this email already exists in profiles for this org
     const { data: existingStaff } = await adminClient
@@ -165,7 +213,7 @@ export async function POST(request: NextRequest) {
         role,
         token_hash: tokenHash,
         status: 'pending',
-        invited_by: profile.id,
+        invited_by_user_id: user.id,
         expires_at: expiresAt,
       })
       .select()
@@ -173,7 +221,9 @@ export async function POST(request: NextRequest) {
 
     if (invError || !invitation) {
       console.error('[API Staff Invite] Insert Error:', invError);
-      return NextResponse.json({ error: 'Errore durante la creazione dell’invito.' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Errore durante la creazione dell’invito: ' + (invError?.message || 'Database error') 
+      }, { status: 500 });
     }
 
     // Build invite URL
@@ -237,13 +287,18 @@ export async function PATCH(request: NextRequest) {
     const newStatus = body.status;
     const newRole = body.role;
     const newLocationId = body.locationId !== undefined ? body.locationId : undefined;
+    const requestedOrgId = body.organizationId || body.organization_id;
 
     if (!isValidUUID(staffId)) {
       return NextResponse.json({ error: 'ID collaboratore non valido.' }, { status: 400 });
     }
 
+    const orgId = await resolveOrganizationId(profile, requestedOrgId);
+    if (!orgId) {
+      return NextResponse.json({ error: 'Nessuna organizzazione selezionata.' }, { status: 400 });
+    }
+
     const adminClient = getAdminClient();
-    const orgId = profile.organization_id;
 
     // Fetch target staff
     const { data: targetStaff, error: fetchErr } = await adminClient
@@ -276,7 +331,7 @@ export async function PATCH(request: NextRequest) {
       updates.status = newStatus;
     }
     if (newRole && ['owner', 'manager', 'waiter'].includes(newRole)) {
-      // Only owner can promote to owner/manager
+      // Only owner/admin can promote to owner/manager
       const normalizedUserRole = normalizeRole(profile.role);
       if (normalizedUserRole !== 'owner' && normalizedUserRole !== 'admin') {
         return NextResponse.json({ error: 'Solo i proprietari possono modificare i ruoli di gestione.' }, { status: 403 });
