@@ -2,7 +2,8 @@ import React from "react";
 import {
   AbsoluteFill,
   Easing,
-  Img,\n  staticFile,
+  Img,
+  staticFile,
   interpolate,
   spring,
   useCurrentFrame,
