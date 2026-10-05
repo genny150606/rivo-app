@@ -20,6 +20,7 @@ import {
   MapPin,
   Building,
   Upload,
+  ScanLine,
   LucideIcon
 } from 'lucide-react';
 import { ModuleSlug, MODULE_REGISTRY } from '../modules/registry';
@@ -153,6 +154,13 @@ export function resolveSidebarNavigation(
           label,
           href: '/dashboard/inventory',
           icon: Boxes,
+        },
+        {
+          id: 'inventory_scanner',
+          label: 'Scanner Mobile',
+          href: '/dashboard/scanner',
+          icon: ScanLine,
+          badge: 'AI',
         },
         {
           id: 'inventory_check',

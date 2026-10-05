@@ -18,6 +18,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { resolveSidebarNavigation, NavGroup } from '@/platform/navigation/sidebar';
 import { ModuleSlug, BusinessTypeSlug } from '@/platform/modules/registry';
 import { getVertical } from '@/platform/verticals/registry';
+import RetailAICopilot from '@/components/dashboard/RetailAICopilot';
 
 interface SidebarContentProps {
   pathname: string;
@@ -405,6 +406,11 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+
+      {/* Floating Retail AI Copilot for voice & natural language inventory actions */}
+      {(activeModules.has('products') || activeModules.has('inventory') || activeModules.has('sales')) && (
+        <RetailAICopilot />
+      )}
     </div>
   );
 }

@@ -22,8 +22,10 @@ import {
   PlusCircle, 
   ArrowUpDown,
   Sparkles,
+  ScanLine,
   Info
 } from 'lucide-react';
+import Link from 'next/link';
 import { Product, ProductCategory, Brand, ProductVariant } from '@/platform/retail/types';
 
 export default function ProductsPage() {
@@ -399,6 +401,13 @@ export default function ProductsPage() {
           >
             + Brand
           </button>
+          <Link
+            href="/dashboard/scanner"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-lime-400 hover:bg-lime-300 text-black transition-colors shadow-xs"
+          >
+            <ScanLine className="w-4 h-4" />
+            <span className="hidden sm:inline">Scanner Mobile</span>
+          </Link>
           <button
             onClick={openCreateModal}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-950 transition-colors shadow-xs"
@@ -453,6 +462,30 @@ export default function ProductsPage() {
             {stats.lowStockCount}
           </div>
         </div>
+      </div>
+
+      {/* AI Quick Copilot Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-lime-500/10 via-emerald-500/10 to-teal-500/10 border border-lime-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-lime-400/20 border border-lime-400/40 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-lime-600 dark:text-lime-400" />
+          </div>
+          <div>
+            <h4 className="text-xs sm:text-sm font-bold text-zinc-950 dark:text-white">
+              Carico Veloce con l&apos;Assistente AI
+            </h4>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              Non vuoi inserire i dati a mano? Usa l&apos;Assistente AI in basso a destra (es. <em>&quot;inserisci 15 Air Max 95 di taglia 43&quot;</em>) oppure inquadra il codice a barre da smartphone.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/scanner"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-lime-400 hover:bg-lime-300 text-black shrink-0 transition-colors shadow-sm"
+        >
+          <ScanLine className="w-4 h-4" />
+          <span>Scanner Fotocamera</span>
+        </Link>
       </div>
 
       {/* Search & Filter Toolbar */}
