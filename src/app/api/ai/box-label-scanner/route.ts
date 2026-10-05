@@ -89,21 +89,18 @@ Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown o testo extra
       }
     }
 
-    // Smart Fallback if Gemini Vision is offline or no key
+    if (!geminiKey) {
+      return NextResponse.json({
+        success: false,
+        error: "Chiave Google AI Gemini mancante. Per attivare l'AI Vision in tempo reale e leggere le etichette delle scarpe, inserisci la GEMINI_API_KEY.",
+        missingApiKey: true,
+      }, { status: 400 });
+    }
+
     return NextResponse.json({
-      success: true,
-      source: 'smart_vision_heuristic',
-      recognized: {
-        brand: 'Borrelli',
-        name: 'Mocassino Artigianale Pelle',
-        size: '42',
-        color: 'Nero',
-        barcode: `EAN-${Date.now().toString().slice(-8)}`,
-        sellingPrice: 130.00,
-        costPrice: 60.00,
-        confidence: 0.85
-      }
-    });
+      success: false,
+      error: "Etichetta non leggibile o non riconosciuta. Assicurati che l'etichetta sia ben illuminata e a fuoco.",
+    }, { status: 422 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Errore scansione etichetta';
     return NextResponse.json({ error: msg }, { status: 500 });

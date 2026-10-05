@@ -323,6 +323,19 @@ export default function MobileScannerPage() {
         }
       } else if (data.recognized) {
         setRecognizedItem(data.recognized);
+      } else if (data.notFound) {
+        // Uncataloged item: let user snap the box label or enter details for this real barcode
+        setRecognizedItem({
+          barcode: code,
+          name: '',
+          brand: '',
+          category: 'Calzature',
+          size: '',
+          color: '',
+          sellingPrice: 0,
+          costPrice: 0,
+        });
+        setSuccessMessage(`ℹ️ Barcode ${code} nuovo: inquadra l'etichetta scatola o completa i dati.`);
       }
     } catch (err: any) {
       console.error('Barcode lookup error:', err);
