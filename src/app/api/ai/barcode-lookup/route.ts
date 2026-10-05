@@ -34,44 +34,51 @@ export async function GET(request: NextRequest) {
         id,
         sku,
         barcode,
-        quantity,
+        size,
+        color,
         cost_price,
-        selling_price,
+        sale_price,
         attributes,
         products (
           id,
           name,
           sku,
+          brand,
           brand_id,
+          category_name,
           category_id,
-          selling_price,
-          cost_price,
-          brands (name),
-          product_categories (name)
+          sale_price,
+          cost_price
         )
       `)
       .eq('barcode', barcode)
-      .eq('products.organization_id', profile.organization_id)
+      .eq('organization_id', profile.organization_id)
       .maybeSingle();
 
     if (existingVariant && existingVariant.products) {
       const p = existingVariant.products as any;
-      const attrs = (existingVariant.attributes || {}) as Record<string, string>;
+      const { data: balance } = await supabase
+        .from('inventory_balances')
+        .select('quantity_on_hand')
+        .eq('variant_id', existingVariant.id)
+        .maybeSingle();
+
+      const currentStock = balance?.quantity_on_hand || 0;
       return NextResponse.json({
         exists: true,
         item: {
           variantId: existingVariant.id,
           productId: p.id,
           name: p.name,
-          brand: p.brands?.name || 'Borrelli',
-          category: p.product_categories?.name || 'Calzature',
-          size: attrs.size || 'TU',
-          color: attrs.color || 'Standard',
+          brand: p.brand || 'Borrelli',
+          category: p.category_name || 'Calzature',
+          size: existingVariant.size || (existingVariant.attributes as any)?.size || 'TU',
+          color: existingVariant.color || (existingVariant.attributes as any)?.color || 'Standard',
           barcode: existingVariant.barcode,
           sku: existingVariant.sku,
-          currentStock: existingVariant.quantity,
-          sellingPrice: existingVariant.selling_price || p.selling_price,
-          costPrice: existingVariant.cost_price || p.cost_price,
+          currentStock,
+          sellingPrice: existingVariant.sale_price || p.sale_price || 0,
+          costPrice: existingVariant.cost_price || p.cost_price || 0,
         }
       });
     }
