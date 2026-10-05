@@ -11,6 +11,8 @@ import Verticals from '@/components/homepage/Verticals';
 import CustomerJourney from '@/components/homepage/CustomerJourney';
 import DashboardShowcase from '@/components/homepage/DashboardShowcase';
 import AISection from '@/components/homepage/AISection';
+import OmnichannelSwitcher from '@/components/homepage/OmnichannelSwitcher';
+import InteractiveScannerSimulator from '@/components/homepage/InteractiveScannerSimulator';
 import FinalCTA from '@/components/homepage/FinalCTA';
 import Footer from '@/components/homepage/Footer';
 
@@ -50,6 +52,8 @@ export default function HomePage() {
       <Navbar />
       <Hero />
       <TrustStrip />
+      <OmnichannelSwitcher />
+      <InteractiveScannerSimulator />
       <ProblemSection />
       <HowItWorks />
       <Ecosystem />
