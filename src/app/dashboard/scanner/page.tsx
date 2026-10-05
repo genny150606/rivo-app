@@ -55,10 +55,12 @@ interface RecognizedItem {
 
 export default function MobileScannerPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraErrorCode, setCameraErrorCode] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [continuousMode, setContinuousMode] = useState(false);
@@ -133,19 +135,43 @@ export default function MobileScannerPage() {
   // Robust Camera Starter with Multi-Tier Fallback Cascade
   const startCamera = async () => {
     setCameraError(null);
+    setCameraErrorCode(null);
+
+    // Free any old camera tracks first to avoid NotReadableError on mobile hardware
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      } catch {}
+      streamRef.current = null;
+    }
+    setStream(null);
 
     if (!navigator?.mediaDevices?.getUserMedia) {
       setCameraError('Il tuo browser non supporta lo streaming video diretto. Usa il tasto "Scatta Foto Scatola".');
+      setCameraActive(false);
       return;
     }
 
     const attempts: MediaStreamConstraints[] = [
-      // 1. Ideal Environment (Rear) with 720p
-      { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } } },
-      // 2. Strict Environment (Rear)
-      { video: { facingMode: 'environment' } },
-      // 3. Any Available Video Camera
-      { video: true },
+      // 1. Mobile rear environment camera with ideal resolution
+      { 
+        video: { 
+          facingMode: { ideal: 'environment' }, 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 } 
+        }, 
+        audio: false 
+      },
+      // 2. Rear camera basic constraint
+      { 
+        video: { facingMode: { ideal: 'environment' } }, 
+        audio: false 
+      },
+      // 3. Fallback: Any available video stream
+      { 
+        video: true, 
+        audio: false 
+      },
     ];
 
     let mediaStream: MediaStream | null = null;
@@ -155,45 +181,84 @@ export default function MobileScannerPage() {
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
         if (mediaStream) break;
-      } catch (err) {
+      } catch (err: any) {
         lastErr = err;
+        // If permission was denied by user or Chrome settings, don't keep polling
+        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+          break;
+        }
       }
     }
 
     if (!mediaStream) {
       console.warn('Camera cascade failed:', lastErr);
-      setCameraError('Permesso fotocamera negato o fotocamera occupata da un’altra app. Tocca "Attiva Fotocamera" o usa "Scatta Foto".');
+      const errName = lastErr?.name || 'Error';
+      setCameraErrorCode(errName);
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+        setCameraError('Permesso fotocamera negato o bloccato nelle impostazioni del browser.');
+      } else if (errName === 'NotReadableError') {
+        setCameraError('Fotocamera occupata da un’altra applicazione. Chiudi le altre app e riprova.');
+      } else {
+        setCameraError(lastErr?.message || 'Impossibile avviare la fotocamera.');
+      }
       setCameraActive(false);
       return;
     }
 
+    streamRef.current = mediaStream;
     setStream(mediaStream);
-    if (videoRef.current) {
-      videoRef.current.srcObject = mediaStream;
-      videoRef.current.setAttribute('playsinline', 'true');
-      videoRef.current.setAttribute('webkit-playsinline', 'true');
-      try {
-        await videoRef.current.play();
-      } catch (playErr) {
-        console.warn('Video play error:', playErr);
-      }
-    }
     setCameraActive(true);
   };
 
+  // Wire stream to video element whenever stream changes
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.setAttribute('playsinline', 'true');
+      videoRef.current.setAttribute('webkit-playsinline', 'true');
+      videoRef.current.play().catch(playErr => {
+        console.warn('Video play error:', playErr);
+      });
+    }
+  }, [stream]);
+
   // Stop Camera
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      setStream(null);
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      } catch {}
+      streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setStream(null);
     setCameraActive(false);
+    setTorchOn(false);
   };
 
   useEffect(() => {
-    // Attempt camera start on mount
-    startCamera();
+    let isMounted = true;
+    // Auto-start ONLY if permission was already granted in this browser session
+    if (typeof navigator !== 'undefined' && (navigator as any).permissions?.query) {
+      (navigator as any).permissions.query({ name: 'camera' })
+        .then((res: any) => {
+          if (!isMounted) return;
+          if (res.state === 'granted') {
+            startCamera();
+          } else if (res.state === 'denied') {
+            setCameraErrorCode('NotAllowedError');
+            setCameraError('Permesso fotocamera negato o bloccato nelle impostazioni del browser.');
+          }
+        })
+        .catch(() => {
+          // Permissions API query not supported for camera on this browser
+        });
+    }
+
     return () => {
+      isMounted = false;
       stopCamera();
     };
   }, []);
@@ -297,6 +362,15 @@ export default function MobileScannerPage() {
     }
   };
 
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Handle Photo Capture / Box Label AI Vision
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -308,29 +382,47 @@ export default function MobileScannerPage() {
     setRecognizedItem(null);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        playMagicalChime();
-
-        const res = await fetch('/api/ai/box-label-scanner', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64 }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Errore analisi foto etichetta');
-
-        if (data.recognized) {
-          setRecognizedItem(data.recognized);
-          setLastScannedCode(data.recognized.barcode);
-          triggerConfetti();
+      // 1. First attempt: Client-side Barcode Detection from the photo bitmap
+      if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+        try {
+          const detector = new (window as any).BarcodeDetector({
+            formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
+          });
+          const bitmap = await createImageBitmap(file);
+          const detected = await detector.detect(bitmap);
+          if (detected && detected.length > 0 && detected[0].rawValue) {
+            const code = detected[0].rawValue.trim();
+            if (code) {
+              await handleBarcodeDetected(code);
+              setAnalyzingPhoto(false);
+              return;
+            }
+          }
+        } catch (bitmapErr) {
+          console.warn('Bitmap barcode detector error, falling back to AI Vision:', bitmapErr);
         }
-      };
-      reader.readAsDataURL(file);
+      }
+
+      // 2. Second attempt: AI Vision Box Label Scanner
+      const base64 = await readFileAsBase64(file);
+      playMagicalChime();
+
+      const res = await fetch('/api/ai/box-label-scanner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore analisi foto etichetta');
+
+      if (data.recognized) {
+        setRecognizedItem(data.recognized);
+        setLastScannedCode(data.recognized.barcode);
+        triggerConfetti();
+      }
     } catch (err: any) {
-      alert(`Errore AI Vision: ${err.message}`);
+      alert(`Errore scansione foto: ${err.message}`);
     } finally {
       setAnalyzingPhoto(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -488,16 +580,19 @@ export default function MobileScannerPage() {
           ? 'border-lime-400 shadow-[0_0_50px_rgba(190,255,0,0.6)] scale-[1.02]' 
           : 'border-zinc-800 shadow-[0_0_30px_rgba(0,0,0,0.8)]'
       }`}>
+        {/* Video Element is ALWAYS mounted so videoRef is NEVER null */}
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          muted 
+          className={`w-full h-full object-cover transition-opacity duration-300 ${
+            cameraActive ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'
+          }`}
+        />
+
         {cameraActive ? (
           <>
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className="w-full h-full object-cover"
-            />
-
             {/* Futuristic Holographic Reticle */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
               <div className="relative w-64 h-36 rounded-2xl border border-lime-400/40 bg-lime-400/[0.03] backdrop-blur-[1px] shadow-[inset_0_0_20px_rgba(190,255,0,0.15)] flex items-center justify-center">
@@ -543,22 +638,71 @@ export default function MobileScannerPage() {
             </div>
           </>
         ) : (
-          <div className="text-center p-6 space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
-              <Camera className="w-7 h-7" />
+          <div className="text-center p-5 space-y-3 z-10 w-full max-w-sm">
+            {cameraErrorCode === 'NotAllowedError' ? (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left space-y-2.5">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Permesso Fotocamera Bloccato</span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  Chrome ha la fotocamera bloccata per questo sito. Per sbloccarla in 5 secondi:
+                </p>
+                <ol className="text-[10px] text-zinc-400 list-decimal list-inside space-y-1 bg-black/40 p-2.5 rounded-xl border border-zinc-800">
+                  <li>Tocca l&apos;icona con le levette <span className="text-white font-mono bg-zinc-800 px-1 py-0.5 rounded">⚙️</span> (in basso a sinistra dell&apos;indirizzo)</li>
+                  <li>Tocca <strong>Autorizzazioni</strong></li>
+                  <li>Attiva <strong>Fotocamera</strong> (Consenti)</li>
+                </ol>
+                <div className="pt-1 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Ricarica</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="flex-1 py-2 bg-lime-400 hover:bg-lime-300 text-black text-[11px] font-bold rounded-xl flex items-center justify-center gap-1.5"
+                  >
+                    <span>Riprova</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
+                  <Camera className="w-7 h-7 text-lime-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-white">Fotocamera Pronta per lo Scan</p>
+                  <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
+                    {cameraError || 'Inquadra le scatole delle scarpe per immagazzinarle in tempo reale.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="px-6 py-2.5 bg-lime-400 hover:bg-lime-300 text-black font-bold rounded-xl text-xs shadow-lg shadow-lime-400/20 active:scale-95 transition-all"
+                >
+                  Attiva Fotocamera
+                </button>
+              </>
+            )}
+
+            {/* Direct fallback to native phone camera */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2.5 bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/40 text-purple-200 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <Camera className="w-3.5 h-3.5 text-purple-400" />
+                <span>Usa Fotocamera Telefono (Senza Permessi)</span>
+              </button>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-white">Fotocamera Pronta per lo Scan</p>
-              <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
-                {cameraError || 'Inquadra le scatole delle scarpe per immagazzinarle in tempo reale.'}
-              </p>
-            </div>
-            <button
-              onClick={startCamera}
-              className="px-5 py-2.5 bg-lime-400 hover:bg-lime-300 text-black font-bold rounded-xl text-xs shadow-lg shadow-lime-400/20 active:scale-95 transition-all"
-            >
-              Attiva Fotocamera
-            </button>
           </div>
         )}
 
