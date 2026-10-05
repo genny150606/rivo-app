@@ -61,6 +61,7 @@ export default function MobileScannerPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraErrorCode, setCameraErrorCode] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<{ name: string; message: string } | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [continuousMode, setContinuousMode] = useState(false);
@@ -132,10 +133,11 @@ export default function MobileScannerPage() {
     }
   };
 
-  // Robust Camera Starter with Multi-Tier Fallback Cascade
+  // Robust Camera Starter designed specifically to trigger native browser permission popup
   const startCamera = async () => {
     setCameraError(null);
     setCameraErrorCode(null);
+    setErrorDetails(null);
 
     // Free any old camera tracks first to avoid NotReadableError on mobile hardware
     if (streamRef.current) {
@@ -147,31 +149,15 @@ export default function MobileScannerPage() {
     setStream(null);
 
     if (!navigator?.mediaDevices?.getUserMedia) {
-      setCameraError('Il tuo browser non supporta lo streaming video diretto. Usa il tasto "Scatta Foto Scatola".');
+      setCameraError('Il tuo browser non supporta lo streaming video diretto. Usa il tasto "Usa Fotocamera Telefono".');
       setCameraActive(false);
       return;
     }
 
+    // Direct constraints: start with environment camera, fallback to basic video
     const attempts: MediaStreamConstraints[] = [
-      // 1. Mobile rear environment camera with ideal resolution
-      { 
-        video: { 
-          facingMode: { ideal: 'environment' }, 
-          width: { ideal: 1280 }, 
-          height: { ideal: 720 } 
-        }, 
-        audio: false 
-      },
-      // 2. Rear camera basic constraint
-      { 
-        video: { facingMode: { ideal: 'environment' } }, 
-        audio: false 
-      },
-      // 3. Fallback: Any available video stream
-      { 
-        video: true, 
-        audio: false 
-      },
+      { video: { facingMode: { ideal: 'environment' } }, audio: false },
+      { video: true, audio: false },
     ];
 
     let mediaStream: MediaStream | null = null;
@@ -183,7 +169,6 @@ export default function MobileScannerPage() {
         if (mediaStream) break;
       } catch (err: any) {
         lastErr = err;
-        // If permission was denied by user or Chrome settings, don't keep polling
         if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
           break;
         }
@@ -193,13 +178,16 @@ export default function MobileScannerPage() {
     if (!mediaStream) {
       console.warn('Camera cascade failed:', lastErr);
       const errName = lastErr?.name || 'Error';
+      const errMsg = lastErr?.message || '';
       setCameraErrorCode(errName);
+      setErrorDetails({ name: errName, message: errMsg });
+
       if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-        setCameraError('Permesso fotocamera negato o bloccato nelle impostazioni del browser.');
+        setCameraError('Permesso fotocamera negato.');
       } else if (errName === 'NotReadableError') {
         setCameraError('Fotocamera occupata da un’altra applicazione. Chiudi le altre app e riprova.');
       } else {
-        setCameraError(lastErr?.message || 'Impossibile avviare la fotocamera.');
+        setCameraError(errMsg || 'Impossibile avviare la fotocamera.');
       }
       setCameraActive(false);
       return;
@@ -239,26 +227,7 @@ export default function MobileScannerPage() {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    // Auto-start ONLY if permission was already granted in this browser session
-    if (typeof navigator !== 'undefined' && (navigator as any).permissions?.query) {
-      (navigator as any).permissions.query({ name: 'camera' })
-        .then((res: any) => {
-          if (!isMounted) return;
-          if (res.state === 'granted') {
-            startCamera();
-          } else if (res.state === 'denied') {
-            setCameraErrorCode('NotAllowedError');
-            setCameraError('Permesso fotocamera negato o bloccato nelle impostazioni del browser.');
-          }
-        })
-        .catch(() => {
-          // Permissions API query not supported for camera on this browser
-        });
-    }
-
     return () => {
-      isMounted = false;
       stopCamera();
     };
   }, []);
@@ -639,58 +608,47 @@ export default function MobileScannerPage() {
           </>
         ) : (
           <div className="text-center p-5 space-y-3 z-10 w-full max-w-sm">
-            {cameraErrorCode === 'NotAllowedError' ? (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left space-y-2.5">
-                <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+            <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
+              <Camera className="w-7 h-7 text-lime-400" />
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-white">Fotocamera Scanner RIVO</p>
+              <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
+                Tocca il pulsante per attivare la scansione barcode in tempo reale.
+              </p>
+            </div>
+
+            {/* Error & Diagnostic Card if camera blocked */}
+            {errorDetails && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-left space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>Permesso Fotocamera Bloccato</span>
+                  <span>Nessun permesso concesso da Chrome o Android</span>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  Chrome ha la fotocamera bloccata per questo sito. Per sbloccarla in 5 secondi:
+                  Se il popup del browser non appare, il permesso è disattivato a livello di sistema Android:
                 </p>
-                <ol className="text-[10px] text-zinc-400 list-decimal list-inside space-y-1 bg-black/40 p-2.5 rounded-xl border border-zinc-800">
-                  <li>Tocca l&apos;icona con le levette <span className="text-white font-mono bg-zinc-800 px-1 py-0.5 rounded">⚙️</span> (in basso a sinistra dell&apos;indirizzo)</li>
-                  <li>Tocca <strong>Autorizzazioni</strong></li>
-                  <li>Attiva <strong>Fotocamera</strong> (Consenti)</li>
-                </ol>
-                <div className="pt-1 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => window.location.reload()}
-                    className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1.5"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Ricarica</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={startCamera}
-                    className="flex-1 py-2 bg-lime-400 hover:bg-lime-300 text-black text-[11px] font-bold rounded-xl flex items-center justify-center gap-1.5"
-                  >
-                    <span>Riprova</span>
-                  </button>
+                <div className="text-[10px] text-zinc-400 space-y-1 bg-black/50 p-2.5 rounded-xl border border-zinc-800">
+                  <p>📱 <strong>Su Android:</strong> Vai in <em>Impostazioni Telefono &gt; App &gt; Chrome &gt; Autorizzazioni &gt; Fotocamera &gt; Consenti</em></p>
+                  <p>🌐 <strong>Su Chrome:</strong> Tocca le levette ⚙️ a sinistra del link in basso &gt; <em>Autorizzazioni &gt; Consenti</em></p>
                 </div>
-              </div>
-            ) : (
-              <>
-                <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
-                  <Camera className="w-7 h-7 text-lime-400" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-white">Fotocamera Pronta per lo Scan</p>
-                  <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
-                    {cameraError || 'Inquadra le scatole delle scarpe per immagazzinarle in tempo reale.'}
+                {errorDetails.message && (
+                  <p className="text-[9px] font-mono text-zinc-500 break-all">
+                    System: {errorDetails.name} ({errorDetails.message})
                   </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={startCamera}
-                  className="px-6 py-2.5 bg-lime-400 hover:bg-lime-300 text-black font-bold rounded-xl text-xs shadow-lg shadow-lime-400/20 active:scale-95 transition-all"
-                >
-                  Attiva Fotocamera
-                </button>
-              </>
+                )}
+              </div>
             )}
+
+            {/* Primary Action Button */}
+            <button
+              type="button"
+              onClick={startCamera}
+              className="w-full py-3 bg-lime-400 hover:bg-lime-300 text-black font-extrabold rounded-xl text-xs shadow-lg shadow-lime-400/20 active:scale-95 transition-all"
+            >
+              Attiva Fotocamera
+            </button>
 
             {/* Direct fallback to native phone camera */}
             <div className="pt-1">
@@ -700,7 +658,7 @@ export default function MobileScannerPage() {
                 className="w-full py-2.5 bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/40 text-purple-200 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 <Camera className="w-3.5 h-3.5 text-purple-400" />
-                <span>Usa Fotocamera Telefono (Senza Permessi)</span>
+                <span>📸 Usa Fotocamera Telefono (Funziona Subito)</span>
               </button>
             </div>
           </div>
