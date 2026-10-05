@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { ModuleSlug, MODULE_CATALOG } from './catalog';
+import { ModuleSlug } from '@/platform/modules/registry';
+import { VERTICAL_REGISTRY, getVertical } from '@/platform/verticals/registry';
+import { BusinessTypeSlug } from '@/platform/modules/registry';
 
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -16,15 +18,31 @@ export interface OrgModuleState {
   category: string;
   enabled: boolean;
   source: string;
-  configJson: any;
+  configJson: Record<string, unknown>;
 }
 
 export interface ResolvedOrgModules {
   organizationId: string;
   businessTypeId?: string;
-  businessTypeSlug?: string;
+  businessTypeSlug?: BusinessTypeSlug;
   activeSlugs: Set<ModuleSlug>;
   allModules: OrgModuleState[];
+}
+
+interface RawModuleRow {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+}
+
+interface OrgModuleRow {
+  id: string;
+  module_id: string;
+  enabled: boolean;
+  source: string;
+  config_json: Record<string, unknown> | null;
+  modules: RawModuleRow | RawModuleRow[] | null;
 }
 
 /**
@@ -49,7 +67,7 @@ export async function getOrganizationModules(organizationId: string): Promise<Re
   }
 
   // Fetch active modules from organization_modules
-  const { data: orgModules, error: modErr } = await adminClient
+  const { data: orgModules } = await adminClient
     .from('organization_modules')
     .select(`
       id,
@@ -70,8 +88,8 @@ export async function getOrganizationModules(organizationId: string): Promise<Re
   const allModules: OrgModuleState[] = [];
 
   if (orgModules && orgModules.length > 0) {
-    for (const om of orgModules) {
-      const mod = om.modules as any;
+    for (const om of orgModules as unknown as OrgModuleRow[]) {
+      const mod = Array.isArray(om.modules) ? om.modules[0] : om.modules;
       if (mod && mod.slug) {
         const slug = mod.slug as ModuleSlug;
         allModules.push({
@@ -90,27 +108,11 @@ export async function getOrganizationModules(organizationId: string): Promise<Re
       }
     }
   } else {
-    // Fallback if not configured: check category
-    const isRestaurant = !orgData.category || ['restaurant', 'bar', 'pizzeria'].includes(orgData.category);
-    if (isRestaurant) {
-      activeSlugs.add('analytics');
-      activeSlugs.add('crm');
-      activeSlugs.add('nfc_qr');
-      activeSlugs.add('review_shield');
-      activeSlugs.add('loyalty');
-      activeSlugs.add('coupons');
-      activeSlugs.add('smart_router');
-      activeSlugs.add('universal_hub');
-      activeSlugs.add('table_service');
-      activeSlugs.add('staff');
-      activeSlugs.add('service_calls');
-      activeSlugs.add('canva_menu');
-    } else {
-      activeSlugs.add('analytics');
-      activeSlugs.add('nfc_qr');
-      activeSlugs.add('universal_hub');
-      activeSlugs.add('products');
-      activeSlugs.add('inventory');
+    // Fallback if not configured: check category / business type
+    const category = (orgData.category || 'restaurant') as BusinessTypeSlug;
+    const vertical = getVertical(category in VERTICAL_REGISTRY ? category : 'restaurant');
+    for (const slug of vertical.defaultModules) {
+      activeSlugs.add(slug);
     }
   }
 

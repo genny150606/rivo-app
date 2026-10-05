@@ -459,7 +459,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         // 2. Fetch organization
         if (dev.organization_id) {
           const { data: orgData, error: orgErr } = await supabase
-            .from('organizations')
+            .from('public_organizations')
             .select(`
               id,
               name,

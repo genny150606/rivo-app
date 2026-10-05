@@ -114,10 +114,41 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkAdmin() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.replace('/login');
+          return;
+        }
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('auth_user_id', user.id)
+          .single();
+
+        if (!isMounted) return;
+        if (profile?.role !== 'admin') {
+          router.replace('/dashboard');
+        } else {
+          setIsAdmin(true);
+        }
+      } catch {
+        router.replace('/dashboard');
+      }
+    }
+    checkAdmin();
+    return () => { isMounted = false; };
+  }, [router]);
 
   // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
@@ -135,6 +166,17 @@ export default function AdminLayout({
     router.push('/login');
     router.refresh();
   };
+
+  if (isAdmin === null) {
+    return (
+      <div className="min-h-screen bg-[#09090B] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-[#BFFF00] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-zinc-500 font-mono tracking-wider uppercase">Verifica privilegi RIVO...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#09090B] overflow-x-hidden">

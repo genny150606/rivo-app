@@ -5,51 +5,47 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  BarChart3, 
-  Layers, 
-  MapPin, 
-  Star, 
-  User, 
-  Settings, 
   LogOut, 
-  Radio,
-  Menu,
-  X,
-  BellRing,
-  Gift,
-  Award,
-  Users,
-  Smartphone,
-  UtensilsCrossed,
-  ShoppingBag,
-  Boxes,
-  SearchCheck,
+  Menu, 
+  X, 
+  Command,
+  Building2,
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-
 import { ThemeToggle } from '@/components/theme-toggle';
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: any;
-  badge?: string;
-}
+import { resolveSidebarNavigation, NavGroup } from '@/platform/navigation/sidebar';
+import { ModuleSlug, BusinessTypeSlug } from '@/platform/modules/registry';
+import { getVertical } from '@/platform/verticals/registry';
 
 interface SidebarContentProps {
   pathname: string;
-  navItems: NavItem[];
+  navGroups: NavGroup[];
+  orgName: string | null;
+  verticalLabel: string;
+  systemBadge: string;
+  loading: boolean;
   onLogout: () => void;
   onNavigate?: () => void;
 }
 
-function SidebarContent({ pathname, navItems, onLogout, onNavigate }: SidebarContentProps) {
+function SidebarContent({
+  pathname,
+  navGroups,
+  orgName,
+  verticalLabel,
+  systemBadge,
+  loading,
+  onLogout,
+  onNavigate,
+}: SidebarContentProps) {
   return (
     <>
-      <div>
+      <div className="flex flex-col min-h-0 flex-1">
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-3 py-3.5 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-white flex items-center justify-center shadow-xs shrink-0 p-1">
+        <div className="flex items-center gap-3 px-3 py-3.5 mb-2 border-b border-zinc-200/70 dark:border-white/[0.06] pb-3">
+          <div className="w-8 h-8 rounded-lg bg-zinc-950 dark:bg-zinc-100 flex items-center justify-center shadow-xs shrink-0 p-1">
             <Image
               src="/brand/rivo-icon.png"
               alt="RIVO"
@@ -59,52 +55,89 @@ function SidebarContent({ pathname, navItems, onLogout, onNavigate }: SidebarCon
               className="rounded-xs dark:invert-0"
             />
           </div>
-          <div className="min-w-0 flex flex-col">
-            <span className="font-bold text-sm tracking-tight text-zinc-950 dark:text-white leading-tight">RIVO</span>
-            <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 tracking-tight">Hospitality OS</span>
+          <div className="min-w-0 flex flex-col flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-sm tracking-tight text-zinc-950 dark:text-white leading-tight">RIVO</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/60">
+                {systemBadge}
+              </span>
+            </div>
+            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate">
+              {orgName || verticalLabel}
+            </span>
           </div>
         </div>
 
-        {/* Navigation List */}
-        <nav className="space-y-0.5" aria-label="Menu principale">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={true}
-                onClick={onNavigate}
-                className={`group flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-lg text-[13px] font-medium transition-all duration-150 active:scale-[0.99] ${
-                  isActive
-                    ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 shadow-xs'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
-                }`}
-              >
-                <Icon className={`w-4 h-4 shrink-0 transition-colors ${
-                  isActive 
-                    ? 'text-white dark:text-zinc-100' 
-                    : 'text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200'
-                }`} />
-                <span className="truncate flex-1">{item.label}</span>
-                {item.badge && (
-                  <span className={`text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded ${
-                    isActive
-                      ? 'bg-white/20 text-white dark:bg-white/15 dark:text-white'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60'
-                  }`}>
-                    {item.badge}
-                  </span>
+        {/* Navigation Groups */}
+        <div className="flex-1 overflow-y-auto overscroll-contain pr-1 -mr-1 space-y-4 py-1" aria-label="Menu principale">
+          {loading ? (
+            <div className="space-y-3 px-2 py-4 animate-pulse">
+              <div className="h-4 w-20 bg-zinc-200 dark:bg-zinc-800 rounded" />
+              <div className="space-y-1.5">
+                <div className="h-9 bg-zinc-100 dark:bg-zinc-900 rounded-lg" />
+                <div className="h-9 bg-zinc-100 dark:bg-zinc-900 rounded-lg" />
+                <div className="h-9 bg-zinc-100 dark:bg-zinc-900 rounded-lg" />
+              </div>
+              <div className="h-4 w-16 bg-zinc-200 dark:bg-zinc-800 rounded pt-2" />
+              <div className="space-y-1.5">
+                <div className="h-9 bg-zinc-100 dark:bg-zinc-900 rounded-lg" />
+                <div className="h-9 bg-zinc-100 dark:bg-zinc-900 rounded-lg" />
+              </div>
+            </div>
+          ) : (
+            navGroups.map((group) => (
+              <div key={group.id} className="space-y-0.5">
+                {group.label && (
+                  <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 select-none">
+                    {group.label}
+                  </div>
                 )}
-              </Link>
-            );
-          })}
-        </nav>
+                <nav className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.exact
+                      ? pathname === item.href
+                      : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
+
+                    return (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        prefetch={true}
+                        onClick={onNavigate}
+                        className={`group flex items-center gap-2.5 px-3 py-2 min-h-[38px] rounded-lg text-[13px] font-medium transition-all duration-150 active:scale-[0.99] ${
+                          isActive
+                            ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 shadow-xs'
+                            : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 shrink-0 transition-colors ${
+                          isActive 
+                            ? 'text-white dark:text-zinc-100' 
+                            : 'text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200'
+                        }`} />
+                        <span className="truncate flex-1">{item.label}</span>
+                        {item.badge && (
+                          <span className={`text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded ${
+                            isActive
+                              ? 'bg-white/20 text-white dark:bg-white/15 dark:text-white'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Footer / Account / Theme */}
-      <div className="pt-3 space-y-1 border-t border-zinc-200/80 dark:border-zinc-800/80">
+      <div className="pt-3 space-y-1 border-t border-zinc-200/80 dark:border-zinc-800/80 mt-2 shrink-0">
         <ThemeToggle showLabel={true} />
         <button
           onClick={onLogout}
@@ -126,9 +159,11 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [category, setCategory] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [activeModules, setActiveModules] = useState<Set<string>>(new Set());
+  const [category, setCategory] = useState<BusinessTypeSlug | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('owner');
+  const [activeModules, setActiveModules] = useState<Set<ModuleSlug>>(new Set());
+  const [loading, setLoading] = useState(true);
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
@@ -136,7 +171,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     let isMounted = true;
-    async function fetchOrgCategory() {
+    async function loadOrgAndModules() {
       try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -165,12 +200,18 @@ export default function DashboardLayout({
         if (targetOrgId && isMounted) {
           const { data: org } = await supabase
             .from('organizations')
-            .select('category')
+            .select('name, category, business_type_id')
             .eq('id', targetOrgId)
             .single();
 
-          if (org?.category && isMounted) {
-            setCategory(org.category);
+          let resolvedCategory: BusinessTypeSlug = 'restaurant';
+          if (org?.category) {
+            resolvedCategory = org.category as BusinessTypeSlug;
+          }
+
+          if (isMounted) {
+            setOrgName(org?.name || null);
+            setCategory(resolvedCategory);
           }
 
           // Fetch organization modules
@@ -185,100 +226,36 @@ export default function DashboardLayout({
             .eq('organization_id', targetOrgId);
 
           if (orgMods && orgMods.length > 0 && isMounted) {
-            const enabledSet = new Set<string>();
+            const enabledSet = new Set<ModuleSlug>();
             for (const om of orgMods) {
-              const mod = om.modules as any;
+              const mod = (Array.isArray(om.modules) ? om.modules[0] : om.modules) as { slug?: string } | null;
               if (om.enabled && mod?.slug) {
-                enabledSet.add(mod.slug);
+                enabledSet.add(mod.slug as ModuleSlug);
               }
             }
             setActiveModules(enabledSet);
           } else if (isMounted) {
-            // Default fallback based on category
-            const isRestaurant = !org?.category || ['restaurant', 'bar', 'pizzeria'].includes(org.category);
-            if (isRestaurant) {
-              setActiveModules(new Set(['table_service', 'staff', 'service_calls', 'canva_menu', 'analytics', 'nfc_qr', 'review_shield', 'loyalty', 'coupons', 'crm']));
-            } else {
-              setActiveModules(new Set(['products', 'inventory', 'analytics', 'nfc_qr', 'review_shield', 'loyalty', 'crm']));
-            }
+            // Preset fallback based on vertical registry
+            const vertical = getVertical(resolvedCategory);
+            setActiveModules(new Set<ModuleSlug>(vertical.defaultModules));
           }
         }
       } catch (err) {
-        console.error('Error fetching org category in layout:', err);
+        console.error('Error fetching org modules in layout:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
-    fetchOrgCategory();
+    loadOrgAndModules();
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const isStaffRole = userRole === 'waiter';
-
-  // Helper to test if a module is enabled (or allowed by default if activeModules not yet loaded)
-  const hasModule = (slug: string) => {
-    if (activeModules.size === 0) return true; // optimistic default during hydration
-    return activeModules.has(slug);
-  };
-
-  const navItems: NavItem[] = isStaffRole
-    ? [
-        { label: 'Il Mio Turno', href: '/dashboard/waiter', icon: BellRing, badge: 'Live' },
-        ...(hasModule('table_service')
-          ? [{ label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers }]
-          : []),
-      ]
-    : [
-        { label: 'Overview', href: '/dashboard', icon: BarChart3 },
-        ...(hasModule('table_service')
-          ? [{ label: 'Sala & Tavoli', href: '/dashboard/tables', icon: Layers, badge: 'Staff' }]
-          : []),
-        ...(hasModule('staff')
-          ? [{ label: 'Gestione Staff', href: '/dashboard/staff', icon: Users, badge: 'Team' }]
-          : []),
-        ...(hasModule('products')
-          ? [{ label: 'Catalogo Prodotti', href: '/dashboard/products', icon: ShoppingBag, badge: 'Retail' }]
-          : []),
-        ...(hasModule('inventory')
-          ? [
-              { label: 'Magazzino & Scorte', href: '/dashboard/inventory', icon: Boxes, badge: 'Stock' },
-              { label: 'Verifica Taglie', href: '/dashboard/stock-check', icon: SearchCheck, badge: 'Live' },
-            ]
-          : []),
-        ...(hasModule('universal_hub')
-          ? [{ label: 'Custom Hub', href: '/dashboard/custom-hub', icon: Smartphone }]
-          : []),
-        ...(hasModule('canva_menu') && (category === 'restaurant' || !category)
-          ? [{ label: 'Menù Canvas', href: '/dashboard/menu', icon: UtensilsCrossed, badge: 'Ristoranti' }]
-          : []),
-        ...(hasModule('analytics')
-          ? [{ label: 'Analytics', href: '/dashboard/analytics', icon: Radio }]
-          : []),
-        ...(hasModule('service_calls')
-          ? [{ label: 'Chiamate Sala', href: '/dashboard/service', icon: BellRing }]
-          : []),
-        ...(hasModule('review_shield')
-          ? [{ label: 'Review Shield', href: '/dashboard/reviews', icon: Star }]
-          : []),
-        ...(hasModule('coupons')
-          ? [{ label: 'Ruota & Coupon', href: '/dashboard/coupons', icon: Gift }]
-          : []),
-        ...(hasModule('loyalty')
-          ? [{ label: 'Fidelity Pass', href: '/dashboard/loyalty', icon: Award }]
-          : []),
-        ...(hasModule('crm')
-          ? [{ label: 'Clienti & CRM', href: '/dashboard/leads', icon: Users }]
-          : []),
-        ...(hasModule('nfc_qr')
-          ? [{ label: 'Devices', href: '/dashboard/devices', icon: Layers }]
-          : []),
-        { label: 'Locations', href: '/dashboard/locations', icon: MapPin },
-        { label: 'Profile & Routing', href: '/dashboard/profile', icon: User },
-        { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-      ];
-
-  // Prevent body/window scroll when mobile sidebar drawer is open
+  // Prevent body/window scroll when mobile drawer is open
   useEffect(() => {
     if (sidebarOpen) {
       document.body.style.overflow = 'hidden';
@@ -300,11 +277,38 @@ export default function DashboardLayout({
     router.refresh();
   };
 
+  const navGroups = resolveSidebarNavigation(
+    activeModules,
+    userRole,
+    category || undefined
+  );
+
+  const vertical = category ? getVertical(category) : null;
+  const verticalLabel = vertical?.name || 'RIVO Business';
+
+  const systemBadge = category === 'shoe_store' 
+    ? 'Footwear OS' 
+    : category === 'retail' 
+    ? 'Retail OS' 
+    : (category === 'hotel' || category === 'bb')
+    ? 'Hotel OS'
+    : ['restaurant', 'bar', 'pizzeria', 'gelateria'].includes(category || '')
+    ? 'Hospitality OS'
+    : 'Modular OS';
+
   return (
     <div className="flex min-h-screen min-h-dvh bg-zinc-50 dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 transition-colors duration-200 font-sans">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-zinc-200/80 dark:border-white/[0.06] flex-col justify-between p-4 bg-white dark:bg-[#0C0D0E] shrink-0 fixed inset-y-0 left-0 z-30 overflow-y-auto overscroll-contain">
-        <SidebarContent pathname={pathname} navItems={navItems} onLogout={handleLogout} />
+      <aside className="hidden lg:flex w-64 border-r border-zinc-200/80 dark:border-white/[0.06] flex-col justify-between p-4 bg-white dark:bg-[#0C0D0E] shrink-0 fixed inset-y-0 left-0 z-30 overflow-hidden">
+        <SidebarContent 
+          pathname={pathname} 
+          navGroups={navGroups} 
+          orgName={orgName}
+          verticalLabel={verticalLabel}
+          systemBadge={systemBadge}
+          loading={loading}
+          onLogout={handleLogout} 
+        />
       </aside>
 
       {/* Mobile Overlay */}
@@ -323,7 +327,6 @@ export default function DashboardLayout({
         }`}
         aria-label="Menu di navigazione mobile"
       >
-        {/* Close button with >= 44x44px touch target */}
         <button
           onClick={closeSidebar}
           aria-label="Chiudi menu"
@@ -331,15 +334,24 @@ export default function DashboardLayout({
         >
           <X className="w-5 h-5" />
         </button>
-        <SidebarContent pathname={pathname} navItems={navItems} onLogout={handleLogout} onNavigate={closeSidebar} />
+        <SidebarContent 
+          pathname={pathname} 
+          navGroups={navGroups} 
+          orgName={orgName}
+          verticalLabel={verticalLabel}
+          systemBadge={systemBadge}
+          loading={loading}
+          onLogout={handleLogout} 
+          onNavigate={closeSidebar} 
+        />
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 lg:ml-64">
-        {/* Header */}
+        {/* Top Header */}
         <header className="h-14 lg:h-16 border-b border-zinc-200/80 dark:border-white/[0.06] px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-white/80 dark:bg-[#09090B]/85 backdrop-blur-md shrink-0 sticky top-0 z-20 transition-colors duration-200">
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Hamburger with >= 44x44px touch target */}
+            {/* Hamburger */}
             <button
               onClick={() => setSidebarOpen(true)}
               aria-label="Apri menu di navigazione"
@@ -361,18 +373,30 @@ export default function DashboardLayout({
               <span className="font-bold text-sm tracking-tight text-zinc-900 dark:text-white">RIVO</span>
             </div>
 
-            {/* Desktop label */}
-            <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              <span>Attività</span>
-              <span>/</span>
-              <span className="text-zinc-900 dark:text-zinc-200 font-semibold capitalize">{category === 'restaurant' ? 'Ristorazione' : 'Retail & Business'}</span>
+            {/* Breadcrumb Context */}
+            <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              <span className="flex items-center gap-1.5 text-zinc-900 dark:text-zinc-200 font-semibold">
+                <Building2 className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                {orgName || 'Attività'}
+              </span>
+              <ChevronRight className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
+              <span className="text-zinc-700 dark:text-zinc-300 capitalize">{verticalLabel}</span>
             </div>
           </div>
+
           <div className="flex items-center gap-3">
+            {/* Command search preview indicator */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg select-none">
+              <Command className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-mono">⌘K</span>
+            </div>
+
             <ThemeToggle />
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-              <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hidden sm:inline tracking-tight">Rete Operativa</span>
+
+            {/* Live operational badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[11px] font-semibold hidden sm:inline tracking-tight">Rete Operativa</span>
             </div>
           </div>
         </header>

@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   Clock
 } from 'lucide-react';
+import { getVertical } from '@/platform/verticals/registry';
+import { BusinessTypeSlug } from '@/platform/modules/registry';
+import RetailDashboardOverview from '@/components/dashboard/RetailDashboardOverview';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,12 +65,98 @@ export default async function DashboardOverview() {
     if (targetOrgId) {
       const { data: org } = await supabase
         .from('organizations')
-        .select('name')
+        .select('name, category, business_type')
         .eq('id', targetOrgId)
         .single();
       if (org) orgName = org.name;
 
-      // Fetch interactions
+      const bType = ((org as any)?.business_type || org?.category || 'restaurant') as BusinessTypeSlug;
+      const vertical = getVertical(bType);
+      const isRetail = vertical?.dashboardType === 'retail';
+
+      // RETAIL VERTICAL DASHBOARD BRANCH
+      if (isRetail) {
+        // Fetch retail sales
+        const { data: retailSales } = await supabase
+          .from('sales')
+          .select(`
+            id,
+            sale_number,
+            status,
+            total_amount,
+            subtotal,
+            cost_total,
+            gross_margin,
+            payment_method,
+            operator_name,
+            created_at,
+            customer:customers (first_name, last_name),
+            items:sale_items (
+              product_name,
+              variant_name,
+              quantity,
+              unit_price,
+              total_price
+            )
+          `)
+          .eq('organization_id', targetOrgId)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        // Fetch retail stock balances
+        const { data: balances } = await supabase
+          .from('inventory_balances')
+          .select(`
+            id,
+            quantity_on_hand,
+            variant:product_variants (
+              id,
+              size,
+              color,
+              reorder_threshold,
+              cost_price,
+              sale_price,
+              product:products (
+                id,
+                name,
+                brand,
+                cost_price,
+                sale_price
+              )
+            )
+          `)
+          .eq('organization_id', targetOrgId);
+
+        // Count customers and products
+        const { count: custCount } = await supabase
+          .from('customers')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', targetOrgId);
+
+        const { count: prodCount } = await supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', targetOrgId);
+
+        const formattedSales = (retailSales || []).map((s: any) => ({
+          ...s,
+          customer_name: s.customer ? `${s.customer.first_name} ${s.customer.last_name || ''}`.trim() : null,
+        }));
+
+        return (
+          <RetailDashboardOverview
+            orgId={targetOrgId}
+            orgName={org?.name || 'Retail Store'}
+            businessType={bType}
+            sales={formattedSales}
+            balances={(balances as any) || []}
+            customersCount={custCount || 0}
+            totalProductsCount={prodCount || 0}
+          />
+        );
+      }
+
+      // RESTAURANT / HOSPITALITY FLEET CONTROL ROOM BRANCH
       const { data: interactions } = await supabase
         .from('interactions')
         .select('interaction_type, timestamp, device_id')
@@ -198,108 +287,159 @@ export default async function DashboardOverview() {
           </div>
           <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
             <span className="text-zinc-500 dark:text-zinc-400">Mix di accesso</span>
-            <span className="font-medium font-mono text-zinc-700 dark:text-zinc-300">
+            <span className="font-medium font-mono text-blue-600 dark:text-blue-400">
               {qrRatio}% quota
             </span>
           </div>
         </div>
 
-        {/* Active Fleet Devices */}
+        {/* Active Smart Devices */}
         <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:border-zinc-300 dark:hover:border-white/[0.12] transition-colors">
           <div>
             <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider">Hardware Online</span>
-              <Layers className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+              <span className="text-[11px] font-medium uppercase tracking-wider">Dispositivi Attivi</span>
+              <Radio className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
             </div>
             <div className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 font-mono">
-              {activeDevicesCount} <span className="text-base font-normal text-zinc-400">/ {totalDevicesCount || activeDevicesCount}</span>
+              {activeDevicesCount}
+              <span className="text-sm font-normal text-zinc-400 ml-1">/ {totalDevicesCount}</span>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
-            <span className="text-zinc-500 dark:text-zinc-400">Stato flotta</span>
+            <span className="text-zinc-500 dark:text-zinc-400">Rete hardware</span>
             <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              100% Funzionante
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Online
             </span>
           </div>
         </div>
       </div>
 
-      {/* Live Stream Section */}
-      <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-5 sm:p-6 shadow-xs">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
-          <div>
-            <h2 className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-zinc-100">
-              Registro Accessi Recenti
-            </h2>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-              Audit log cronologico delle sessioni aperte al tavolo via NFC o QR.
-            </p>
+      {/* Main Grid: Telemetry & Activity Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Hub Telemetry Breakdown */}
+        <div className="lg:col-span-2 bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-5 shadow-xs">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+                Canali di Acquisizione
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Ripartizione del traffico cliente tra tecnologia Near-Field e codici ottici.
+              </p>
+            </div>
+            <span className="text-xs font-mono text-zinc-400">Aggiornato in tempo reale</span>
           </div>
-          <span className="text-[11px] font-mono text-zinc-400">
-            Ultimi {recentInteractions.length} eventi
-          </span>
+
+          <div className="space-y-4 pt-2">
+            <div>
+              <div className="flex justify-between text-xs mb-1.5 font-medium">
+                <span className="text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-500" /> Tap NFC (High Intent)
+                </span>
+                <span className="font-mono text-zinc-950 dark:text-zinc-100">{nfcInteractions} ({nfcRatio}%)</span>
+              </div>
+              <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${nfcRatio}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs mb-1.5 font-medium">
+                <span className="text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-blue-500" /> Scansioni QR (Fotocamera)
+                </span>
+                <span className="font-mono text-zinc-950 dark:text-zinc-100">{qrInteractions} ({qrRatio}%)</span>
+              </div>
+              <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-blue-500 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${qrRatio}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-xs text-zinc-500">
+            <span>Hardware RIVO attivo sul punto vendita</span>
+            <Link 
+              href="/dashboard/devices" 
+              className="text-zinc-900 dark:text-zinc-200 font-medium hover:underline inline-flex items-center gap-1"
+            >
+              Configura Tag NFC & QR <ArrowUpRight className="w-3 h-3" />
+            </Link>
+          </div>
         </div>
 
-        {recentInteractions.length === 0 ? (
-          <div className="py-12 text-center space-y-2">
-            <Radio className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto" />
-            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-200">
-              Nessun evento registrato al momento
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
-              Avvicina uno smartphone al chip NFC di un supporto o scannerizza il QR code per vedere gli accessi comparire in tempo reale.
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-            {recentInteractions.map((item, idx) => {
-              const deviceName = deviceMap.get(item.device_id) || 'Tavolo non assegnato';
-              const date = new Date(item.timestamp);
-              const isNfc = item.interaction_type === 'nfc';
+        {/* Right: Live Stream of Recent Scans */}
+        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                Live Feed Interazioni
+              </h2>
+              <span className="text-[11px] text-zinc-400 font-mono">ultimi eventi</span>
+            </div>
 
-              return (
-                <div 
-                  key={idx} 
-                  className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 px-2 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      isNfc 
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                    }`}>
-                      {isNfc ? <Smartphone className="w-3.5 h-3.5" /> : <QrCode className="w-3.5 h-3.5" />}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {deviceName}
-                      </span>
-                      <span className={`px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded ${
-                        isNfc
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40'
-                          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60'
-                      }`}>
-                        {isNfc ? 'NFC Tap' : 'QR Scan'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-zinc-400 font-mono text-[11px] sm:text-right pl-10 sm:pl-0">
-                    <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-zinc-400" />
-                      {date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </span>
-                    <span className="text-zinc-400 dark:text-zinc-500">
-                      {date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
-                    </span>
-                  </div>
+            <div className="space-y-3">
+              {recentInteractions.length === 0 ? (
+                <div className="text-center py-8 text-xs text-zinc-400">
+                  Nessuna interazione recente registrata.
                 </div>
-              );
-            })}
+              ) : (
+                recentInteractions.map((evt, idx) => {
+                  const label = deviceMap.get(evt.device_id) || 'Tavolo / Punto Interattivo';
+                  const isNfc = evt.interaction_type === 'nfc';
+                  const timeStr = new Date(evt.timestamp).toLocaleTimeString('it-IT', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+
+                  return (
+                    <div 
+                      key={idx} 
+                      className="flex items-center justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isNfc ? (
+                          <div className="w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                            <Smartphone className="w-3.5 h-3.5" />
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-md bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                            <QrCode className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100 block">
+                            {label}
+                          </span>
+                          <span className="text-[10px] text-zinc-400 uppercase tracking-wider">
+                            {isNfc ? 'Tap NFC' : 'Scansione Ottica'}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-zinc-400">{timeStr}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
-        )}
+
+          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
+            <Link
+              href="/dashboard/analytics"
+              className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors font-medium"
+            >
+              Apri archivio completo interazioni →
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

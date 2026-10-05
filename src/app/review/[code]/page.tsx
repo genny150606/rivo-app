@@ -105,7 +105,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
       // 2. Fetch organization
       if (dev.organization_id) {
         const { data: orgData } = await supabase
-          .from('organizations')
+          .from('public_organizations')
           .select('name, logo_url, google_review_url')
           .eq('id', dev.organization_id)
           .single();

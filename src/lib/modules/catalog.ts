@@ -13,6 +13,7 @@ export type ModuleSlug =
   | 'canva_menu'
   | 'products'
   | 'inventory'
+  | 'sales'
   | 'suppliers';
 
 export type BusinessTypeSlug =
@@ -169,6 +170,16 @@ export const MODULE_CATALOG: Record<ModuleSlug, ModuleDefinition> = {
     navPath: '/dashboard/inventory',
     iconName: 'Boxes'
   },
+  sales: {
+    slug: 'sales',
+    name: 'Cassa & Registro Vendite',
+    description: 'Punto cassa POS rapido, scontrini, resi, metodi di pagamento e storico',
+    category: 'vertical',
+    defaultSort: 145,
+    dependencies: ['products'],
+    navPath: '/dashboard/sales',
+    iconName: 'Receipt'
+  },
   suppliers: {
     slug: 'suppliers',
     name: 'Fornitori & Riordini',
@@ -236,14 +247,14 @@ export const BUSINESS_TYPE_DEFINITIONS: Record<BusinessTypeSlug, BusinessTypeDef
     slug: 'shoe_store',
     name: 'Negozio di Scarpe & Calzature',
     description: 'Catalogo calzature, taglie, colori, stock di magazzino e fedeltà',
-    defaultModules: ['analytics', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'universal_hub', 'products', 'inventory', 'suppliers'],
+    defaultModules: ['analytics', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'universal_hub', 'products', 'inventory', 'sales', 'suppliers'],
     requiredModules: ['analytics', 'nfc_qr', 'products']
   },
   retail: {
     slug: 'retail',
     name: 'Retail & Boutique Abbigliamento',
     description: 'Catalogo moda, inventario capi, promozioni e fidelizzazione clienti',
-    defaultModules: ['analytics', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'universal_hub', 'products', 'inventory'],
+    defaultModules: ['analytics', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'universal_hub', 'products', 'inventory', 'sales'],
     requiredModules: ['analytics', 'nfc_qr', 'products']
   },
   gym: {

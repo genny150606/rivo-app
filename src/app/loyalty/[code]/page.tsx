@@ -78,7 +78,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
         setDevice(dev);
         if (dev.organization_id) {
           const { data: orgData } = await supabase
-            .from('organizations')
+            .from('public_organizations')
             .select('name, logo_url, loyalty_reward_text')
             .eq('id', dev.organization_id)
             .single();

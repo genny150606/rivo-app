@@ -35,7 +35,7 @@ export async function GET(
 
     // 2. Fetch organization configuration (Hub Mode, Review Shield & Smart Routing)
     const { data: org } = await supabase
-      .from('organizations')
+      .from('public_organizations')
       .select('category, hub_mode, review_shield_enabled, google_review_url, smart_routing_enabled, lunch_destination_url, lunch_start_time, lunch_end_time')
       .eq('id', device.organization_id)
       .single();

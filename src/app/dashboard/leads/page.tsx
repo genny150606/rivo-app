@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   Users, 
   Download, 
@@ -12,8 +11,21 @@ import {
   Mail, 
   Phone, 
   Calendar, 
-  RefreshCw 
+  RefreshCw,
+  Plus,
+  ShoppingBag,
+  CreditCard,
+  Edit3,
+  X,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  DollarSign,
+  TrendingUp,
+  ChevronRight,
+  UserCheck
 } from 'lucide-react';
+import { Customer } from '@/platform/retail/types';
 
 interface LeadItem {
   id: string;
@@ -23,231 +35,799 @@ interface LeadItem {
   created_at: string;
 }
 
-export default function LeadsDashboardPage() {
-  const [supabase] = useState(() => createClient());
-  const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
+interface CustomerWithSales extends Customer {
+  sales?: Array<{
+    id: string;
+    sale_number: string;
+    status: string;
+    total_amount: number;
+    payment_method: string;
+    created_at: string;
+    items?: Array<{
+      product_name: string;
+      variant_name: string | null;
+      quantity: number;
+      unit_price: number;
+      total_price: number;
+    }>;
+  }>;
+}
+
+export default function CustomersAndLeadsPage() {
+  const [activeTab, setActiveTab] = useState<'customers' | 'leads'>('customers');
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<LeadItem[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState('');
 
-  async function loadData() {
-    setLoading(true);
+  // Customer Modal State
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [taxCode, setTaxCode] = useState('');
+  const [birthdate, setBirthdate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [fidelityPoints, setFidelityPoints] = useState('0');
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  // View Customer Purchase History Modal
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithSales | null>(null);
+  const [loadingCustomerDetails, setLoadingCustomerDetails] = useState(false);
+
+  const loadData = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      setLoading(true);
+      setError(null);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_id, role')
-        .eq('auth_user_id', user.id)
-        .single();
+      const [custRes, leadsRes] = await Promise.all([
+        fetch('/api/customers'),
+        fetch('/api/leads'),
+      ]);
 
-      let targetOrgId = profile?.organization_id;
-      if (!targetOrgId && profile?.role === 'admin') {
-        const { data: firstOrg } = await supabase
-          .from('organizations')
-          .select('id')
-          .limit(1)
-          .single();
-        targetOrgId = firstOrg?.id;
-      }
+      const [custData, leadsData] = await Promise.all([
+        custRes.json().catch(() => ({ customers: [] })),
+        leadsRes.json().catch(() => ({ leads: [] })),
+      ]);
 
-      if (!targetOrgId) {
-        setLoading(false);
-        return;
-      }
-
-      setOrgId(targetOrgId);
-
-      const res = await fetch(`/api/leads?organization_id=${targetOrgId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLeads(data.leads || []);
-      }
-    } catch (e) {
-      console.error(e);
+      if (custRes.ok) setCustomers(custData.customers || []);
+      if (leadsRes.ok) setLeads(leadsData.leads || []);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Errore nel caricamento clienti e lead';
+      setError(msg);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Open Create Customer
+  const handleOpenCreateCustomer = () => {
+    setEditingCustomer(null);
+    setFirstName('');
+    setLastName('');
+    setPhone('');
+    setEmail('');
+    setTaxCode('');
+    setBirthdate('');
+    setNotes('');
+    setFidelityPoints('0');
+    setModalError(null);
+    setIsCustomerModalOpen(true);
+  };
+
+  // Open Edit Customer
+  const handleOpenEditCustomer = (c: Customer) => {
+    setEditingCustomer(c);
+    setFirstName(c.first_name);
+    setLastName(c.last_name || '');
+    setPhone(c.phone || '');
+    setEmail(c.email || '');
+    setTaxCode(c.tax_code || '');
+    setBirthdate(c.birthdate || '');
+    setNotes(c.notes || '');
+    setFidelityPoints((c.fidelity_points || 0).toString());
+    setModalError(null);
+    setIsCustomerModalOpen(true);
+  };
+
+  // View Customer Details & Purchases
+  const handleViewCustomer = async (c: Customer) => {
+    try {
+      setLoadingCustomerDetails(true);
+      const res = await fetch(`/api/customers?id=${c.id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore recupero scheda cliente');
+      setSelectedCustomer({
+        ...data.customer,
+        sales: data.sales || [],
+      });
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Errore');
+    } finally {
+      setLoadingCustomerDetails(false);
+    }
+  };
+
+  // Save Customer Submit
+  const handleSaveCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingCustomer(true);
+      setModalError(null);
+
+      const url = '/api/customers';
+      const method = editingCustomer ? 'PATCH' : 'POST';
+      const body = {
+        id: editingCustomer?.id,
+        first_name: firstName.trim(),
+        last_name: lastName.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        tax_code: taxCode.trim() || null,
+        birthdate: birthdate || null,
+        notes: notes.trim() || null,
+        fidelity_points: parseInt(fidelityPoints, 10) || 0,
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore salvataggio cliente');
+
+      setIsCustomerModalOpen(false);
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Errore';
+      setModalError(msg);
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  // Export CSV
   const handleExportCsv = () => {
-    if (leads.length === 0) return;
+    if (activeTab === 'customers') {
+      if (customers.length === 0) return;
+      const headers = ['Nome', 'Cognome', 'Telefono', 'Email', 'Punti Fidelity', 'Totale Speso (€)', 'Numero Acquisti', 'Ultimo Acquisto'];
+      const rows = customers.map((c) => [
+        `"${c.first_name}"`,
+        `"${c.last_name || ''}"`,
+        `"${c.phone || ''}"`,
+        `"${c.email || ''}"`,
+        c.fidelity_points || 0,
+        Number(c.total_spent || 0).toFixed(2),
+        c.purchases_count || 0,
+        `"${c.last_purchase_at ? new Date(c.last_purchase_at).toLocaleDateString('it-IT') : ''}"`,
+      ]);
 
-    const headers = ['Nome', 'Contatto', 'Canale Origine', 'Data Registrazione'];
-    const rows = leads.map((l) => [
-      `"${l.name || 'Anonimo'}"`,
-      `"${l.contact}"`,
-      `"${l.source}"`,
-      `"${new Date(l.created_at).toLocaleString('it-IT')}"`,
-    ]);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `RIVO_Clienti_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      if (leads.length === 0) return;
+      const headers = ['Nome', 'Contatto', 'Canale Origine', 'Data Registrazione'];
+      const rows = leads.map((l) => [
+        `"${l.name || 'Anonimo'}"`,
+        `"${l.contact}"`,
+        `"${l.source}"`,
+        `"${new Date(l.created_at).toLocaleString('it-IT')}"`,
+      ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `rivo_clienti_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `RIVO_Leads_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
-  const filteredLeads = leads.filter((l) =>
-    (l.name && l.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    l.contact.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const wifiCount = leads.filter((l) => l.source === 'wifi').length;
-  const wheelCount = leads.filter((l) => l.source === 'wheel').length;
-  const loyaltyCount = leads.filter((l) => l.source === 'loyalty').length;
-
-  const sourceConfig: Record<string, { label: string; icon: typeof Wifi; color: string }> = {
-    wifi: { label: 'Wi-Fi Guest', icon: Wifi, color: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400 border-sky-200/60 dark:border-sky-800/40' },
-    wheel: { label: 'Ruota Premi', icon: Gift, color: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40' },
-    loyalty: { label: 'Fidelity Pass', icon: Award, color: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400 border-violet-200/60 dark:border-violet-800/40' },
+  // Convert Lead to Customer Quick Action
+  const handlePromoteLeadToCustomer = (l: LeadItem) => {
+    setEditingCustomer(null);
+    setFirstName(l.name || 'Cliente');
+    setLastName('');
+    if (l.contact.includes('@')) {
+      setEmail(l.contact);
+      setPhone('');
+    } else {
+      setPhone(l.contact);
+      setEmail('');
+    }
+    setNotes(`Acquisito da canale: ${l.source}`);
+    setFidelityPoints('0');
+    setModalError(null);
+    setIsCustomerModalOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6 max-w-5xl">
-        <div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg w-1/4 animate-pulse" />
-        <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded-md w-1/3 animate-pulse" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-28 bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      </div>
+  // Filtered Customers
+  const filteredCustomers = useMemo(() => {
+    if (!searchQuery.trim()) return customers;
+    const q = searchQuery.toLowerCase().trim();
+    return customers.filter(
+      (c) =>
+        c.first_name.toLowerCase().includes(q) ||
+        (c.last_name || '').toLowerCase().includes(q) ||
+        (c.phone || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        (c.tax_code || '').toLowerCase().includes(q)
     );
-  }
+  }, [customers, searchQuery]);
+
+  // Filtered Leads
+  const filteredLeads = useMemo(() => {
+    if (!searchQuery.trim()) return leads;
+    const q = searchQuery.toLowerCase().trim();
+    return leads.filter(
+      (l) =>
+        (l.name && l.name.toLowerCase().includes(q)) ||
+        l.contact.toLowerCase().includes(q) ||
+        l.source.toLowerCase().includes(q)
+    );
+  }, [leads, searchQuery]);
+
+  // Customer Stats KPI
+  const stats = useMemo(() => {
+    let totalSpent = 0;
+    let totalPurchases = 0;
+    for (const c of customers) {
+      totalSpent += Number(c.total_spent) || 0;
+      totalPurchases += c.purchases_count || 0;
+    }
+    const avgBasket = totalPurchases > 0 ? totalSpent / totalPurchases : 0;
+    return { totalCustomers: customers.length, totalSpent, totalPurchases, avgBasket };
+  }, [customers]);
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-5xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-zinc-200/80 dark:border-white/[0.06]">
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800/80 pb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 mb-1 flex items-center gap-2">
-            <Users className="w-5 h-5 text-zinc-400" />
-            <span>CRM &amp; Contatti Raccolti</span>
+          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+            <Users className="w-3.5 h-3.5 text-lime-500 dark:text-[#bfff00]" />
+            <span>Retail Customer Relationship Management</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+            Clienti & CRM
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-            Database clienti profilati tramite Wi-Fi, Ruota della Fortuna e Tessere Fedeltà al tavolo.
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 max-w-2xl">
+            Anagrafica clienti, storico acquisti scontrino per scontrino, punti fidelity e contatti acquisiti.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
-            type="button"
             onClick={handleExportCsv}
-            disabled={leads.length === 0}
-            className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-semibold text-xs flex items-center gap-2 transition-all shadow-xs touch-press active:scale-[0.98] disabled:opacity-40 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Esporta CSV</span>
+            <Download className="w-4 h-4 text-zinc-500" />
+            <span className="hidden md:inline">Esporta CSV</span>
           </button>
 
           <button
-            type="button"
-            onClick={loadData}
-            title="Aggiorna lista"
-            className="p-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-2xs cursor-pointer"
+            onClick={handleOpenCreateCustomer}
+            className="inline-flex items-center justify-center gap-2 bg-[#bfff00] text-black px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#a8e600] transition-colors shadow-sm"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
+            <span>Nuovo Cliente</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">Totale Contatti</span>
-          <div className="text-2xl sm:text-3xl font-semibold text-zinc-950 dark:text-zinc-50 tracking-tight font-mono">{leads.length}</div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">Lead profilati nel DB</span>
+      {/* KPI Cards Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs text-zinc-500 font-medium">Clienti Anagrafica</span>
+          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
+            {stats.totalCustomers}
+          </div>
+          <span className="text-[11px] text-zinc-400 mt-1 block">
+            Profili cliente registrati
+          </span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">Da Wi-Fi Guest</span>
-          <div className="text-2xl sm:text-3xl font-semibold text-zinc-950 dark:text-zinc-50 tracking-tight font-mono">{wifiCount}</div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">Accessi a internet</span>
+        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs text-zinc-500 font-medium">Spesa Totale Cumulata</span>
+          <div className="text-2xl font-bold text-lime-600 dark:text-[#bfff00] font-mono mt-1">
+            € {stats.totalSpent.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <span className="text-[11px] text-zinc-400 mt-1 block">
+            Fatturato generato dai clienti
+          </span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">Da Ruota Premi</span>
-          <div className="text-2xl sm:text-3xl font-semibold text-zinc-950 dark:text-zinc-50 tracking-tight font-mono">{wheelCount}</div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">Gamification al tavolo</span>
+        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs text-zinc-500 font-medium">Scontrino Medio Cliente</span>
+          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
+            € {stats.avgBasket.toFixed(2)}
+          </div>
+          <span className="text-[11px] text-zinc-400 mt-1 block">
+            Su {stats.totalPurchases} acquisti
+          </span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] shadow-xs">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block mb-1">Da Tessera Punti</span>
-          <div className="text-2xl sm:text-3xl font-semibold text-zinc-950 dark:text-zinc-50 tracking-tight font-mono">{loyaltyCount}</div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">Wallet &amp; Fidelizzazione</span>
+        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
+          <span className="text-xs text-zinc-500 font-medium">Contatti & Leads Raccolti</span>
+          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
+            {leads.length}
+          </div>
+          <span className="text-[11px] text-zinc-400 mt-1 block">
+            Da Wi-Fi, NFC, Fidelity & Ruota
+          </span>
         </div>
       </div>
 
-      {/* Search & Leads Table */}
-      <div className="rounded-xl border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900/50 p-5 space-y-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Registro Lead ({filteredLeads.length})</h2>
-          
-          <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cerca nome o recapito..."
-              className="w-full min-h-[36px] bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-8 pr-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors"
-            />
-          </div>
+      {/* Tabs Switcher and Search */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl">
+          <button
+            onClick={() => setActiveTab('customers')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+              activeTab === 'customers'
+                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5 text-[#bfff00]" />
+            <span>Anagrafica Clienti ({customers.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('leads')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+              activeTab === 'leads'
+                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            <Wifi className="w-3.5 h-3.5" />
+            <span>Lead Raccolti Wi-Fi/NFC ({leads.length})</span>
+          </button>
         </div>
 
-        {filteredLeads.length === 0 ? (
-          <div className="py-10 text-center text-xs text-zinc-500">
-            Nessun contatto trovato. Quando i clienti useranno il Wi-Fi o la Ruota al tavolo, i loro dati compariranno qui.
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            type="text"
+            placeholder={activeTab === 'customers' ? 'Cerca cliente, telefono, email...' : 'Cerca lead o contatto...'}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+          />
+        </div>
+      </div>
+
+      {/* Error state */}
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Content based on Tab */}
+      {loading ? (
+        <div className="p-16 text-center text-zinc-400 flex flex-col items-center justify-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-[#bfff00]" />
+          <span className="text-xs">Caricamento anagrafiche in corso...</span>
+        </div>
+      ) : activeTab === 'customers' ? (
+        /* Tab 1: Customers Table */
+        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Cliente</th>
+                  <th className="px-4 py-3">Contatti</th>
+                  <th className="px-4 py-3 text-right">Spesa Totale</th>
+                  <th className="px-4 py-3 text-right">Acquisti</th>
+                  <th className="px-4 py-3 text-center">Punti Fidelity</th>
+                  <th className="px-4 py-3">Ultimo Acquisto</th>
+                  <th className="px-4 py-3 text-right">Azioni</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
+                {filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
+                      Nessun cliente trovato. Clicca &quot;Nuovo Cliente&quot; per registrare il primo profilo.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <tr key={c.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-zinc-950 dark:text-white">
+                        <div>{c.first_name} {c.last_name || ''}</div>
+                        {c.tax_code && (
+                          <span className="text-[10px] text-zinc-400 block font-mono font-normal">
+                            CF: {c.tax_code}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500">
+                        {c.phone && (
+                          <div className="flex items-center gap-1 font-mono text-[11px]">
+                            <Phone className="w-3 h-3 text-zinc-400" />
+                            <span>{c.phone}</span>
+                          </div>
+                        )}
+                        {c.email && (
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <Mail className="w-3 h-3 text-zinc-400" />
+                            <span>{c.email}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-zinc-950 dark:text-white">
+                        € {Number(c.total_spent || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-zinc-600 dark:text-zinc-300">
+                        {c.purchases_count || 0} ordini
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-lime-500/10 text-lime-600 dark:text-[#bfff00] border border-lime-500/20">
+                          <Award className="w-3 h-3" />
+                          <span>{c.fidelity_points || 0} pt</span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-400 font-mono text-[11px]">
+                        {c.last_purchase_at ? new Date(c.last_purchase_at).toLocaleDateString('it-IT') : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleViewCustomer(c)}
+                            className="text-xs font-medium text-lime-600 dark:text-[#bfff00] hover:underline"
+                          >
+                            Scheda & Acquisti
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditCustomer(c)}
+                            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
-            {filteredLeads.map((item) => {
-              const config = sourceConfig[item.source] || sourceConfig.wifi;
-              const Icon = config.icon;
+        </div>
+      ) : (
+        /* Tab 2: Leads Table (Wi-Fi, NFC, Wheel, Loyalty contacts) */
+        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Contatto</th>
+                  <th className="px-4 py-3">Nome Indicato</th>
+                  <th className="px-4 py-3">Canale Acquisizione</th>
+                  <th className="px-4 py-3">Data e Ora</th>
+                  <th className="px-4 py-3 text-right">Azione</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
+                {filteredLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-zinc-400">
+                      Nessun contatto lead registrato tramite QR/NFC.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLeads.map((l) => (
+                    <tr key={l.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
+                      <td className="px-4 py-3 font-mono font-medium text-zinc-900 dark:text-white">
+                        {l.contact}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500">
+                        {l.name || 'Anonimo'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                          {l.source === 'wifi' && <Wifi className="w-3 h-3 text-blue-500" />}
+                          {l.source === 'wheel' && <Gift className="w-3 h-3 text-pink-500" />}
+                          {l.source === 'loyalty' && <Award className="w-3 h-3 text-amber-500" />}
+                          <span className="capitalize">{l.source}</span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-400 font-mono text-[11px]">
+                        {new Date(l.created_at).toLocaleString('it-IT')}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handlePromoteLeadToCustomer(l)}
+                          className="text-xs font-semibold text-lime-600 dark:text-[#bfff00] hover:underline"
+                        >
+                          Converti in Cliente
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-              return (
-                <div key={item.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center font-semibold text-zinc-700 dark:text-zinc-300 shrink-0 text-xs">
-                      {item.name ? item.name.charAt(0).toUpperCase() : 'O'}
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-zinc-950 dark:text-zinc-100 block">
-                        {item.name || 'Ospite Riservato'}
-                      </span>
-                      <span className="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5">
-                        {item.contact.includes('@') ? <Mail className="w-3 h-3 text-zinc-400" /> : <Phone className="w-3 h-3 text-zinc-400" />}
-                        <span>{item.contact}</span>
-                      </span>
-                    </div>
-                  </div>
+      {/* CREATE / EDIT CUSTOMER MODAL */}
+      {isCustomerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#bfff00]" />
+                <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+                  {editingCustomer ? 'Modifica Scheda Cliente' : 'Nuovo Cliente'}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsCustomerModalOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border flex items-center gap-1 ${config.color}`}>
-                      <Icon className="w-3 h-3" />
-                      <span>{config.label}</span>
-                    </span>
+            {modalError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
-                    <span className="text-zinc-400 font-mono text-[11px]">
-                      {new Date(item.created_at).toLocaleString('it-IT')}
-                    </span>
-                  </div>
+            <form onSubmit={handleSaveCustomer} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Nome *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Mario"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  />
                 </div>
-              );
-            })}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Cognome
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Rossi"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Telefono / WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="+39 333 1234567"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="mario.rossi@email.it"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Codice Fiscale
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="RSSMRA80A01F205X"
+                    value={taxCode}
+                    onChange={(e) => setTaxCode(e.target.value.toUpperCase())}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Punti Fidelity
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={fidelityPoints}
+                    onChange={(e) => setFidelityPoints(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Note Preferenze Cliente (Taglia abituale, gusti, ecc.)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="es. Preferisce sneakers numero 42, interessato a nuovi arrivi brand Borrelli..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCustomerModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingCustomer}
+                  className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-5 py-2 rounded-xl text-xs font-semibold hover:bg-[#a8e600] disabled:opacity-50"
+                >
+                  {savingCustomer && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{editingCustomer ? 'Aggiorna Profilo' : 'Crea Profilo Cliente'}</span>
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* VIEW CUSTOMER PROFILE & PURCHASE HISTORY MODAL */}
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-[#bfff00]" />
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+                    {selectedCustomer.first_name} {selectedCustomer.last_name || ''}
+                  </h2>
+                  <span className="text-xs text-zinc-400">
+                    Cliente dal {new Date(selectedCustomer.created_at).toLocaleDateString('it-IT')}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedCustomer(null)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick customer stat pills */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase">Spesa Storica</span>
+                <div className="text-base font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
+                  € {Number(selectedCustomer.total_spent || 0).toFixed(2)}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase">Acquisti Effettuati</span>
+                <div className="text-base font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
+                  {selectedCustomer.purchases_count || 0}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase">Punti Fidelity</span>
+                <div className="text-base font-bold font-mono text-lime-600 dark:text-[#bfff00] mt-0.5">
+                  {selectedCustomer.fidelity_points || 0} pt
+                </div>
+              </div>
+            </div>
+
+            {selectedCustomer.notes && (
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs">
+                <span className="font-semibold text-zinc-400 block mb-0.5">Note Cliente:</span>
+                <p className="text-zinc-700 dark:text-zinc-300">{selectedCustomer.notes}</p>
+              </div>
+            )}
+
+            {/* Purchase History */}
+            <div className="space-y-2 border-t border-zinc-200 dark:border-zinc-800 pt-3">
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
+                Storico Scontrini & Acquisti ({selectedCustomer.sales?.length || 0})
+              </h3>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {!selectedCustomer.sales || selectedCustomer.sales.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-zinc-400">
+                    Nessun acquisto ancora registrato a cassa per questo cliente.
+                  </div>
+                ) : (
+                  selectedCustomer.sales.map((s) => (
+                    <div
+                      key={s.id}
+                      className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-1.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-zinc-950 dark:text-white">
+                          {s.sale_number}
+                        </span>
+                        <span className="font-mono font-bold text-lime-600 dark:text-[#bfff00]">
+                          € {Number(s.total_amount).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-zinc-400 flex items-center justify-between">
+                        <span>{new Date(s.created_at).toLocaleString('it-IT')}</span>
+                        <span className="capitalize">{s.payment_method}</span>
+                      </div>
+                      {s.items && s.items.length > 0 && (
+                        <div className="pt-1 border-t border-zinc-200/50 dark:border-zinc-800/50 text-[11px] text-zinc-500 space-y-0.5">
+                          {s.items.map((it, idx) => (
+                            <div key={idx} className="flex justify-between">
+                              <span>{it.product_name} {it.variant_name ? `(${it.variant_name})` : ''} × {it.quantity}</span>
+                              <span className="font-mono">€ {Number(it.total_price).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-zinc-200 dark:border-zinc-800">
+              <button
+                onClick={() => setSelectedCustomer(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-900 dark:text-white"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

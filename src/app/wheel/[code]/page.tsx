@@ -73,7 +73,7 @@ export default function WheelPage({ params }: WheelPageProps) {
         setDevice(dev);
         if (dev.organization_id) {
           const { data: orgData } = await supabase
-            .from('organizations')
+            .from('public_organizations')
             .select('name, logo_url')
             .eq('id', dev.organization_id)
             .single();

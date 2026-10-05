@@ -64,7 +64,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
         setDevice(dev);
         if (dev.organization_id) {
           const { data: orgData } = await supabase
-            .from('organizations')
+            .from('public_organizations')
             .select('name')
             .eq('id', dev.organization_id)
             .single();

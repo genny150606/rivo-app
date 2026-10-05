@@ -20,6 +20,7 @@ const PUBLIC_PREFIXES = [
 ];
 
 const PUBLIC_EXACT = [
+  '/',
   '/favicon.ico',
   '/robots.txt',
   '/sitemap.xml',

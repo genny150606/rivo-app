@@ -5,7 +5,7 @@
  * and authorization helpers for multi-tenant staff management.
  */
 
-export type StaffRole = 'owner' | 'manager' | 'waiter';
+export type StaffRole = 'owner' | 'manager' | 'waiter' | 'employee';
 export type AppRole = StaffRole | 'admin' | 'client';
 
 export type AppPermission =
@@ -22,72 +22,79 @@ export type AppPermission =
   | 'menu.edit'
   | 'analytics.view'
   | 'tips.view'
-  | 'organization.settings';
+  | 'organization.settings'
+  | 'products.view'
+  | 'products.create'
+  | 'products.update'
+  | 'products.delete'
+  | 'inventory.view'
+  | 'inventory.update'
+  | 'inventory.movements'
+  | 'sales.view'
+  | 'sales.create'
+  | 'sales.refund'
+  | 'customers.view'
+  | 'customers.create'
+  | 'customers.update'
+  | 'suppliers.view'
+  | 'suppliers.create'
+  | 'suppliers.update'
+  | 'reports.view';
 
 export const ROLE_LABELS: Record<string, string> = {
-  owner: 'Proprietario',
-  client: 'Proprietario', // Backward compatibility for existing client profiles
-  manager: 'Manager di Sala',
-  waiter: 'Cameriere',
+  owner: 'Proprietario / Titolare',
+  client: 'Proprietario / Titolare', // Backward compatibility for existing client profiles
+  manager: 'Store / Floor Manager',
+  employee: 'Operatore Cassa & Vendite',
+  waiter: 'Cameriere di Sala',
   admin: 'Amministratore RIVO',
 };
 
 export const ROLE_DESCRIPTIONS: Record<StaffRole, string> = {
-  owner: 'Controllo completo su staff, sedi, tavoli, menu, analytics e impostazioni del ristorante.',
-  manager: 'Gestione sala e staff, assegnazione tavoli, monitor ordini e chiamate, analytics operativi.',
-  waiter: 'Gestione rapida dei propri tavoli assegnati, presa tavoli liberi, gestione comande e chiamate.',
+  owner: 'Controllo completo su catalogo, cassa, magazzino, fornitori, staff, sedi e impostazioni.',
+  manager: 'Gestione operativa di cassa, magazzino, inventario, ordini, staff e report di vendita.',
+  employee: 'Accesso operativo a vendite, consultazione prodotti, carico cassa e anagrafica clienti.',
+  waiter: 'Gestione rapida dei propri tavoli assegnati, presa comande e chiamate servizio.',
 };
 
+const ALL_PERMISSIONS: AppPermission[] = [
+  'staff.view',
+  'staff.create',
+  'staff.update',
+  'staff.disable',
+  'tables.view',
+  'tables.assign',
+  'tables.take',
+  'orders.view',
+  'orders.manage',
+  'menu.view',
+  'menu.edit',
+  'analytics.view',
+  'tips.view',
+  'organization.settings',
+  'products.view',
+  'products.create',
+  'products.update',
+  'products.delete',
+  'inventory.view',
+  'inventory.update',
+  'inventory.movements',
+  'sales.view',
+  'sales.create',
+  'sales.refund',
+  'customers.view',
+  'customers.create',
+  'customers.update',
+  'suppliers.view',
+  'suppliers.create',
+  'suppliers.update',
+  'reports.view',
+];
+
 export const ROLE_PERMISSIONS: Record<AppRole, AppPermission[]> = {
-  admin: [
-    'staff.view',
-    'staff.create',
-    'staff.update',
-    'staff.disable',
-    'tables.view',
-    'tables.assign',
-    'tables.take',
-    'orders.view',
-    'orders.manage',
-    'menu.view',
-    'menu.edit',
-    'analytics.view',
-    'tips.view',
-    'organization.settings',
-  ],
-  owner: [
-    'staff.view',
-    'staff.create',
-    'staff.update',
-    'staff.disable',
-    'tables.view',
-    'tables.assign',
-    'tables.take',
-    'orders.view',
-    'orders.manage',
-    'menu.view',
-    'menu.edit',
-    'analytics.view',
-    'tips.view',
-    'organization.settings',
-  ],
-  client: [
-    // Existing accounts with role = 'client' have owner privileges
-    'staff.view',
-    'staff.create',
-    'staff.update',
-    'staff.disable',
-    'tables.view',
-    'tables.assign',
-    'tables.take',
-    'orders.view',
-    'orders.manage',
-    'menu.view',
-    'menu.edit',
-    'analytics.view',
-    'tips.view',
-    'organization.settings',
-  ],
+  admin: ALL_PERMISSIONS,
+  owner: ALL_PERMISSIONS,
+  client: ALL_PERMISSIONS,
   manager: [
     'staff.view',
     'staff.create',
@@ -100,6 +107,31 @@ export const ROLE_PERMISSIONS: Record<AppRole, AppPermission[]> = {
     'menu.edit',
     'analytics.view',
     'tips.view',
+    'products.view',
+    'products.create',
+    'products.update',
+    'products.delete',
+    'inventory.view',
+    'inventory.update',
+    'inventory.movements',
+    'sales.view',
+    'sales.create',
+    'sales.refund',
+    'customers.view',
+    'customers.create',
+    'customers.update',
+    'suppliers.view',
+    'suppliers.create',
+    'suppliers.update',
+    'reports.view',
+  ],
+  employee: [
+    'products.view',
+    'inventory.view',
+    'sales.view',
+    'sales.create',
+    'customers.view',
+    'customers.create',
   ],
   waiter: [
     'tables.view',
