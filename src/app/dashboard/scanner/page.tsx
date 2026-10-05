@@ -399,8 +399,12 @@ export default function MobileScannerPage() {
       if (!res.ok) throw new Error(data.error || 'Errore analisi foto etichetta');
 
       if (data.recognized) {
-        setRecognizedItem(data.recognized);
-        setLastScannedCode(data.recognized.barcode);
+        const finalBarcode = data.recognized.barcode || lastScannedCode || '';
+        setRecognizedItem({
+          ...data.recognized,
+          barcode: finalBarcode,
+        });
+        if (finalBarcode) setLastScannedCode(finalBarcode);
         triggerConfetti();
       }
     } catch (err: any) {
@@ -485,24 +489,41 @@ export default function MobileScannerPage() {
   // Submit Stock-In for NEW Recognized Item
   const handleStockInNew = async () => {
     if (!recognizedItem) return;
+    const prodName = recognizedItem.name.trim();
+    if (!prodName) {
+      alert('Inserisci il nome o modello dell’articolo prima di salvare.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const instruction = `inserisci ${quantityToAdd} ${recognizedItem.name} di taglia ${recognizedItem.size} colore ${recognizedItem.color} a ${recognizedItem.sellingPrice} euro costo ${recognizedItem.costPrice}`;
       const res = await fetch('/api/ai/retail-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: instruction }),
+        body: JSON.stringify({
+          item: {
+            name: prodName,
+            brand: recognizedItem.brand?.trim() || undefined,
+            category: recognizedItem.category || 'Calzature',
+            size: recognizedItem.size?.trim() || 'TU',
+            color: recognizedItem.color?.trim() || 'Standard',
+            sellingPrice: Number(recognizedItem.sellingPrice) || 0,
+            costPrice: Number(recognizedItem.costPrice) || 0,
+            quantity: quantityToAdd,
+            barcode: recognizedItem.barcode?.trim() || lastScannedCode || undefined,
+          }
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore creazione articolo');
 
       triggerConfetti();
-      setSuccessMessage(`🎉 Creato e Immagazzinato: +${quantityToAdd} ${recognizedItem.name} (Tg. ${recognizedItem.size})`);
+      setSuccessMessage(`🎉 Creato e Immagazzinato: +${quantityToAdd} ${prodName} (Tg. ${recognizedItem.size || 'TU'})`);
       setHistory(prev => [
         {
-          name: recognizedItem.name,
-          size: recognizedItem.size,
+          name: prodName,
+          size: recognizedItem.size || 'TU',
           quantity: quantityToAdd,
           time: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
         },
@@ -771,7 +792,17 @@ export default function MobileScannerPage() {
               <Check className="w-3.5 h-3.5" />
               Articolo a Catalogo
             </span>
-            <span className="text-xs font-mono text-zinc-400">{existingItem.barcode}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-zinc-400">{existingItem.barcode}</span>
+              <button
+                type="button"
+                onClick={() => setExistingItem(null)}
+                className="text-zinc-500 hover:text-white px-2 py-0.5 rounded-lg text-xs font-bold bg-zinc-800"
+                title="Chiudi"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <div>
@@ -844,14 +875,23 @@ export default function MobileScannerPage() {
           </div>
 
           {/* Action Button */}
-          <button
-            onClick={handleStockInExisting}
-            disabled={submitting}
-            className="w-full py-4 bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-lime-400/25 active:scale-[0.98] transition-all"
-          >
-            <PackagePlus className="w-5 h-5" />
-            <span>{submitting ? 'Caricamento in corso...' : `Carica +${quantityToAdd} a Magazzino`}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExistingItem(null)}
+              className="py-4 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-2xl transition-all"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleStockInExisting}
+              disabled={submitting}
+              className="flex-1 py-4 bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-lime-400/25 active:scale-[0.98] transition-all"
+            >
+              <PackagePlus className="w-5 h-5" />
+              <span>{submitting ? 'Caricamento in corso...' : `Carica +${quantityToAdd} a Magazzino`}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -861,16 +901,48 @@ export default function MobileScannerPage() {
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
               <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" style={{ animationDuration: '4s' }} />
-              Riconosciuto da AI Vision
+              {recognizedItem.name ? 'Riconosciuto da AI' : 'Nuovo Articolo da Registrare'}
             </span>
-            <span className="text-xs font-mono text-zinc-400">{recognizedItem.barcode}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-zinc-400">{recognizedItem.barcode}</span>
+              <button
+                type="button"
+                onClick={() => setRecognizedItem(null)}
+                className="text-zinc-500 hover:text-white px-2 py-0.5 rounded-lg text-xs font-bold bg-zinc-800"
+                title="Chiudi"
+              >
+                ✕
+              </button>
+            </div>
           </div>
+
+          {/* Quick Photo Snap prompt if uncataloged */}
+          {!recognizedItem.name && (
+            <div className="bg-purple-950/40 border border-purple-500/30 rounded-2xl p-3.5 space-y-2.5">
+              <div className="flex items-center gap-2 text-purple-300 text-xs font-bold">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <span>Barcode non presente online</span>
+              </div>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">
+                Inquadra l’etichetta della scatola: l’AI leggerà Marca (es. Nero Giardini), Modello e Taglia in automatico!
+              </p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20 active:scale-95 transition-all"
+              >
+                <Camera className="w-4 h-4" />
+                <span>📸 Scatta Foto Etichetta Scatola</span>
+              </button>
+            </div>
+          )}
 
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] text-zinc-400 uppercase font-bold">Modello Scarpa / Prodotto</label>
+              <label className="text-[10px] text-zinc-400 uppercase font-bold">Modello Scarpa / Prodotto *</label>
               <input
                 type="text"
+                placeholder="es: Décolleté Pelle, Sneaker Fondo Alto, Mocassino..."
                 value={recognizedItem.name}
                 onChange={(e) => setRecognizedItem({ ...recognizedItem, name: e.target.value })}
                 className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-purple-400"
@@ -882,6 +954,7 @@ export default function MobileScannerPage() {
                 <label className="text-[10px] text-zinc-400 uppercase font-bold">Brand</label>
                 <input
                   type="text"
+                  placeholder="es: Nero Giardini"
                   value={recognizedItem.brand}
                   onChange={(e) => setRecognizedItem({ ...recognizedItem, brand: e.target.value })}
                   className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400"
@@ -891,6 +964,7 @@ export default function MobileScannerPage() {
                 <label className="text-[10px] text-zinc-400 uppercase font-bold">Numero / Taglia</label>
                 <input
                   type="text"
+                  placeholder="es: 38"
                   value={recognizedItem.size}
                   onChange={(e) => setRecognizedItem({ ...recognizedItem, size: e.target.value })}
                   className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white font-extrabold text-center focus:outline-none focus:border-purple-400 text-lime-400"
@@ -904,7 +978,7 @@ export default function MobileScannerPage() {
                 <input
                   type="number"
                   step="0.01"
-                  value={recognizedItem.sellingPrice}
+                  value={recognizedItem.sellingPrice || ''}
                   onChange={(e) => setRecognizedItem({ ...recognizedItem, sellingPrice: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400"
                 />
@@ -914,7 +988,7 @@ export default function MobileScannerPage() {
                 <input
                   type="number"
                   step="0.01"
-                  value={recognizedItem.costPrice}
+                  value={recognizedItem.costPrice || ''}
                   onChange={(e) => setRecognizedItem({ ...recognizedItem, costPrice: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400"
                 />
@@ -936,14 +1010,23 @@ export default function MobileScannerPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleStockInNew}
-            disabled={submitting}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-lime-500 hover:from-purple-500 hover:to-lime-400 disabled:opacity-50 text-white font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-purple-500/25 active:scale-[0.98] transition-all"
-          >
-            <Sparkles className="w-5 h-5" />
-            <span>{submitting ? 'Creazione in corso...' : 'Salva nel Catalogo & Immagazzina'}</span>
-          </button>
+          <div className="flex items-center gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setRecognizedItem(null)}
+              className="py-3.5 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-2xl transition-all"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleStockInNew}
+              disabled={submitting || !recognizedItem.name.trim()}
+              className="flex-1 py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-lime-500 hover:from-purple-500 hover:to-lime-400 disabled:opacity-40 text-white font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-purple-500/25 active:scale-[0.98] transition-all"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span>{submitting ? 'Creazione in corso...' : 'Salva nel Catalogo & Immagazzina'}</span>
+            </button>
+          </div>
         </div>
       )}
 

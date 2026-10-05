@@ -20,24 +20,29 @@ export async function POST(request: NextRequest) {
 
     if (geminiKey) {
       try {
-        const prompt = `Sei un esperto di calzature e retail fashion. 
-Analizza con estrema precisione questa foto di un'etichetta di una scatola di scarpe o codice a barre.
-Trova e ricava:
-1. Marca/Brand (es. Nike, Adidas, Borrelli, New Balance, Puma, ecc.)
-2. Modello esatto (es. Air Max 95, Mocassino Artigianale, Dunk Low, ecc.)
-3. Numero/Taglia EU (es. 42, 43, 39, ecc.)
-4. Colore prevalente (es. Nero, Bianco, Cognac, Blu)
-5. Eventuale codice a barre / EAN leggibile numerico
-6. Prezzo indicativo di vendita in euro
+        const prompt = `Sei un sistema esperto OCR e Vision per il retail calzaturiero.
+Analizza con la massima accuratezza questa foto dell'etichetta di una scatola di scarpe (o cartellino/codice a barre).
+Estrai ESCLUSIVAMENTE le informazioni che riesci a LEGGERE sul testo stampato:
+1. Marca/Brand (es. Nero Giardini, Hogan, Nike, Adidas, Geox, Liu Jo, Premiata, Saucony, Clarks, ecc.)
+2. Modello o codice articolo scritto sulla scatola (es. codice stile tipo "I117001D", "Mocassino", o nome modello)
+3. Taglia/Misura EU (es. 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46)
+4. Colore stampato (es. Nero, T.Moro, Bianco, Blu, ecc.)
+5. Codice a barre / EAN numerico impresso sotto le barre
+6. Prezzo di listino se stampato, altrimenti 0
 
-Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown o testo extra):
+REGOLE TASSATIVE:
+- NON INVENTARE ASSOLUTAMENTE NULLA. Riporta solo ciò che leggi con gli occhi.
+- Se l'etichetta dice "NERO GIARDINI", brand è "Nero Giardini".
+- Se un campo non è presente o illeggibile, restituisci una stringa vuota "" (o 0 per il prezzo).
+
+Rispondi ESCLUSIVAMENTE con questo JSON:
 {
-  "brand": "Nike",
-  "model": "Air Max 95",
-  "size": "43",
-  "color": "Nero / Grigio",
-  "barcode": "8051234567890",
-  "estimatedPrice": 179.99,
+  "brand": "stringa letta o vuota",
+  "model": "stringa letta o vuota",
+  "size": "taglia letta o vuota",
+  "color": "colore letto o vuoto",
+  "barcode": "cifre ean lette o vuoto",
+  "estimatedPrice": 0,
   "confidence": 0.95
 }`;
 
@@ -66,22 +71,29 @@ Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown o testo extra
           const geminiData = await geminiRes.json();
           const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
           if (rawText) {
-            const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            const parsed = JSON.parse(cleaned);
-            return NextResponse.json({
-              success: true,
-              source: 'gemini_vision',
-              recognized: {
-                brand: parsed.brand || 'Borrelli',
-                name: `${parsed.brand || 'Scarpa'} ${parsed.model || 'Fashion'}`,
-                size: parsed.size || '42',
-                color: parsed.color || 'Standard',
-                barcode: parsed.barcode || `EAN-${Date.now().toString().slice(-8)}`,
-                sellingPrice: Number(parsed.estimatedPrice) || 130.00,
-                costPrice: Math.round((Number(parsed.estimatedPrice) || 130.00) * 0.45),
-                confidence: parsed.confidence || 0.95
-              }
-            });
+            const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              const brand = (parsed.brand || '').trim();
+              const model = (parsed.model || '').trim();
+              const fullName = [brand, model].filter(Boolean).join(' ') || 'Articolo da Scatola';
+              const price = Number(parsed.estimatedPrice) || 0;
+
+              return NextResponse.json({
+                success: true,
+                source: 'gemini_vision',
+                recognized: {
+                  brand,
+                  name: fullName,
+                  size: (parsed.size || '').trim(),
+                  color: (parsed.color || '').trim(),
+                  barcode: (parsed.barcode || '').trim(),
+                  sellingPrice: price > 0 ? price : 0,
+                  costPrice: price > 0 ? Math.round(price * 0.45) : 0,
+                  confidence: parsed.confidence || 0.9
+                }
+              });
+            }
           }
         }
       } catch (geminiErr) {

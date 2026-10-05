@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
 
     const adminClient = getAdminClient();
     const body = await request.json();
-    const { message } = body;
+    const { message, item } = body;
 
-    if (!message || typeof message !== 'string' || !message.trim()) {
-      return NextResponse.json({ error: 'Messaggio non valido' }, { status: 400 });
+    if (!item && (!message || typeof message !== 'string' || !message.trim())) {
+      return NextResponse.json({ error: 'Messaggio o articolo richiesto' }, { status: 400 });
     }
 
     // 1. Load catalog context for natural language resolution
@@ -47,8 +47,26 @@ export async function POST(request: NextRequest) {
       .select('id, name')
       .eq('organization_id', orgId);
 
-    // 2. Parse intent via Retail NLP Engine
-    const parsed = parseRetailIntent(message, (existingProducts || []).map(p => ({ name: p.name, brand: p.brand || undefined })));
+    // 2. Parse intent via Retail NLP Engine or use structured item directly
+    let parsed: any;
+    if (item && item.name) {
+      parsed = {
+        intent: 'ADD_PRODUCT_OR_STOCK',
+        productName: item.name,
+        brand: item.brand || undefined,
+        category: item.category || 'Calzature',
+        size: item.size || 'TU',
+        color: item.color || 'Standard',
+        quantity: item.quantity || 1,
+        sellingPrice: item.sellingPrice || 0,
+        costPrice: item.costPrice || 0,
+        barcode: item.barcode || undefined,
+        rawText: `Aggiunta articolo: ${item.name}`,
+        confidence: 1.0,
+      };
+    } else {
+      parsed = parseRetailIntent(message, (existingProducts || []).map(p => ({ name: p.name, brand: p.brand || undefined })));
+    }
 
     // Optional Gemini 1.5 Flash Enhancement if API key is present and intent is ambiguous
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
@@ -115,7 +133,7 @@ Rispondi in modo cordiale, sintetico e professionale in italiano (massimo 2-3 fr
 
       // 3.2 Resolve or create Brand
       let brandId: string | null = null;
-      let brandName = parsed.brand || 'Borrelli';
+      let brandName = parsed.brand || item?.brand || 'Brand';
       const matchedBrand = existingBrands?.find(
         b => b.name.toLowerCase() === brandName.toLowerCase()
       );
@@ -183,6 +201,7 @@ Rispondi in modo cordiale, sintetico e professionale in italiano (massimo 2-3 fr
         .eq('product_id', productId);
 
       let variant = variants?.find(v => {
+        if (parsed.barcode && v.barcode === parsed.barcode) return true;
         const variantSize = v.size || (v.attributes as any)?.size;
         const variantColor = v.color || (v.attributes as any)?.color;
         const sizeMatches = variantSize?.toString().toUpperCase() === targetSize.toString().toUpperCase();
@@ -200,7 +219,7 @@ Rispondi in modo cordiale, sintetico e professionale in italiano (massimo 2-3 fr
             organization_id: orgId,
             product_id: productId,
             sku: sanitizeString(variantSku, 100),
-            barcode: parsed.barcode || null,
+            barcode: parsed.barcode ? sanitizeString(parsed.barcode, 100) : null,
             size: sanitizeString(targetSize, 50),
             color: sanitizeString(targetColor, 50),
             attributes: { size: targetSize, color: targetColor },
@@ -220,6 +239,13 @@ Rispondi in modo cordiale, sintetico e professionale in italiano (massimo 2-3 fr
         variantId = newVar.id;
       } else {
         variantId = variant.id;
+        // If variant already existed but barcode was missing, update barcode
+        if (!variant.barcode && parsed.barcode) {
+          await adminClient
+            .from('product_variants')
+            .update({ barcode: sanitizeString(parsed.barcode, 100) })
+            .eq('id', variant.id);
+        }
       }
 
       // 3.5 Record atomic inventory movement to increase stock
@@ -229,7 +255,7 @@ Rispondi in modo cordiale, sintetico e professionale in italiano (massimo 2-3 fr
         p_location_id: null,
         p_type: 'initial',
         p_quantity_delta: quantityToAdd,
-        p_reason: `Carico via Assistente AI: "${message}"`,
+        p_reason: `Carico via Assistente AI: "${message || parsed.rawText || productName}"`,
         p_reference: productSku,
         p_ref_id: productId,
         p_ref_type: 'ai_assistant',

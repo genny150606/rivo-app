@@ -24,9 +24,12 @@ export interface ParsedRetailAction {
 }
 
 const COMMON_BRANDS = [
+  'Nero Giardini', 'NeroGiardini', 'Hogan', 'Tod\'s', 'Premiata', 'Liu Jo',
   'Nike', 'Adidas', 'Puma', 'New Balance', 'Asics', 'Converse', 'Vans',
   'Borrelli', 'Gucci', 'Prada', 'Armani', 'Michael Kors', 'Guess',
-  'Liu Jo', 'Timberland', 'Clarks', 'Geox', 'Saucony', 'Jordan'
+  'Timberland', 'Clarks', 'Geox', 'Saucony', 'Jordan', 'Diadora',
+  'Golden Goose', 'Autry', 'Sun68', 'Frau', 'Melluso', 'CafèNoir', 'Café Noir',
+  'Stonefly', 'Valleverde', 'Birkenstock', 'Dr. Martens', 'Superga'
 ];
 
 const NUMBER_WORDS: Record<string, number> = {
