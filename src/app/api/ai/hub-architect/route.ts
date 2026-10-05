@@ -562,7 +562,7 @@ Rispondi con un unico blocco JSON valido con le chiavi:
     const userPrompt = `Locale: "${businessName}" (Categoria: ${category}). Richiesta di stile: "${prompt}". Rispondi esclusivamente in formato JSON.`;
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

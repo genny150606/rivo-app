@@ -77,7 +77,7 @@ Scrivi una recensione autentica, spontanea, in perfetto italiano, di massimo 2 o
 Non usare virgolette all'inizio o alla fine. Non aggiungere spiegazioni o titoli.`;
 
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
