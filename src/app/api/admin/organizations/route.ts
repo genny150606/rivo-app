@@ -122,6 +122,18 @@ export async function POST(request: NextRequest) {
       .eq('name', planName || 'Starter')
       .single();
 
+    // Helper to rollback partial provisioning on failure
+    const rollback = async (orgId: string) => {
+      try {
+        await supabase.from('devices').delete().eq('organization_id', orgId);
+        await supabase.from('locations').delete().eq('organization_id', orgId);
+        await supabase.from('organization_modules').delete().eq('organization_id', orgId);
+        await supabase.from('organizations').delete().eq('id', orgId);
+      } catch (cleanupErr) {
+        console.error('Failed to rollback organization provisioning:', cleanupErr);
+      }
+    };
+
     // 2. Insert Organization
     const finalSlug = slug?.trim() || businessName.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const { data: org, error: orgErr } = await supabase
@@ -135,6 +147,7 @@ export async function POST(request: NextRequest) {
         website: website || null,
         plan_id: plan?.id || null,
         category: category || 'restaurant',
+        business_type: targetBtSlug || category || 'retail',
         business_type_id: btData?.id || null,
         hub_mode: hubMode || 'hub',
         custom_cta_label: customCtaLabel || null,
@@ -215,13 +228,33 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (locErr || !loc) {
+      await rollback(org.id);
       return NextResponse.json({ error: locErr?.message || 'Errore creazione sede' }, { status: 400 });
     }
 
-    // 4. Insert Initial Device
-    const cleanCode = deviceCode?.trim() 
+    // 4. Insert Initial Device (with Guaranteed Unique Code)
+    let cleanCode = deviceCode?.trim() 
       ? (deviceCode.trim().toUpperCase().startsWith('RIVO-') ? deviceCode.trim().toUpperCase() : `RIVO-${deviceCode.trim().toUpperCase()}`)
       : ('RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase());
+
+    // Verify uniqueness against existing devices to prevent devices_unique_code_key collision
+    let codeExists = true;
+    let attempts = 0;
+    while (codeExists && attempts < 10) {
+      const { data: existingDevice } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('unique_code', cleanCode)
+        .maybeSingle();
+
+      if (!existingDevice) {
+        codeExists = false;
+      } else {
+        // Suffix collision detected - generate fresh random unique code
+        cleanCode = 'RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        attempts++;
+      }
+    }
 
     const { error: devErr } = await supabase
       .from('devices')
@@ -236,10 +269,12 @@ export async function POST(request: NextRequest) {
       });
 
     if (devErr) {
+      await rollback(org.id);
       return NextResponse.json({ error: devErr.message }, { status: 400 });
     }
 
-    // 5. Create the owner without changing the active administrator session.
+    // 5. Create or connect the owner without changing the active administrator session.
+    let authUserId: string | null = null;
     const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
       email: ownerEmail,
       password: ownerPassword,
@@ -251,22 +286,42 @@ export async function POST(request: NextRequest) {
     });
 
     if (authErr) {
-      return NextResponse.json({ error: authErr.message }, { status: 400 });
+      // If user already exists in auth, find existing user so we can attach them to this organization
+      if (authErr.message?.toLowerCase().includes('already') || authErr.message?.toLowerCase().includes('registered')) {
+        const { data: userList } = await supabase.auth.admin.listUsers();
+        const existing = userList?.users?.find((u) => u.email?.toLowerCase() === ownerEmail.toLowerCase());
+        if (existing) {
+          authUserId = existing.id;
+          if (ownerPassword) {
+            await supabase.auth.admin.updateUserById(existing.id, { password: ownerPassword });
+          }
+        } else {
+          await rollback(org.id);
+          return NextResponse.json({ error: authErr.message }, { status: 400 });
+        }
+      } else {
+        await rollback(org.id);
+        return NextResponse.json({ error: authErr.message }, { status: 400 });
+      }
+    } else {
+      authUserId = authData.user?.id || null;
     }
 
     // 6. Connect Profile to this Organization
-    if (authData.user) {
+    if (authUserId) {
       const { error: ownerProfileError } = await supabase
         .from('profiles')
         .upsert({
-          auth_user_id: authData.user.id,
+          auth_user_id: authUserId,
           organization_id: org.id,
           role: 'client',
           first_name: ownerFirstName || null,
           last_name: ownerLastName || null,
+          email: ownerEmail,
         }, { onConflict: 'auth_user_id' });
 
       if (ownerProfileError) {
+        await rollback(org.id);
         return NextResponse.json({ error: ownerProfileError.message }, { status: 400 });
       }
     }

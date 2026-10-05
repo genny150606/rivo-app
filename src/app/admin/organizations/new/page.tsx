@@ -248,6 +248,7 @@ export default function NewOrganizationWizard() {
       const msg = err instanceof Error ? err.message : 'Errore imprevisto';
       setErrorMsg(msg);
       setLoading(false);
+      setDeviceCode('RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase());
     }
   };
 
@@ -1039,7 +1040,16 @@ export default function NewOrganizationWizard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Codice Seriale Univoco</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs text-zinc-400">Codice Seriale Univoco</label>
+                    <button
+                      type="button"
+                      onClick={() => setDeviceCode('RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase())}
+                      className="text-[11px] text-[#BFFF00] hover:underline"
+                    >
+                      Rigenera
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
