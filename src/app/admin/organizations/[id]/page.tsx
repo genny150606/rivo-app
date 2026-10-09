@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import AddDeviceModal from '@/components/admin/AddDeviceModal';
 import CopyTrackingButtons from '@/components/ui/CopyTrackingButtons';
 import OrgModulesManager from '@/components/admin/OrgModulesManager';
+import OrgUsersPasswordManager from '@/components/admin/OrgUsersPasswordManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,6 +150,9 @@ export default async function AdminOrgDetailPage({
           </div>
         )}
       </div>
+      {/* Account & Password degli utenti dell'attività */}
+      <OrgUsersPasswordManager organizationId={org.id} />
+
       {/* Moduli & Funzionalità Piattaforma (Multi-Vertical Engine) */}
       <OrgModulesManager organizationId={org.id} organizationName={org.name} />
     </div>
