@@ -34,6 +34,9 @@ import {
   Eye,
   Info
 } from 'lucide-react';
+import { useSimpleMode } from '@/lib/simple-mode';
+import SimpleModeToggle from '@/components/dashboard/SimpleModeToggle';
+import SimpleRetailERPView from '@/components/dashboard/SimpleRetailERPView';
 
 interface ShoeSample {
   id: string;
@@ -139,6 +142,7 @@ const SHOE_SAMPLES: ShoeSample[] = [
 type DemoTab = 'touchpoint' | 'stockcheck' | 'scanner' | 'pos' | 'controlroom';
 
 export default function RetailDemoPage() {
+  const { isSimple, setSimple } = useSimpleMode();
   const [activeTab, setActiveTab] = useState<DemoTab>('touchpoint');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
@@ -268,6 +272,8 @@ export default function RetailDemoPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <SimpleModeToggle />
+
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 text-xs transition-colors"
@@ -287,13 +293,53 @@ export default function RetailDemoPage() {
         </div>
       </header>
 
-      {/* Hero Presentation Header */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6">
-        <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-[#020204] border border-white/[0.1] shadow-2xl overflow-hidden">
-          {/* Subtle Glow Background */}
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#00FF66]/10 blur-[120px] rounded-full pointer-events-none -z-10" />
+      {isSimple ? (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+          <SimpleRetailERPView
+            orgName="Borrelli Calzature"
+            onExitSimpleMode={() => setSimple(false)}
+          />
+        </main>
+      ) : (
+        <>
+          {/* CTA: Attivare la modalità semplice? */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+            <div className="p-4 rounded-2xl border border-white/10 bg-zinc-900/80 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-[#00FF66] shrink-0">
+                  <Boxes className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-white">
+                      Attivare la modalità semplice?
+                    </h3>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/10 text-[#00FF66]">
+                      ERP GESTIONALE
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Visualizzazione ad alta densità richiesta per Borrelli: zero animazioni, tabelle statiche con tutte le taglie e cassa rapida da banco.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSimple(true)}
+                className="shrink-0 px-4 py-2 text-xs font-bold rounded-xl bg-white text-black hover:bg-[#00FF66] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <span>Attiva Modalità Semplice</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          {/* Hero Presentation Header */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-6">
+            <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-[#020204] border border-white/[0.1] shadow-2xl overflow-hidden">
+              {/* Subtle Glow Background */}
+              <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#00FF66]/10 blur-[120px] rounded-full pointer-events-none -z-10" />
+
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-3 max-w-2xl">
               <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-zinc-400">
                 <Footprints className="w-4 h-4 text-[#00FF66]" />
@@ -1144,6 +1190,8 @@ export default function RetailDemoPage() {
           </div>
         </div>
       </aside>
+        </>
+      )}
     </div>
   );
 }

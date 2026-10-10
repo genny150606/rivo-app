@@ -19,6 +19,7 @@ import { resolveSidebarNavigation, NavGroup } from '@/platform/navigation/sideba
 import { ModuleSlug, BusinessTypeSlug } from '@/platform/modules/registry';
 import { getVertical, VERTICAL_REGISTRY } from '@/platform/verticals/registry';
 import RetailAICopilot from '@/components/dashboard/RetailAICopilot';
+import SimpleModeToggle from '@/components/dashboard/SimpleModeToggle';
 
 interface SidebarContentProps {
   pathname: string;
@@ -397,6 +398,7 @@ export default function DashboardLayout({
               <span className="text-[11px] font-mono">⌘K</span>
             </div>
 
+            <SimpleModeToggle />
             <ThemeToggle />
 
             {/* Live operational badge */}

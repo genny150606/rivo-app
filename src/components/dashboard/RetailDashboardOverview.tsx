@@ -34,6 +34,8 @@ import {
   ResponsiveContainer,
   CartesianGrid
 } from 'recharts';
+import { useSimpleMode } from '@/lib/simple-mode';
+import SimpleRetailERPView from '@/components/dashboard/SimpleRetailERPView';
 
 export interface RetailOverviewProps {
   orgId: string;
@@ -90,6 +92,7 @@ export default function RetailDashboardOverview({
   customersCount,
   totalProductsCount,
 }: RetailOverviewProps) {
+  const { isSimple, setSimple } = useSimpleMode();
   const [timeRange, setTimeRange] = useState<'today' | '7d' | '30d'>('7d');
 
   // Filter sales by timeRange
@@ -212,6 +215,19 @@ export default function RetailDashboardOverview({
     return sales.slice(0, 5);
   }, [sales]);
 
+  if (isSimple) {
+    return (
+      <div className="space-y-4">
+        <SimpleRetailERPView
+          orgName={orgName}
+          initialBalances={balances}
+          initialSales={sales}
+          onExitSimpleMode={() => setSimple(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header & Store Badge */}
@@ -252,6 +268,35 @@ export default function RetailDashboardOverview({
             <span>Apri Punto Cassa POS</span>
           </Link>
         </div>
+      </div>
+
+      {/* CTA: Attivare la modalità semplice? */}
+      <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="p-2 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shrink-0">
+            <Boxes className="w-5 h-5 text-emerald-600 dark:text-[#bfff00]" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Attivare la modalità semplice?
+              </h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono">
+                ERP GESTIONALE
+              </span>
+            </div>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+              Interfaccia gestionale essenziale: zero animazioni, tabelle statiche immediate per taglie calzature, scorte e cassa rapida da banco.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setSimple(true)}
+          className="shrink-0 px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+        >
+          <span>Attiva Modalità Semplice</span>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Time Range Selector */}
