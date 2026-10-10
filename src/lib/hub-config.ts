@@ -400,6 +400,59 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
         },
       ];
 
+    case 'retail':
+    case 'store':
+    case 'shoe_store' as any:
+      return [
+        {
+          id: 'menu',
+          enabled: true,
+          order: 1,
+          title: 'Catalogo & Disponibilità',
+          subtitle: 'Scopri modelli e taglie in stock',
+          badge: 'Collezione',
+        },
+        {
+          id: 'loyalty',
+          enabled: true,
+          order: 2,
+          title: 'Fidelity Pass & Timbri',
+          subtitle: 'Accumula punti e sconti',
+          badge: 'Club VIP',
+        },
+        {
+          id: 'reviews',
+          enabled: true,
+          order: 3,
+          title: 'Lascia Recensione',
+          subtitle: 'Supportaci su Google Maps',
+          badge: '5.0',
+        },
+        {
+          id: 'wifi',
+          enabled: true,
+          order: 4,
+          title: 'Wi-Fi Boutique',
+          subtitle: 'Accesso rapido 1-Tap',
+          badge: 'Gratis',
+        },
+        {
+          id: 'whatsapp',
+          enabled: true,
+          order: 5,
+          title: 'Assistenza Boutique',
+          subtitle: 'Scrivi al negozio su WhatsApp',
+          badge: 'Diretto',
+        },
+        {
+          id: 'wheel',
+          enabled: false,
+          order: 6,
+          title: 'Ruota Premi',
+          subtitle: 'Gira e vinci',
+        },
+      ];
+
     case 'restaurant':
     case 'pizzeria':
     default:
@@ -459,6 +512,7 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
 export function getDefaultHubConfig(category: BusinessCategory = 'restaurant'): HubConfig {
   const isHotel = category === 'hotel' || category === 'bnb';
   const isBeach = category === 'beach_club';
+  const isRetail = category === 'retail' || category === 'store' || (category as any) === 'shoe_store';
 
   return {
     fontFamily: isHotel ? 'playfair' : 'outfit',
@@ -466,17 +520,17 @@ export function getDefaultHubConfig(category: BusinessCategory = 'restaurant'): 
     cardStyle: 'glass',
     primaryColor: DEFAULT_HUB_COLOR,
     accentGlow: true,
-    tableBadgeLabel: isHotel ? 'Camera / Suite' : isBeach ? 'Ombrellone' : 'Tavolo Connesso',
+    tableBadgeLabel: isHotel ? 'Camera / Suite' : isBeach ? 'Ombrellone' : isRetail ? 'Boutique Point' : 'Tavolo Connesso',
     tableLiveTag: 'NFC LIVE',
     hero: {
       enabled: true,
-      title: isHotel ? 'Room Service & Info' : 'Menù Digitale',
-      subtitle: isHotel ? 'Colazione & Servizi in camera' : 'Piatti, prezzi & vini del giorno',
-      badgeText: 'In Evidenza',
+      title: isHotel ? 'Room Service & Info' : isRetail ? 'Catalogo Calzature' : 'Menù Digitale',
+      subtitle: isHotel ? 'Colazione & Servizi in camera' : isRetail ? 'Modelli, taglie disponibili e prezzi' : 'Piatti, prezzi & vini del giorno',
+      badgeText: isRetail ? 'Nuova Collezione' : 'In Evidenza',
       destinationType: 'in_app',
     },
     modules: getDefaultModules(category),
-    footerNote: 'Tocca il simbolo NFC o inquadra il QR con la fotocamera',
+    footerNote: isRetail ? 'Tocca il tag NFC sulla cassa o inquadra il QR con la fotocamera' : 'Tocca il simbolo NFC o inquadra il QR con la fotocamera',
     wifiBridge: { enabled: false, securityType: 'WPA' },
   };
 }

@@ -17,7 +17,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { resolveSidebarNavigation, NavGroup } from '@/platform/navigation/sidebar';
 import { ModuleSlug, BusinessTypeSlug } from '@/platform/modules/registry';
-import { getVertical } from '@/platform/verticals/registry';
+import { getVertical, VERTICAL_REGISTRY } from '@/platform/verticals/registry';
 import RetailAICopilot from '@/components/dashboard/RetailAICopilot';
 
 interface SidebarContentProps {
@@ -201,13 +201,18 @@ export default function DashboardLayout({
         if (targetOrgId && isMounted) {
           const { data: org } = await supabase
             .from('organizations')
-            .select('name, category, business_type_id')
+            .select('name, category, business_type, business_type_id')
             .eq('id', targetOrgId)
             .single();
 
-          let resolvedCategory: BusinessTypeSlug = 'restaurant';
-          if (org?.category) {
-            resolvedCategory = org.category as BusinessTypeSlug;
+          let resolvedCategory: BusinessTypeSlug = 'shoe_store';
+          const candidate = ((org as any)?.business_type || org?.category || 'shoe_store') as string;
+          if (candidate in VERTICAL_REGISTRY) {
+            resolvedCategory = candidate as BusinessTypeSlug;
+          } else if (candidate === 'store' || candidate === 'retail') {
+            resolvedCategory = 'shoe_store';
+          } else {
+            resolvedCategory = 'restaurant';
           }
 
           if (isMounted) {

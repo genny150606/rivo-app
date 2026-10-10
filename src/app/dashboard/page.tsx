@@ -70,7 +70,10 @@ export default async function DashboardOverview() {
         .single();
       if (org) orgName = org.name;
 
-      const bType = ((org as any)?.business_type || org?.category || 'restaurant') as BusinessTypeSlug;
+      let bType = ((org as any)?.business_type || org?.category || 'restaurant') as BusinessTypeSlug;
+      if ((bType as any) === 'store' || (bType as any) === 'retail') {
+        bType = 'shoe_store';
+      }
       const vertical = getVertical(bType);
       const isRetail = vertical?.dashboardType === 'retail';
 

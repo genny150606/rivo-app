@@ -17,6 +17,7 @@ const PUBLIC_PREFIXES = [
   '/auth/',
   '/_next',
   '/brand/',
+  '/demo',
 ];
 
 const PUBLIC_EXACT = [
