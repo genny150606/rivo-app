@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import confetti from 'canvas-confetti';
 import { 
   Star, 
   ShieldCheck, 
@@ -29,6 +30,7 @@ export default function LandingBentoGrid() {
 
   // Card 3: Wheel Spin State
   const [spinning, setSpinning] = useState<boolean>(false);
+  const [wheelRotation, setWheelRotation] = useState<number>(0);
   const [prizeWon, setPrizeWon] = useState<string | null>(null);
 
   // Card 4: Offline Outbox State
@@ -41,6 +43,15 @@ export default function LandingBentoGrid() {
   const handleRatingClick = (stars: number) => {
     setShieldRating(stars);
     setFeedbackSent(false);
+
+    if (stars >= 4 && typeof window !== 'undefined') {
+      confetti({
+        particleCount: 40,
+        spread: 55,
+        origin: { y: 0.7 },
+        colors: ['#F59E0B', '#FBBF24', '#FCD34D', '#10B981'],
+      });
+    }
   };
 
   const handleCopyAiReview = () => {
@@ -52,6 +63,10 @@ export default function LandingBentoGrid() {
     if (spinning) return;
     setSpinning(true);
     setPrizeWon(null);
+
+    const randomRot = 1440 + Math.floor(Math.random() * 360);
+    setWheelRotation((prev) => prev + randomRot);
+
     setTimeout(() => {
       const prizes = [
         'Calice di Benvenuto in Omaggio',
@@ -61,7 +76,16 @@ export default function LandingBentoGrid() {
       const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
       setPrizeWon(randomPrize);
       setSpinning(false);
-    }, 1200);
+
+      if (typeof window !== 'undefined') {
+        confetti({
+          particleCount: 60,
+          spread: 70,
+          origin: { y: 0.75 },
+          colors: ['#A855F7', '#EC4899', '#38BDF8', '#F59E0B'],
+        });
+      }
+    }, 1800);
   };
 
   const handleToggleOffline = () => {
@@ -70,8 +94,18 @@ export default function LandingBentoGrid() {
       setOutboxCount(3);
     } else {
       setIsOffline(false);
-      // Auto-drain simulation
-      setTimeout(() => setOutboxCount(0), 600);
+      // Auto-drain simulation with completion confetti
+      setTimeout(() => {
+        setOutboxCount(0);
+        if (typeof window !== 'undefined') {
+          confetti({
+            particleCount: 25,
+            spread: 40,
+            origin: { y: 0.8 },
+            colors: ['#10B981', '#34D399'],
+          });
+        }
+      }, 500);
     }
   };
 
@@ -80,8 +114,8 @@ export default function LandingBentoGrid() {
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-mono text-slate-300 mb-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-mono text-slate-300 mb-4 animate-float-gentle">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             <span>ECOSISTEMA INTEGRATO A 360°</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-white headline-tight">
@@ -100,14 +134,20 @@ export default function LandingBentoGrid() {
           {/* =========================================================
               CARD 1 (SPAN 7): Review Shield™ & AI Review Generator
               ========================================================= */}
-          <div className="lg:col-span-7 p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between">
-            <div>
+          <div className="lg:col-span-7 p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between relative overflow-hidden group">
+            {/* Ambient card aura */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700" />
+
+            <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
                 <span className="badge-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   REVIEW SHIELD™ ALGORITMICO
                 </span>
-                <span className="text-xs font-mono text-slate-400">Interattivo: Clicca le stelle</span>
+                <span className="text-xs font-mono text-slate-400 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Interattivo: Clicca le stelle
+                </span>
               </div>
 
               <h3 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
@@ -118,7 +158,7 @@ export default function LandingBentoGrid() {
               </p>
 
               {/* Interactive Star Selector */}
-              <div className="my-6 p-4 rounded-2xl bg-black/40 border border-white/[0.06] text-center">
+              <div className="my-6 p-4 rounded-2xl bg-black/40 border border-white/[0.06] text-center shadow-inner">
                 <div className="text-xs text-slate-400 mb-2 font-medium">
                   Seleziona la valutazione da testare:
                 </div>
@@ -127,9 +167,9 @@ export default function LandingBentoGrid() {
                     <button
                       key={star}
                       onClick={() => handleRatingClick(star)}
-                      className={`p-2 rounded-xl transition-all touch-press ${
+                      className={`p-2 rounded-xl transition-all duration-200 transform active:scale-90 touch-press ${
                         shieldRating >= star
-                          ? 'text-amber-400 scale-110'
+                          ? 'text-amber-400 scale-110 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]'
                           : 'text-zinc-700 hover:text-zinc-500'
                       }`}
                       aria-label={`${star} stelle`}
@@ -140,7 +180,10 @@ export default function LandingBentoGrid() {
                 </div>
                 <div className="text-xs font-mono font-bold mt-2">
                   {shieldRating >= 4 ? (
-                    <span className="text-emerald-400">Valutazione Positiva ({shieldRating}★): Redirect Pubblico Google</span>
+                    <span className="text-emerald-400 flex items-center justify-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                      Valutazione Positiva ({shieldRating}★): Redirect Pubblico Google
+                    </span>
                   ) : (
                     <span className="text-amber-400">Valutazione Critica ({shieldRating}★): Scudo Attivo (Privato)</span>
                   )}
@@ -149,7 +192,7 @@ export default function LandingBentoGrid() {
 
               {/* Dynamic Shield Response View */}
               {shieldRating >= 4 ? (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 space-y-3 animate-fade-in">
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 space-y-3 animate-fade-in shadow-md shadow-emerald-500/10">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" />
@@ -157,7 +200,7 @@ export default function LandingBentoGrid() {
                     </span>
                     <button
                       onClick={handleCopyAiReview}
-                      className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                      className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition-all active:scale-95"
                     >
                       {aiReviewCopied ? <Check className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3" />}
                       <span>{aiReviewCopied ? 'Copiato!' : 'Copia'}</span>
@@ -171,7 +214,7 @@ export default function LandingBentoGrid() {
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-3 animate-fade-in">
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-3 animate-fade-in shadow-md shadow-amber-500/10">
                   <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
                     <AlertCircle className="w-4 h-4 text-amber-400" />
                     <span>Scudo Attivo: Reindirizzamento Google Bloccato</span>
@@ -189,13 +232,13 @@ export default function LandingBentoGrid() {
                     />
                     <button
                       onClick={() => setFeedbackSent(true)}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500 text-zinc-950 font-bold text-xs shrink-0"
+                      className="px-3 py-1.5 rounded-lg bg-amber-500 text-zinc-950 font-bold text-xs shrink-0 active:scale-95 transition-all"
                     >
                       Invia a Titolare
                     </button>
                   </div>
                   {feedbackSent && (
-                    <div className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                    <div className="text-[11px] text-emerald-400 font-mono flex items-center gap-1 animate-fade-in">
                       <Check className="w-3.5 h-3.5" />
                       Intercettato con successo! Notifica privata inviata al titolare.
                     </div>
@@ -204,7 +247,7 @@ export default function LandingBentoGrid() {
               )}
             </div>
 
-            <div className="mt-6 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
+            <div className="mt-6 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400 relative z-10">
               <span>Aumento medio del rating Google: +0.4 stelle in 45 giorni.</span>
               <span className="badge-mono text-amber-400">100% PROTEZIONE BRAND</span>
             </div>
@@ -213,8 +256,8 @@ export default function LandingBentoGrid() {
           {/* =========================================================
               CARD 2 (SPAN 5): Apple & Google Wallet Nativo (Zero App)
               ========================================================= */}
-          <div className="lg:col-span-5 p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between">
-            <div>
+          <div className="lg:col-span-5 p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between relative overflow-hidden group">
+            <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
                 <span className="badge-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded flex items-center gap-1.5">
                   <CreditCard className="w-3.5 h-3.5" />
@@ -230,9 +273,12 @@ export default function LandingBentoGrid() {
                 Nessuna app da scaricare dall&apos;App Store. Un tap NFC installa la carta punti nativa in Apple Wallet, abilitando notifiche push geolocalizzate quando il cliente è nei paraggi.
               </p>
 
-              {/* Realistic Apple Wallet Pass UI */}
-              <div className="my-5 p-4 rounded-2xl bg-gradient-to-br from-zinc-900 to-black border border-white/10 shadow-2xl relative overflow-hidden">
-                <div className="flex justify-between items-start">
+              {/* Realistic Apple Wallet Pass UI with Specular Light Travel */}
+              <div className="my-5 p-4 rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-950 to-black border border-white/10 shadow-2xl relative overflow-hidden group-hover:scale-[1.01] transition-transform duration-300">
+                {/* Diagonal light sheen travel */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent animate-shine-travel pointer-events-none" />
+
+                <div className="flex justify-between items-start relative z-10">
                   <div>
                     <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">
                       Ristorante &amp; Lounge
@@ -244,7 +290,7 @@ export default function LandingBentoGrid() {
                   </div>
                 </div>
 
-                <div className="my-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between">
+                <div className="my-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between relative z-10">
                   <div>
                     <div className="text-[10px] text-slate-400">Timbri Raccolti</div>
                     <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">7 / 10</div>
@@ -255,11 +301,11 @@ export default function LandingBentoGrid() {
                   </div>
                 </div>
 
-                {/* Simulated Lock-Screen Push Notification Banner */}
-                <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-white space-y-1">
+                {/* Simulated Lock-Screen Push Notification Banner with breathing glow */}
+                <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-white space-y-1 relative z-10">
                   <div className="flex items-center justify-between text-[10px] text-indigo-300">
                     <span className="flex items-center gap-1 font-semibold">
-                      <Bell className="w-3 h-3" /> Apple Wallet • Notifica Prossimità
+                      <Bell className="w-3 h-3 animate-bell-swing" /> Apple Wallet • Notifica Prossimità
                     </span>
                     <span>Adesso</span>
                   </div>
@@ -270,7 +316,7 @@ export default function LandingBentoGrid() {
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
+            <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400 relative z-10">
               <span>Tasso di ritorno del cliente: +38%</span>
               <span className="badge-mono text-indigo-400">PUSH GEOLOCALIZZATE</span>
             </div>
@@ -296,19 +342,32 @@ export default function LandingBentoGrid() {
                 Trasforma il momento del conto in un gioco a premi istantaneo: l&apos;ospite lascia email e telefono per girare la ruota.
               </p>
 
-              {/* Interactive Wheel Trigger */}
-              <div className="my-5 p-4 rounded-2xl bg-black/40 border border-white/[0.06] text-center">
+              {/* Interactive Wheel Disc with Realistic CSS Transition */}
+              <div className="my-4 p-4 rounded-2xl bg-black/40 border border-white/[0.06] text-center flex flex-col items-center">
+                {/* Visual Wheel Disc */}
+                <div className="relative w-28 h-28 my-1 flex items-center justify-center">
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[10px] border-t-purple-400 drop-shadow-[0_0_6px_#A855F7]" />
+                  <div
+                    className="w-full h-full rounded-full border-2 border-white/20 shadow-lg relative overflow-hidden transition-transform ease-out"
+                    style={{
+                      transform: `rotate(${wheelRotation}deg)`,
+                      transitionDuration: spinning ? '1800ms' : '0ms',
+                      background: 'conic-gradient(#18181B 0deg 60deg, #3B0764 60deg 120deg, #18181B 120deg 180deg, #3B0764 180deg 240deg, #18181B 240deg 300deg, #3B0764 300deg 360deg)',
+                    }}
+                  />
+                </div>
+
                 <button
                   onClick={handleSpinWheel}
                   disabled={spinning}
-                  className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-600/30 touch-press disabled:opacity-50"
+                  className="w-full mt-3 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-600/30 active:scale-[0.96] touch-press disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 ${spinning ? 'animate-spin' : ''}`} />
-                  <span>{spinning ? 'Estrazione Premio...' : 'Simula: Gira la Ruota'}</span>
+                  <span>{spinning ? 'Estrazione Premio in Corso...' : 'Simula: Gira la Ruota'}</span>
                 </button>
 
                 {prizeWon && (
-                  <div className="mt-3 p-2.5 rounded-lg bg-purple-500/20 border border-purple-500/40 text-xs font-bold text-purple-200 animate-fade-in">
+                  <div className="mt-2.5 p-2 rounded-lg bg-purple-500/20 border border-purple-500/40 text-xs font-bold text-purple-200 animate-fade-in">
                     🎉 Hai Vinto: {prizeWon}
                   </div>
                 )}
@@ -317,7 +376,7 @@ export default function LandingBentoGrid() {
 
             <div className="pt-3 border-t border-white/[0.06] text-xs text-slate-400 flex justify-between">
               <span>Lead Profilati GDPR</span>
-              <span className="font-mono text-white font-bold">120+ / mese</span>
+              <span className="font-mono text-white font-bold tabular-nums">120+ / mese</span>
             </div>
           </div>
 
@@ -341,23 +400,23 @@ export default function LandingBentoGrid() {
                 Se la connessione del locale cade, RIVO non si blocca mai. Le comande restano in coda sicura IndexedDB e si sincronizzano al ripristino.
               </p>
 
-              {/* Interactive Offline Simulation */}
+              {/* Interactive Offline Simulation with Pulse Indicator */}
               <div className="my-5 p-4 rounded-2xl bg-black/40 border border-white/[0.06] space-y-3">
                 <button
                   onClick={handleToggleOffline}
-                  className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                  className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.96] cursor-pointer ${
                     isOffline
-                      ? 'bg-red-500/20 border border-red-500/40 text-red-300'
+                      ? 'bg-red-500/20 border border-red-500/40 text-red-300 shadow-md shadow-red-500/20'
                       : 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20'
                   }`}
                 >
-                  {isOffline ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
-                  <span>{isOffline ? 'Riconnetti al Cloud' : 'Simula Caduta Rete'}</span>
+                  {isOffline ? <WifiOff className="w-4 h-4 animate-bounce" /> : <Wifi className="w-4 h-4" />}
+                  <span>{isOffline ? 'Ripristina Rete (Auto-Drain)' : 'Simula Caduta Wi-Fi'}</span>
                 </button>
 
                 <div className="text-xs text-slate-300 flex justify-between items-center px-1">
                   <span>Coda Outbox Locale:</span>
-                  <span className={`font-mono font-bold ${outboxCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  <span className={`font-mono font-bold tabular-nums ${outboxCount > 0 ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`}>
                     {outboxCount} operazioni in attesa
                   </span>
                 </div>
@@ -366,7 +425,7 @@ export default function LandingBentoGrid() {
 
             <div className="pt-3 border-t border-white/[0.06] text-xs text-slate-400 flex justify-between">
               <span>Perdita Dati</span>
-              <span className="font-mono text-emerald-400 font-bold">0.00%</span>
+              <span className="font-mono text-emerald-400 font-bold tabular-nums">0.00%</span>
             </div>
           </div>
 
@@ -401,9 +460,9 @@ export default function LandingBentoGrid() {
                     <button
                       key={role.id}
                       onClick={() => setSelectedRole(role.id as 'owner' | 'manager' | 'staff')}
-                      className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.96] cursor-pointer ${
                         selectedRole === role.id
-                          ? 'bg-white text-zinc-950 font-bold'
+                          ? 'bg-white text-zinc-950 font-bold shadow-sm'
                           : 'bg-white/[0.03] text-slate-400 hover:text-white'
                       }`}
                     >
@@ -412,7 +471,7 @@ export default function LandingBentoGrid() {
                   ))}
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-white/[0.02] text-[11px] text-slate-300">
+                <div className="p-2.5 rounded-lg bg-white/[0.02] text-[11px] text-slate-300 min-h-[50px] flex items-center">
                   {selectedRole === 'owner' && 'Accesso P&L globale, margini, multi-sede e fatturazione.'}
                   {selectedRole === 'manager' && 'Controllo giacenze magazzino, resi, chiusura cassa giornaliera.'}
                   {selectedRole === 'staff' && 'Mappa tavoli, chiamate di servizio e scontrini senza dati sensibili.'}

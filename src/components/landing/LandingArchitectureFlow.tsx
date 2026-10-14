@@ -53,24 +53,35 @@ export default function LandingArchitectureFlow() {
 
         {/* 3-Step Horizontal High-Craft Visual Pipeline */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+          {/* Animated horizontal connecting beam on desktop */}
+          <div className="hidden md:block absolute top-1/2 left-8 right-8 h-[2px] bg-gradient-to-r from-emerald-500/20 via-amber-500/20 to-indigo-500/20 -translate-y-1/2 -z-0 pointer-events-none">
+            <div className="w-24 h-full bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-laser-sweep" />
+          </div>
+
           {steps.map((item, idx) => (
             <div
               key={item.step}
-              className="p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between relative group hover:border-white/[0.18] transition-all"
+              className="p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between relative group hover:border-white/[0.22] hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(0,0,0,0.5),0_0_20px_rgba(255,255,255,0.03)] transition-all duration-300 z-10"
             >
+              {/* Top ambient highlight on hover */}
+              <div className="absolute top-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
               <div>
                 {/* Step Pill & Badge */}
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl font-bold font-mono text-slate-600 group-hover:text-white transition-colors">
-                    {item.step}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold font-mono text-slate-600 group-hover:text-white transition-colors">
+                      {item.step}
+                    </span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/50 animate-ping group-hover:bg-emerald-400" />
+                  </div>
                   <span
                     className={`badge-mono px-2 py-0.5 rounded text-[10px] ${
                       item.accent === 'emerald'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:border-emerald-500/40'
                         : item.accent === 'amber'
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:border-amber-500/40'
+                        : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 group-hover:border-indigo-500/40'
                     }`}
                   >
                     {item.badge}
@@ -89,7 +100,7 @@ export default function LandingArchitectureFlow() {
               {/* Technical Spec Box */}
               <div className="mt-6 pt-4 border-t border-white/[0.06]">
                 <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
                   <span>{item.spec}</span>
                 </div>
               </div>

@@ -70,10 +70,16 @@ export default function LandingLeadCapture() {
       {/* Background ambient lighting */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[500px] bg-emerald-500/10 rounded-full blur-[160px] pointer-events-none -z-10" />
 
-      <div className="max-w-4xl mx-auto">
-        <div className="rounded-3xl p-6 sm:p-10 lg:p-12 bg-[#0B0C10] border border-white/[0.1] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)] relative">
+      <div className="max-w-4xl mx-auto relative">
+        {/* Animated glowing border beam behind container */}
+        <div className="absolute -inset-[1px] rounded-[26px] bg-gradient-to-r from-emerald-500/30 via-indigo-500/20 to-amber-500/30 blur-sm -z-10 opacity-70 animate-glow-breathe" />
+
+        <div className="rounded-3xl p-6 sm:p-10 lg:p-12 bg-[#0B0C10] border border-white/[0.12] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_20px_60px_rgba(0,0,0,0.6)] relative overflow-hidden">
+          {/* Subtle top edge specular highlight */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
+
           <div className="text-center max-w-2xl mx-auto mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono text-emerald-400 mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono text-emerald-400 mb-3 animate-pulse">
               <Sparkles className="w-3.5 h-3.5" />
               <span>ONBOARDING B2B RAPIDO</span>
             </div>

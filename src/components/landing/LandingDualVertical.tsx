@@ -379,17 +379,20 @@ export default function LandingDualVertical() {
                 </div>
 
                 {/* Simulated Scanner Camera View */}
-                <div className="my-6 p-4 rounded-xl bg-black/60 border border-white/[0.08] relative overflow-hidden">
-                  {/* Green scan beam */}
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
+                <div className="my-6 p-4 rounded-xl bg-black/60 border border-white/[0.08] relative overflow-hidden group/scanner shadow-inner">
+                  {/* High-speed green laser beam with neon drop shadow */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_20px_#10B981] animate-laser-sweep pointer-events-none z-10" />
 
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20 animate-pulse">
                         <ScanLine className="w-6 h-6 text-emerald-400" />
                       </div>
                       <div>
-                        <div className="text-xs font-mono font-bold text-white">BOR-MOC-01</div>
+                        <div className="text-xs font-mono font-bold text-white flex items-center gap-2">
+                          <span>BOR-MOC-01</span>
+                          <span className="badge-mono text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded">OCR VERIFICATO</span>
+                        </div>
                         <div className="text-sm font-semibold text-slate-200">Mocassino Artigianale Borrelli</div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">EAN: 8012345001426 • Pelle Abrasivata</div>
                       </div>
@@ -397,7 +400,7 @@ export default function LandingDualVertical() {
 
                     <button
                       onClick={() => setScannedShoe(!scannedShoe)}
-                      className="px-4 py-2 rounded-lg bg-emerald-500 text-zinc-950 font-bold text-xs flex items-center gap-1.5 touch-press shadow-md shadow-emerald-500/25 shrink-0"
+                      className="px-4 py-2.5 rounded-xl bg-emerald-500 text-zinc-950 font-bold text-xs flex items-center gap-1.5 touch-press shadow-lg shadow-emerald-500/30 active:scale-[0.96] transition-all shrink-0 cursor-pointer"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>{scannedShoe ? 'Resetta Scanner' : 'Simula Scansione Scatola'}</span>
@@ -405,22 +408,22 @@ export default function LandingDualVertical() {
                   </div>
 
                   {/* Scanned breakdown */}
-                  <div className="mt-4 pt-3 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                    <div className="p-2 rounded-lg bg-white/[0.03]">
-                      <div className="text-[10px] text-slate-400">Prezzo Vendita</div>
-                      <div className="font-bold text-white font-mono mt-0.5">€ 149,00</div>
+                  <div className="mt-4 pt-3 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs relative z-10">
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] hover:border-emerald-500/30 transition-colors">
+                      <div className="text-[10px] text-slate-400 font-mono">Prezzo Vendita</div>
+                      <div className="font-bold text-white font-mono mt-0.5 tabular-nums">€ 149,00</div>
                     </div>
-                    <div className="p-2 rounded-lg bg-white/[0.03]">
-                      <div className="text-[10px] text-slate-400">Costo Acquisto</div>
-                      <div className="font-bold text-slate-300 font-mono mt-0.5">€ 65,00</div>
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] hover:border-emerald-500/30 transition-colors">
+                      <div className="text-[10px] text-slate-400 font-mono">Costo Acquisto</div>
+                      <div className="font-bold text-slate-300 font-mono mt-0.5 tabular-nums">€ 65,00</div>
                     </div>
-                    <div className="p-2 rounded-lg bg-white/[0.03]">
-                      <div className="text-[10px] text-slate-400">Margine Lordo</div>
-                      <div className="font-bold text-emerald-400 font-mono mt-0.5">56.4%</div>
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] hover:border-emerald-500/30 transition-colors">
+                      <div className="text-[10px] text-slate-400 font-mono">Margine Lordo</div>
+                      <div className="font-bold text-emerald-400 font-mono mt-0.5 tabular-nums">56.4%</div>
                     </div>
-                    <div className="p-2 rounded-lg bg-white/[0.03]">
-                      <div className="text-[10px] text-slate-400">Giacenza Totale</div>
-                      <div className="font-bold text-white font-mono mt-0.5">18 paia</div>
+                    <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] hover:border-emerald-500/30 transition-colors">
+                      <div className="text-[10px] text-slate-400 font-mono">Giacenza Totale</div>
+                      <div className="font-bold text-white font-mono mt-0.5 tabular-nums">18 paia</div>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import LandingNavbar from '@/components/landing/LandingNavbar';
+import LandingAmbientCanvas from '@/components/landing/LandingAmbientCanvas';
 import LandingHeroSimulator from '@/components/landing/LandingHeroSimulator';
 import LandingDualVertical from '@/components/landing/LandingDualVertical';
 import LandingBentoGrid from '@/components/landing/LandingBentoGrid';
@@ -37,7 +38,10 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#050507] text-slate-100 overflow-x-hidden selection:bg-emerald-500 selection:text-black">
+    <main className="min-h-screen bg-[#050507] text-slate-100 overflow-x-hidden selection:bg-emerald-500 selection:text-black relative">
+      {/* 60fps Hardware-Accelerated Ambient Star & Constellation Field */}
+      <LandingAmbientCanvas />
+
       {/* Precision Floating Navbar */}
       <LandingNavbar />
 

@@ -705,4 +705,118 @@ body {
   animation: star-twinkle 1.8s ease-in-out infinite;
 }
 
+/* =========================================================
+   ADVANCED 60/120FPS HARDWARE ACCELERATED ANIMATIONS
+   ========================================================= */
+
+@keyframes border-beam {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-border-beam {
+  animation: border-beam 6s linear infinite;
+}
+
+@keyframes laser-sweep {
+  0% {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(160px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+}
+
+.animate-laser-sweep {
+  animation: laser-sweep 2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 4.5s ease-in-out infinite;
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(8px) rotate(-0.4deg);
+  }
+}
+
+.animate-float-reverse {
+  animation: float-reverse 5.2s ease-in-out infinite;
+}
+
+@keyframes glow-breathe {
+  0%, 100% {
+    opacity: 0.4;
+    filter: drop-shadow(0 0 15px currentColor);
+  }
+  50% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 35px currentColor);
+  }
+}
+
+.animate-glow-breathe {
+  animation: glow-breathe 3s ease-in-out infinite;
+}
+
+@keyframes shine-travel {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-20deg);
+  }
+}
+
+.animate-shine-travel {
+  animation: shine-travel 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes data-stream-flight {
+  0% {
+    transform: translateX(0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(30%) scale(1.1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(80%) scale(1.1);
+  }
+  100% {
+    transform: translateX(100%) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.animate-data-stream {
+  animation: data-stream-flight 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
 
