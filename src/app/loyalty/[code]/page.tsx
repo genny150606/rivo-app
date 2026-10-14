@@ -235,7 +235,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
   const isCompleted = currentStamps >= maxStamps;
 
   return (
-    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-[#BFFF00] selection:text-black">
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#050507] text-slate-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-emerald-500 selection:text-black">
       {/* Top ambient glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-emerald-500/10 blur-[120px] pointer-events-none rounded-full" />
 
@@ -243,13 +243,13 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
       <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pt-1 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 touch-press min-h-[40px]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98] touch-press min-h-[40px]"
         >
           <ArrowLeft className="w-4 h-4 text-emerald-400" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-slate-400">
           <CreditCard className="w-3 h-3 text-emerald-400" />
           <span className="text-white font-medium">{device.name}</span>
         </span>
@@ -259,16 +259,16 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
       <main className="max-w-md w-full mx-auto my-auto py-1 z-10 space-y-3">
         {/* Title */}
         <div className="text-center space-y-0.5">
-          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white headline-tight">
             {org?.name || 'Carta Fedeltà'}
           </h1>
-          <p className="text-[11px] text-zinc-400">
+          <p className="text-[11px] text-slate-400">
             Colleziona timbri digitali con 1 tap al tavolo!
           </p>
         </div>
 
         {/* VISUAL DIGITAL FIDELITY PASS */}
-        <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-[#121214] via-[#18181B] to-emerald-950/20 p-4 shadow-2xl relative overflow-hidden space-y-3">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#0B0C10] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] p-4 relative overflow-hidden space-y-3">
           <div className="flex items-center justify-between border-b border-white/10 pb-2">
             <div>
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-400 block">Fidelity Pass Ufficiale</span>

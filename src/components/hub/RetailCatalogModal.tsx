@@ -93,12 +93,12 @@ export default function RetailCatalogModal({
       <div
         className={`w-full max-w-lg h-[92vh] sm:h-[86vh] rounded-t-[32px] sm:rounded-[32px] border flex flex-col overflow-hidden shadow-2xl transition-all relative ${
           isLight
-            ? 'bg-white text-slate-900 border-slate-200'
-            : 'bg-[#121413] text-zinc-100 border-white/10'
+            ? 'bg-white text-slate-900 border-slate-200 shadow-xl'
+            : 'bg-[#0B0C10] text-slate-100 border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]'
         }`}
       >
         {/* Header */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/20 backdrop-blur-md z-10">
+        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between gap-2 shrink-0 bg-black/20 backdrop-blur-md z-10">
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0"
@@ -107,13 +107,13 @@ export default function RetailCatalogModal({
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm sm:text-base font-extrabold truncate">
+              <h3 className="text-sm sm:text-base font-extrabold truncate headline-tight">
                 Catalogo & Nuovi Arrivi
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate flex items-center gap-1.5">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate flex items-center gap-1.5">
                 <span>{orgName}</span>
-                <span className="text-zinc-600">•</span>
-                <span className="text-emerald-400 font-semibold">{products.length} articoli disponibili</span>
+                <span className="text-slate-600">•</span>
+                <span className="text-emerald-400 font-semibold tabular-nums">{products.length} articoli disponibili</span>
               </p>
             </div>
           </div>

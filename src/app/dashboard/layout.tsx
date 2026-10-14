@@ -304,9 +304,9 @@ export default function DashboardLayout({
     : 'Modular OS';
 
   return (
-    <div className="flex min-h-screen min-h-dvh bg-zinc-50 dark:bg-[#09090B] text-zinc-900 dark:text-zinc-100 transition-colors duration-200 font-sans">
+    <div className="flex min-h-screen min-h-dvh bg-[#F8FAFC] dark:bg-[#050507] text-slate-900 dark:text-slate-100 transition-colors duration-200 font-sans">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-zinc-200/80 dark:border-white/[0.06] flex-col justify-between p-4 bg-white dark:bg-[#0C0D0E] shrink-0 fixed inset-y-0 left-0 z-30 overflow-hidden">
+      <aside className="hidden lg:flex w-64 border-r border-slate-200/80 dark:border-white/[0.07] flex-col justify-between p-4 bg-white dark:bg-[#0B0C10] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] shrink-0 fixed inset-y-0 left-0 z-30 overflow-hidden">
         <SidebarContent 
           pathname={pathname} 
           navGroups={navGroups} 
@@ -321,7 +321,7 @@ export default function DashboardLayout({
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 gpu-layer touch-none"
+          className="fixed inset-0 bg-black/60 dark:bg-black/85 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 gpu-layer touch-none"
           onClick={closeSidebar}
           aria-hidden="true"
         />
@@ -329,7 +329,7 @@ export default function DashboardLayout({
 
       {/* Mobile Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] h-full max-h-screen max-h-dvh bg-white dark:bg-[#0C0D0E] border-r border-zinc-200/80 dark:border-white/[0.06] flex flex-col justify-between p-4 overflow-y-auto overscroll-contain touch-pan-y transform transition-transform duration-300 ease-out will-change-transform gpu-layer lg:hidden shadow-2xl ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] h-full max-h-screen max-h-dvh bg-white dark:bg-[#0B0C10] border-r border-slate-200/80 dark:border-white/[0.07] flex flex-col justify-between p-4 overflow-y-auto overscroll-contain touch-pan-y transform transition-transform duration-300 ease-out will-change-transform gpu-layer lg:hidden shadow-2xl ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Menu di navigazione mobile"
@@ -337,7 +337,7 @@ export default function DashboardLayout({
         <button
           onClick={closeSidebar}
           aria-label="Chiudi menu"
-          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-95 transition-all touch-press z-10"
+          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] active:scale-95 transition-all touch-press z-10"
         >
           <X className="w-5 h-5" />
         </button>
@@ -356,7 +356,7 @@ export default function DashboardLayout({
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Top Header */}
-        <header className="h-14 lg:h-16 border-b border-zinc-200/80 dark:border-white/[0.06] px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-white/80 dark:bg-[#09090B]/85 backdrop-blur-md shrink-0 sticky top-0 z-20 transition-colors duration-200">
+        <header className="h-14 lg:h-16 border-b border-slate-200/80 dark:border-white/[0.07] px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-white/80 dark:bg-[#08090D]/85 backdrop-blur-md shrink-0 sticky top-0 z-20 transition-colors duration-200">
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Hamburger */}
             <button

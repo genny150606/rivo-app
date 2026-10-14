@@ -249,23 +249,23 @@ export default function RetailDemoPage() {
   const posTotal = posSubtotal - posDiscountAmount;
 
   return (
-    <div className="min-h-screen bg-[#020204] text-white selection:bg-[#00FF66] selection:text-black font-sans pb-24">
+    <div className="min-h-screen bg-[#050507] text-slate-100 selection:bg-emerald-500 selection:text-black font-sans pb-24">
       {/* Top Banner / Breadcrumb */}
-      <header className="sticky top-0 z-40 bg-[#020204]/90 backdrop-blur-xl border-b border-white/[0.08]">
+      <header className="sticky top-0 z-40 bg-[#08090D]/90 backdrop-blur-xl border-b border-white/[0.08]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center p-1.5 group-hover:border-[#00FF66] transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center p-1.5 group-hover:border-emerald-500 transition-colors">
                 <Image src="/brand/rivo-icon.png" alt="RIVO" width={22} height={22} className="rounded-xs" />
               </div>
-              <span className="font-mono text-xs tracking-widest text-zinc-400 group-hover:text-white transition-colors uppercase">
+              <span className="font-mono text-xs tracking-widest text-slate-400 group-hover:text-white transition-colors uppercase">
                 RIVO / RETAIL
               </span>
             </Link>
-            <span className="text-zinc-600">/</span>
+            <span className="text-slate-600">/</span>
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm tracking-tight text-white">Borrelli Calzature</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#00FF66]/10 text-[#00FF66] border border-[#00FF66]/30">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                 LIVE DEMO
               </span>
             </div>
@@ -276,15 +276,15 @@ export default function RetailDemoPage() {
 
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 text-xs transition-colors"
+              className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-slate-400 hover:text-white hover:border-white/20 text-xs transition-colors"
               title={soundEnabled ? 'Disattiva effetti audio' : 'Attiva effetti audio'}
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-[#00FF66]" /> : <VolumeX className="w-4 h-4" />}
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white text-black font-semibold text-xs hover:bg-[#00FF66] transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white text-zinc-950 font-semibold text-xs hover:bg-slate-200 transition-colors shadow-sm touch-press"
             >
               <span>Accedi al Gestionale</span>
               <ArrowUpRight className="w-3.5 h-3.5" />

@@ -9,7 +9,15 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organization_id, name, contact, source } = body;
+    let { organization_id, name, contact, source, business_name, vertical } = body;
+
+    // Support landing page B2B lead capture when organization_id is not yet known
+    if (!organization_id) {
+      const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).maybeSingle();
+      if (firstOrg?.id) {
+        organization_id = firstOrg.id;
+      }
+    }
 
     if (!organization_id || !contact) {
       return NextResponse.json({ error: 'organization_id e contatto obbligatori' }, { status: 400 });
@@ -24,8 +32,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Contatto non valido' }, { status: 400 });
     }
 
-    const cleanName = sanitizeString(name, 100);
-    const cleanSource = sanitizeString(source, 50) || 'wifi';
+    const leadDisplayName = business_name ? `${name || 'Nuovo Lead'} (${business_name})` : (name || 'Richiesta Demo');
+    const cleanName = sanitizeString(leadDisplayName, 100);
+    const cleanSource = sanitizeString(source || (vertical ? `landing_${vertical}` : 'landing_b2b'), 50);
 
     // Save lead
     await supabase.from('leads').insert({

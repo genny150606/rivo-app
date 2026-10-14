@@ -179,22 +179,22 @@ export default function WheelPage({ params }: WheelPageProps) {
   }
 
   return (
-    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-[#BFFF00] selection:text-black">
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#050507] text-slate-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-purple-500 selection:text-white">
       {/* Top ambient glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-[#BFFF00]/10 blur-[120px] pointer-events-none rounded-full" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-purple-500/10 blur-[120px] pointer-events-none rounded-full" />
 
       {/* TOP NAVIGATION: BACK TO HUB */}
       <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pt-1 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98] min-h-[40px]"
         >
-          <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
+          <ArrowLeft className="w-4 h-4 text-purple-400" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
-          <Sparkles className="w-3 h-3 text-[#BFFF00]" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-slate-400">
+          <Sparkles className="w-3 h-3 text-purple-400" />
           <span className="text-white font-medium">{device.name}</span>
         </span>
       </nav>
@@ -203,10 +203,10 @@ export default function WheelPage({ params }: WheelPageProps) {
       <main className="max-w-md w-full mx-auto my-auto py-1 z-10 space-y-3 text-center flex flex-col items-center">
         {/* Title */}
         <div className="space-y-0.5">
-          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white headline-tight">
             {org?.name || 'Ruota della Fortuna'}
           </h1>
-          <p className="text-[11px] text-zinc-400">
+          <p className="text-[11px] text-slate-400">
             Gira la ruota e riscatta un premio esclusivo!
           </p>
         </div>
@@ -216,7 +216,7 @@ export default function WheelPage({ params }: WheelPageProps) {
             {/* Visual Wheel Disc (Scaled so it fits 100% on screen) */}
             <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center my-1">
               {/* Pointer */}
-              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[18px] border-t-[#BFFF00] drop-shadow-[0_0_8px_rgba(191,255,0,0.8)]" />
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[18px] border-t-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
 
               {/* Spinning Disc */}
               <div

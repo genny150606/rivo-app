@@ -336,23 +336,23 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
   const activeHoverOrRating = hoverRating || rating || 0;
 
   return (
-    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto selection:bg-[#BFFF00] selection:text-black">
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#050507] text-slate-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto selection:bg-amber-400 selection:text-black">
       {/* Top ambient glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-[#BFFF00]/10 blur-[100px] pointer-events-none rounded-full" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-amber-500/10 blur-[100px] pointer-events-none rounded-full" />
 
       {/* TOP NAVIGATION: BACK TO HUB */}
       <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pt-1 pb-1">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98] min-h-[40px]"
         >
-          <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
+          <ArrowLeft className="w-4 h-4 text-amber-400" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#BFFF00]" />
-          <span>Review Shield</span>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-slate-400">
+          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+          <span>Review Shield™</span>
         </span>
       </nav>
 
@@ -363,25 +363,25 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
           <img
             src={org.logo_url}
             alt={org.name}
-            className="w-14 h-14 rounded-2xl object-cover mx-auto mb-2 border border-[#27272A] shadow-xl"
+            className="w-14 h-14 rounded-2xl object-cover mx-auto mb-2 border border-white/10 shadow-xl"
           />
         ) : (
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#18181B] to-[#27272A] border border-zinc-700 flex items-center justify-center mx-auto mb-2 text-lg font-bold text-[#BFFF00] shadow-xl">
+          <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center mx-auto mb-2 text-lg font-bold text-amber-400 shadow-xl">
             {org?.name ? org.name.charAt(0).toUpperCase() : 'R'}
           </div>
         )}
 
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white headline-tight">
           {org?.name || 'La tua opinione'}
         </h1>
-        <p className="text-xs text-zinc-400 mt-0.5 max-w-xs mx-auto">
+        <p className="text-xs text-slate-400 mt-0.5 max-w-xs mx-auto">
           Come valuteresti la tua esperienza oggi?
         </p>
       </div>
 
       {/* Main card */}
       <div className="max-w-md w-full mx-auto my-auto py-6">
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214]/90 backdrop-blur-xl p-5 sm:p-7 shadow-2xl space-y-6">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#0B0C10] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] p-5 sm:p-7 space-y-6">
           
           {/* Star selector */}
           <div className="space-y-3">
@@ -402,8 +402,8 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                       shouldPop ? 'animate-star-pop' : ''
                     } ${
                       isFilled
-                        ? 'bg-[#BFFF00]/15 text-[#BFFF00] border border-[#BFFF00]/60 scale-105 shadow-[0_0_18px_rgba(191,255,0,0.35)] ring-1 ring-[#BFFF00]/30'
-                        : 'bg-[#18181B] text-zinc-600 border border-[#27272A] hover:text-zinc-300 hover:border-zinc-700'
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/60 scale-105 shadow-[0_0_18px_rgba(245,158,11,0.35)] ring-1 ring-amber-500/30'
+                        : 'bg-[#12141C] text-slate-600 border border-white/[0.08] hover:text-slate-300 hover:border-white/20'
                     }`}
                     style={shouldPop ? { animationDelay: `${(star - 1) * 45}ms` } : undefined}
                   >
@@ -411,8 +411,8 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                       key={`${star}-${popKey}`}
                       className={`w-6 h-6 sm:w-7 sm:h-7 transition-all duration-300 ${
                         isFilled
-                          ? 'fill-[#BFFF00] text-[#BFFF00] drop-shadow-[0_0_8px_rgba(191,255,0,0.6)]'
-                          : 'text-zinc-600'
+                          ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                          : 'text-slate-600'
                       }`}
                     />
                   </button>
@@ -423,11 +423,11 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
             {/* Dynamic Label */}
             <div className="h-6 text-center">
               {activeHoverOrRating > 0 ? (
-                <span className="text-xs sm:text-sm font-semibold text-[#BFFF00] animate-fade-in inline-block">
+                <span className="text-xs sm:text-sm font-semibold text-amber-400 animate-fade-in inline-block font-mono">
                   {ratingLabels[activeHoverOrRating]}
                 </span>
               ) : (
-                <span className="text-xs text-zinc-500">Tocca una stella per valutare</span>
+                <span className="text-xs text-slate-500">Tocca una stella per valutare</span>
               )}
             </div>
           </div>

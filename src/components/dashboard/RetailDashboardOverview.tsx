@@ -231,21 +231,21 @@ export default function RetailDashboardOverview({
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header & Store Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800/80 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-white/[0.07] pb-6">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-            <Store className="w-3.5 h-3.5 text-lime-500 dark:text-[#bfff00]" />
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 font-mono">
+            <Store className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
             <span>
               {businessType === 'shoe_store' ? 'Footwear & Fashion OS' : 'Retail Commercial OS'}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white flex items-center gap-2.5">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white flex items-center gap-2.5 headline-tight">
             <span>{orgName}</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-lime-500/10 text-lime-600 dark:text-[#bfff00] border border-lime-500/20">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
               Operativo
             </span>
           </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 max-w-2xl">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
             Panoramica vendite, andamento margini lordi, controllo scorte e registro transazioni.
           </p>
         </div>
@@ -254,15 +254,15 @@ export default function RetailDashboardOverview({
         <div className="flex items-center gap-2.5">
           <Link
             href="/dashboard/inventory"
-            className="inline-flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-2 bg-white dark:bg-[#0B0C10] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors shadow-2xs touch-press"
           >
-            <Boxes className="w-4 h-4 text-zinc-500" />
+            <Boxes className="w-4 h-4 text-slate-500" />
             <span>Magazzino</span>
           </Link>
 
           <Link
             href="/dashboard/sales"
-            className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#a8e600] transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 bg-emerald-500 text-zinc-950 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-400 transition-colors shadow-sm touch-press"
           >
             <Store className="w-4 h-4" />
             <span>Apri Punto Cassa POS</span>

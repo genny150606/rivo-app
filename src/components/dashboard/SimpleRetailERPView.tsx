@@ -247,9 +247,9 @@ export default function SimpleRetailERPView({
   const posSubtotal = posCart.reduce((acc, item) => acc + item.variant.salePrice * item.qty, 0);
 
   return (
-    <div className="w-full bg-[#f8f9fa] dark:bg-[#0c0d0e] text-[#1a1a1a] dark:text-[#e4e4e7] font-mono text-xs select-text pb-16 space-y-4">
+    <div className="w-full bg-[#F8FAFC] dark:bg-[#050507] text-[#1a1a1a] dark:text-[#e4e4e7] font-mono text-xs select-text pb-16 space-y-4 tabular-nums">
       {/* 1. ERP SYSTEM HEADER BAR */}
-      <div className="border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-[#141517] p-3 rounded-none shadow-none flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="border border-slate-300 dark:border-white/[0.08] bg-white dark:bg-[#0B0C10] p-3 rounded-none shadow-none flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <span className="font-black text-sm uppercase tracking-wider text-black dark:text-white">

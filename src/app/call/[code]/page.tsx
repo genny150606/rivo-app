@@ -239,22 +239,22 @@ export default function CallServicePage({ params }: CallPageProps) {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-[#BFFF00] selection:text-black">
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#050507] text-slate-100 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto relative selection:bg-emerald-500 selection:text-black">
       {/* Top ambient glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-[#BFFF00]/10 blur-[100px] pointer-events-none rounded-full" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-emerald-500/10 blur-[100px] pointer-events-none rounded-full" />
 
       {/* TOP NAVIGATION BAR: RETURN TO HUB */}
       <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pt-1 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98] min-h-[40px]"
         >
-          <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
+          <ArrowLeft className="w-4 h-4 text-emerald-400" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
-          <span className="w-2 h-2 rounded-full bg-[#BFFF00] animate-pulse" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-slate-400">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-white font-medium">{device.name}</span>
         </span>
       </nav>
@@ -263,10 +263,10 @@ export default function CallServicePage({ params }: CallPageProps) {
       <main className="max-w-md w-full mx-auto my-auto py-2 z-10 space-y-3">
         {/* Title Info */}
         <div className="text-center space-y-1">
-          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white headline-tight">
             {org?.name || 'Servizio di Sala'}
           </h1>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-slate-400">
             Invia una notifica istantanea allo staff del locale
           </p>
         </div>

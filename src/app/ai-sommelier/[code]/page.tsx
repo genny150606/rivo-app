@@ -160,7 +160,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
   }
 
   return (
-    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#09090B] text-zinc-100 flex flex-col justify-between p-3 sm:p-5 overflow-hidden relative selection:bg-[#BFFF00] selection:text-black">
+    <div className="min-h-screen min-h-dvh h-screen sm:h-dvh bg-[#050507] text-slate-100 flex flex-col justify-between p-3 sm:p-5 overflow-hidden relative selection:bg-purple-500 selection:text-white">
       {/* Top ambient glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-purple-500/10 blur-[120px] pointer-events-none rounded-full" />
 
@@ -168,13 +168,13 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
       <nav className="w-full max-w-md mx-auto flex items-center justify-between z-10 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all active:scale-95 min-h-[40px]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98] min-h-[40px]"
         >
           <ArrowLeft className="w-4 h-4 text-purple-400" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-zinc-400">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-[11px] text-slate-400">
           <Wine className="w-3 h-3 text-purple-400" />
           <span className="text-white font-medium">AI Sommelier</span>
         </span>

@@ -1,33 +1,30 @@
 import type { Metadata } from 'next';
-import CustomCursor from '@/components/home/CustomCursor';
-import UniverseHeader from '@/components/universe/UniverseHeader';
-import UniverseBackground3D from '@/components/universe/UniverseBackground3D';
-import SectionNucleus from '@/components/universe/SectionNucleus';
-import SectionRestaurant from '@/components/universe/SectionRestaurant';
-import SectionRetail from '@/components/universe/SectionRetail';
-import SectionAI from '@/components/universe/SectionAI';
-import SectionMaps from '@/components/universe/SectionMaps';
-import SectionStaff from '@/components/universe/SectionStaff';
-import SectionEcosystem from '@/components/universe/SectionEcosystem';
-import SectionFinalCTA from '@/components/universe/SectionFinalCTA';
+import LandingNavbar from '@/components/landing/LandingNavbar';
+import LandingHeroSimulator from '@/components/landing/LandingHeroSimulator';
+import LandingDualVertical from '@/components/landing/LandingDualVertical';
+import LandingBentoGrid from '@/components/landing/LandingBentoGrid';
+import LandingArchitectureFlow from '@/components/landing/LandingArchitectureFlow';
+import LandingCostComparison from '@/components/landing/LandingCostComparison';
+import LandingLeadCapture from '@/components/landing/LandingLeadCapture';
+import LandingFooter from '@/components/landing/LandingFooter';
 
 export const metadata: Metadata = {
-  title: 'RIVO — The Interactive Universe',
+  title: 'RIVO — Il Sistema Operativo Fisico-Digitale per Ristorazione e Retail',
   description:
-    'RIVO connects physical customer interactions with digital experiences and business tools. Transform tables, counters, products and venues into an intelligent interface.',
+    'Unifica hardware NFC/QR, comande al tavolo, recensioni 5★ su Google con AI, Apple Wallet nativo e gestione cassa/magazzino in un unico ecosistema Cloud in tempo reale.',
   openGraph: {
-    title: 'RIVO — The Interactive Universe',
+    title: 'RIVO — Il Sistema Operativo Fisico-Digitale per Ristorazione e Retail',
     description:
-      'Enter the RIVO digital universe: 3D interactive Nucleus connecting Restaurant, Retail, AI, Maps, Staff, and Data.',
-    siteName: 'RIVO',
+      'Elimina 6 abbonamenti disconnessi. Connetti tavoli fisici, cassa e magazzino al Cloud in 0.4 secondi con RIVO.',
+    siteName: 'RIVO Technologies',
     type: 'website',
     locale: 'it_IT',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'RIVO — The Interactive Universe',
+    title: 'RIVO — Il Sistema Operativo Fisico-Digitale per Ristorazione e Retail',
     description:
-      'RIVO connects physical customer interactions with digital experiences and business tools.',
+      'Elimina 6 abbonamenti disconnessi. Connetti tavoli fisici, cassa e magazzino al Cloud in 0.4 secondi con RIVO.',
   },
   robots: {
     index: true,
@@ -40,39 +37,30 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#020204] text-zinc-100 overflow-x-hidden selection:bg-[#BFFF00] selection:text-black">
-      {/* Precision fluid custom cursor (desktop only) */}
-      <CustomCursor />
+    <main className="min-h-screen bg-[#050507] text-slate-100 overflow-x-hidden selection:bg-emerald-500 selection:text-black">
+      {/* Precision Floating Navbar */}
+      <LandingNavbar />
 
-      {/* Fixed 3D WebGL Background: RIVO Nucleus & Spatial Nodes responding to native scroll */}
-      <UniverseBackground3D />
+      {/* Hero Section + Interactive "Tap-to-Cloud" Split Simulator */}
+      <LandingHeroSimulator />
 
-      {/* Persistent Floating Command Navigation */}
-      <UniverseHeader />
+      {/* Dual-Vertical Engine: Ristorazione vs Retail ERP */}
+      <LandingDualVertical />
 
-      {/* 1. THE NUCLEUS — Hero & 5-Second Instant Product Comprehension */}
-      <SectionNucleus />
+      {/* Interactive 5-Card Bento Grid */}
+      <LandingBentoGrid />
 
-      {/* 2. RESTAURANT — Physical Table NFC to Live Guest OS */}
-      <SectionRestaurant />
+      {/* 3-Step Architecture Flow */}
+      <LandingArchitectureFlow />
 
-      {/* 3. RETAIL — Product Laser Scanning to Structured Digital Inventory */}
-      <SectionRetail />
+      {/* Cost Consolidation & ROI Calculator */}
+      <LandingCostComparison />
 
-      {/* 4. RIVO AI — Neural Decision Pipeline (Input → Context → Reasoning → Action) */}
-      <SectionAI />
+      {/* Live Lead Capture Form wired to /api/leads */}
+      <LandingLeadCapture />
 
-      {/* 5. MAPS & LOCATIONS — Multi-Venue Footprint & Real-Time Table Topology */}
-      <SectionMaps />
-
-      {/* 6. STAFF & OPERATIONS — Smartwatch Service Dispatch & Table Routing */}
-      <SectionStaff />
-
-      {/* 7. THE ECOSYSTEM — Unified OS Telemetry & Hourly Physical Traffic Peaks */}
-      <SectionEcosystem />
-
-      {/* 8. FINAL CTA — Monolithic Closing Emblem, Direct Action, and Minimal Footer */}
-      <SectionFinalCTA />
+      {/* Monumental Enterprise Footer */}
+      <LandingFooter />
     </main>
   );
 }

@@ -242,74 +242,74 @@ export default async function DashboardOverview() {
       {/* Metric Cards - Linear / Stripe Style */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Interactions */}
-        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:border-zinc-300 dark:hover:border-white/[0.12] transition-colors">
+        <div className="bg-white dark:bg-[#0B0C10] border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] hover:border-slate-300 dark:hover:border-white/[0.14] transition-colors">
           <div>
-            <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider">Interazioni Totali</span>
-              <Activity className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider font-mono">Interazioni Totali</span>
+              <Activity className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             </div>
-            <div className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 font-mono">
+            <div className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 tabular-nums">
               {totalInteractions.toLocaleString('it-IT')}
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span>Volume complessivo</span>
-            <span className="font-medium text-zinc-900 dark:text-zinc-200">Sincronizzato</span>
+            <span className="font-medium text-slate-900 dark:text-slate-200">Sincronizzato</span>
           </div>
         </div>
 
         {/* NFC Tap Card */}
-        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:border-zinc-300 dark:hover:border-white/[0.12] transition-colors">
+        <div className="bg-white dark:bg-[#0B0C10] border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] hover:border-slate-300 dark:hover:border-white/[0.14] transition-colors">
           <div>
-            <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider">Tap NFC Fisici</span>
-              <Smartphone className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider font-mono">Tap NFC Fisici</span>
+              <Smartphone className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             </div>
-            <div className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 font-mono">
+            <div className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 tabular-nums">
               {nfcInteractions.toLocaleString('it-IT')}
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
-            <span className="text-zinc-500 dark:text-zinc-400">Mix di accesso</span>
-            <span className="font-medium font-mono text-emerald-600 dark:text-emerald-400">
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">Mix di accesso</span>
+            <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
               {nfcRatio}% quota
             </span>
           </div>
         </div>
 
         {/* QR Code Scans */}
-        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:border-zinc-300 dark:hover:border-white/[0.12] transition-colors">
+        <div className="bg-white dark:bg-[#0B0C10] border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] hover:border-slate-300 dark:hover:border-white/[0.14] transition-colors">
           <div>
-            <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider">Scansioni QR Code</span>
-              <QrCode className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider font-mono">Scansioni QR Code</span>
+              <QrCode className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             </div>
-            <div className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 font-mono">
+            <div className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 tabular-nums">
               {qrInteractions.toLocaleString('it-IT')}
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
-            <span className="text-zinc-500 dark:text-zinc-400">Mix di accesso</span>
-            <span className="font-medium font-mono text-blue-600 dark:text-blue-400">
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">Mix di accesso</span>
+            <span className="font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
               {qrRatio}% quota
             </span>
           </div>
         </div>
 
         {/* Active Smart Devices */}
-        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:border-zinc-300 dark:hover:border-white/[0.12] transition-colors">
+        <div className="bg-white dark:bg-[#0B0C10] border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] hover:border-slate-300 dark:hover:border-white/[0.14] transition-colors">
           <div>
-            <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider">Dispositivi Attivi</span>
-              <Radio className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider font-mono">Dispositivi Attivi</span>
+              <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             </div>
-            <div className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 font-mono">
+            <div className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 tabular-nums">
               {activeDevicesCount}
-              <span className="text-sm font-normal text-zinc-400 ml-1">/ {totalDevicesCount}</span>
+              <span className="text-sm font-normal text-slate-400 ml-1">/ {totalDevicesCount}</span>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
-            <span className="text-zinc-500 dark:text-zinc-400">Rete hardware</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">Rete hardware</span>
             <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Online

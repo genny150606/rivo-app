@@ -120,29 +120,29 @@ export default function WalletLoyaltyBanner({
   };
 
   return (
-    <div className="w-full bg-gradient-to-br from-[#18181B] via-[#121214] to-black rounded-3xl border border-white/10 p-4 sm:p-5 shadow-xl relative overflow-hidden space-y-3.5">
+    <div className="w-full bg-[#0B0C10] rounded-3xl border border-white/[0.08] p-4 sm:p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] relative overflow-hidden space-y-3.5">
       {/* Glow ambient background */}
       <div 
-        className="absolute -top-10 -right-10 w-36 h-36 blur-2xl opacity-15 pointer-events-none rounded-full"
+        className="absolute -top-10 -right-10 w-36 h-36 blur-2xl opacity-20 pointer-events-none rounded-full"
         style={{ backgroundColor: accentColor }}
       />
 
       {/* Header Info */}
       <div className="flex items-start justify-between gap-3 relative z-10">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-white shrink-0 shadow-inner">
             <Smartphone className="w-5 h-5 text-amber-400" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h4 className="text-xs sm:text-sm font-bold text-white">
+              <h4 className="text-xs sm:text-sm font-bold text-white tracking-tight">
                 Salva nel tuo Wallet
               </h4>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/30 badge-mono">
                 Zero-App
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400">
+            <p className="text-[11px] text-slate-400 mt-0.5">
               Tieni i tuoi timbri sempre a portata di mano con notifiche di prossimità
             </p>
           </div>
