@@ -13,6 +13,7 @@ export type ModuleSlug =
   | 'staff'
   | 'service_calls'
   | 'canva_menu'
+  | 'bookings'
   | 'products'
   | 'inventory'
   | 'sales'
@@ -23,6 +24,9 @@ export type BusinessTypeSlug =
   | 'bar'
   | 'pizzeria'
   | 'gelateria'
+  | 'salon'
+  | 'barber'
+  | 'beauty'
   | 'hotel'
   | 'bb'
   | 'shoe_store'
@@ -289,6 +293,20 @@ export const MODULE_REGISTRY: Record<ModuleSlug, ModuleDefinition> = {
     ],
     routes: ['/dashboard/menu'],
     sortOrder: 150,
+  },
+  bookings: {
+    slug: 'bookings',
+    name: 'Agenda & Prenotazioni Salone',
+    shortName: 'Prenotazioni',
+    description: 'Calendario appuntamenti per poltrona/operatore, turni parrucchieri, listino trattamenti e prenotazione online',
+    category: 'vertical',
+    verticals: ['salon', 'barber', 'beauty', 'medical_studio', 'gym', 'other'],
+    navGroupId: 'hospitality',
+    navItems: [
+      { label: 'Agenda & Prenotazioni', href: '/dashboard/bookings', iconName: 'CalendarCheck' },
+    ],
+    routes: ['/dashboard/bookings'],
+    sortOrder: 155,
   },
   staff: {
     slug: 'staff',

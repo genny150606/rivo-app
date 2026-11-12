@@ -46,7 +46,18 @@ interface ServiceCallRecord {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   created_at: string;
   order_details?: {
-    items?: Array<{ id?: string; name: string; quantity: number; price: string }>;
+    items?: Array<{
+      id?: string;
+      name: string;
+      quantity: number;
+      price: string;
+      guest_name?: string | null;
+      notes?: string | null;
+      shared?: boolean;
+    }>;
+    collaborative?: boolean;
+    guests?: string[];
+    round?: number;
     total?: string;
     notes?: string;
     rating?: number;
@@ -496,27 +507,53 @@ export default function ServiceDashboardPage() {
                 {/* Dettaglio Comanda Piatti */}
                 {call.type === 'dish_order' && call.order_details && (
                   <div className="bg-zinc-50 dark:bg-zinc-900/60 rounded-lg p-3.5 border border-zinc-200/80 dark:border-white/[0.06] space-y-2.5">
+                    {call.order_details.collaborative && call.order_details.guests && call.order_details.guests.length > 0 && (
+                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-zinc-200/80 dark:border-zinc-800 text-[11px]">
+                        <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                          👥 Ordine Condiviso ({call.order_details.guests.length} al tavolo)
+                        </span>
+                        <span className="text-zinc-500 dark:text-zinc-400 truncate">
+                          {call.order_details.guests.join(', ')}
+                        </span>
+                      </div>
+                    )}
                     {/* Lista piatti ordinati con quantità in evidenza */}
                     {call.order_details.items && call.order_details.items.length > 0 && (
                       <div className="space-y-1.5">
                         <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                          Portate Ordinate
+                          Portate Ordinate {call.order_details.round ? `• Giro #${call.order_details.round}` : ''}
                         </p>
                         <div className="divide-y divide-zinc-200/80 dark:divide-zinc-800">
                           {call.order_details.items.map((item, idx) => (
                             <div
                               key={item.id || idx}
-                              className="py-1.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs"
+                              className="py-1.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs gap-2"
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-200/70 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[11px] shrink-0 font-mono">
-                                  {item.quantity}x
-                                </span>
-                                <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
-                                  {item.name}
-                                </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-200/70 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[11px] shrink-0 font-mono">
+                                    {item.quantity}x
+                                  </span>
+                                  <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                                    {item.name}
+                                  </span>
+                                  {item.shared ? (
+                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                                      🤝 Al Centro
+                                    </span>
+                                  ) : item.guest_name ? (
+                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">
+                                      👤 {item.guest_name}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                {item.notes && (
+                                  <p className="text-[11px] text-amber-700 dark:text-amber-400 italic pl-7 mt-0.5">
+                                    Nota: {item.notes}
+                                  </p>
+                                )}
                               </div>
-                              <span className="font-mono text-zinc-500 dark:text-zinc-400 text-xs shrink-0 ml-2">
+                              <span className="font-mono text-zinc-500 dark:text-zinc-400 text-xs shrink-0">
                                 {item.price}
                               </span>
                             </div>

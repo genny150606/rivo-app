@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       destinationUrl,
       businessTypeSlug,
       selectedModuleSlugs,
+      outreachProspectId,
     } = body;
 
     if (!businessName || !ownerEmail || !ownerPassword) {
@@ -98,6 +99,31 @@ export async function POST(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Idempotency guard when converting an Outreach Prospect to a RIVO Client
+    if (outreachProspectId && typeof outreachProspectId === 'string') {
+      const { data: existingProspect } = await supabase
+        .from('outreach_prospects')
+        .select('id, organization_id')
+        .eq('id', outreachProspectId)
+        .maybeSingle();
+
+      if (existingProspect?.organization_id) {
+        const { data: alreadyCreatedOrg } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', existingProspect.organization_id)
+          .maybeSingle();
+
+        if (alreadyCreatedOrg) {
+          return NextResponse.json({
+            success: true,
+            idempotentReplay: true,
+            organization: alreadyCreatedOrg,
+          });
+        }
+      }
+    }
+
     // Resolve Business Type
     let targetBtSlug = businessTypeSlug;
     if (!targetBtSlug) {
@@ -105,6 +131,9 @@ export async function POST(request: NextRequest) {
       else if (category === 'bnb') targetBtSlug = 'bb';
       else if (category === 'bar') targetBtSlug = 'bar';
       else if (category === 'pizzeria') targetBtSlug = 'pizzeria';
+      else if (category === 'salon') targetBtSlug = 'salon';
+      else if (category === 'barber') targetBtSlug = 'barber';
+      else if (category === 'beauty') targetBtSlug = 'beauty';
       else if (category === 'retail' || category === 'store') targetBtSlug = 'retail';
       else targetBtSlug = 'restaurant';
     }
@@ -324,6 +353,31 @@ export async function POST(request: NextRequest) {
         await rollback(org.id);
         return NextResponse.json({ error: ownerProfileError.message }, { status: 400 });
       }
+    }
+
+    // 6.1 If triggered from RIVO OUTREACH, link prospect -> organization and update pipeline
+    if (outreachProspectId && typeof outreachProspectId === 'string') {
+      const nowIso = new Date().toISOString();
+      await Promise.all([
+        supabase
+          .from('outreach_prospects')
+          .update({
+            organization_id: org.id,
+            commercial_status: 'convertito_in_cliente',
+            updated_at: nowIso,
+          })
+          .eq('id', outreachProspectId),
+        supabase.from('outreach_activity_logs').insert({
+          prospect_id: outreachProspectId,
+          action: 'converted_to_rivo_client',
+          metadata: {
+            organization_id: org.id,
+            organization_slug: org.slug,
+            device_code: cleanCode,
+          },
+          admin_user_id: user.id,
+        }),
+      ]);
     }
 
     // 7. Generate a personal, one-time sign-in link and deliver it in the

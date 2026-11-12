@@ -116,6 +116,14 @@ export async function getOrganizationModules(organizationId: string): Promise<Re
     }
   }
 
+  // Auto-enable 'bookings' for salon/barber/beauty organizations unless explicitly disabled
+  if (['salon', 'barber', 'beauty'].includes(orgData.category || '')) {
+    const explicitBookings = allModules.find((m) => m.slug === 'bookings');
+    if (!explicitBookings || explicitBookings.enabled) {
+      activeSlugs.add('bookings');
+    }
+  }
+
   return {
     organizationId,
     businessTypeId: orgData.business_type_id || undefined,

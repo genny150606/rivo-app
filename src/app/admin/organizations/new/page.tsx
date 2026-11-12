@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -102,6 +102,56 @@ export default function NewOrganizationWizard() {
   const [deviceType, setDeviceType] = useState<'nfc' | 'qr' | 'both'>('both');
   const [deviceCode, setDeviceCode] = useState(() => 'RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase());
   const [destinationUrl, setDestinationUrl] = useState('https://google.com');
+  const [outreachProspectId, setOutreachProspectId] = useState<string | null>(null);
+
+  // Pre-fill wizard when converting a prospect from RIVO OUTREACH
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const prospectId = params.get('outreachProspectId');
+    if (!prospectId) return;
+
+    setOutreachProspectId(prospectId);
+    fetch(`/api/admin/outreach/prospects?id=${encodeURIComponent(prospectId)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        const p = json?.prospect;
+        if (!p) return;
+        if (p.business_name) {
+          setBusinessName(p.business_name);
+          setSlug(
+            p.business_name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-|-$/g, '')
+          );
+        }
+        const rawCat = (p.subcategory || p.category || 'restaurant') as BusinessCategory;
+        if (CATEGORIES.some((c) => c.id === rawCat)) {
+          handleSelectCategory(rawCat);
+        }
+        if (p.description) setDescription(p.description);
+        if (p.business_email) {
+          setEmail(p.business_email);
+          setOwnerEmail(p.business_email);
+        }
+        if (p.business_phone) {
+          setPhone(p.business_phone);
+          setWhatsappNumber(p.business_phone);
+        }
+        if (p.website) {
+          setWebsite(p.website);
+          setDestinationUrl(p.website);
+        }
+        if (p.instagram_url) setInstagramUrl(p.instagram_url);
+        if (p.address) setAddress(p.address);
+        if (p.city) setCity(p.city);
+        if (p.postal_code) setPostalCode(p.postal_code);
+        if (p.province) setProvince(p.province);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filtered categories
   const filteredCategories = useMemo(() => {
@@ -228,6 +278,7 @@ export default function NewOrganizationWizard() {
           deviceType,
           deviceCode,
           destinationUrl,
+          outreachProspectId,
         }),
       });
 

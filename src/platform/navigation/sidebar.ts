@@ -21,6 +21,8 @@ import {
   Building,
   Upload,
   ScanLine,
+  Scissors,
+  CalendarCheck,
   LucideIcon
 } from 'lucide-react';
 import { ModuleSlug, MODULE_REGISTRY } from '../modules/registry';
@@ -64,6 +66,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   MapPin,
   Building,
   Upload,
+  Scissors,
+  CalendarCheck,
 };
 
 export function resolveSidebarNavigation(
@@ -245,6 +249,27 @@ export function resolveSidebarNavigation(
       id: 'hospitality_group',
       label: 'Servizio & Sala',
       items: hospitalityItems,
+    });
+  }
+
+  // 7b. Salon, Barber & Beauty: Agenda & Prenotazioni
+  if (
+    activeModules.has('bookings') ||
+    businessTypeSlug === 'salon' ||
+    businessTypeSlug === 'barber' ||
+    businessTypeSlug === 'beauty'
+  ) {
+    groups.push({
+      id: 'bookings_group',
+      label: 'Salone & Agenda',
+      items: [
+        {
+          id: 'salon_bookings',
+          label: 'Agenda & Prenotazioni',
+          href: '/dashboard/bookings',
+          icon: CalendarCheck,
+        },
+      ],
     });
   }
 

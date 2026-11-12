@@ -82,6 +82,16 @@ const NfcWaveIcon = ({ className, style }: { className?: string; style?: React.C
 import { WhatsAppIcon, InstagramIcon } from '@/components/brand-icons';
 import SmartBillModal from '@/components/SmartBillModal';
 import RetailCatalogModal, { RetailProduct } from '@/components/hub/RetailCatalogModal';
+import SalonBookingModal from '@/components/hub/SalonBookingModal';
+import { useCollaborativeTableCart } from '@/lib/table-cart/useCollaborativeTableCart';
+import { formatEuro } from '@/lib/table-cart/shared';
+import {
+  TablePresenceBar,
+  JoinTableModal,
+  AddDishCollaborativeSheet,
+  CollaborativeFloatingBar,
+  CollaborativeTableCartModal,
+} from '@/components/hub/CollaborativeTableCart';
 import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 import { BusinessCategory } from '@/lib/types';
@@ -303,6 +313,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [showCityGuide, setShowCityGuide] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showRetailCatalogModal, setShowRetailCatalogModal] = useState(false);
+  const [showSalonBookingModal, setShowSalonBookingModal] = useState(false);
   const [retailProducts, setRetailProducts] = useState<RetailProduct[]>([]);
   const [menuTab, setMenuTab] = useState<'tutti' | 'antipasti' | 'primi' | 'secondi' | 'dolci' | 'bevande'>('tutti');
   const [menuSearch, setMenuSearch] = useState('');
@@ -317,6 +328,17 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [orderSuccessMessage, setOrderSuccessMessage] = useState<string | null>(null);
   const [orderErrorMessage, setOrderErrorMessage] = useState<string | null>(null);
   const [showBillInvoiceModal, setShowBillInvoiceModal] = useState(false);
+
+  // Collaborative Table Cart (Multiplayer Table Order) State
+  const [showJoinTableModal, setShowJoinTableModal] = useState(false);
+  const [pendingDishAfterJoin, setPendingDishAfterJoin] = useState<CanvaDish | null>(null);
+  const [dishForCollabSheet, setDishForCollabSheet] = useState<CanvaDish | null>(null);
+  const [collabToast, setCollabToast] = useState<string | null>(null);
+  const [smartBillPrefill, setSmartBillPrefill] = useState<{
+    tableTotal: number;
+    myQuota: number;
+    guestCount: number;
+  } | null>(null);
 
   // AI Sommelier & Wine Pairing State
   const [showWinePairingModal, setShowWinePairingModal] = useState(false);
@@ -872,6 +894,44 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
   const isRestaurant = org?.category === 'restaurant';
   const isRetail = ['shoe_store', 'retail', 'store', 'boutique'].includes(org?.category || '');
+  const isSalon = ['salon', 'barber', 'beauty'].includes(org?.category || '');
+
+  const showCollabToast = (msg: string) => {
+    setCollabToast(msg);
+    setTimeout(() => {
+      setCollabToast((prev) => (prev === msg ? null : prev));
+    }, 3500);
+  };
+
+  const collabCart = useCollaborativeTableCart({
+    supabase,
+    deviceId: device?.id,
+    enabled: Boolean(isRestaurant && device?.id),
+    events: {
+      onGuestJoined: (name) => {
+        hapticTap();
+        showCollabToast(`✨ ${name} si è unito al tavolo!`);
+      },
+      onNudged: (fromName) => {
+        hapticWarning();
+        showCollabToast(`🔔 ${fromName} e il tavolo sono pronti a ordinare!`);
+      },
+      onSubmitted: ({ round }) => {
+        hapticSuccess();
+        showCollabToast(`👨‍🍳 Giro #${round} inviato in cucina!`);
+        try {
+          confetti({
+            particleCount: 70,
+            spread: 65,
+            origin: { y: 0.6 },
+          });
+        } catch {}
+      },
+      onError: (message) => {
+        showCollabToast(`⚠️ ${message}`);
+      },
+    },
+  });
 
   const canvaMenu: CanvaMenuConfig = useMemo(() => {
     if (org?.category === 'restaurant') {
@@ -936,18 +996,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalCartNumeric);
   }, [totalCartNumeric]);
 
-  const addToTableCart = (dish: CanvaDish) => {
+  const addToTableCart = (dish: CanvaDish, quickIncrement = false) => {
     hapticTap();
-    setTableCart((prev) => {
-      const current = prev[dish.id]?.quantity || 0;
-      return {
-        ...prev,
-        [dish.id]: {
-          dish,
-          quantity: current + 1,
-        },
-      };
-    });
 
     // Dynamic Upselling: suggest matching drink, side or dessert
     const lowerName = dish.name.toLowerCase();
@@ -967,10 +1017,40 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         setTimeout(() => setUpsellSuggestion(null), 6000);
       }
     }
+
+    // Collaborative Table Cart flow (when online and supported)
+    if (collabCart.status !== 'unavailable' && device?.id && (typeof navigator === 'undefined' || navigator.onLine)) {
+      if (!collabCart.isActive) {
+        setPendingDishAfterJoin(dish);
+        setShowJoinTableModal(true);
+        return;
+      }
+      if (quickIncrement) {
+        collabCart.addItem(dish, { quantity: 1 });
+        return;
+      }
+      setDishForCollabSheet(dish);
+      return;
+    }
+
+    setTableCart((prev) => {
+      const current = prev[dish.id]?.quantity || 0;
+      return {
+        ...prev,
+        [dish.id]: {
+          dish,
+          quantity: current + 1,
+        },
+      };
+    });
   };
 
   const removeFromTableCart = (dishId: string) => {
     hapticTap();
+    if (collabCart.isActive) {
+      collabCart.decrementDish(dishId);
+      return;
+    }
     setTableCart((prev) => {
       const current = prev[dishId]?.quantity || 0;
       if (current <= 1) {
@@ -1803,7 +1883,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={() => {
                 hapticTap();
-                setShowMenuModal(true);
+                if (isSalon) {
+                  setShowSalonBookingModal(true);
+                } else if (isRetail) {
+                  setShowRetailCatalogModal(true);
+                } else {
+                  setShowMenuModal(true);
+                }
               }}
               className={`${
                 nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
@@ -1852,7 +1938,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform`}
                   style={getBorderRadiusStyle(activeConfig.borderRadius)}
                 >
-                  <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
+                  {isSalon ? (
+                    <CalendarCheck className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
+                  ) : (
+                    <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
+                  )}
                 </div>
               </div>
             </button>
@@ -1903,8 +1993,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               }
 
               switch (mod.id) {
+                case 'bookings':
+                  return <CalendarCheck className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
                 case 'service':
-                  return <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />;
+                  return isSalon ? (
+                    <CalendarCheck className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
+                  ) : (
+                    <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />
+                  );
                 case 'sommelier':
                   return (
                     <div className="relative">
@@ -1925,7 +2021,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 case 'whatsapp':
                   return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
                 case 'menu':
-                  return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                  return isSalon ? (
+                    <Scissors className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
+                  ) : (
+                    <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
+                  );
                 case 'instagram':
                   return <InstagramIcon className="w-5 h-5 text-pink-500" />;
                 case 'custom_cta':
@@ -2072,6 +2172,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             // Standard modules
             switch (mod.id) {
+              case 'bookings':
+                return (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setShowSalonBookingModal(true);
+                    }}
+                    className={cardClassName}
+                    style={moduleCardStyle}
+                  >
+                    {commonInner}
+                  </button>
+                );
               case 'service':
                 return (
                   <button
@@ -2079,7 +2194,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     type="button"
                     onClick={() => {
                       hapticTap();
-                      setShowBillInvoiceModal(true);
+                      if (isSalon) {
+                        setShowSalonBookingModal(true);
+                      } else {
+                        setShowBillInvoiceModal(true);
+                      }
                     }}
                     className={cardClassName}
                     style={moduleCardStyle}
@@ -2169,7 +2288,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     type="button"
                     onClick={() => {
                       hapticTap();
-                      if (isRetail) {
+                      if (isSalon) {
+                        setShowSalonBookingModal(true);
+                      } else if (isRetail) {
                         setShowRetailCatalogModal(true);
                       } else {
                         setShowMenuModal(true);
@@ -2404,23 +2525,31 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <span className="text-[9px] font-medium mt-0.5">{t.home}</span>
             </button>
 
-            {/* Menù (per ristoranti) o Catalogo Prodotti (per retail/negozi) */}
+            {/* Menù (per ristoranti), Prenota (per saloni/barbieri) o Catalogo Prodotti (per retail/negozi) */}
             <button
               type="button"
               onClick={() => {
                 hapticTap();
-                if (isRetail) {
+                if (isSalon) {
+                  setShowSalonBookingModal(true);
+                } else if (isRetail) {
                   setShowRetailCatalogModal(true);
                 } else {
                   setShowMenuModal(true);
                 }
               }}
-              aria-label={isRetail ? 'Apri Catalogo' : 'Apri Menù'}
+              aria-label={isSalon ? 'Prenota Appuntamento' : isRetail ? 'Apri Catalogo' : 'Apri Menù'}
               className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
             >
-              {isRetail ? <ShoppingBag className="w-5 h-5 text-amber-400" /> : <BookOpen className="w-5 h-5" />}
+              {isSalon ? (
+                <CalendarCheck className="w-5 h-5 text-amber-400" />
+              ) : isRetail ? (
+                <ShoppingBag className="w-5 h-5 text-amber-400" />
+              ) : (
+                <BookOpen className="w-5 h-5" />
+              )}
               <span className="text-[9px] font-medium mt-0.5">
-                {isRetail ? 'Catalogo' : t.menu}
+                {isSalon ? 'Prenota' : isRetail ? 'Catalogo' : t.menu}
               </span>
             </button>
 
@@ -2472,6 +2601,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </button>
           </nav>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SALON & BARBER BOOKING MODAL (FOR SALON, BARBER & BEAUTY CENTERS) */}
+      {/* ========================================================================= */}
+      {org && (
+        <SalonBookingModal
+          isOpen={showSalonBookingModal}
+          onClose={() => setShowSalonBookingModal(false)}
+          organizationId={org.id}
+          organizationName={org.name}
+          whatsappNumber={org.whatsapp_number || org.phone}
+          accentColor={primaryColor}
+          contrastText={contrastText}
+        />
       )}
 
       {/* ========================================================================= */}
@@ -2615,6 +2759,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       </p>
                     </div>
                   </div>
+                )}
+
+                {/* Live Presence Bar for Collaborative Table Ordering */}
+                {canvaMenu.allowTableOrders !== false && device?.id && (
+                  <TablePresenceBar
+                    cart={collabCart}
+                    tableLabel={device?.name || `Tavolo ${code}`}
+                    accentColor={canvaAccent}
+                    contrastText={canvaContrastText}
+                    onOpenCart={() => setShowOrderModal(true)}
+                    onAskJoin={() => setShowJoinTableModal(true)}
+                  />
                 )}
 
                 {/* Search Bar & Voice Order Action */}
@@ -2781,7 +2937,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         {/* Dishes Cards */}
                         <div className="grid grid-cols-1 gap-3">
                           {category.dishes.map((dish) => {
-                            const inCartCount = tableCart[dish.id]?.quantity || 0;
+                            const inCartCount = collabCart.isActive
+                              ? collabCart.myDishQuantities[dish.id] || 0
+                              : tableCart[dish.id]?.quantity || 0;
                             return (
                               <div
                                 key={dish.id}
@@ -2887,7 +3045,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                           </span>
                                           <button
                                             type="button"
-                                            onClick={() => addToTableCart(dish)}
+                                            onClick={() => addToTableCart(dish, true)}
                                             className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold cursor-pointer"
                                             style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
                                             aria-label="Aumenta quantità"
@@ -2922,7 +3080,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </div>
 
               {/* Sticky Bottom Tray Bar inside modal */}
-              {canvaMenu.allowTableOrders !== false && totalCartCount > 0 && (
+              {canvaMenu.allowTableOrders !== false && collabCart.isActive && (collabCart.draftCount > 0 || collabCart.sent.length > 0) && (
+                <div className="p-3 border-t border-white/10 shrink-0 z-20" style={{ background: 'rgba(15, 17, 18, 0.96)' }}>
+                  <CollaborativeFloatingBar
+                    cart={collabCart}
+                    tableLabel={device?.name || `Tavolo ${code}`}
+                    accentColor={canvaAccent}
+                    contrastText={canvaContrastText}
+                    onOpenCart={() => setShowOrderModal(true)}
+                  />
+                </div>
+              )}
+              {canvaMenu.allowTableOrders !== false && !collabCart.isActive && totalCartCount > 0 && (
                 <div
                   className="p-3.5 border-t border-white/10 flex items-center justify-between gap-3 shadow-2xl backdrop-blur-xl shrink-0 z-20"
                   style={{ background: 'rgba(15, 17, 18, 0.95)' }}
@@ -3196,7 +3365,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {/* FLOATING TRAY BAR OUTSIDE MENU MODAL (ACTIVE TABLE ORDERING) */}
       {/* ========================================================================= */}
-      {!showMenuModal && !showOrderModal && isRestaurant && canvaMenu.allowTableOrders !== false && totalCartCount > 0 && (
+      {!showMenuModal && !showOrderModal && isRestaurant && canvaMenu.allowTableOrders !== false && collabCart.isActive && (collabCart.draftCount > 0 || collabCart.sent.length > 0) && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md animate-fade-in">
+          <CollaborativeFloatingBar
+            cart={collabCart}
+            tableLabel={device?.name || `Tavolo ${code}`}
+            accentColor={canvaAccent}
+            contrastText={canvaContrastText}
+            isLight={isLight}
+            onOpenCart={() => setShowOrderModal(true)}
+          />
+        </div>
+      )}
+      {!showMenuModal && !showOrderModal && isRestaurant && canvaMenu.allowTableOrders !== false && !collabCart.isActive && totalCartCount > 0 && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md animate-fade-in">
           <div
             className="p-3 rounded-2xl border shadow-2xl backdrop-blur-md flex items-center justify-between gap-3"
@@ -3245,7 +3426,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {/* TABLE ORDER SUMMARY (COMANDA TAVOLO) MODAL */}
       {/* ========================================================================= */}
-      {showOrderModal && (
+      {collabCart.isActive && (
+        <CollaborativeTableCartModal
+          isOpen={showOrderModal}
+          cart={collabCart}
+          tableLabel={device?.name || `Tavolo ${code}`}
+          accentColor={canvaAccent}
+          contrastText={canvaContrastText}
+          onClose={() => setShowOrderModal(false)}
+          onOpenSmartBill={(prefill) => {
+            setSmartBillPrefill(prefill);
+            setShowBillInvoiceModal(true);
+          }}
+        />
+      )}
+      {showOrderModal && !collabCart.isActive && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3.5">
             {/* Header */}
@@ -4041,6 +4236,56 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       )}
 
       {/* ========================================================================= */}
+      {/* COLLABORATIVE TABLE CART MODALS & LIVE TOAST */}
+      {/* ========================================================================= */}
+      {collabToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-sm animate-fade-in pointer-events-none">
+          <div className="px-4 py-2.5 rounded-2xl bg-[#111413]/95 border border-emerald-400/40 shadow-2xl text-xs font-extrabold text-white text-center backdrop-blur-md">
+            {collabToast}
+          </div>
+        </div>
+      )}
+
+      <JoinTableModal
+        isOpen={showJoinTableModal}
+        tableLabel={device?.name || `Tavolo ${code}`}
+        savedName={collabCart.savedName}
+        joining={collabCart.status === 'joining'}
+        accentColor={canvaAccent}
+        contrastText={canvaContrastText}
+        onClose={() => {
+          setShowJoinTableModal(false);
+          setPendingDishAfterJoin(null);
+        }}
+        onJoin={async (name) => {
+          const ok = await collabCart.join(name);
+          if (ok) {
+            setShowJoinTableModal(false);
+            if (pendingDishAfterJoin) {
+              setDishForCollabSheet(pendingDishAfterJoin);
+              setPendingDishAfterJoin(null);
+            }
+          }
+          return ok;
+        }}
+      />
+
+      <AddDishCollaborativeSheet
+        dish={dishForCollabSheet}
+        guestName={collabCart.me?.guest_name || collabCart.savedName || 'Tu'}
+        accentColor={canvaAccent}
+        contrastText={canvaContrastText}
+        submitting={collabCart.pendingAction === 'add_item'}
+        onClose={() => setDishForCollabSheet(null)}
+        onConfirm={async ({ quantity, isShared, notes }) => {
+          if (!dishForCollabSheet) return;
+          const dish = dishForCollabSheet;
+          setDishForCollabSheet(null);
+          await collabCart.addItem(dish, { quantity, isShared, notes });
+        }}
+      />
+
+      {/* ========================================================================= */}
       {/* SMART BILL & ELECTRONIC INVOICE MODAL (FEATURE 3: POS/RESTO & ALLA ROMANA) */}
       {/* ========================================================================= */}
       {org && (
@@ -4050,7 +4295,23 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           organizationId={org.id}
           deviceId={device?.id}
           tableLabel={device?.name || `Tavolo ${code}`}
-          estimatedTotal={formattedTotal}
+          estimatedTotal={
+            smartBillPrefill && smartBillPrefill.tableTotal > 0
+              ? formatEuro(smartBillPrefill.tableTotal)
+              : collabCart.isActive && (collabCart.draftShares.total + collabCart.sentShares.total) > 0
+              ? formatEuro(collabCart.draftShares.total + collabCart.sentShares.total)
+              : formattedTotal
+          }
+          personalQuota={
+            smartBillPrefill?.myQuota ??
+            (collabCart.isActive
+              ? (collabCart.myDraftShare?.total || 0) + (collabCart.mySentShare?.total || 0)
+              : null)
+          }
+          initialSplitCount={
+            smartBillPrefill?.guestCount ?? (collabCart.isActive ? collabCart.guests.length : null)
+          }
+          guestName={collabCart.me?.guest_name || null}
         />
       )}
 

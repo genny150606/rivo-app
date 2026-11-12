@@ -161,6 +161,7 @@ export const HUB_CARD_STYLE_OPTIONS: HubCardStyleOption[] = [
 
 export type HubModuleId =
   | 'menu'
+  | 'bookings'
   | 'service'
   | 'sommelier'
   | 'wifi'
@@ -453,6 +454,59 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
         },
       ];
 
+    case 'salon':
+    case 'barber':
+    case 'beauty':
+      return [
+        {
+          id: 'bookings',
+          enabled: true,
+          order: 1,
+          title: category === 'barber' ? 'Prenota Taglio & Barba' : 'Prenota Appuntamento',
+          subtitle: 'Scegli operatore, trattamento e orario libero',
+          badge: 'Live',
+        },
+        {
+          id: 'loyalty',
+          enabled: true,
+          order: 2,
+          title: 'Fidelity Card & Timbri',
+          subtitle: 'Accumula tagli e vinci trattamenti omaggio',
+          badge: 'VIP',
+        },
+        {
+          id: 'reviews',
+          enabled: true,
+          order: 3,
+          title: 'Lascia Recensione 5★',
+          subtitle: 'Racconta la tua esperienza su Google',
+          badge: 'Google',
+        },
+        {
+          id: 'wifi',
+          enabled: true,
+          order: 4,
+          title: 'Wi-Fi Clienti Salone',
+          subtitle: 'Connessione rapida in attesa',
+          badge: 'Free',
+        },
+        {
+          id: 'whatsapp',
+          enabled: true,
+          order: 5,
+          title: 'Scrivici su WhatsApp',
+          subtitle: 'Contatto diretto con la reception',
+        },
+        {
+          id: 'wheel',
+          enabled: true,
+          order: 6,
+          title: 'Ruota della Bellezza',
+          subtitle: 'Vinci sconti su prodotti e piega',
+          badge: 'Premio',
+        },
+      ];
+
     case 'restaurant':
     case 'pizzeria':
     default:
@@ -513,6 +567,7 @@ export function getDefaultHubConfig(category: BusinessCategory = 'restaurant'): 
   const isHotel = category === 'hotel' || category === 'bnb';
   const isBeach = category === 'beach_club';
   const isRetail = category === 'retail' || category === 'store' || (category as any) === 'shoe_store';
+  const isSalon = category === 'salon' || category === 'barber' || category === 'beauty';
 
   return {
     fontFamily: isHotel ? 'playfair' : 'outfit',
@@ -520,13 +575,35 @@ export function getDefaultHubConfig(category: BusinessCategory = 'restaurant'): 
     cardStyle: 'glass',
     primaryColor: DEFAULT_HUB_COLOR,
     accentGlow: true,
-    tableBadgeLabel: isHotel ? 'Camera / Suite' : isBeach ? 'Ombrellone' : isRetail ? 'Boutique Point' : 'Tavolo Connesso',
+    tableBadgeLabel: isHotel
+      ? 'Camera / Suite'
+      : isBeach
+      ? 'Ombrellone'
+      : isRetail
+      ? 'Boutique Point'
+      : isSalon
+      ? 'Postazione Connessa'
+      : 'Tavolo Connesso',
     tableLiveTag: 'NFC LIVE',
     hero: {
       enabled: true,
-      title: isHotel ? 'Room Service & Info' : isRetail ? 'Catalogo Calzature' : 'Menù Digitale',
-      subtitle: isHotel ? 'Colazione & Servizi in camera' : isRetail ? 'Modelli, taglie disponibili e prezzi' : 'Piatti, prezzi & vini del giorno',
-      badgeText: isRetail ? 'Nuova Collezione' : 'In Evidenza',
+      title: isHotel
+        ? 'Room Service & Info'
+        : isRetail
+        ? 'Catalogo Calzature'
+        : isSalon
+        ? category === 'barber'
+          ? 'Prenota Taglio & Barba'
+          : 'Prenota il Tuo Appuntamento'
+        : 'Menù Digitale',
+      subtitle: isHotel
+        ? 'Colazione & Servizi in camera'
+        : isRetail
+        ? 'Modelli, taglie disponibili e prezzi'
+        : isSalon
+        ? 'Scegli trattamento, parrucchiere e orario in tempo reale'
+        : 'Piatti, prezzi & vini del giorno',
+      badgeText: isRetail ? 'Nuova Collezione' : isSalon ? 'Agenda Online' : 'In Evidenza',
       destinationType: 'in_app',
     },
     modules: getDefaultModules(category),

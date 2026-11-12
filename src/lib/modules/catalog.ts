@@ -11,6 +11,7 @@ export type ModuleSlug =
   | 'staff'
   | 'service_calls'
   | 'canva_menu'
+  | 'bookings'
   | 'products'
   | 'inventory'
   | 'sales'
@@ -21,6 +22,9 @@ export type BusinessTypeSlug =
   | 'bar'
   | 'pizzeria'
   | 'gelateria'
+  | 'salon'
+  | 'barber'
+  | 'beauty'
   | 'hotel'
   | 'bb'
   | 'shoe_store'
@@ -151,6 +155,15 @@ export const MODULE_CATALOG: Record<ModuleSlug, ModuleDefinition> = {
     navPath: '/dashboard/menu',
     iconName: 'UtensilsCrossed'
   },
+  bookings: {
+    slug: 'bookings',
+    name: 'Agenda & Prenotazioni Salone',
+    description: 'Calendario appuntamenti per poltrona/operatore, turni staff, trattamenti e prenotazione online',
+    category: 'vertical',
+    defaultSort: 125,
+    navPath: '/dashboard/bookings',
+    iconName: 'CalendarCheck'
+  },
   products: {
     slug: 'products',
     name: 'Catalogo Prodotti & Articoli',
@@ -228,6 +241,27 @@ export const BUSINESS_TYPE_DEFINITIONS: Record<BusinessTypeSlug, BusinessTypeDef
     description: 'Gusti artigianali, allergeni, ruota premi e fidelizzazione clienti',
     defaultModules: ['analytics', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'coupons', 'universal_hub'],
     requiredModules: ['analytics', 'nfc_qr', 'universal_hub']
+  },
+  salon: {
+    slug: 'salon',
+    name: 'Salone Parrucchiere & Hair Studio',
+    description: 'Agenda appuntamenti per poltrona, gestione parrucchieri, listino trattamenti e fidelity',
+    defaultModules: ['analytics', 'bookings', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'coupons', 'universal_hub', 'staff'],
+    requiredModules: ['analytics', 'bookings', 'nfc_qr', 'universal_hub']
+  },
+  barber: {
+    slug: 'barber',
+    name: 'Barber Shop & Grooming',
+    description: 'Prenotazione taglio e barba con scelta barbiere, orari disponibili, fidelity pass e recensioni',
+    defaultModules: ['analytics', 'bookings', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'coupons', 'universal_hub', 'staff'],
+    requiredModules: ['analytics', 'bookings', 'nfc_qr', 'universal_hub']
+  },
+  beauty: {
+    slug: 'beauty',
+    name: 'Centro Estetico & SPA',
+    description: 'Prenotazione trattamenti viso/corpo, cabine, operatrici e pacchetti fedeltà',
+    defaultModules: ['analytics', 'bookings', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'coupons', 'universal_hub', 'staff'],
+    requiredModules: ['analytics', 'bookings', 'nfc_qr', 'universal_hub']
   },
   hotel: {
     slug: 'hotel',

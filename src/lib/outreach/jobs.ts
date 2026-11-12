@@ -1,0 +1,543 @@
+/**
+ * RIVO OUTREACH — Background Jobs & Asynchronous Campaign Processing Engine
+ * (`outreach_jobs`)
+ */
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getRegisteredDiscoveryProviders } from './providers/discovery';
+import { matchDuplicateInList } from './deduplication';
+import { analyzeProspectWithAI, generatePersonalizedSalesPitches } from './ai-intelligence';
+import { DEFAULT_RIVO_KNOWLEDGE_BASE, type RivoProductKnowledgeBase } from './knowledge-base';
+import type { OutreachProspectRecord } from './types';
+
+export interface OutreachJobRecord {
+  id: string;
+  job_type:
+    | 'discovery'
+    | 'deduplication'
+    | 'website_enrichment'
+    | 'ai_analysis'
+    | 'message_generation'
+    | 'campaign_execution'
+    | 'retention_cleanup';
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  payload: Record<string, any>;
+  result: Record<string, any> | null;
+  attempts: number;
+  max_attempts: number;
+  error_message: string | null;
+  created_by: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function loadActiveKnowledgeBase(
+  adminDb: SupabaseClient
+): Promise<RivoProductKnowledgeBase> {
+  const { data } = await adminDb
+    .from('outreach_settings')
+    .select('setting_value')
+    .eq('setting_key', 'rivo_knowledge_base')
+    .maybeSingle();
+
+  if (data?.setting_value && typeof data.setting_value === 'object') {
+    return {
+      ...DEFAULT_RIVO_KNOWLEDGE_BASE,
+      ...(data.setting_value as Partial<RivoProductKnowledgeBase>),
+    };
+  }
+  return DEFAULT_RIVO_KNOWLEDGE_BASE;
+}
+
+/**
+ * Executes a queued or running job in `outreach_jobs` with progress updates,
+ * retry tracking, idempotency, and cancellation checks.
+ */
+export async function processOutreachJob(
+  adminDb: SupabaseClient,
+  jobId: string,
+  adminUserId?: string
+): Promise<OutreachJobRecord | null> {
+  const { data: jobRow } = await adminDb
+    .from('outreach_jobs')
+    .select('*')
+    .eq('id', jobId)
+    .maybeSingle();
+
+  if (!jobRow) return null;
+  const job = jobRow as OutreachJobRecord;
+
+  if (job.status === 'cancelled' || job.status === 'completed') {
+    return job;
+  }
+
+  if (job.attempts >= job.max_attempts) {
+    const { data: failedJob } = await adminDb
+      .from('outreach_jobs')
+      .update({
+        status: 'failed',
+        error_message: job.error_message || 'Numero massimo di tentativi superato.',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', job.id)
+      .select('*')
+      .single();
+    return failedJob as OutreachJobRecord;
+  }
+
+  // Mark as running
+  await adminDb
+    .from('outreach_jobs')
+    .update({
+      status: 'running',
+      progress: 10,
+      attempts: (job.attempts || 0) + 1,
+      error_message: null,
+    })
+    .eq('id', job.id);
+
+  try {
+    const kb = await loadActiveKnowledgeBase(adminDb);
+
+    // ========================================================================
+    // JOB TYPE 1: DISCOVERY
+    // ========================================================================
+    if (job.job_type === 'discovery') {
+      const {
+        locationQuery = 'Milano',
+        radiusKm = 5,
+        category = 'food_beverage',
+        subcategory = 'restaurant',
+        maxResults = 20,
+        providerIds = ['openstreetmap_odbl'],
+      } = job.payload || {};
+
+      const providers = getRegisteredDiscoveryProviders().filter((p) =>
+        providerIds.includes(p.id)
+      );
+
+      const { data: existingRows } = await adminDb
+        .from('outreach_prospects')
+        .select('*')
+        .is('merged_into_id', null);
+      const existingList = (existingRows || []) as OutreachProspectRecord[];
+
+      let discoveredTotal = 0;
+      let insertedCount = 0;
+      let skippedDuplicates = 0;
+      const insertedIds: string[] = [];
+      const warnings: string[] = [];
+
+      for (const provider of providers) {
+        const searchRes = await provider.search({
+          locationQuery,
+          radiusKm: Number(radiusKm) || 5,
+          category,
+          subcategory,
+          maxResults: Number(maxResults) || 20,
+          enrichWebsites: true,
+        });
+
+        warnings.push(...searchRes.warnings);
+        discoveredTotal += searchRes.candidates.length;
+
+        await adminDb
+          .from('outreach_jobs')
+          .update({ progress: 55 })
+          .eq('id', job.id);
+
+        for (const cand of searchRes.candidates) {
+          const dupCheck = matchDuplicateInList(cand, existingList);
+          if (dupCheck.isDuplicate) {
+            skippedDuplicates++;
+            continue;
+          }
+
+          const { data: inserted, error: insErr } = await adminDb
+            .from('outreach_prospects')
+            .insert({
+              business_name: cand.business_name,
+              normalized_name: cand.normalized_name,
+              category: cand.category,
+              subcategory: cand.subcategory,
+              city: cand.city,
+              province: cand.province,
+              region: cand.region,
+              address: cand.address,
+              postal_code: cand.postal_code,
+              latitude: cand.latitude,
+              longitude: cand.longitude,
+              website: cand.website,
+              website_domain: cand.website_domain,
+              instagram_url: cand.instagram_url,
+              facebook_url: cand.facebook_url,
+              business_phone: cand.business_phone,
+              business_email: cand.business_email,
+              description: cand.description,
+              services_offered: cand.services_offered,
+              digital_signals: cand.digital_signals,
+              source: cand.source,
+              source_reference: cand.source_reference,
+              source_acquired_at: cand.source_acquired_at,
+              commercial_status: 'da_analizzare',
+            })
+            .select('*')
+            .maybeSingle();
+
+          if (!insErr && inserted) {
+            insertedCount++;
+            insertedIds.push(inserted.id);
+            existingList.push(inserted as OutreachProspectRecord);
+          } else {
+            skippedDuplicates++;
+          }
+        }
+      }
+
+      const resultSummary = {
+        discoveredTotal,
+        insertedCount,
+        skippedDuplicates,
+        insertedIds,
+        warnings,
+      };
+
+      const { data: completedJob } = await adminDb
+        .from('outreach_jobs')
+        .update({
+          status: 'completed',
+          progress: 100,
+          result: resultSummary,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', job.id)
+        .select('*')
+        .single();
+
+      return completedJob as OutreachJobRecord;
+    }
+
+    // ========================================================================
+    // JOB TYPE 2: AI ANALYSIS BATCH
+    // ========================================================================
+    if (job.job_type === 'ai_analysis') {
+      const prospectIds: string[] = Array.isArray(job.payload?.prospectIds)
+        ? job.payload.prospectIds
+        : [];
+
+      let analyzedCount = 0;
+      for (let i = 0; i < prospectIds.length; i++) {
+        const pid = prospectIds[i];
+        const { data: pRow } = await adminDb
+          .from('outreach_prospects')
+          .select('*')
+          .eq('id', pid)
+          .maybeSingle();
+
+        if (!pRow) continue;
+        const prospect = pRow as OutreachProspectRecord;
+        const analysis = await analyzeProspectWithAI(prospect, kb);
+
+        await Promise.all([
+          adminDb
+            .from('outreach_prospects')
+            .update({
+              lead_score: analysis.totalLeadScore,
+              confidence_score: analysis.confidenceScore,
+              ai_analysis: analysis,
+              commercial_status:
+                prospect.commercial_status === 'nuovo' ||
+                prospect.commercial_status === 'da_analizzare'
+                  ? 'analizzato'
+                  : prospect.commercial_status,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', prospect.id),
+          adminDb.from('outreach_ai_generations').insert({
+            prospect_id: prospect.id,
+            generation_type: 'business_intelligence',
+            prompt_version: 'v1.0',
+            generated_content: analysis,
+            model: analysis.modelUsed,
+          }),
+        ]);
+
+        analyzedCount++;
+        const progress = Math.min(95, Math.round(((i + 1) / Math.max(1, prospectIds.length)) * 90));
+        await adminDb.from('outreach_jobs').update({ progress }).eq('id', job.id);
+      }
+
+      const { data: completedJob } = await adminDb
+        .from('outreach_jobs')
+        .update({
+          status: 'completed',
+          progress: 100,
+          result: { analyzedCount },
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', job.id)
+        .select('*')
+        .single();
+
+      return completedJob as OutreachJobRecord;
+    }
+
+    // ========================================================================
+    // JOB TYPE 3: CAMPAIGN EXECUTION
+    // ========================================================================
+    if (job.job_type === 'campaign_execution') {
+      const campaignId = job.payload?.campaignId;
+      const { data: campaign } = await adminDb
+        .from('outreach_campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .maybeSingle();
+
+      if (!campaign || campaign.status === 'cancelled' || campaign.status === 'paused') {
+        const { data: cancelledJob } = await adminDb
+          .from('outreach_jobs')
+          .update({
+            status: 'cancelled',
+            result: { reason: 'Campagna in pausa o annullata.' },
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', job.id)
+          .select('*')
+          .single();
+        return cancelledJob as OutreachJobRecord;
+      }
+
+      const cfg = campaign.configuration || {};
+      const maxToAnalyze = Math.min(30, Number(cfg.maxProspects) || 10);
+      const minLeadScore = Number(cfg.minLeadScore) || 50;
+      const subcategory = cfg.subcategory || campaign.category;
+      const preferredVariant = cfg.preferredVariant || 'C_consultative';
+      const channel = cfg.channel || 'email';
+
+      // Step 1: Discover new prospects for campaign location & category
+      const osmProvider = getRegisteredDiscoveryProviders()[0];
+      const searchRes = await osmProvider.search({
+        locationQuery: campaign.location,
+        radiusKm: Number(cfg.radiusKm) || 5,
+        category: campaign.category,
+        subcategory,
+        maxResults: maxToAnalyze,
+        enrichWebsites: true,
+      });
+
+      const { data: existingRows } = await adminDb
+        .from('outreach_prospects')
+        .select('*')
+        .is('merged_into_id', null);
+      const existingList = (existingRows || []) as OutreachProspectRecord[];
+
+      const campaignProspects: OutreachProspectRecord[] = [];
+
+      for (const cand of searchRes.candidates) {
+        const dup = matchDuplicateInList(cand, existingList);
+        if (dup.isDuplicate && dup.matchedProspect) {
+          campaignProspects.push(dup.matchedProspect);
+          continue;
+        }
+
+        const { data: inserted } = await adminDb
+          .from('outreach_prospects')
+          .insert({
+            business_name: cand.business_name,
+            normalized_name: cand.normalized_name,
+            category: cand.category,
+            subcategory: cand.subcategory,
+            city: cand.city,
+            province: cand.province,
+            region: cand.region,
+            address: cand.address,
+            postal_code: cand.postal_code,
+            latitude: cand.latitude,
+            longitude: cand.longitude,
+            website: cand.website,
+            website_domain: cand.website_domain,
+            instagram_url: cand.instagram_url,
+            facebook_url: cand.facebook_url,
+            business_phone: cand.business_phone,
+            business_email: cand.business_email,
+            description: cand.description,
+            services_offered: cand.services_offered,
+            digital_signals: cand.digital_signals,
+            source: cand.source,
+            source_reference: cand.source_reference,
+            source_acquired_at: cand.source_acquired_at,
+            commercial_status: 'da_analizzare',
+          })
+          .select('*')
+          .maybeSingle();
+
+        if (inserted) {
+          const p = inserted as OutreachProspectRecord;
+          campaignProspects.push(p);
+          existingList.push(p);
+        }
+      }
+
+      await adminDb.from('outreach_jobs').update({ progress: 45 }).eq('id', job.id);
+
+      // Step 2, 3, 4, 5: Analyze, Qualify, Generate Draft Communications, Link to Campaign
+      let analyzed = 0;
+      let qualified = 0;
+      let draftsGenerated = 0;
+
+      for (const p of campaignProspects.slice(0, maxToAnalyze)) {
+        // Re-check if campaign was paused/cancelled mid-run
+        const { data: liveCamp } = await adminDb
+          .from('outreach_campaigns')
+          .select('status')
+          .eq('id', campaign.id)
+          .maybeSingle();
+        if (liveCamp?.status === 'paused' || liveCamp?.status === 'cancelled') {
+          break;
+        }
+
+        const analysis = await analyzeProspectWithAI(p, kb);
+        analyzed++;
+
+        const isQualified = analysis.totalLeadScore >= minLeadScore;
+        const nextStatus = isQualified ? 'da_contattare' : 'analizzato';
+
+        const { data: updatedP } = await adminDb
+          .from('outreach_prospects')
+          .update({
+            lead_score: analysis.totalLeadScore,
+            confidence_score: analysis.confidenceScore,
+            ai_analysis: analysis,
+            commercial_status:
+              p.commercial_status === 'convertito_in_cliente' ||
+              p.commercial_status === 'non_contattare'
+                ? p.commercial_status
+                : nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', p.id)
+          .select('*')
+          .single();
+
+        await adminDb.from('outreach_ai_generations').insert({
+          prospect_id: p.id,
+          generation_type: 'business_intelligence',
+          prompt_version: 'v1.0',
+          generated_content: analysis,
+          model: analysis.modelUsed,
+        });
+
+        let campProcStatus: 'analyzed' | 'qualified' | 'message_generated' | 'in_pipeline' = 'analyzed';
+
+        if (isQualified && updatedP) {
+          qualified++;
+          const pitchPayload = await generatePersonalizedSalesPitches(
+            updatedP as OutreachProspectRecord,
+            kb,
+            cfg.objective || undefined
+          );
+
+          await adminDb.from('outreach_ai_generations').insert({
+            prospect_id: p.id,
+            generation_type: 'sales_pitch',
+            prompt_version: pitchPayload.promptVersion,
+            generated_content: pitchPayload,
+            model: pitchPayload.modelUsed,
+          });
+
+          const chosenVariant =
+            pitchPayload.variants[preferredVariant as keyof typeof pitchPayload.variants] ||
+            pitchPayload.variants.C_consultative;
+
+          // Save strictly in Draft/Approval queue — never auto-send without compliance check
+          await adminDb.from('outreach_messages').insert({
+            prospect_id: p.id,
+            channel,
+            direction: 'outbound',
+            delivery_mode: cfg.deliveryMode === 'approval' ? 'approval' : 'draft',
+            subject: chosenVariant.subject,
+            content: chosenVariant.fullMessageBody,
+            variant_used: chosenVariant.variant,
+            provider_status: cfg.deliveryMode === 'approval' ? 'pending_approval' : 'draft',
+          });
+
+          draftsGenerated++;
+          campProcStatus = 'in_pipeline';
+        }
+
+        await adminDb.from('outreach_campaign_prospects').upsert(
+          {
+            campaign_id: campaign.id,
+            prospect_id: p.id,
+            processing_status: campProcStatus,
+          },
+          { onConflict: 'campaign_id,prospect_id' }
+        );
+      }
+
+      await adminDb
+        .from('outreach_campaigns')
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', campaign.id);
+
+      const { data: completedJob } = await adminDb
+        .from('outreach_jobs')
+        .update({
+          status: 'completed',
+          progress: 100,
+          result: {
+            discovered: campaignProspects.length,
+            analyzed,
+            qualified,
+            draftsGenerated,
+          },
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', job.id)
+        .select('*')
+        .single();
+
+      return completedJob as OutreachJobRecord;
+    }
+
+    // Default completion for other job types
+    const { data: doneJob } = await adminDb
+      .from('outreach_jobs')
+      .update({
+        status: 'completed',
+        progress: 100,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', job.id)
+      .select('*')
+      .single();
+
+    return doneJob as OutreachJobRecord;
+  } catch (err: any) {
+    const errMsg = err?.message || 'Errore durante l’elaborazione del job asincrono.';
+    const { data: failedJob } = await adminDb
+      .from('outreach_jobs')
+      .update({
+        status: 'failed',
+        error_message: errMsg,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', job.id)
+      .select('*')
+      .single();
+
+    if (adminUserId) {
+      await adminDb.from('outreach_activity_logs').insert({
+        action: 'job_failed',
+        metadata: { job_id: job.id, job_type: job.job_type, error: errMsg },
+        admin_user_id: adminUserId,
+      });
+    }
+
+    return failedJob as OutreachJobRecord;
+  }
+}

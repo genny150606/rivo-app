@@ -36,6 +36,9 @@ interface SmartBillModalProps {
   deviceId?: string | null;
   tableLabel: string;
   estimatedTotal?: string | null;
+  personalQuota?: number | null;
+  initialSplitCount?: number | null;
+  guestName?: string | null;
   onSuccess?: (details: { status: BillRequestStatus; intent: PaymentMethodIntent }) => void;
 }
 
@@ -64,6 +67,9 @@ export default function SmartBillModal({
   deviceId,
   tableLabel,
   estimatedTotal,
+  personalQuota,
+  initialSplitCount,
+  guestName,
   onSuccess,
 }: SmartBillModalProps) {
   const fileInputId = useId();
@@ -81,7 +87,17 @@ export default function SmartBillModal({
   const [customTotal, setCustomTotal] = useState<string>(
     estimatedTotal ? estimatedTotal.replace(/[^0-9.,]/g, '').replace(',', '.') : ''
   );
-  const [splitCount, setSplitCount] = useState<number>(1);
+  const [splitCount, setSplitCount] = useState<number>(
+    initialSplitCount && initialSplitCount > 0 ? initialSplitCount : 1
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const cleaned = estimatedTotal ? estimatedTotal.replace(/[^0-9.,]/g, '').replace(',', '.') : '';
+    const num = parseFloat(cleaned) || 0;
+    if (num > 0) setCustomTotal(num.toFixed(2));
+    if (initialSplitCount && initialSplitCount > 0) setSplitCount(initialSplitCount);
+  }, [isOpen, estimatedTotal, initialSplitCount]);
 
   // Electronic Invoice
   const [wantsInvoice, setWantsInvoice] = useState<boolean>(false);
@@ -594,19 +610,61 @@ export default function SmartBillModal({
               )}
             </div>
 
-            {/* SEZIONE 2: SPLIT "ALLA ROMANA" */}
+            {/* SEZIONE 2: SPLIT "ALLA ROMANA" O QUOTA PERSONALE */}
             <div className="bg-[#18181B] rounded-2xl p-4 border border-[#27272A] space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-[#BFFF00]" />
                   <span className="text-xs font-bold text-white uppercase tracking-wider">
-                    2. Dividi Spesa (Alla Romana)
+                    2. Dividi Spesa / La Tua Quota
                   </span>
                 </div>
                 <span className="text-[11px] text-zinc-400">
-                  {splitCount === 1 ? 'Conto Singolo' : `${splitCount} Persone`}
+                  {splitCount === 1 ? 'Conto Singolo / Personale' : `${splitCount} Persone`}
                 </span>
               </div>
+
+              {typeof personalQuota === 'number' && personalQuota > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      safeHaptic(12);
+                      setCustomTotal(personalQuota.toFixed(2));
+                      setSplitCount(1);
+                    }}
+                    className="p-2.5 rounded-xl bg-[#BFFF00]/15 hover:bg-[#BFFF00]/25 border border-[#BFFF00]/40 text-left transition-all cursor-pointer"
+                  >
+                    <span className="text-[10px] font-bold uppercase text-[#BFFF00] block">
+                      👤 Solo la mia quota {guestName ? `(${guestName})` : ''}
+                    </span>
+                    <span className="text-sm font-mono font-extrabold text-white">
+                      {personalQuota.toFixed(2)} €
+                    </span>
+                  </button>
+
+                  {estimatedTotal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        safeHaptic(12);
+                        const cleaned = estimatedTotal.replace(/[^0-9.,]/g, '').replace(',', '.');
+                        const val = parseFloat(cleaned) || 0;
+                        if (val > 0) setCustomTotal(val.toFixed(2));
+                        setSplitCount(initialSplitCount && initialSplitCount > 1 ? initialSplitCount : 2);
+                      }}
+                      className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all cursor-pointer"
+                    >
+                      <span className="text-[10px] font-bold uppercase text-zinc-300 block">
+                        👥 Totale Tavolo (Alla Romana)
+                      </span>
+                      <span className="text-sm font-mono font-extrabold text-white">
+                        {estimatedTotal}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between bg-black/40 rounded-xl p-2 border border-white/5">
                 <span className="text-xs text-zinc-300 pl-2">Numero commensali:</span>

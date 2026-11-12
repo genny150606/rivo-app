@@ -1,76 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { isValidUUID, sanitizeString, verifyUserOrgAccess } from '@/lib/security';
+import { findAssignedWaiterId, notifyTelegramStaff } from '@/lib/service-notify';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-interface OrderDetails {
-  items?: Array<{ name: string; quantity: number; price: string }>;
-  total?: string;
-  notes?: string;
-}
-
-async function notifyTelegramStaff(
-  orgId: string, 
-  tableLabel: string, 
-  type: string, 
-  orderDetails?: OrderDetails | null
-) {
-  try {
-    const { data: org } = await supabase
-      .from('organizations')
-      .select('name, telegram_bot_token, telegram_chat_id, telegram_alerts_enabled')
-      .eq('id', orgId)
-      .single();
-
-    if (!org || !org.telegram_alerts_enabled || !org.telegram_bot_token || !org.telegram_chat_id) {
-      return;
-    }
-
-    let msg = '';
-    if (type === 'dish_order' && orderDetails) {
-      const itemsList = (orderDetails.items || [])
-        .map((item) => `  • ${item.quantity}x ${item.name} (${item.price})`)
-        .join('\n');
-
-      msg = `[NUOVO ORDINE PIATTI AL TAVOLO]\n\n` +
-        `• Locale: ${org.name}\n` +
-        `• Postazione / Tavolo: ${tableLabel}\n` +
-        `• Portate Ordinate:\n${itemsList || '  (Nessun piatto specificato)'}\n` +
-        `• Totale: ${orderDetails.total || '0,00 €'}\n` +
-        (orderDetails.notes ? `• Note cliente: ${orderDetails.notes}\n` : '') +
-        `• Azione: Portare la comanda in cucina / cassa.`;
-    } else {
-      const typeLabels: Record<string, string> = {
-        waiter: 'Assistenza Cameriere / Staff',
-        bill_pos: 'Richiesta Conto con POS / Carta',
-        bill_cash: 'Richiesta Conto in Contanti',
-        dish_order: 'Nuovo Ordine Piatti',
-      };
-
-      const label = typeLabels[type] || 'Chiamata Servizio';
-
-      msg = `[CHIAMATA SERVIZIO AL TAVOLO]\n\n` +
-        `• Locale: ${org.name}\n` +
-        `• Postazione / Tavolo: ${tableLabel}\n` +
-        `• Tipo Richiesta: ${label}\n\n` +
-        `• Azione: Servire il cliente al tavolo.`;
-    }
-
-    await fetch(`https://api.telegram.org/bot${org.telegram_bot_token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: org.telegram_chat_id,
-        text: msg,
-      }),
-    });
-  } catch (err) {
-    console.warn('[Service Call] Telegram dispatch error:', err);
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -106,20 +41,7 @@ export async function POST(request: NextRequest) {
     const cleanTableLabel = sanitizeString(table_label, 50) || 'Tavolo';
 
     // Staff Routing: Look up assigned waiter for this table/device if available
-    let assignedWaiterId: string | null = null;
-    if (device_id) {
-      const { data: activeAssignment } = await supabase
-        .from('table_assignments')
-        .select('waiter_id')
-        .eq('organization_id', organization_id)
-        .eq('device_id', device_id)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      if (activeAssignment?.waiter_id) {
-        assignedWaiterId = activeAssignment.waiter_id;
-      }
-    }
+    const assignedWaiterId = await findAssignedWaiterId(supabase, organization_id, device_id);
 
     const { data, error } = await supabase
       .from('service_calls')
@@ -140,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Notify staff on Telegram if configured
-    notifyTelegramStaff(organization_id, cleanTableLabel, cleanType, order_details);
+    notifyTelegramStaff(supabase, organization_id, cleanTableLabel, cleanType, order_details);
 
     return NextResponse.json({ success: true, call: data });
   } catch (err: unknown) {

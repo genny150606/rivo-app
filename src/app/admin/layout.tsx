@@ -13,7 +13,15 @@ import {
   Menu, 
   X, 
   ShieldCheck,
-  LayoutDashboard
+  LayoutDashboard,
+  Radar,
+  Search,
+  Users,
+  Cpu,
+  Megaphone,
+  MessageSquare,
+  Kanban,
+  SlidersHorizontal
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -21,6 +29,17 @@ const adminNavItems = [
   { label: 'Command Center', href: '/admin', icon: LayoutDashboard },
   { label: 'Organizzazioni', href: '/admin/organizations', icon: Building2 },
   { label: 'Tutti i Dispositivi', href: '/admin/devices', icon: Layers },
+];
+
+const outreachNavItems = [
+  { label: 'Overview', href: '/admin/outreach', icon: Radar, exact: true },
+  { label: 'Ricerca attività', href: '/admin/outreach/discovery', icon: Search },
+  { label: 'Prospect', href: '/admin/outreach/prospects', icon: Users },
+  { label: 'AI Intelligence', href: '/admin/outreach/intelligence', icon: Cpu },
+  { label: 'Campagne', href: '/admin/outreach/campaigns', icon: Megaphone },
+  { label: 'Comunicazioni', href: '/admin/outreach/communications', icon: MessageSquare },
+  { label: 'Pipeline commerciale', href: '/admin/outreach/pipeline', icon: Kanban },
+  { label: 'Impostazioni', href: '/admin/outreach/settings', icon: SlidersHorizontal },
 ];
 
 interface AdminSidebarContentProps {
@@ -70,9 +89,9 @@ function AdminSidebarContent({ pathname, onLogout, onNavigate }: AdminSidebarCon
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
-                className={`flex items-center gap-3 px-3.5 min-h-[44px] rounded-lg text-sm font-medium transition-all active:scale-[0.98] ${
+                className={`flex items-center gap-3 px-3.5 min-h-[40px] rounded-md text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-[#18181B] text-[#BFFF00]'
+                    ? 'bg-[#18181B] text-[#BFFF00] border-l-2 border-[#BFFF00]'
                     : 'text-zinc-400 hover:text-white hover:bg-[#18181B]/50'
                 }`}
               >
@@ -82,6 +101,41 @@ function AdminSidebarContent({ pathname, onLogout, onNavigate }: AdminSidebarCon
             );
           })}
         </nav>
+
+        {/* OUTREACH Module Section */}
+        <div className="mt-6 pt-5 border-t border-[#27272A]">
+          <div className="px-3.5 mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-[#BFFF00]">
+              OUTREACH
+            </span>
+            <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 bg-[#18181B] border border-[#27272A] text-zinc-400">
+              BI & SALES
+            </span>
+          </div>
+          <nav className="space-y-0.5">
+            {outreachNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavigate}
+                  className={`flex items-center gap-2.5 px-3.5 min-h-[36px] rounded-md text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-[#18181B] text-[#BFFF00] border-l-2 border-[#BFFF00]'
+                      : 'text-zinc-400 hover:text-white hover:bg-[#18181B]/50'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
       {/* Footer / Switch to client dashboard & logout */}
