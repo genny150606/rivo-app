@@ -104,18 +104,45 @@ BEGIN
   END IF;
 END $$;
 
--- 5. REGISTER 'bookings' MODULE IN MULTI-VERTICAL ENGINE (IF TABLE EXISTS)
+-- 5. REGISTER 'bookings' MODULE & SALON/BARBER/BEAUTY BUSINESS TYPES IN MULTI-VERTICAL ENGINE
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'modules') THEN
-    INSERT INTO public.modules (slug, name, description, category, default_sort)
+    INSERT INTO public.modules (slug, name, description, category, active, sort_order, version)
     VALUES (
       'bookings',
       'Agenda & Prenotazioni Salone',
       'Calendario appuntamenti per poltrona/operatore, turni staff e prenotazione online per Barber e Parrucchieri',
       'vertical',
-      125
+      true,
+      125,
+      '1.0.0'
     )
-    ON CONFLICT (slug) DO NOTHING;
+    ON CONFLICT (slug) DO UPDATE
+      SET name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          active = true;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_types') THEN
+    INSERT INTO public.business_types (slug, name, description, active, sort_order)
+    VALUES
+      ('salon', 'Salone Parrucchiere & Hair Styling', 'Gestione agenda appuntamenti, poltrone, stilisti, trattamenti colore/piega e fidelizzazione clienti', true, 45),
+      ('barber', 'Barber Shop & Grooming', 'Prenotazione rapida taglio e barba, scelta barbiere, gestione turni, fidelizzazione e recensioni Google', true, 46),
+      ('beauty', 'Centro Estetico & Beauty SPA', 'Prenotazioni cabina e operatore, listino trattamenti estetici, pacchetti fedeltà e promo', true, 47)
+    ON CONFLICT (slug) DO UPDATE
+      SET name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          active = true;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_type_modules') THEN
+    INSERT INTO public.business_type_modules (business_type_id, module_id, enabled_by_default, required, sort_order)
+    SELECT bt.id, m.id, true, (m.slug IN ('analytics', 'bookings')), m.sort_order
+    FROM public.business_types bt
+    CROSS JOIN public.modules m
+    WHERE bt.slug IN ('salon', 'barber', 'beauty')
+      AND m.slug IN ('analytics', 'crm', 'nfc_qr', 'review_shield', 'loyalty', 'coupons', 'smart_router', 'universal_hub', 'bookings', 'staff')
+    ON CONFLICT DO NOTHING;
   END IF;
 END $$;

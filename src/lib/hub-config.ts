@@ -675,10 +675,12 @@ export function mergeHubConfig(
   // Add any default modules missing from saved
   for (const def of defaultList) {
     if (!seenIds.has(def.id)) {
+      const isSalonBookings =
+        def.id === 'bookings' && (category === 'salon' || category === 'barber' || category === 'beauty');
       mergedModules.push({
         ...def,
         colSpan: def.colSpan ?? 1,
-        order: mergedModules.length + 1,
+        order: isSalonBookings ? 0 : mergedModules.length + 1,
       });
       seenIds.add(def.id);
     }

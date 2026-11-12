@@ -185,6 +185,10 @@ export default function NewOrganizationWizard() {
     else if (catId === 'bnb') mappedBt = 'bb';
     else if (catId === 'bar') mappedBt = 'bar';
     else if (catId === 'pizzeria') mappedBt = 'pizzeria';
+    else if ((catId as string) === 'gelateria') mappedBt = 'gelateria';
+    else if (catId === 'salon') mappedBt = 'salon';
+    else if (catId === 'barber') mappedBt = 'barber';
+    else if (catId === 'beauty') mappedBt = 'beauty';
     else if (catId === 'retail' || catId === 'store') mappedBt = 'retail';
     else if (catId === 'fitness') mappedBt = 'gym';
     else if (catId === 'medical' || catId === 'dental') mappedBt = 'medical_studio';

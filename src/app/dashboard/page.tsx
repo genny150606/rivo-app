@@ -10,9 +10,12 @@ import {
   BellRing, 
   ExternalLink,
   CheckCircle2,
-  Clock
+  Clock,
+  CalendarDays,
+  Scissors,
+  Users
 } from 'lucide-react';
-import { getVertical } from '@/platform/verticals/registry';
+import { getVertical, VERTICAL_REGISTRY } from '@/platform/verticals/registry';
 import { BusinessTypeSlug } from '@/platform/modules/registry';
 import RetailDashboardOverview from '@/components/dashboard/RetailDashboardOverview';
 
@@ -28,6 +31,7 @@ interface DeviceSummary {
   id: string;
   name: string;
   unique_code: string;
+  status: string;
 }
 
 export default async function DashboardOverview() {
@@ -36,6 +40,10 @@ export default async function DashboardOverview() {
   const { data: { user } } = await supabase.auth.getUser();
   
   let orgName = 'La tua attività';
+  let isSalonOrBarber = false;
+  let todayBookingsCount = 0;
+  let activeStaffCount = 0;
+  let servicesCatalogCount = 0;
   let totalInteractions = 0;
   let nfcInteractions = 0;
   let qrInteractions = 0;
@@ -70,10 +78,17 @@ export default async function DashboardOverview() {
         .single();
       if (org) orgName = org.name;
 
-      let bType = ((org as any)?.business_type || org?.category || 'restaurant') as BusinessTypeSlug;
+      const rawCategory = (org?.category || '') as string;
+      const rawBt = ((org as any)?.business_type || '') as string;
+      let bType = (
+        rawCategory && rawCategory in VERTICAL_REGISTRY
+          ? rawCategory
+          : rawBt || rawCategory || 'restaurant'
+      ) as BusinessTypeSlug;
       if ((bType as any) === 'store' || (bType as any) === 'retail') {
         bType = 'shoe_store';
       }
+      isSalonOrBarber = ['salon', 'barber', 'beauty'].includes(bType);
       const vertical = getVertical(bType);
       const isRetail = vertical?.dashboardType === 'retail';
 
@@ -195,6 +210,31 @@ export default async function DashboardOverview() {
         .in('status', ['pending', 'in_progress']);
 
       activeServiceCallsCount = pendingCalls || 0;
+
+      if (isSalonOrBarber) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const [{ count: bCount }, { count: stCount }, { count: srvCount }] = await Promise.all([
+          supabase
+            .from('salon_bookings')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', targetOrgId)
+            .eq('booking_date', todayStr)
+            .neq('status', 'cancelled'),
+          supabase
+            .from('salon_staff')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', targetOrgId)
+            .eq('is_active', true),
+          supabase
+            .from('salon_services')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', targetOrgId)
+            .eq('is_active', true),
+        ]);
+        todayBookingsCount = bCount || 0;
+        activeStaffCount = stCount || 0;
+        servicesCatalogCount = srvCount || 0;
+      }
     }
   }
 
@@ -211,16 +251,27 @@ export default async function DashboardOverview() {
               {orgName}
             </h1>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-zinc-700/60">
-              Live Fleet
+              {isSalonOrBarber ? 'Beauty & Barber OS' : 'Live Fleet'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Control Room unificata per ingressi contactless, richieste di servizio e telemetria dei tavoli.
+            {isSalonOrBarber
+              ? 'Gestione agenda appuntamenti, disponibilità parrucchieri/barbieri, listino trattamenti e Hub cliente.'
+              : 'Control Room unificata per ingressi contactless, richieste di servizio e telemetria dei tavoli.'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {activeServiceCallsCount > 0 && (
+          {isSalonOrBarber && (
+            <Link
+              href="/dashboard/bookings"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-500 text-zinc-950 text-xs font-bold hover:bg-emerald-400 transition-colors shadow-sm"
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Agenda & Prenotazioni</span>
+            </Link>
+          )}
+          {!isSalonOrBarber && activeServiceCallsCount > 0 && (
             <Link
               href="/dashboard/service"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-colors"
@@ -238,6 +289,39 @@ export default async function DashboardOverview() {
           </Link>
         </div>
       </div>
+
+      {isSalonOrBarber && (
+        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/25 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center shrink-0">
+              <Scissors className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                Gestore Prenotazioni Salone & Barberia Attivo
+              </h2>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Oggi hai <strong className="text-slate-900 dark:text-white">{todayBookingsCount} appuntamenti</strong> in agenda, <strong className="text-slate-900 dark:text-white">{activeStaffCount} operatori</strong> attivi e <strong className="text-slate-900 dark:text-white">{servicesCatalogCount} trattamenti</strong> prenotabili dall&apos;Hub cliente.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Link
+              href="/dashboard/bookings"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold transition-colors"
+            >
+              <CalendarDays className="w-4 h-4" />
+              Apri Calendario & Staff
+            </Link>
+            <Link
+              href="/dashboard/hub-studio"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Personalizza Hub Cliente
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Metric Cards - Linear / Stripe Style */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

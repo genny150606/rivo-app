@@ -22,7 +22,7 @@ export type AdminAuthResult =
 export async function verifySuperAdminAccess(request: NextRequest): Promise<AdminAuthResult> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   const sessionClient = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -62,9 +62,11 @@ export async function verifySuperAdminAccess(request: NextRequest): Promise<Admi
     };
   }
 
-  const adminDb = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const adminDb: SupabaseClient = serviceRoleKey
+    ? createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : (sessionClient as unknown as SupabaseClient);
 
   return {
     authorized: true,

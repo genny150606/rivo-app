@@ -207,9 +207,18 @@ export default function DashboardLayout({
             .single();
 
           let resolvedCategory: BusinessTypeSlug = 'shoe_store';
-          const candidate = ((org as any)?.business_type || org?.category || 'shoe_store') as string;
+          const rawCategory = (org?.category || '') as string;
+          const rawBt = ((org as any)?.business_type || '') as string;
+          // Prefer org.category when it is a specific vertical in VERTICAL_REGISTRY
+          const candidate =
+            rawCategory && rawCategory in VERTICAL_REGISTRY
+              ? rawCategory
+              : rawBt || rawCategory || 'shoe_store';
+
           if (candidate in VERTICAL_REGISTRY) {
             resolvedCategory = candidate as BusinessTypeSlug;
+          } else if (candidate === 'bnb') {
+            resolvedCategory = 'bb';
           } else if (candidate === 'store' || candidate === 'retail') {
             resolvedCategory = 'shoe_store';
           } else {
@@ -220,6 +229,8 @@ export default function DashboardLayout({
             setOrgName(org?.name || null);
             setCategory(resolvedCategory);
           }
+
+          const isBeautyOrBarber = ['salon', 'barber', 'beauty'].includes(resolvedCategory);
 
           // Fetch organization modules
           const { data: orgMods } = await supabase
@@ -234,11 +245,23 @@ export default function DashboardLayout({
 
           if (orgMods && orgMods.length > 0 && isMounted) {
             const enabledSet = new Set<ModuleSlug>();
+            let bookingsExplicitlyDisabled = false;
             for (const om of orgMods) {
               const mod = (Array.isArray(om.modules) ? om.modules[0] : om.modules) as { slug?: string } | null;
+              if (mod?.slug === 'bookings' && om.enabled === false) {
+                bookingsExplicitlyDisabled = true;
+              }
               if (om.enabled && mod?.slug) {
                 enabledSet.add(mod.slug as ModuleSlug);
               }
+            }
+            if (isBeautyOrBarber) {
+              if (!bookingsExplicitlyDisabled) {
+                enabledSet.add('bookings');
+              }
+              enabledSet.delete('table_service');
+              enabledSet.delete('service_calls');
+              enabledSet.delete('canva_menu');
             }
             setActiveModules(enabledSet);
           } else if (isMounted) {
@@ -299,6 +322,8 @@ export default function DashboardLayout({
     ? 'Retail OS' 
     : (category === 'hotel' || category === 'bb')
     ? 'Hotel OS'
+    : ['salon', 'barber', 'beauty'].includes(category || '')
+    ? 'Beauty & Barber OS'
     : ['restaurant', 'bar', 'pizzeria', 'gelateria'].includes(category || '')
     ? 'Hospitality OS'
     : 'Modular OS';
