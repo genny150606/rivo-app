@@ -9,7 +9,12 @@ import {
   Ban,
   RefreshCw,
   Reply,
+  ExternalLink,
+  Link2,
+  Copy,
+  Check,
 } from 'lucide-react';
+import { buildProspectDemoUrl } from '@/lib/outreach/preview';
 import type {
   LegalBasisType,
   OutreachChannel,
@@ -76,6 +81,8 @@ function OutreachCommunicationsContent() {
 
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [copiedDemoLink, setCopiedDemoLink] = useState(false);
+  const [loadedProspect, setLoadedProspect] = useState<OutreachProspectRecord | null>(null);
 
   const loadCommunicationsData = useCallback(async () => {
     try {
@@ -108,6 +115,9 @@ function OutreachCommunicationsContent() {
     fetch(`/api/admin/outreach/prospects?id=${selectedProspectId}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
+        if (json.prospect) {
+          setLoadedProspect(json.prospect);
+        }
         if (json.messages && json.messages.length > 0) {
           const approvedMsg = json.messages.find(
             (m: { provider_status: string }) => m.provider_status === 'approved'
@@ -131,6 +141,13 @@ function OutreachCommunicationsContent() {
       })
       .catch(() => {});
   }, [selectedProspectId]);
+
+  const selectedProspect =
+    prospects.find((p) => p.id === selectedProspectId) ||
+    (loadedProspect?.id === selectedProspectId ? loadedProspect : null);
+  const selectedDemoUrl = selectedProspect
+    ? buildProspectDemoUrl(selectedProspect.business_name, selectedProspect.id)
+    : null;
 
   const handleRegisterPermission = async () => {
     if (!selectedProspectId) return;
@@ -512,9 +529,68 @@ function OutreachCommunicationsContent() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-mono uppercase text-[#A1A1AA] mb-1">
-                Testo della Comunicazione *
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <label className="block text-[11px] font-mono uppercase text-[#A1A1AA]">
+                  Testo della Comunicazione *
+                </label>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {selectedDemoUrl ? (
+                    <a
+                      href={selectedDemoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0D0D10] border border-[#27272A] hover:border-[#BFFF00] text-[11px] text-[#FAFAFA]"
+                    >
+                      <ExternalLink className="w-3 h-3 text-[#BFFF00]" />
+                      Apri Demo
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0D0D10] border border-[#27272A] text-[11px] text-[#71717A] opacity-50">
+                      <ExternalLink className="w-3 h-3" />
+                      Apri Demo
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={!selectedDemoUrl}
+                    onClick={() => {
+                      if (!selectedDemoUrl) return;
+                      navigator.clipboard.writeText(selectedDemoUrl);
+                      setCopiedDemoLink(true);
+                      setTimeout(() => setCopiedDemoLink(false), 2000);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0D0D10] border border-[#27272A] hover:border-[#BFFF00] text-[11px] text-[#FAFAFA] disabled:opacity-45 disabled:cursor-not-allowed"
+                  >
+                    {copiedDemoLink ? (
+                      <>
+                        <Check className="w-3 h-3 text-[#BFFF00]" />
+                        Copiato
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        Copia Link Demo
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!selectedProspect || !selectedDemoUrl || content.includes('/preview/')}
+                    onClick={() => {
+                      if (!selectedProspect || !selectedDemoUrl || content.includes('/preview/')) return;
+                      const snippet = `Ho preparato anche un'anteprima interattiva RIVO dedicata a ${selectedProspect.business_name} (senza login né impegno): ${selectedDemoUrl}`;
+                      setContent((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${snippet}` : snippet));
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#18181B] border border-[#BFFF00]/50 hover:border-[#BFFF00] text-[11px] font-medium text-[#BFFF00] disabled:opacity-45 disabled:cursor-not-allowed"
+                  >
+                    <Link2 className="w-3 h-3" />
+                    Inserisci Link Demo nel Testo
+                  </button>
+                </div>
+              </div>
               <textarea
                 rows={7}
                 required

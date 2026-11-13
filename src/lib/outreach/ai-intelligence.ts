@@ -13,6 +13,7 @@ import {
   type RivoOpportunityItem,
 } from './types';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE, type RivoProductKnowledgeBase } from './knowledge-base';
+import { buildProspectDemoUrl } from '@/lib/outreach/preview';
 
 /**
  * Extracts only verifiable facts from a prospect record.
@@ -682,10 +683,11 @@ export function validatePitchAgainstHallucinations(
   return { valid, notes };
 }
 
-function buildDeterministicPitchVariants(
+export function buildDeterministicPitchVariants(
   prospect: OutreachProspectRecord,
   analysis: OutreachAIAnalysis
 ): OutreachPitchGenerationPayload['variants'] {
+  const demoUrl = buildProspectDemoUrl(prospect.business_name, prospect.id);
   const subDef = findSubcategoryDef(prospect.subcategory || prospect.category);
   const cityPhrase = prospect.city ? ` a ${prospect.city}` : '';
   const topOpp = analysis.opportunities[0] || {
@@ -735,7 +737,7 @@ function buildDeterministicPitchVariants(
     `Modulo RIVO: ${topOpp.moduleName}`,
   ];
 
-  // Variant A: Professional
+  // Variant A: Professional (cold email first touch — kept free of demo URLs for deliverability)
   const A_professional: OutreachPitchVariantContent = {
     variant: 'A_professional',
     label: 'Approccio A — Professionale',
@@ -750,7 +752,8 @@ function buildDeterministicPitchVariants(
     factsReferenced,
   };
 
-  // Variant B: Informal
+  // Variant B: Informal (WhatsApp / Direct Message — automatically embeds personalized interactive preview)
+  const bDemoCta = `Ho già preparato un’anteprima interattiva RIVO su misura per ${prospect.business_name} (senza login né impegno) che puoi provare subito in 30 secondi: ${demoUrl}`;
   const B_informal: OutreachPitchVariantContent = {
     variant: 'B_informal',
     label: 'Approccio B — Informale',
@@ -764,18 +767,19 @@ function buildDeterministicPitchVariants(
       : `Sappiamo quanto faccia piacere ai clienti avere tutto a portata di mano al tavolo — dal menù interattivo fino alla chiamata rapida e alle recensioni Google — semplicemente avvicinando il telefono.`,
     rivoModuleConnection: `Con RIVO creiamo il vostro Hub NFC/QR su misura per ${touchpointName}, pronto all’uso in pochi minuti e senza app da scaricare.`,
     commercialProposal: `Ci farebbe piacere farvi provare dal vivo una demo già personalizzata con i moduli più usati nel vostro settore.`,
-    callToAction: `Se vi va, rispondete a questo messaggio e vi inviamo il link di anteprima gratuito senza alcun impegno.`,
+    callToAction: bDemoCta,
     fullMessageBody: `Ciao team di ${prospect.business_name}!\n\nAbbiamo visto i riferimenti pubblici della vostra attività di ${subDef.label.toLowerCase()}${cityPhrase}${
       prospect.website ? ` e il vostro sito ${prospect.website}` : ''
     }.\n\n${
       isBeautyOrBarber
         ? 'Sappiamo quanto sia comodo per i clienti vedere gli orari disponibili di ogni barbiere/parrucchiere e prenotare il trattamento dal telefono con un tocco, lasciando anche una recensione a fine taglio.'
         : 'Sappiamo quanto faccia piacere ai clienti avere tutto a portata di mano al tavolo — dal menù interattivo fino alla chiamata rapida e alle recensioni Google — semplicemente avvicinando il telefono.'
-    }\n\nCon RIVO creiamo il vostro Hub NFC/QR su misura per ${touchpointName}, pronto all’uso in pochi minuti e senza app da scaricare.\n\nSe vi va, rispondete a questo messaggio e vi inviamo il link di anteprima gratuito senza alcun impegno.\n\nA presto,\nTeam RIVO`,
+    }\n\nCon RIVO creiamo il vostro Hub NFC/QR su misura per ${touchpointName}, pronto all’uso in pochi minuti e senza app da scaricare.\n\n${bDemoCta}\n\nA presto,\nTeam RIVO`,
     factsReferenced,
   };
 
-  // Variant C: Consultative
+  // Variant C: Consultative (automatically embeds personalized interactive preview)
+  const cDemoCta = `Per farti toccare con mano il funzionamento, abbiamo configurato una demo interattiva dedicata a ${prospect.business_name} pronta da testare qui: ${demoUrl}`;
   const C_consultative: OutreachPitchVariantContent = {
     variant: 'C_consultative',
     label: 'Approccio C — Consulenziale',
@@ -787,10 +791,10 @@ function buildDeterministicPitchVariants(
       secondOpp ? ` abbinato a "${secondOpp.moduleName}"` : ''
     }, ogni cliente presente fisicamente da ${prospect.business_name} può interagire in 1 secondo avvicinando lo smartphone a ${touchpointName}.`,
     commercialProposal: `Possiamo condividere con voi la scheda tecnica con i casi d’uso specifici per ${subDef.label} e simulare l’Hub con la vostra identità visiva.`,
-    callToAction: `Qual è il momento migliore per sentirci 5 minuti e mostrarvi l’anteprima dedicata a ${prospect.business_name}?`,
+    callToAction: cDemoCta,
     fullMessageBody: `Buongiorno a chi gestisce ${prospect.business_name},\n\n${factualObservation}\n\nDall’analisi dei punti di contatto digitali pubblici emerge un’opportunità concreta: ${topOpp.rationale}\n\nAttraverso il modulo RIVO "${topOpp.moduleName}"${
       secondOpp ? ` abbinato a "${secondOpp.moduleName}"` : ''
-    }, ogni cliente presente fisicamente da ${prospect.business_name} può interagire in 1 secondo avvicinando lo smartphone a ${touchpointName}.\n\nQual è il momento migliore per sentirci 5 minuti e mostrarvi l’anteprima dedicata a ${prospect.business_name}?\n\nCordiali saluti,\nTeam RIVO`,
+    }, ogni cliente presente fisicamente da ${prospect.business_name} può interagire in 1 secondo avvicinando lo smartphone a ${touchpointName}.\n\n${cDemoCta}\n\nCordiali saluti,\nTeam RIVO`,
     factsReferenced,
   };
 
@@ -801,12 +805,33 @@ function buildDeterministicPitchVariants(
   };
 }
 
+function ensureVariantIncludesDemoUrl(
+  variant: OutreachPitchVariantContent,
+  demoUrl: string,
+  fallbackClosingLine: string
+): OutreachPitchVariantContent {
+  const hasInBody = variant.fullMessageBody.includes(demoUrl);
+  const hasInCta = (variant.callToAction || '').includes(demoUrl);
+  return {
+    ...variant,
+    callToAction: hasInCta
+      ? variant.callToAction
+      : variant.callToAction
+      ? `${variant.callToAction.trim()} ${fallbackClosingLine}`
+      : fallbackClosingLine,
+    fullMessageBody: hasInBody
+      ? variant.fullMessageBody
+      : `${variant.fullMessageBody.trim()}\n\n${fallbackClosingLine}`,
+  };
+}
+
 export async function generatePersonalizedSalesPitches(
   prospect: OutreachProspectRecord,
   kb: RivoProductKnowledgeBase = DEFAULT_RIVO_KNOWLEDGE_BASE,
   customFocusNote?: string
 ): Promise<OutreachPitchGenerationPayload> {
   const analysis = prospect.ai_analysis || (await analyzeProspectWithAI(prospect, kb));
+  const demoUrl = buildProspectDemoUrl(prospect.business_name, prospect.id);
   const deterministicVariants = buildDeterministicPitchVariants(prospect, analysis);
 
   let finalVariants = deterministicVariants;
@@ -820,9 +845,9 @@ export async function generatePersonalizedSalesPitches(
       const verifiedFacts = extractVerifiedFactsFromProspect(prospect);
       const prompt = `Sei il Senior Sales Consultant di RIVO (${kb.positioningSummary}).
 Genera 3 varianti di comunicazione commerciale B2B in italiano per il seguente prospect:
-- Approccio A (A_professional): formale, diretto e istituzionale.
-- Approccio B (B_informal): naturale, cordiale, adatto a un imprenditore locale.
-- Approccio C (C_consultative): parte dall'opportunità concreta individuata nell'analisi.
+- Approccio A (A_professional): formale, diretto e istituzionale per primo contatto email a freddo. NON inserire alcun URL o link (nemmeno link demo) in callToAction o fullMessageBody per proteggere la deliverability email.
+- Approccio B (B_informal): naturale, cordiale, adatto a WhatsApp o messaggio diretto verso un imprenditore locale. DEVE invitare il prospect a provare la propria anteprima interattiva dedicata inserendo questo link esatto in callToAction e fullMessageBody: ${demoUrl}
+- Approccio C (C_consultative): consulenziale, parte dall'opportunità concreta individuata nell'analisi. DEVE invitare il prospect a testare la demo interattiva dedicata inserendo questo link esatto in callToAction e fullMessageBody: ${demoUrl}
 
 FATTI VERIFICATI SUL PROSPECT (NON INVENTARE NULLA OLTRE A QUESTI):
 ${verifiedFacts.map((f) => `- ${f}`).join('\n')}
@@ -864,6 +889,29 @@ Restituisci un JSON con la chiave "variants" contenente "A_professional", "B_inf
             const checkC = validatePitchAgainstHallucinations(v.C_consultative.fullMessageBody, prospect);
 
             if (checkA.valid && checkB.valid && checkC.valid) {
+              const enforcedB = ensureVariantIncludesDemoUrl(
+                {
+                  ...deterministicVariants.B_informal,
+                  ...v.B_informal,
+                  variant: 'B_informal',
+                  label: 'Approccio B — Informale',
+                  factsReferenced: deterministicVariants.B_informal.factsReferenced,
+                },
+                demoUrl,
+                `Ho già preparato un’anteprima interattiva RIVO su misura per ${prospect.business_name} (senza login né impegno) che puoi provare subito in 30 secondi: ${demoUrl}`
+              );
+              const enforcedC = ensureVariantIncludesDemoUrl(
+                {
+                  ...deterministicVariants.C_consultative,
+                  ...v.C_consultative,
+                  variant: 'C_consultative',
+                  label: 'Approccio C — Consulenziale',
+                  factsReferenced: deterministicVariants.C_consultative.factsReferenced,
+                },
+                demoUrl,
+                `Per farti toccare con mano il funzionamento, abbiamo configurato una demo interattiva dedicata a ${prospect.business_name} pronta da testare qui: ${demoUrl}`
+              );
+
               finalVariants = {
                 A_professional: {
                   ...deterministicVariants.A_professional,
@@ -872,20 +920,8 @@ Restituisci un JSON con la chiave "variants" contenente "A_professional", "B_inf
                   label: 'Approccio A — Professionale',
                   factsReferenced: deterministicVariants.A_professional.factsReferenced,
                 },
-                B_informal: {
-                  ...deterministicVariants.B_informal,
-                  ...v.B_informal,
-                  variant: 'B_informal',
-                  label: 'Approccio B — Informale',
-                  factsReferenced: deterministicVariants.B_informal.factsReferenced,
-                },
-                C_consultative: {
-                  ...deterministicVariants.C_consultative,
-                  ...v.C_consultative,
-                  variant: 'C_consultative',
-                  label: 'Approccio C — Consulenziale',
-                  factsReferenced: deterministicVariants.C_consultative.factsReferenced,
-                },
+                B_informal: enforcedB,
+                C_consultative: enforcedC,
               };
               modelUsed = 'gemini-2.5-flash';
             }
@@ -907,6 +943,7 @@ Restituisci un JSON con la chiave "variants" contenente "A_professional", "B_inf
     promptVersion: 'v1.0-anti-hallucination',
     hallucinationCheckPassed: validation.valid,
     hallucinationCheckNotes: validation.notes,
+    demoUrl,
     variants: finalVariants,
   };
 }

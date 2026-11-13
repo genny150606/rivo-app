@@ -364,6 +364,7 @@ export interface OutreachPitchGenerationPayload {
   promptVersion: string;
   hallucinationCheckPassed: boolean;
   hallucinationCheckNotes: string[];
+  demoUrl?: string;
   variants: {
     A_professional: OutreachPitchVariantContent;
     B_informal: OutreachPitchVariantContent;

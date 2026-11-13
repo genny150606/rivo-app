@@ -11,7 +11,15 @@ import {
   computeExplainableLeadScore,
   validatePitchAgainstHallucinations,
   analyzeProspectsBatchWithAI,
+  buildDeterministicPitchVariants,
+  generatePersonalizedSalesPitches,
 } from '@/lib/outreach/ai-intelligence';
+import {
+  buildProspectDemoUrl,
+  encodePreviewSlug,
+  decodeProspectIdFromSlug,
+  resolveDemoVertical,
+} from '@/lib/outreach/preview';
 import { OutreachComplianceService } from '@/lib/outreach/compliance';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE } from '@/lib/outreach/knowledge-base';
 import {
@@ -316,6 +324,83 @@ describe('RIVO OUTREACH — Campania & Maps Discovery Engine', () => {
           expect(nq).not.toContain('&');
         }
       }
+    }
+  });
+});
+
+describe('RIVO OUTREACH — Personalized Interactive Preview & Decision A2 Pitches', () => {
+  it('encodes and decodes preview slugs with accented names, raw UUID fallback, and rejects tampered tokens', () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const slug = encodePreviewSlug("Pizzeria & Bar L'Angolo — Napoli", uuid);
+    expect(slug.startsWith('pizzeria-bar-l-angolo-napoli--')).toBe(true);
+    expect(decodeProspectIdFromSlug(slug)).toBe(uuid);
+
+    // Accented characters round-trip
+    const accentedSlug = encodePreviewSlug('Caffè Èlite Città', uuid);
+    expect(decodeProspectIdFromSlug(accentedSlug)).toBe(uuid);
+
+    // Raw UUID fallback
+    expect(decodeProspectIdFromSlug(uuid.toUpperCase())).toBe(uuid);
+
+    // Invalid or tampered tokens return null
+    expect(decodeProspectIdFromSlug('')).toBeNull();
+    expect(decodeProspectIdFromSlug('not-a-valid-slug')).toBeNull();
+    expect(decodeProspectIdFromSlug('pizzeria--shorttoken')).toBeNull();
+
+    const tokenPart = slug.split('--')[1];
+    // Flip lower bits of the final base64url char so canonical zero-padding check rejects it
+    const lastChar = tokenPart[tokenPart.length - 1];
+    const tamperedLastChar = lastChar === 'B' ? 'C' : 'B';
+    const tamperedSlug = `pizzeria--${tokenPart.slice(0, -1)}${tamperedLastChar}`;
+    expect(decodeProspectIdFromSlug(tamperedSlug)).toBeNull();
+  });
+
+  it('maps outreach categories to the expected interactive demo vertical', () => {
+    expect(resolveDemoVertical('Ristoranti & Pizzerie')).toBe('food');
+    expect(resolveDemoVertical('Barbieri & Barber Shop')).toBe('beauty');
+    expect(resolveDemoVertical('Hotel & B&B')).toBe('hospitality');
+    expect(resolveDemoVertical('Retail & Boutique')).toBe('retail');
+  });
+
+  it('embeds demoUrl in B_informal and C_consultative, sets payload.demoUrl, and keeps A_professional clean of /preview/', async () => {
+    const prevGemini = process.env.GEMINI_API_KEY;
+    const prevGoogle = process.env.GOOGLE_AI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_AI_API_KEY;
+
+    try {
+      const prospect = makeMockProspect({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        business_name: "Pizzeria & Bar L'Angolo — Napoli",
+        subcategory: 'pizzeria',
+        city: 'Napoli',
+      });
+      const expectedDemoUrl = buildProspectDemoUrl(prospect.business_name, prospect.id);
+
+      const analyses = await analyzeProspectsBatchWithAI([prospect], DEFAULT_RIVO_KNOWLEDGE_BASE);
+      const analysis = analyses.get(prospect.id)!;
+      expect(analysis).toBeDefined();
+
+      const variants = buildDeterministicPitchVariants(prospect, analysis);
+      expect(variants.A_professional.fullMessageBody).not.toContain('/preview/');
+      expect(variants.A_professional.callToAction).not.toContain('/preview/');
+      expect(variants.B_informal.fullMessageBody).toContain(expectedDemoUrl);
+      expect(variants.B_informal.callToAction).toContain(expectedDemoUrl);
+      expect(variants.C_consultative.fullMessageBody).toContain(expectedDemoUrl);
+      expect(variants.C_consultative.callToAction).toContain(expectedDemoUrl);
+
+      const payload = await generatePersonalizedSalesPitches(
+        { ...prospect, ai_analysis: analysis },
+        DEFAULT_RIVO_KNOWLEDGE_BASE
+      );
+      expect(payload.demoUrl).toBe(expectedDemoUrl);
+      expect(payload.hallucinationCheckPassed).toBe(true);
+      expect(payload.variants.A_professional.fullMessageBody).not.toContain('/preview/');
+      expect(payload.variants.B_informal.fullMessageBody).toContain(expectedDemoUrl);
+      expect(payload.variants.C_consultative.fullMessageBody).toContain(expectedDemoUrl);
+    } finally {
+      if (prevGemini !== undefined) process.env.GEMINI_API_KEY = prevGemini;
+      if (prevGoogle !== undefined) process.env.GOOGLE_AI_API_KEY = prevGoogle;
     }
   });
 });

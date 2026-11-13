@@ -13,7 +13,10 @@ import {
   Send,
   Layers,
   CheckCircle2,
+  ExternalLink,
+  Link2,
 } from 'lucide-react';
+import { buildProspectDemoUrl } from '@/lib/outreach/preview';
 import type {
   OutreachProspectRecord,
   OutreachPitchGenerationPayload,
@@ -115,6 +118,9 @@ function OutreachIntelligenceContent() {
     | OutreachPitchGenerationPayload
     | undefined;
   const currentVariantContent = pitchPayload?.variants?.[activeVariant] || null;
+  const prospectDemoUrl = selectedProspect
+    ? buildProspectDemoUrl(selectedProspect.business_name, selectedProspect.id)
+    : null;
 
   const handleVariantSwitch = (variant: PitchApproachVariant) => {
     setActiveVariant(variant);
@@ -226,6 +232,12 @@ function OutreachIntelligenceContent() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleInsertDemoLink = () => {
+    if (!selectedProspect || !prospectDemoUrl || editBody.includes('/preview/')) return;
+    const snippet = `Ho preparato anche un'anteprima interattiva RIVO dedicata a ${selectedProspect.business_name} (senza login né impegno): ${prospectDemoUrl}`;
+    setEditBody((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${snippet}` : snippet));
   };
 
   const breakdown = selectedProspect?.ai_analysis?.scoreBreakdown;
@@ -496,6 +508,48 @@ function OutreachIntelligenceContent() {
                 </div>
               </div>
 
+              {selectedProspect && prospectDemoUrl && (
+                <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-lg bg-[#0D0D10] border border-[#27272A]">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <Link2 className="w-3.5 h-3.5 text-[#BFFF00] shrink-0" />
+                    <span className="text-[11px] font-mono uppercase text-[#BFFF00] shrink-0">
+                      Demo Interattiva Prospect
+                    </span>
+                    <span className="text-[11px] font-mono text-[#71717A] truncate max-w-[260px] hidden sm:inline">
+                      {prospectDemoUrl}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={prospectDemoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs text-[#FAFAFA]"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-[#BFFF00]" />
+                      Apri Anteprima
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyPitch('demo-link', prospectDemoUrl)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs text-[#FAFAFA]"
+                    >
+                      {copiedId === 'demo-link' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#BFFF00]" />
+                          Link Copiato
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          Copia Link Demo
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {!currentVariantContent ? (
                 <div className="py-12 text-center text-xs text-[#71717A]">
                   Nessuna proposta ancora generata per questa attività. Clicca &ldquo;Analizza &amp; Genera A/B/C&rdquo; in alto.
@@ -523,12 +577,27 @@ function OutreachIntelligenceContent() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {latestPitchGen?.approved && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#BFFF00]/15 text-[#BFFF00] text-[11px] font-mono">
                           <CheckCircle2 className="w-3 h-3" />
                           APPROVATA
                         </span>
+                      )}
+                      {prospectDemoUrl && (
+                        <button
+                          type="button"
+                          disabled={editBody.includes('/preview/')}
+                          onClick={handleInsertDemoLink}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs transition-colors disabled:opacity-45 disabled:cursor-not-allowed ${
+                            activeVariant === 'A_professional' && !editBody.includes('/preview/')
+                              ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-[#BFFF00] hover:bg-[#BFFF00] hover:text-[#09090B] font-semibold'
+                              : 'bg-[#18181B] border-[#27272A] hover:border-[#BFFF00] text-[#FAFAFA]'
+                          }`}
+                        >
+                          <Link2 className="w-3.5 h-3.5" />
+                          Inserisci Link Demo
+                        </button>
                       )}
                       <button
                         type="button"

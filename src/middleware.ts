@@ -5,6 +5,7 @@ import { createServerClient } from '@supabase/ssr';
 const PUBLIC_PREFIXES = [
   '/t/',
   '/hub/',
+  '/preview/',
   '/review/',
   '/call/',
   '/wheel/',
