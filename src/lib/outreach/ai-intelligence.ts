@@ -360,24 +360,29 @@ export function computeExplainableLeadScore(
   };
 }
 
-/**
- * Executes full AI Business Intelligence analysis on a prospect.
- * Uses Gemini API (`gemini-2.5-flash`) when configured, grounded strictly on verified facts.
- */
-export async function analyzeProspectWithAI(
+interface DeterministicAnalysisBase {
+  verifiedFacts: string[];
+  opportunities: RivoOpportunityItem[];
+  scoring: ReturnType<typeof computeExplainableLeadScore>;
+  subDef: ReturnType<typeof findSubcategoryDef>;
+  hasBookingObserved: boolean;
+  defaultExecutiveSummary: string;
+}
+
+function buildDeterministicAnalysisBase(
   prospect: OutreachProspectRecord,
   kb: RivoProductKnowledgeBase = DEFAULT_RIVO_KNOWLEDGE_BASE
-): Promise<OutreachAIAnalysis> {
+): DeterministicAnalysisBase {
   const verifiedFacts = extractVerifiedFactsFromProspect(prospect);
-  const baseOpportunities = buildEvidenceBasedOpportunities(prospect, kb);
-  const scoring = computeExplainableLeadScore(prospect, baseOpportunities);
+  const opportunities = buildEvidenceBasedOpportunities(prospect, kb);
+  const scoring = computeExplainableLeadScore(prospect, opportunities);
   const subDef = findSubcategoryDef(prospect.subcategory || prospect.category);
 
   const hasBookingObserved =
     Array.isArray(prospect.digital_signals?.detectedBookingLinks) &&
     prospect.digital_signals.detectedBookingLinks.length > 0;
 
-  let executiveSummary = `${prospect.business_name} è un’attività del segmento ${subDef.label}${
+  const defaultExecutiveSummary = `${prospect.business_name} è un’attività del segmento ${subDef.label}${
     prospect.city ? ` situata a ${prospect.city}` : ''
   }. ${
     prospect.website
@@ -387,58 +392,27 @@ export async function analyzeProspectWithAI(
             : ''
         }.`
       : `Dai dati della fonte (${prospect.source}) non emerge un sito web associato, rendendo il Digital Hub RIVO un punto di accesso digitale immediato.`
-  } I moduli prioritari individuati sono ${baseOpportunities
+  } I moduli prioritari individuati sono ${opportunities
     .slice(0, 3)
     .map((o) => o.moduleName)
     .join(', ')}.`;
 
-  let modelUsed = 'rivo-deterministic-intelligence-v1';
+  return {
+    verifiedFacts,
+    opportunities,
+    scoring,
+    subDef,
+    hasBookingObserved,
+    defaultExecutiveSummary,
+  };
+}
 
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-  if (geminiKey) {
-    try {
-      const prompt = `Sei l'analista di Business Intelligence di RIVO.
-Analizza ESCLUSIVAMENTE i seguenti fatti verificati sull'attività commerciale senza inventare nulla e senza dichiarare che l'attività non possiede strumenti se semplicemente non sono visibili online:
-
-FATTI VERIFICATI:
-${verifiedFacts.map((f) => `- ${f}`).join('\n')}
-
-MODULI RIVO PERTINENTI INDIVIDUATI:
-${baseOpportunities.map((o) => `- ${o.moduleName} (${o.verificationStatus}): ${o.rationale}`).join('\n')}
-
-Restituisci un JSON valido con la sola chiave:
-{
-  "executiveSummary": "Sintesi esecutiva professionale in italiano (massimo 3 frasi) basata solo sui fatti verificati e sulle opportunità RIVO."
-}`;
-
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-          }),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          if (typeof parsed.executiveSummary === 'string' && parsed.executiveSummary.trim().length > 20) {
-            executiveSummary = parsed.executiveSummary.trim();
-            modelUsed = 'gemini-2.5-flash';
-          }
-        }
-      }
-    } catch {
-      // Fallback to deterministic evidence summary
-    }
-  }
-
+function assembleOutreachAIAnalysis(
+  prospect: OutreachProspectRecord,
+  base: DeterministicAnalysisBase,
+  executiveSummary: string,
+  modelUsed: string
+): OutreachAIAnalysis {
   return {
     analyzedAt: new Date().toISOString(),
     modelUsed,
@@ -454,26 +428,212 @@ Restituisci un JSON valido con la sola chiave:
         prospect.digital_signals?.websiteTitle ||
         prospect.description ||
         null,
-      observedBookingSystem: hasBookingObserved ? 'present_observed' : 'not_observed_online',
+      observedBookingSystem: base.hasBookingObserved ? 'present_observed' : 'not_observed_online',
       observedLoyaltySystem: 'not_observed_online',
       observedFeedbackTool: 'not_observed_online',
       interactionNotes: prospect.website
         ? `Presenza web verificata su ${prospect.website}. Gli strumenti fisici eventualmente presenti in sede (es. tessere cartacee o QR al banco) non sono determinabili da remoto.`
         : `Nessun sito web rilevato nella fonte (${prospect.source}). Gli strumenti fisici eventualmente usati in sede non sono determinabili da remoto.`,
     },
-    opportunities: baseOpportunities,
-    scoreBreakdown: scoring.breakdown,
-    totalLeadScore: scoring.totalScore,
-    classification: classifyLeadScore(scoring.totalScore),
-    confidenceScore: scoring.confidenceScore,
-    confidenceExplanation: scoring.confidenceExplanation,
-    verifiedFactsUsed: verifiedFacts,
+    opportunities: base.opportunities,
+    scoreBreakdown: base.scoring.breakdown,
+    totalLeadScore: base.scoring.totalScore,
+    classification: classifyLeadScore(base.scoring.totalScore),
+    confidenceScore: base.scoring.confidenceScore,
+    confidenceExplanation: base.scoring.confidenceExplanation,
+    verifiedFactsUsed: base.verifiedFacts,
     unverifiableAspects: [
       'Eventuale utilizzo in sede di tessere fedeltà cartacee o sistemi gestionali non esposti sul web.',
       'Flusso medio giornaliero di clienti ai tavoli/poltrone.',
       'Modalità interna di raccolta feedback al momento del pagamento.',
     ],
   };
+}
+
+/**
+ * Executes full AI Business Intelligence analysis on a prospect.
+ * Uses Gemini API (`gemini-2.5-flash`) when configured, grounded strictly on verified facts.
+ */
+export async function analyzeProspectWithAI(
+  prospect: OutreachProspectRecord,
+  kb: RivoProductKnowledgeBase = DEFAULT_RIVO_KNOWLEDGE_BASE
+): Promise<OutreachAIAnalysis> {
+  const base = buildDeterministicAnalysisBase(prospect, kb);
+  let executiveSummary = base.defaultExecutiveSummary;
+  let modelUsed = 'rivo-deterministic-intelligence-v1';
+
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  if (geminiKey) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4500);
+    try {
+      const prompt = `Sei l'analista di Business Intelligence di RIVO.
+Analizza ESCLUSIVAMENTE i seguenti fatti verificati sull'attività commerciale senza inventare nulla e senza dichiarare che l'attività non possiede strumenti se semplicemente non sono visibili online:
+
+FATTI VERIFICATI:
+${base.verifiedFacts.map((f) => `- ${f}`).join('\n')}
+
+MODULI RIVO PERTINENTI INDIVIDUATI:
+${base.opportunities.map((o) => `- ${o.moduleName} (${o.verificationStatus}): ${o.rationale}`).join('\n')}
+
+Restituisci un JSON valido con la sola chiave:
+{
+  "executiveSummary": "Sintesi esecutiva professionale in italiano (massimo 3 frasi) basata solo sui fatti verificati e sulle opportunità RIVO."
+}`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+          }),
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timer);
+
+      if (res.ok) {
+        const data = await res.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const parsed = JSON.parse(rawText);
+          if (typeof parsed.executiveSummary === 'string' && parsed.executiveSummary.trim().length > 20) {
+            const check = validatePitchAgainstHallucinations(parsed.executiveSummary.trim(), prospect);
+            if (check.valid) {
+              executiveSummary = parsed.executiveSummary.trim();
+              modelUsed = 'gemini-2.5-flash';
+            }
+          }
+        }
+      }
+    } catch {
+      clearTimeout(timer);
+      // Fallback to deterministic evidence summary
+    }
+  }
+
+  return assembleOutreachAIAnalysis(prospect, base, executiveSummary, modelUsed);
+}
+
+/**
+ * Executes AI Business Intelligence analysis on a full batch of prospects concurrently
+ * using batched Gemini 2.5 Flash prompts (max 25 per chunk) with instant deterministic fallback.
+ */
+export async function analyzeProspectsBatchWithAI(
+  prospects: OutreachProspectRecord[],
+  kb: RivoProductKnowledgeBase = DEFAULT_RIVO_KNOWLEDGE_BASE
+): Promise<Map<string, OutreachAIAnalysis>> {
+  const resultMap = new Map<string, OutreachAIAnalysis>();
+  if (prospects.length === 0) return resultMap;
+
+  const prepared = prospects.map((prospect) => ({
+    prospect,
+    base: buildDeterministicAnalysisBase(prospect, kb),
+  }));
+
+  // Initialize every item deterministically so 100% of prospects always have complete AI output
+  for (const item of prepared) {
+    resultMap.set(
+      item.prospect.id,
+      assembleOutreachAIAnalysis(
+        item.prospect,
+        item.base,
+        item.base.defaultExecutiveSummary,
+        'rivo-deterministic-intelligence-v1'
+      )
+    );
+  }
+
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  if (!geminiKey) {
+    return resultMap;
+  }
+
+  // Split into chunks of up to 25 prospects and execute concurrently
+  const chunkSize = 25;
+  const chunks: typeof prepared[] = [];
+  for (let i = 0; i < prepared.length; i += chunkSize) {
+    chunks.push(prepared.slice(i, i + chunkSize));
+  }
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6500);
+      try {
+        const itemsPayload = chunk.map(({ prospect, base }) => ({
+          id: prospect.id,
+          name: prospect.business_name,
+          category: base.subDef.label,
+          city: prospect.city || null,
+          website: prospect.website || null,
+          topModules: base.opportunities.slice(0, 3).map((o) => o.moduleName),
+          leadScore: base.scoring.totalScore,
+        }));
+
+        const prompt = `Sei l'analista di Business Intelligence di RIVO.
+Per ciascuna delle seguenti attività commerciali, scrivi una "executiveSummary" professionale e concisa in italiano (massimo 2 frasi) basata ESCLUSIVAMENTE sui dati forniti, spiegando perché i moduli RIVO individuati sono rilevanti senza inventare visite o dati mancanti e senza affermare assenze in-store non verificabili online.
+
+ATTIVITÀ:
+${JSON.stringify(itemsPayload)}
+
+Restituisci esclusivamente JSON valido con questa struttura:
+{
+  "results": [
+    { "id": "id_attivita", "executiveSummary": "..." }
+  ]
+}`;
+
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+            }),
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timer);
+
+        if (!res.ok) return;
+        const data = await res.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) return;
+
+        const parsed = JSON.parse(rawText);
+        const rows: Array<{ id?: string; executiveSummary?: string }> = Array.isArray(parsed?.results)
+          ? parsed.results
+          : [];
+
+        const chunkById = new Map(chunk.map((c) => [c.prospect.id, c]));
+        for (const row of rows) {
+          if (!row?.id || typeof row.executiveSummary !== 'string') continue;
+          const entry = chunkById.get(row.id);
+          if (!entry) continue;
+          const trimmed = row.executiveSummary.trim();
+          if (trimmed.length < 20) continue;
+          const check = validatePitchAgainstHallucinations(trimmed, entry.prospect);
+          if (!check.valid) continue;
+
+          resultMap.set(
+            entry.prospect.id,
+            assembleOutreachAIAnalysis(entry.prospect, entry.base, trimmed, 'gemini-2.5-flash')
+          );
+        }
+      } catch {
+        clearTimeout(timer);
+        // Keep deterministic grounded analyses for this chunk
+      }
+    })
+  );
+
+  return resultMap;
 }
 
 // ============================================================================
@@ -654,6 +814,8 @@ export async function generatePersonalizedSalesPitches(
 
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
   if (geminiKey) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
     try {
       const verifiedFacts = extractVerifiedFactsFromProspect(prospect);
       const prompt = `Sei il Senior Sales Consultant di RIVO (${kb.positioningSummary}).
@@ -685,8 +847,10 @@ Restituisci un JSON con la chiave "variants" contenente "A_professional", "B_inf
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: 'application/json', temperature: 0.35 },
           }),
+          signal: controller.signal,
         }
       );
+      clearTimeout(timer);
 
       if (res.ok) {
         const data = await res.json();
@@ -729,6 +893,7 @@ Restituisci un JSON con la chiave "variants" contenente "A_professional", "B_inf
         }
       }
     } catch {
+      clearTimeout(timer);
       // Fallback to deterministic verified variants
     }
   }

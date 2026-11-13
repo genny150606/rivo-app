@@ -10,6 +10,8 @@ import { inspectPublicWebsiteMetadata } from '@/lib/outreach/providers/discovery
 import type { OutreachProspectRecord } from '@/lib/outreach/types';
 import { isValidUUID } from '@/lib/security';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const auth = await verifySuperAdminAccess(request);
   if (!auth.authorized) return auth.errorResponse;

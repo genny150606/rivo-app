@@ -6,7 +6,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getRegisteredDiscoveryProviders } from './providers/discovery';
 import { matchDuplicateInList } from './deduplication';
-import { analyzeProspectWithAI, generatePersonalizedSalesPitches } from './ai-intelligence';
+import {
+  analyzeProspectWithAI,
+  analyzeProspectsBatchWithAI,
+  generatePersonalizedSalesPitches,
+} from './ai-intelligence';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE, type RivoProductKnowledgeBase } from './knowledge-base';
 import type { OutreachProspectRecord } from './types';
 
@@ -146,6 +150,8 @@ export async function processOutreachJob(
       const matchedIds: string[] = [];
       const matchedSet = new Set<string>();
       const warnings: string[] = [];
+      const pendingInsertRows: Record<string, any>[] = [];
+      const matchedProspectsMap = new Map<string, OutreachProspectRecord>();
       let searchCenter: {
         lat: number;
         lon: number;
@@ -179,7 +185,7 @@ export async function processOutreachJob(
 
         await adminDb
           .from('outreach_jobs')
-          .update({ progress: 55 })
+          .update({ progress: 45 })
           .eq('id', job.id);
 
         for (const cand of searchRes.candidates) {
@@ -190,6 +196,7 @@ export async function processOutreachJob(
             if (!matchedSet.has(existingMatch.id)) {
               matchedSet.add(existingMatch.id);
               matchedIds.push(existingMatch.id);
+              matchedProspectsMap.set(existingMatch.id, existingMatch);
             }
 
             // Backfill missing coordinates, address, or Maps link on existing prospect
@@ -216,56 +223,165 @@ export async function processOutreachJob(
                 .from('outreach_prospects')
                 .update(patch)
                 .eq('id', existingMatch.id);
+              Object.assign(existingMatch, patch);
             }
             continue;
           }
 
-          const { data: inserted, error: insErr } = await adminDb
-            .from('outreach_prospects')
-            .insert({
-              business_name: cand.business_name,
-              normalized_name: cand.normalized_name,
-              category: cand.category,
-              subcategory: cand.subcategory,
-              city: cand.city,
-              province: cand.province,
-              region: cand.region,
-              address: cand.address,
-              postal_code: cand.postal_code,
-              latitude: cand.latitude,
-              longitude: cand.longitude,
-              website: cand.website,
-              website_domain: cand.website_domain,
-              instagram_url: cand.instagram_url,
-              facebook_url: cand.facebook_url,
-              business_phone: cand.business_phone,
-              business_email: cand.business_email,
-              description: cand.description,
-              services_offered: cand.services_offered,
-              digital_signals: cand.digital_signals,
-              source: cand.source,
-              source_reference: cand.source_reference,
-              source_acquired_at: cand.source_acquired_at,
-              commercial_status: 'da_analizzare',
-            })
-            .select('*')
-            .maybeSingle();
+          const newRowPayload = {
+            business_name: cand.business_name,
+            normalized_name: cand.normalized_name,
+            category: cand.category,
+            subcategory: cand.subcategory,
+            city: cand.city,
+            province: cand.province,
+            region: cand.region,
+            address: cand.address,
+            postal_code: cand.postal_code,
+            latitude: cand.latitude,
+            longitude: cand.longitude,
+            website: cand.website,
+            website_domain: cand.website_domain,
+            instagram_url: cand.instagram_url,
+            facebook_url: cand.facebook_url,
+            business_phone: cand.business_phone,
+            business_email: cand.business_email,
+            description: cand.description,
+            services_offered: cand.services_offered,
+            digital_signals: cand.digital_signals,
+            source: cand.source,
+            source_reference: cand.source_reference,
+            source_acquired_at: cand.source_acquired_at,
+            commercial_status: 'da_analizzare',
+          };
 
-          if (!insErr && inserted) {
-            insertedCount++;
-            insertedIds.push(inserted.id);
-            existingList.push(inserted as OutreachProspectRecord);
-          } else {
-            skippedDuplicates++;
+          pendingInsertRows.push(newRowPayload);
+          existingList.push({
+            id: `pending-${pendingInsertRows.length}`,
+            ...(newRowPayload as any),
+          } as OutreachProspectRecord);
+        }
+      }
+
+      // Bulk insert newly discovered prospects (with row-by-row fallback on rare constraint collision)
+      const insertedRows: OutreachProspectRecord[] = [];
+      if (pendingInsertRows.length > 0) {
+        const { data: bulkInserted, error: bulkErr } = await adminDb
+          .from('outreach_prospects')
+          .insert(pendingInsertRows)
+          .select('*');
+
+        if (!bulkErr && Array.isArray(bulkInserted)) {
+          insertedRows.push(...(bulkInserted as OutreachProspectRecord[]));
+        } else {
+          for (const row of pendingInsertRows) {
+            const { data: singleInserted, error: singleErr } = await adminDb
+              .from('outreach_prospects')
+              .insert(row)
+              .select('*')
+              .maybeSingle();
+            if (!singleErr && singleInserted) {
+              insertedRows.push(singleInserted as OutreachProspectRecord);
+            } else {
+              skippedDuplicates++;
+            }
           }
         }
       }
+
+      for (const r of insertedRows) {
+        insertedCount++;
+        insertedIds.push(r.id);
+      }
+
+      await adminDb.from('outreach_jobs').update({ progress: 70 }).eq('id', job.id);
+
+      // Automatically execute AI Business Intelligence analysis on all newly discovered
+      // prospects AND any matched prospects from earlier searches that lacked AI analysis.
+      const matchedNeedingAnalysis = Array.from(matchedProspectsMap.values()).filter(
+        (m) =>
+          !m.ai_analysis ||
+          m.commercial_status === 'nuovo' ||
+          m.commercial_status === 'da_analizzare'
+      );
+
+      const toAnalyzeMap = new Map<string, OutreachProspectRecord>();
+      for (const p of [...insertedRows, ...matchedNeedingAnalysis]) {
+        if (p?.id) toAnalyzeMap.set(p.id, p);
+      }
+      const prospectsToAnalyze = Array.from(toAnalyzeMap.values());
+
+      let analyzedCount = 0;
+      if (prospectsToAnalyze.length > 0) {
+        const analysisMap = await analyzeProspectsBatchWithAI(prospectsToAnalyze, kb);
+        const nowIso = new Date().toISOString();
+        const generationInserts: any[] = [];
+        const activityInserts: any[] = [];
+
+        await Promise.all(
+          prospectsToAnalyze.map(async (p) => {
+            const analysis = analysisMap.get(p.id);
+            if (!analysis) return;
+
+            const nextStatus =
+              p.commercial_status === 'nuovo' || p.commercial_status === 'da_analizzare'
+                ? 'analizzato'
+                : p.commercial_status;
+
+            await adminDb
+              .from('outreach_prospects')
+              .update({
+                lead_score: analysis.totalLeadScore,
+                confidence_score: analysis.confidenceScore,
+                ai_analysis: analysis,
+                commercial_status: nextStatus,
+                updated_at: nowIso,
+              })
+              .eq('id', p.id);
+
+            generationInserts.push({
+              prospect_id: p.id,
+              generation_type: 'business_intelligence',
+              prompt_version: 'v1.0',
+              generated_content: analysis,
+              model: analysis.modelUsed,
+            });
+            activityInserts.push({
+              prospect_id: p.id,
+              action: 'ai_analysis_completed',
+              metadata: {
+                lead_score: analysis.totalLeadScore,
+                confidence_score: analysis.confidenceScore,
+                model: analysis.modelUsed,
+                auto_on_discovery: true,
+              },
+              admin_user_id: adminUserId || null,
+            });
+            analyzedCount++;
+          })
+        );
+
+        await Promise.all([
+          generationInserts.length > 0
+            ? adminDb.from('outreach_ai_generations').insert(generationInserts)
+            : Promise.resolve(),
+          activityInserts.length > 0
+            ? adminDb.from('outreach_activity_logs').insert(activityInserts)
+            : Promise.resolve(),
+        ]);
+      }
+
+      const alreadyAnalyzedMatchedCount = Array.from(matchedProspectsMap.values()).filter(
+        (m) => Boolean(m.ai_analysis)
+      ).length;
 
       const allResultIds = Array.from(new Set([...insertedIds, ...matchedIds]));
       const resultSummary = {
         discoveredTotal,
         insertedCount,
         skippedDuplicates,
+        analyzedCount: analyzedCount + alreadyAnalyzedMatchedCount,
+        newlyAnalyzedCount: analyzedCount,
         insertedIds,
         matchedIds,
         allResultIds,
@@ -296,21 +412,23 @@ export async function processOutreachJob(
         ? job.payload.prospectIds
         : [];
 
+      const { data: pRows } =
+        prospectIds.length > 0
+          ? await adminDb.from('outreach_prospects').select('*').in('id', prospectIds)
+          : { data: [] };
+
+      const targetProspects = (pRows || []) as OutreachProspectRecord[];
+      const analysisMap = await analyzeProspectsBatchWithAI(targetProspects, kb);
+      const nowIso = new Date().toISOString();
+      const generationInserts: any[] = [];
       let analyzedCount = 0;
-      for (let i = 0; i < prospectIds.length; i++) {
-        const pid = prospectIds[i];
-        const { data: pRow } = await adminDb
-          .from('outreach_prospects')
-          .select('*')
-          .eq('id', pid)
-          .maybeSingle();
 
-        if (!pRow) continue;
-        const prospect = pRow as OutreachProspectRecord;
-        const analysis = await analyzeProspectWithAI(prospect, kb);
+      await Promise.all(
+        targetProspects.map(async (prospect) => {
+          const analysis = analysisMap.get(prospect.id);
+          if (!analysis) return;
 
-        await Promise.all([
-          adminDb
+          await adminDb
             .from('outreach_prospects')
             .update({
               lead_score: analysis.totalLeadScore,
@@ -321,21 +439,23 @@ export async function processOutreachJob(
                 prospect.commercial_status === 'da_analizzare'
                   ? 'analizzato'
                   : prospect.commercial_status,
-              updated_at: new Date().toISOString(),
+              updated_at: nowIso,
             })
-            .eq('id', prospect.id),
-          adminDb.from('outreach_ai_generations').insert({
+            .eq('id', prospect.id);
+
+          generationInserts.push({
             prospect_id: prospect.id,
             generation_type: 'business_intelligence',
             prompt_version: 'v1.0',
             generated_content: analysis,
             model: analysis.modelUsed,
-          }),
-        ]);
+          });
+          analyzedCount++;
+        })
+      );
 
-        analyzedCount++;
-        const progress = Math.min(95, Math.round(((i + 1) / Math.max(1, prospectIds.length)) * 90));
-        await adminDb.from('outreach_jobs').update({ progress }).eq('id', job.id);
+      if (generationInserts.length > 0) {
+        await adminDb.from('outreach_ai_generations').insert(generationInserts);
       }
 
       const { data: completedJob } = await adminDb

@@ -322,7 +322,7 @@ export default function OutreachInteractiveMap({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'analyze_prospect',
+          action: 'analyze',
           prospect_id: prospect.id,
         }),
       });
@@ -565,6 +565,35 @@ export default function OutreachInteractiveMap({
                     </a>
                   )}
                 </div>
+
+                {selectedProspect.ai_analysis && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-[#0D0D10] border border-[#27272A] space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[#BFFF00]">
+                        <Sparkles className="w-3 h-3" />
+                        Analisi AI Completata
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-300">
+                        {selectedProspect.ai_analysis.classification?.label}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#D4D4D8] leading-relaxed line-clamp-3">
+                      {selectedProspect.ai_analysis.executiveSummary}
+                    </p>
+                    {selectedProspect.ai_analysis.opportunities?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {selectedProspect.ai_analysis.opportunities.slice(0, 3).map((opp) => (
+                          <span
+                            key={opp.moduleSlug}
+                            className="px-1.5 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[10px] text-[#A1A1AA]"
+                          >
+                            {opp.moduleName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-xs text-[#A1A1AA]">
@@ -608,14 +637,25 @@ export default function OutreachInteractiveMap({
 
               {selectedProspect && (
                 <>
+                  <Link
+                    href={`/admin/outreach/intelligence?prospectId=${encodeURIComponent(selectedProspect.id)}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Apri Scheda &amp; Pitch AI
+                  </Link>
+
                   <button
                     type="button"
                     disabled={analyzingId === selectedProspect.id}
                     onClick={() => handleQuickAiAnalyze(selectedProspect)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-[#FAFAFA] text-xs font-medium transition-colors disabled:opacity-50"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {analyzingId === selectedProspect.id ? 'Analisi AI...' : 'Analizza AI'}
+                    {analyzingId === selectedProspect.id
+                      ? 'Analisi AI...'
+                      : selectedProspect.ai_analysis
+                      ? 'Rianalizza AI'
+                      : 'Analizza AI'}
                   </button>
 
                   <Link

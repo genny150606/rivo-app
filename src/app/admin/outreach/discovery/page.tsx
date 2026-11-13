@@ -65,6 +65,7 @@ export default function OutreachDiscoveryPage() {
     discoveredCount: number;
     insertedCount: number;
     duplicatesSkipped: number;
+    analyzedCount: number;
     items: OutreachProspectRecord[];
   } | null>(null);
 
@@ -201,17 +202,25 @@ export default function OutreachDiscoveryPage() {
       setNewlyInsertedIds(newIdSet);
       setSearchWarnings(Array.isArray(jobRes.warnings) ? jobRes.warnings : []);
 
+      const sortedSearchProspects = [...allSearchProspects].sort(
+        (a, b) => (b.lead_score || 0) - (a.lead_score || 0)
+      );
+      const analyzedInResult = sortedSearchProspects.filter(
+        (p) => Boolean(p.ai_analysis) || (p.lead_score ?? 0) > 0
+      ).length;
+
       setSearchResult({
-        discoveredCount: jobRes.discoveredTotal ?? allSearchProspects.length,
+        discoveredCount: jobRes.discoveredTotal ?? sortedSearchProspects.length,
         insertedCount: jobRes.insertedCount ?? insertedProspects.length,
         duplicatesSkipped: jobRes.skippedDuplicates ?? 0,
-        items: allSearchProspects,
+        analyzedCount: jobRes.analyzedCount ?? analyzedInResult,
+        items: sortedSearchProspects,
       });
 
       // Merge results into existingProspects for map plotting & pick first geo pin
       setExistingProspects((prev) => {
         const map = new Map<string, OutreachProspectRecord>();
-        for (const item of allSearchProspects) map.set(item.id, item);
+        for (const item of sortedSearchProspects) map.set(item.id, item);
         for (const old of prev) {
           if (!map.has(old.id)) map.set(old.id, old);
         }
@@ -219,8 +228,8 @@ export default function OutreachDiscoveryPage() {
       });
 
       const firstMappable =
-        allSearchProspects.find((p) => p.latitude != null && p.longitude != null) ||
-        allSearchProspects[0] ||
+        sortedSearchProspects.find((p) => p.latitude != null && p.longitude != null) ||
+        sortedSearchProspects[0] ||
         null;
       if (firstMappable) {
         setSelectedProspect(firstMappable);
@@ -828,12 +837,12 @@ export default function OutreachDiscoveryPage() {
               {searching ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Ricerca in corso...
+                  Ricerca &amp; Analisi AI...
                 </>
               ) : (
                 <>
                   <Search className="w-4 h-4" />
-                  Avvia ricerca
+                  Avvia ricerca + Analisi AI
                 </>
               )}
             </button>
@@ -903,7 +912,7 @@ export default function OutreachDiscoveryPage() {
       {/* Results Section */}
       {searchResult && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
               <span className="text-[11px] font-mono uppercase text-[#A1A1AA]">
                 Attività Trovate dalle Fonti
@@ -922,20 +931,28 @@ export default function OutreachDiscoveryPage() {
             </div>
             <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
               <span className="text-[11px] font-mono uppercase text-[#A1A1AA]">
-                Duplicati Riconosciuti e Ignorati
+                Già Analizzati dall&apos;AI
               </span>
-              <div className="text-2xl font-bold font-mono text-[#FAFAFA] mt-1">
-                {searchResult.duplicatesSkipped}
+              <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
+                {searchResult.analyzedCount} / {searchResult.items.length}
+              </div>
+            </div>
+            <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
+              <span className="text-[11px] font-mono uppercase text-[#A1A1AA]">
+                Alto Potenziale (Score ≥ 60)
+              </span>
+              <div className="text-2xl font-bold font-mono text-[#BFFF00] mt-1">
+                {searchResult.items.filter((i) => (i.lead_score || 0) >= 60).length}
               </div>
             </div>
           </div>
 
           <div className="bg-[#121214] border border-[#27272A] rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#27272A] flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-[#27272A] flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-[#BFFF00]" />
                 <h2 className="text-sm font-semibold text-[#FAFAFA]">
-                  Risultati Acquisiti e Salvati nel Database ({searchResult.items.length})
+                  Risultati Acquisiti &amp; Analizzati dall&apos;AI ({searchResult.items.length})
                 </h2>
               </div>
               <Link
@@ -943,7 +960,8 @@ export default function OutreachDiscoveryPage() {
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#BFFF00] hover:underline"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Avvia Analisi AI sui nuovi Prospect
+                Genera Messaggi &amp; Sales Agent AI
+                <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>
 
@@ -952,16 +970,27 @@ export default function OutreachDiscoveryPage() {
                 <thead>
                   <tr className="border-b border-[#27272A] text-[11px] font-mono uppercase text-[#A1A1AA] bg-[#0D0D10]">
                     <th className="py-3 px-4">Attività</th>
-                    <th className="py-3 px-4">Categoria</th>
+                    <th className="py-3 px-4">Lead Score &amp; Analisi AI</th>
                     <th className="py-3 px-4">Località / Indirizzo</th>
                     <th className="py-3 px-4">Canali Pubblici Rilevati</th>
-                    <th className="py-3 px-4">Fonte & Licenza</th>
-                    <th className="py-3 px-4 text-right">Mappa / Preview</th>
+                    <th className="py-3 px-4">Fonte &amp; Licenza</th>
+                    <th className="py-3 px-4 text-right">Azioni &amp; Mappa</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#27272A] text-sm">
                   {searchResult.items.map((item) => {
                     const isSelected = selectedProspect?.id === item.id;
+                    const score = item.lead_score || item.ai_analysis?.totalLeadScore || 0;
+                    const classification = item.ai_analysis?.classification?.label;
+                    const topOpps = item.ai_analysis?.opportunities?.slice(0, 2) || [];
+                    const scoreColorClass =
+                      score >= 80
+                        ? 'bg-[#BFFF00]/15 border-[#BFFF00]/50 text-[#BFFF00]'
+                        : score >= 60
+                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                        : score >= 40
+                        ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                        : 'bg-[#18181B] border-[#27272A] text-[#A1A1AA]';
                     const gmapsHref =
                       item.digital_signals?.googleMapsUrl ||
                       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -983,11 +1012,40 @@ export default function OutreachDiscoveryPage() {
                               </span>
                             )}
                           </div>
+                          <div className="text-[11px] text-[#71717A] font-normal mt-0.5">
+                            {item.subcategory || item.category}
+                          </div>
                         </td>
-                        <td className="py-3 px-4 text-xs text-[#A1A1AA]">
-                          <div>{item.category}</div>
-                          {item.subcategory && (
-                            <div className="text-[11px] text-[#71717A]">{item.subcategory}</div>
+                        <td className="py-3 px-4 text-xs">
+                          {item.ai_analysis || score > 0 ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2 py-0.5 rounded border font-mono text-[11px] font-bold ${scoreColorClass}`}
+                                >
+                                  {score}/100
+                                </span>
+                                {classification && (
+                                  <span className="text-[11px] font-medium text-[#FAFAFA]">
+                                    {classification}
+                                  </span>
+                                )}
+                              </div>
+                              {topOpps.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {topOpps.map((o) => (
+                                    <span
+                                      key={o.moduleSlug}
+                                      className="px-1.5 py-0.5 rounded bg-[#0D0D10] border border-[#27272A] text-[10px] text-[#A1A1AA]"
+                                    >
+                                      {o.moduleName}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-[#71717A]">Da analizzare</span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-xs text-[#A1A1AA]">
@@ -1041,6 +1099,14 @@ export default function OutreachDiscoveryPage() {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="inline-flex items-center gap-1.5">
+                            <Link
+                              href={`/admin/outreach/intelligence?prospectId=${encodeURIComponent(item.id)}`}
+                              title="Apri scheda AI e genera Pitch"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-[#27272A] bg-[#0D0D10] text-[#BFFF00] hover:border-[#BFFF00] text-[11px] font-medium transition-colors"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              Pitch
+                            </Link>
                             <button
                               type="button"
                               onClick={() => {
@@ -1061,7 +1127,7 @@ export default function OutreachDiscoveryPage() {
                               }`}
                             >
                               <MapPin className="w-3 h-3" />
-                              Anteprima Maps
+                              Maps
                             </button>
                             <a
                               href={gmapsHref}

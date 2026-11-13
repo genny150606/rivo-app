@@ -10,6 +10,7 @@ import {
   buildEvidenceBasedOpportunities,
   computeExplainableLeadScore,
   validatePitchAgainstHallucinations,
+  analyzeProspectsBatchWithAI,
 } from '@/lib/outreach/ai-intelligence';
 import { OutreachComplianceService } from '@/lib/outreach/compliance';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE } from '@/lib/outreach/knowledge-base';
@@ -271,6 +272,37 @@ describe('RIVO OUTREACH — Campania & Maps Discovery Engine', () => {
     expect(url).toContain('https://www.google.com/maps/search/');
     expect(url).toContain(encodeURIComponent('Pizzeria Da Michele'));
     expect(url).toContain('Napoli');
+  });
+
+  it('batch-analyzes discovered prospects automatically with complete scores and opportunities', async () => {
+    const p1 = makeMockProspect({
+      id: 'batch-1',
+      business_name: 'Barbiere Partenopeo',
+      subcategory: 'barber',
+      category: 'beauty_personal_care',
+      city: 'Napoli',
+    });
+    const p2 = makeMockProspect({
+      id: 'batch-2',
+      business_name: 'Pizzeria Spaccanapoli',
+      subcategory: 'pizzeria',
+      category: 'food_beverage',
+      city: 'Napoli',
+      website: null,
+      website_domain: null,
+    });
+
+    const analyses = await analyzeProspectsBatchWithAI([p1, p2], DEFAULT_RIVO_KNOWLEDGE_BASE);
+    expect(analyses.size).toBe(2);
+
+    const a1 = analyses.get('batch-1');
+    const a2 = analyses.get('batch-2');
+    expect(a1?.totalLeadScore).toBeGreaterThanOrEqual(40);
+    expect(a1?.opportunities.some((o) => o.moduleSlug === 'bookings')).toBe(true);
+    expect(a1?.executiveSummary.length).toBeGreaterThan(20);
+
+    expect(a2?.totalLeadScore).toBeGreaterThanOrEqual(40);
+    expect(a2?.opportunities.some((o) => o.moduleSlug === 'menu')).toBe(true);
   });
 
   it('provides clean Nominatim OSM tag queries and Photon keywords for every discovery subcategory', () => {

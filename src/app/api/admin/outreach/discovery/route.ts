@@ -11,7 +11,10 @@ import {
   matchDuplicateInList,
   normalizeBusinessName,
 } from '@/lib/outreach/deduplication';
-import { processOutreachJob } from '@/lib/outreach/jobs';
+import { processOutreachJob, loadActiveKnowledgeBase } from '@/lib/outreach/jobs';
+import { analyzeProspectsBatchWithAI } from '@/lib/outreach/ai-intelligence';
+
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const auth = await verifySuperAdminAccess(request);
@@ -214,6 +217,62 @@ export async function POST(request: NextRequest) {
           inserted.push(created as OutreachProspectRecord);
           existingList.push(created as OutreachProspectRecord);
         }
+      }
+
+      if (inserted.length > 0) {
+        const kb = await loadActiveKnowledgeBase(adminDb);
+        const analysisMap = await analyzeProspectsBatchWithAI(inserted, kb);
+        const aiGenerations: any[] = [];
+        const aiLogs: any[] = [];
+
+        await Promise.all(
+          inserted.map(async (p, idx) => {
+            const analysis = analysisMap.get(p.id);
+            if (!analysis) return;
+            const { data: updated } = await adminDb
+              .from('outreach_prospects')
+              .update({
+                lead_score: analysis.totalLeadScore,
+                confidence_score: analysis.confidenceScore,
+                ai_analysis: analysis,
+                commercial_status: 'analizzato',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', p.id)
+              .select('*')
+              .maybeSingle();
+            if (updated) {
+              inserted[idx] = updated as OutreachProspectRecord;
+            }
+            aiGenerations.push({
+              prospect_id: p.id,
+              generation_type: 'business_intelligence',
+              prompt_version: 'v1.0',
+              generated_content: analysis,
+              model: analysis.modelUsed,
+            });
+            aiLogs.push({
+              prospect_id: p.id,
+              action: 'ai_analysis_completed',
+              metadata: {
+                lead_score: analysis.totalLeadScore,
+                confidence_score: analysis.confidenceScore,
+                model: analysis.modelUsed,
+                auto_on_import: true,
+              },
+              admin_user_id: user.id,
+            });
+          })
+        );
+
+        await Promise.all([
+          aiGenerations.length > 0
+            ? adminDb.from('outreach_ai_generations').insert(aiGenerations)
+            : Promise.resolve(),
+          aiLogs.length > 0
+            ? adminDb.from('outreach_activity_logs').insert(aiLogs)
+            : Promise.resolve(),
+        ]);
       }
 
       return NextResponse.json({
