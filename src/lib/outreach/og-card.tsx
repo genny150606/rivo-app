@@ -116,9 +116,9 @@ export function renderCoBrandedOgElement(props: CoBrandedOgCardProps): ReactElem
               <img
                 src={prospectLogoDataUri}
                 alt={displayName}
-                width={60}
-                height={60}
-                style={{ width: 60, height: 60, objectFit: 'contain' }}
+                width={64}
+                height={64}
+                style={{ width: 64, height: 64, objectFit: 'contain', borderRadius: 14 }}
               />
             </div>
           ) : (
@@ -316,9 +316,9 @@ export function renderCoBrandedOgElement(props: CoBrandedOgCardProps): ReactElem
             <img
               src={prospectLogoDataUri}
               alt={displayName}
-              width={128}
-              height={128}
-              style={{ width: 128, height: 128, objectFit: 'contain' }}
+              width={136}
+              height={136}
+              style={{ width: 136, height: 136, objectFit: 'contain', borderRadius: 22 }}
             />
           </div>
         ) : (

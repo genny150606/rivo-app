@@ -13,7 +13,13 @@ import {
 } from './ai-intelligence';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE, type RivoProductKnowledgeBase } from './knowledge-base';
 import { discoverInstagramProfilesBatch, normalizeInstagramProfileUrl } from './instagram';
-import type { OutreachProspectRecord } from './types';
+import {
+  discoverBrandLogosBatch,
+  searchWebForInstagramProfile,
+  type ProspectBrandDiscoveryResult,
+} from './brand-discovery';
+import { extractSocialProfileOgImage } from './logo-resolver';
+import type { OutreachProspectRecord, PublicDigitalSignals } from './types';
 
 export interface OutreachJobRecord {
   id: string;
@@ -80,6 +86,7 @@ async function discoverAndPersistMissingInstagram(
   const igMatches = await discoverInstagramProfilesBatch(Array.from(poolMap.values()), {
     concurrency: 4,
     maxItems: options.maxItems,
+    webSearchFallback: searchWebForInstagramProfile,
   });
   if (igMatches.size === 0) return 0;
 
@@ -97,12 +104,16 @@ async function discoverAndPersistMissingInstagram(
       const candidateRef = poolMap.get(prospectId);
       const syncRef = syncMap.get(prospectId);
       const baseSignals = syncRef?.digital_signals || candidateRef?.digital_signals || {};
-      const mergedSignals = {
+      const discoveredLogoUrl = !baseSignals.logoUrl
+        ? await extractSocialProfileOgImage(igRes.instagramUrl)
+        : null;
+      const mergedSignals: PublicDigitalSignals = {
         ...baseSignals,
         instagramDiscoverySource: igRes.evidenceSource,
         instagramHandle: igRes.handle,
         instagramConfidence: igRes.confidence,
         instagramDiscoveredAt: nowIso,
+        ...(discoveredLogoUrl ? { logoUrl: discoveredLogoUrl } : {}),
       };
 
       await adminDb
@@ -143,6 +154,62 @@ async function discoverAndPersistMissingInstagram(
   }
 
   return igMatches.size;
+}
+
+function syncDiscoveredBrandsInMemory(
+  brandMap: Map<string, ProspectBrandDiscoveryResult>,
+  targets: OutreachProspectRecord[]
+): void {
+  if (brandMap.size === 0) return;
+  for (const target of targets) {
+    if (!target?.id) continue;
+    const brand = brandMap.get(target.id);
+    if (!brand) continue;
+
+    if (brand.logoUrl && !target.digital_signals?.customLogoUrl) {
+      target.digital_signals = {
+        ...(target.digital_signals || {}),
+        logoUrl: brand.logoUrl,
+      };
+    }
+    if (brand.discoveredWebsite && !target.website) {
+      target.website = brand.discoveredWebsite;
+    }
+    if (brand.discoveredInstagramUrl && !target.instagram_url) {
+      target.instagram_url = brand.discoveredInstagramUrl;
+    }
+    if (brand.discoveredFacebookUrl && !target.facebook_url) {
+      target.facebook_url = brand.discoveredFacebookUrl;
+    }
+  }
+}
+
+/**
+ * Discovers missing brand logos for prospects lacking customLogoUrl/logoUrl
+ * and syncs updated `digital_signals` and discovered links in memory.
+ */
+async function discoverMissingBrandLogosAndSync(
+  adminDb: SupabaseClient,
+  candidates: OutreachProspectRecord[],
+  syncTargets: OutreachProspectRecord[]
+): Promise<void> {
+  const seen = new Set<string>();
+  const prospectsMissingLogo: OutreachProspectRecord[] = [];
+  for (const p of candidates) {
+    if (!p?.id || seen.has(p.id)) continue;
+    seen.add(p.id);
+    if (!p.digital_signals?.customLogoUrl && !p.digital_signals?.logoUrl) {
+      prospectsMissingLogo.push(p);
+    }
+  }
+  if (prospectsMissingLogo.length === 0) return;
+
+  const discoveredLogos = await discoverBrandLogosBatch(adminDb, prospectsMissingLogo, {
+    concurrency: 4,
+    maxItems: 15,
+    timeoutMs: 2200,
+  });
+  syncDiscoveredBrandsInMemory(discoveredLogos, syncTargets);
 }
 
 /**
@@ -402,9 +469,10 @@ export async function processOutreachJob(
       }
       const prospectsToAnalyze = Array.from(toAnalyzeMap.values());
 
+      const discoveryPool = [...insertedRows, ...Array.from(matchedProspectsMap.values())];
       const instagramDiscoveredCount = await discoverAndPersistMissingInstagram(
         adminDb,
-        [...insertedRows, ...Array.from(matchedProspectsMap.values())],
+        discoveryPool,
         {
           maxItems: 18,
           autoOnDiscovery: true,
@@ -412,6 +480,11 @@ export async function processOutreachJob(
           syncTargets: prospectsToAnalyze,
         }
       );
+
+      await discoverMissingBrandLogosAndSync(adminDb, discoveryPool, [
+        ...discoveryPool,
+        ...prospectsToAnalyze,
+      ]);
 
       let analyzedCount = 0;
       if (prospectsToAnalyze.length > 0) {
@@ -530,6 +603,8 @@ export async function processOutreachJob(
           syncTargets: targetProspects,
         }
       );
+
+      await discoverMissingBrandLogosAndSync(adminDb, targetProspects, targetProspects);
 
       const analysisMap = await analyzeProspectsBatchWithAI(targetProspects, kb);
       const nowIso = new Date().toISOString();

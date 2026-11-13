@@ -292,31 +292,25 @@ export interface InstagramDiscoveryResult {
   searchQuery: string;
 }
 
-/**
- * Discovers the real public Instagram profile for a commercial business using Gemini 2.5 Flash
- * with live Google Search Grounding (`tools: [{ google_search: {} }]`).
- * Strictly verifies handles against grounding chunks and business-name similarity (never inventing handles).
- */
-export async function findInstagramProfileViaGeminiSearch(prospect: {
-  business_name: string;
-  city?: string | null;
-  province?: string | null;
-  address?: string | null;
-  website?: string | null;
-  category?: string | null;
-}): Promise<InstagramDiscoveryResult> {
-  const searchQuery = `site:instagram.com "${prospect.business_name}" ${prospect.city || ''}`.trim();
-  const empty: InstagramDiscoveryResult = {
-    instagramUrl: null,
-    handle: null,
-    evidenceSource: null,
-    confidence: 'none',
-    searchQuery,
-  };
+export type InstagramWebSearchFallback = (
+  businessName: string,
+  city?: string | null
+) => Promise<{ instagramUrl: string; evidenceSource: string } | null>;
 
+async function runGeminiInstagramGrounding(
+  prospect: {
+    business_name: string;
+    city?: string | null;
+    province?: string | null;
+    address?: string | null;
+    website?: string | null;
+    category?: string | null;
+  },
+  searchQuery: string
+): Promise<InstagramDiscoveryResult | null> {
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-  if (!geminiKey || !prospect.business_name?.trim()) {
-    return empty;
+  if (!geminiKey) {
+    return null;
   }
 
   const controller = new AbortController();
@@ -350,10 +344,10 @@ Regole rigide:
     );
     clearTimeout(timer);
 
-    if (!res.ok) return empty;
+    if (!res.ok) return null;
     const data = await res.json();
     const candidate = data?.candidates?.[0];
-    if (!candidate) return empty;
+    if (!candidate) return null;
 
     const responseText = (candidate.content?.parts || [])
       .map((p: { text?: string }) => p.text || '')
@@ -446,12 +440,12 @@ Regole rigide:
     }
 
     if (scoredCandidates.size === 0) {
-      return empty;
+      return null;
     }
 
     const best = Array.from(scoredCandidates.values()).sort((a, b) => b.score - a.score)[0];
     if (!best || best.score < 32) {
-      return empty;
+      return null;
     }
 
     return {
@@ -463,8 +457,66 @@ Regole rigide:
     };
   } catch {
     clearTimeout(timer);
+    return null;
+  }
+}
+
+/**
+ * Discovers the real public Instagram profile for a commercial business using Gemini 2.5 Flash
+ * with live Google Search Grounding (`tools: [{ google_search: {} }]`), falling back to zero-quota
+ * public web search when Gemini is unavailable or unindexed.
+ * Strictly verifies handles against grounding chunks and business-name similarity (never inventing handles).
+ */
+export async function findInstagramProfileViaGeminiSearch(
+  prospect: {
+    business_name: string;
+    city?: string | null;
+    province?: string | null;
+    address?: string | null;
+    website?: string | null;
+    category?: string | null;
+  },
+  options?: { webSearchFallback?: InstagramWebSearchFallback }
+): Promise<InstagramDiscoveryResult> {
+  const searchQuery = `site:instagram.com "${prospect.business_name}" ${prospect.city || ''}`.trim();
+  const empty: InstagramDiscoveryResult = {
+    instagramUrl: null,
+    handle: null,
+    evidenceSource: null,
+    confidence: 'none',
+    searchQuery,
+  };
+
+  if (!prospect.business_name?.trim()) {
     return empty;
   }
+
+  const geminiMatch = await runGeminiInstagramGrounding(prospect, searchQuery);
+  if (geminiMatch?.instagramUrl) {
+    return geminiMatch;
+  }
+
+  if (options?.webSearchFallback) {
+    try {
+      const webMatch = await options.webSearchFallback(prospect.business_name, prospect.city);
+      if (webMatch?.instagramUrl) {
+        const handle = extractInstagramHandle(webMatch.instagramUrl);
+        if (handle) {
+          return {
+            instagramUrl: webMatch.instagramUrl,
+            handle,
+            evidenceSource: webMatch.evidenceSource,
+            confidence: 'medium',
+            searchQuery,
+          };
+        }
+      }
+    } catch {
+      // Non-blocking zero-quota web fallback
+    }
+  }
+
+  return empty;
 }
 
 /**
@@ -481,7 +533,11 @@ export async function discoverInstagramProfilesBatch(
     category?: string | null;
     instagram_url?: string | null;
   }>,
-  options?: { concurrency?: number; maxItems?: number }
+  options?: {
+    concurrency?: number;
+    maxItems?: number;
+    webSearchFallback?: InstagramWebSearchFallback;
+  }
 ): Promise<Map<string, InstagramDiscoveryResult>> {
   const results = new Map<string, InstagramDiscoveryResult>();
   const concurrency = Math.max(1, Math.min(6, options?.concurrency ?? 4));
@@ -498,7 +554,9 @@ export async function discoverInstagramProfilesBatch(
     while (cursor < targets.length) {
       const idx = cursor++;
       const item = targets[idx];
-      const res = await findInstagramProfileViaGeminiSearch(item);
+      const res = await findInstagramProfileViaGeminiSearch(item, {
+        webSearchFallback: options?.webSearchFallback,
+      });
       if (res.instagramUrl) {
         results.set(item.id, res);
       }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -22,6 +22,7 @@ import {
   Check,
   Eye,
   Image as ImageIcon,
+  Upload,
 } from 'lucide-react';
 import { InstagramIcon } from '@/components/brand-icons';
 import {
@@ -30,12 +31,12 @@ import {
   type OutreachProspectRecord,
   type OutreachCommercialStatus,
 } from '@/lib/outreach/types';
-import { buildProspectDemoUrl } from '@/lib/outreach/preview';
+import { buildProspectDemoUrl, encodePreviewSlug } from '@/lib/outreach/preview';
 import {
   buildInstagramDmDeepLink,
   extractInstagramHandle,
 } from '@/lib/outreach/instagram';
-import { getBusinessInitials } from '@/lib/outreach/logo-resolver';
+import { computeLogoVersionTag, getBusinessInitials } from '@/lib/outreach/logo-resolver';
 
 export default function OutreachProspectsPage() {
   const [prospects, setProspects] = useState<OutreachProspectRecord[]>([]);
@@ -94,10 +95,14 @@ export default function OutreachProspectsPage() {
   const [notesDraft, setNotesDraft] = useState('');
   const [customLogoDraft, setCustomLogoDraft] = useState('');
   const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
+  const [discoveringLogo, setDiscoveringLogo] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [enrichingWebsiteLogo, setEnrichingWebsiteLogo] = useState(false);
   const [logoFeedback, setLogoFeedback] = useState<{
-    type: 'success' | 'error';
+    type: 'success' | 'info' | 'error';
     message: string;
   } | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Convert to Client Modal
   const [showConvertModal, setShowConvertModal] = useState(false);
@@ -106,21 +111,24 @@ export default function OutreachProspectsPage() {
   const [convertOwnerEmail, setConvertOwnerEmail] = useState('');
   const [convertOwnerPassword, setConvertOwnerPassword] = useState('Rivo2026!');
 
+  const buildQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set('q', q.trim());
+    if (category) params.set('category', category);
+    if (statusFilter) params.set('status', statusFilter);
+    if (minScore !== '') params.set('minScore', minScore);
+    params.set('sortBy', sortBy);
+    params.set('sortDir', 'desc');
+    params.set('page', String(page));
+    params.set('pageSize', '25');
+    return params.toString();
+  }, [q, category, statusFilter, minScore, sortBy, page]);
+
   const fetchProspects = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (q.trim()) params.set('q', q.trim());
-      if (category) params.set('category', category);
-      if (statusFilter) params.set('status', statusFilter);
-      if (minScore !== '') params.set('minScore', minScore);
-      params.set('sortBy', sortBy);
-      params.set('sortDir', 'desc');
-      params.set('page', String(page));
-      params.set('pageSize', '25');
-
-      const res = await fetch(`/api/admin/outreach/prospects?${params.toString()}`, {
+      const res = await fetch(`/api/admin/outreach/prospects?${buildQueryString()}`, {
         cache: 'no-store',
       });
       const json = await res.json();
@@ -132,11 +140,34 @@ export default function OutreachProspectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [q, category, statusFilter, minScore, sortBy, page]);
+  }, [buildQueryString]);
 
   useEffect(() => {
-    fetchProspects();
-  }, [fetchProspects]);
+    let cancelled = false;
+    fetch(`/api/admin/outreach/prospects?${buildQueryString()}`, { cache: 'no-store' })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Impossibile caricare i prospect');
+        return json;
+      })
+      .then((json) => {
+        if (cancelled) return;
+        setProspects(json.prospects || []);
+        setTotal(json.totalCount || 0);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Errore caricamento prospect');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [buildQueryString]);
 
   const openProspectDetail = async (p: OutreachProspectRecord) => {
     setActiveProspect(p);
@@ -218,6 +249,15 @@ export default function OutreachProspectsPage() {
     }
   };
 
+  const applyUpdatedProspectLogoState = (updatedProspect: OutreachProspectRecord) => {
+    setActiveProspect(updatedProspect);
+    setCustomLogoDraft(updatedProspect.digital_signals?.customLogoUrl || '');
+    setFailedLogoUrl(null);
+    setProspects((prev) =>
+      prev.map((item) => (item.id === updatedProspect.id ? updatedProspect : item))
+    );
+  };
+
   const handleSaveCustomLogo = async () => {
     if (!activeProspect) return;
     setActionBusy(true);
@@ -235,12 +275,7 @@ export default function OutreachProspectsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Errore salvataggio logo');
       const updatedProspect = json.prospect as OutreachProspectRecord;
-      setActiveProspect(updatedProspect);
-      setCustomLogoDraft(updatedProspect.digital_signals?.customLogoUrl || '');
-      setFailedLogoUrl(null);
-      setProspects((prev) =>
-        prev.map((item) => (item.id === updatedProspect.id ? updatedProspect : item))
-      );
+      applyUpdatedProspectLogoState(updatedProspect);
       const msg = customLogoDraft.trim()
         ? 'Logo personalizzato salvato per il co-branding demo.'
         : 'Logo personalizzato rimosso.';
@@ -258,6 +293,7 @@ export default function OutreachProspectsPage() {
   const handleEnrichWebsiteLogo = async () => {
     if (!activeProspect || !activeProspect.website) return;
     setActionBusy(true);
+    setEnrichingWebsiteLogo(true);
     setLogoFeedback(null);
     try {
       const res = await fetch('/api/admin/outreach/prospects', {
@@ -271,24 +307,101 @@ export default function OutreachProspectsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Errore rilevamento sito web');
       const updatedProspect = json.prospect as OutreachProspectRecord;
-      setActiveProspect(updatedProspect);
-      setCustomLogoDraft(updatedProspect.digital_signals?.customLogoUrl || '');
-      setFailedLogoUrl(null);
-      setProspects((prev) =>
-        prev.map((item) => (item.id === updatedProspect.id ? updatedProspect : item))
-      );
+      applyUpdatedProspectLogoState(updatedProspect);
       const resolvedLogo =
         updatedProspect.digital_signals?.customLogoUrl || updatedProspect.digital_signals?.logoUrl;
       const msg = resolvedLogo
         ? 'Metadati e logo rilevati dal sito web.'
         : 'Metadati sito aggiornati (nessun logo trovato nel HTML).';
-      setLogoFeedback({ type: 'success', message: msg });
+      setLogoFeedback({ type: resolvedLogo ? 'success' : 'info', message: msg });
       setFeedback(msg);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Errore rilevamento sito web';
       setLogoFeedback({ type: 'error', message: msg });
       setFeedback(msg);
     } finally {
+      setEnrichingWebsiteLogo(false);
+      setActionBusy(false);
+    }
+  };
+
+  const handleDiscoverLogo = async () => {
+    if (!activeProspect) return;
+    setActionBusy(true);
+    setDiscoveringLogo(true);
+    setLogoFeedback(null);
+    try {
+      const res = await fetch('/api/admin/outreach/prospects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'discover_logo',
+          prospect_id: activeProspect.id,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore ricerca automatica logo');
+      const updatedProspect = json.prospect as OutreachProspectRecord;
+      applyUpdatedProspectLogoState(updatedProspect);
+      if (json.found && json.logoUrl) {
+        const sourceSuffix = json.logoSource ? ` (${json.logoSource})` : '';
+        const msg = `Logo ufficiale rilevato e salvato${sourceSuffix}.`;
+        setLogoFeedback({ type: 'success', message: msg });
+        setFeedback(msg);
+      } else {
+        const msg =
+          'Nessun logo ufficiale trovato online. Puoi incollare un URL o caricare un file.';
+        setLogoFeedback({ type: 'info', message: msg });
+        setFeedback(msg);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Errore ricerca automatica logo';
+      setLogoFeedback({ type: 'error', message: msg });
+      setFeedback(msg);
+    } finally {
+      setDiscoveringLogo(false);
+      setActionBusy(false);
+    }
+  };
+
+  const handleUploadLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !activeProspect) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      const msg = 'Il file è troppo grande. Dimensione massima 5MB.';
+      setLogoFeedback({ type: 'error', message: msg });
+      setFeedback(msg);
+      return;
+    }
+
+    setActionBusy(true);
+    setUploadingLogo(true);
+    setLogoFeedback(null);
+    try {
+      const formData = new FormData();
+      formData.append('action', 'upload_prospect_logo');
+      formData.append('prospect_id', activeProspect.id);
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/outreach/prospects', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore upload file logo');
+      const updatedProspect = json.prospect as OutreachProspectRecord;
+      applyUpdatedProspectLogoState(updatedProspect);
+      const msg = 'File logo caricato e salvato per il co-branding demo.';
+      setLogoFeedback({ type: 'success', message: msg });
+      setFeedback(msg);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Errore upload file logo';
+      setLogoFeedback({ type: 'error', message: msg });
+      setFeedback(msg);
+    } finally {
+      setUploadingLogo(false);
       setActionBusy(false);
     }
   };
@@ -557,13 +670,29 @@ export default function OutreachProspectsPage() {
   const activeDemoUrl = activeProspect
     ? buildProspectDemoUrl(activeProspect.business_name, activeProspect.id)
     : null;
+  const previewSlug = activeProspect
+    ? encodePreviewSlug(activeProspect.business_name, activeProspect.id)
+    : null;
   const activeIgHandle = extractInstagramHandle(activeProspect?.instagram_url);
   const activeIgDmUrl = buildInstagramDmDeepLink(activeProspect?.instagram_url);
   const activeLogoUrl =
     activeProspect?.digital_signals?.customLogoUrl ||
     activeProspect?.digital_signals?.logoUrl ||
     null;
-  const showActiveLogoImage = Boolean(activeLogoUrl && failedLogoUrl !== activeLogoUrl);
+  const versionTag = activeProspect
+    ? computeLogoVersionTag(activeLogoUrl, activeProspect.business_name)
+    : null;
+  const activeProxyLogoUrl =
+    previewSlug && activeLogoUrl && versionTag
+      ? `/api/outreach/preview/${previewSlug}/logo?v=${versionTag}`
+      : null;
+  const activeOgCardUrl =
+    previewSlug && versionTag
+      ? `/api/outreach/preview/${previewSlug}/og?v=${versionTag}`
+      : null;
+  const showActiveLogoImage = Boolean(
+    activeProxyLogoUrl && failedLogoUrl !== activeProxyLogoUrl
+  );
   const activeLogs = activeDetail?.logs || [];
   const demoOpenedLogs = activeLogs.filter((l) => l.action === 'demo_opened');
   const demoCtaLogs = activeLogs.filter((l) => l.action === 'demo_cta_submitted');
@@ -1220,7 +1349,8 @@ export default function OutreachProspectsPage() {
                 {activeProspect.digital_signals?.customLogoUrl
                   ? 'Logo Custom'
                   : activeProspect.digital_signals?.logoUrl
-                  ? 'Rilevato dal Sito'
+                  ? (activeProspect.digital_signals as { logoSource?: string })?.logoSource ||
+                    'Rilevato Online'
                   : 'Monogramma Auto'}
               </span>
             </div>
@@ -1237,15 +1367,15 @@ export default function OutreachProspectsPage() {
                   />
                 </div>
                 <span className="text-xs font-mono font-bold text-[#71717A]">+</span>
-                {showActiveLogoImage && activeLogoUrl ? (
+                {showActiveLogoImage && activeProxyLogoUrl ? (
                   <div className="w-9 h-9 rounded-xl bg-white border border-white/90 flex items-center justify-center overflow-hidden p-1 shadow-sm shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={activeLogoUrl}
+                      src={activeProxyLogoUrl}
                       alt={activeProspect.business_name}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain"
-                      onError={() => setFailedLogoUrl(activeLogoUrl)}
+                      onError={() => setFailedLogoUrl(activeProxyLogoUrl)}
                     />
                   </div>
                 ) : (
@@ -1271,7 +1401,7 @@ export default function OutreachProspectsPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <label className="block text-[11px] text-[#A1A1AA]">
                 URL Logo Attività (PNG/JPG pubblico, opzionale)
               </label>
@@ -1291,6 +1421,36 @@ export default function OutreachProspectsPage() {
                 >
                   Salva Logo
                 </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={handleDiscoverLogo}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#18181B] border border-[#BFFF00]/40 hover:border-[#BFFF00] text-xs font-medium text-[#BFFF00] disabled:opacity-50"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${discoveringLogo ? 'animate-pulse' : ''}`} />
+                  {discoveringLogo ? 'Ricerca Logo...' : 'Cerca Logo Auto'}
+                </button>
+
+                <input
+                  ref={logoFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleUploadLogoFile}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs font-medium text-[#FAFAFA] disabled:opacity-50"
+                >
+                  <Upload className={`w-3.5 h-3.5 ${uploadingLogo ? 'animate-bounce' : ''}`} />
+                  {uploadingLogo ? 'Caricamento...' : 'Carica File'}
+                </button>
+
                 {activeProspect.website && (
                   <button
                     type="button"
@@ -1298,7 +1458,9 @@ export default function OutreachProspectsPage() {
                     onClick={handleEnrichWebsiteLogo}
                     className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs font-medium text-[#FAFAFA] disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${actionBusy ? 'animate-spin' : ''}`} />
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${enrichingWebsiteLogo ? 'animate-spin' : ''}`}
+                    />
                     Rileva dal Sito
                   </button>
                 )}
@@ -1308,16 +1470,33 @@ export default function OutreachProspectsPage() {
             {logoFeedback && (
               <div
                 className={`text-[11px] font-medium ${
-                  logoFeedback.type === 'error' ? 'text-[#EF4444]' : 'text-[#BFFF00]'
+                  logoFeedback.type === 'error'
+                    ? 'text-[#EF4444]'
+                    : logoFeedback.type === 'info'
+                    ? 'text-[#F59E0B]'
+                    : 'text-[#BFFF00]'
                 }`}
               >
                 {logoFeedback.message}
               </div>
             )}
 
-            <p className="text-[11px] text-[#71717A] leading-relaxed">
-              Appare nella card anteprima su WhatsApp/Telegram e dentro la demo interattiva quando condividi il link.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+              <p className="text-[11px] text-[#71717A] leading-relaxed">
+                Appare nella card anteprima su WhatsApp/Telegram e dentro la demo interattiva quando condividi il link.
+              </p>
+              {activeOgCardUrl && (
+                <a
+                  href={activeOgCardUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#A1A1AA] hover:text-[#BFFF00] underline-offset-2 hover:underline shrink-0"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Anteprima Card Social
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Provenance & Contacts */}

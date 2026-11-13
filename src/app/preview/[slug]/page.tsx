@@ -15,18 +15,16 @@ import {
   type PublicProspectPreviewDTO,
   type PublicRecommendedModuleDTO,
 } from '@/lib/outreach/preview';
-import {
-  computeLogoVersionTag,
-  resolveProspectLogoCandidates,
-} from '@/lib/outreach/logo-resolver';
+import { ensureProspectLogoPersisted } from '@/lib/outreach/brand-discovery';
+import { computeLogoVersionTag } from '@/lib/outreach/logo-resolver';
 import type { PublicDigitalSignals } from '@/lib/outreach/types';
 
 export const dynamic = 'force-dynamic';
 
-const PROSPECT_PREVIEW_SELECT =
-  'id, business_name, category, subcategory, city, province, region, address, website, website_domain, digital_signals, ai_analysis, merged_into_id';
+const SAFE_PROSPECT_COLUMNS =
+  'id, business_name, category, subcategory, city, province, region, address, website, website_domain, instagram_url, facebook_url, digital_signals, ai_analysis, merged_into_id';
 
-interface ProspectPreviewRow {
+interface SafePreviewPageRow {
   id: string;
   business_name: string;
   category: string;
@@ -37,9 +35,16 @@ interface ProspectPreviewRow {
   address: string | null;
   website: string | null;
   website_domain: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
   digital_signals: PublicDigitalSignals | Record<string, unknown> | null;
   ai_analysis: unknown;
   merged_into_id: string | null;
+}
+
+interface SafePreviewData {
+  preview: PublicProspectPreviewDTO;
+  versionLogoSource: string | null;
 }
 
 interface PreviewPageProps {
@@ -93,8 +98,8 @@ function normalizeRecommendedModules(
   return mapped.length > 0 ? mapped.slice(0, 6) : getVerticalDefaultModules(vertical);
 }
 
-const getSafeProspectPreview = cache(
-  async (rawSlug: string): Promise<PublicProspectPreviewDTO | null> => {
+const loadSafePreviewData = cache(
+  async (rawSlug: string): Promise<SafePreviewData | null> => {
     const prospectId = decodeProspectIdFromSlug(rawSlug);
     if (!prospectId) return null;
 
@@ -108,62 +113,74 @@ const getSafeProspectPreview = cache(
 
     const { data: initialRow, error: initialError } = await adminDb
       .from('outreach_prospects')
-      .select(PROSPECT_PREVIEW_SELECT)
+      .select(SAFE_PROSPECT_COLUMNS)
       .eq('id', prospectId)
       .maybeSingle();
 
     if (initialError || !initialRow) return null;
 
-    let activeRow = initialRow as ProspectPreviewRow;
+    let activeRow = initialRow as SafePreviewPageRow;
 
     // Follow 1-hop merge redirect cleanly if this record was deduplicated
     if (activeRow.merged_into_id) {
       const { data: mergedRow, error: mergedError } = await adminDb
         .from('outreach_prospects')
-        .select(PROSPECT_PREVIEW_SELECT)
+        .select(SAFE_PROSPECT_COLUMNS)
         .eq('id', activeRow.merged_into_id)
         .maybeSingle();
 
       if (mergedError || !mergedRow) return null;
-      activeRow = mergedRow as ProspectPreviewRow;
+      activeRow = mergedRow as SafePreviewPageRow;
     }
 
     const vertical = resolveDemoVertical(activeRow.category, activeRow.subcategory);
     const recommendedModules = normalizeRecommendedModules(activeRow.ai_analysis, vertical);
+    const canonicalSlug = encodePreviewSlug(activeRow.business_name, activeRow.id);
 
-    let primaryLogoUrl: string | null = null;
+    let versionLogoSource: string | null = null;
     try {
-      const resolvedLogos = await resolveProspectLogoCandidates(activeRow, {
-        allowLiveWebsiteFetch: true,
-        timeoutMs: 1600,
+      const brand = await ensureProspectLogoPersisted(adminDb, activeRow, {
+        discoverIfMissing: true,
+        allowGeminiFallback: true,
+        timeoutMs: 3600,
       });
-      primaryLogoUrl = resolvedLogos.primaryLogoUrl;
+      versionLogoSource = brand.logoUrl;
     } catch {
-      primaryLogoUrl = null;
+      versionLogoSource = null;
     }
 
+    const logoProxyUrl = versionLogoSource
+      ? `/api/outreach/preview/${canonicalSlug}/logo?v=${computeLogoVersionTag(
+          versionLogoSource,
+          activeRow.business_name
+        )}`
+      : null;
+
     return {
-      id: activeRow.id,
-      slug: encodePreviewSlug(activeRow.business_name, activeRow.id),
-      businessName: activeRow.business_name,
-      logoUrl: primaryLogoUrl,
-      category: activeRow.category,
-      subcategory: activeRow.subcategory ?? null,
-      city: activeRow.city ?? null,
-      province: activeRow.province ?? null,
-      region: activeRow.region ?? null,
-      address: activeRow.address ?? null,
-      vertical,
-      recommendedModules,
+      versionLogoSource,
+      preview: {
+        id: activeRow.id,
+        slug: canonicalSlug,
+        businessName: activeRow.business_name,
+        logoUrl: logoProxyUrl,
+        category: activeRow.category,
+        subcategory: activeRow.subcategory ?? null,
+        city: activeRow.city ?? null,
+        province: activeRow.province ?? null,
+        region: activeRow.region ?? null,
+        address: activeRow.address ?? null,
+        vertical,
+        recommendedModules,
+      },
     };
   }
 );
 
 export async function generateMetadata({ params }: PreviewPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const preview = await getSafeProspectPreview(slug);
+  const data = await loadSafePreviewData(slug);
 
-  if (!preview) {
+  if (!data) {
     return {
       title: 'Anteprima RIVO',
       description: 'Anteprima interattiva RIVO.',
@@ -174,8 +191,9 @@ export async function generateMetadata({ params }: PreviewPageProps): Promise<Me
     };
   }
 
+  const { preview, versionLogoSource } = data;
   const baseUrl = getPublicAppBaseUrl();
-  const versionTag = computeLogoVersionTag(preview.logoUrl, preview.businessName);
+  const versionTag = computeLogoVersionTag(versionLogoSource, preview.businessName);
   const ogCardUrl = `${baseUrl}/api/outreach/preview/${encodeURIComponent(preview.slug)}/og?v=${encodeURIComponent(versionTag)}`;
   const ogIconUrl = `${ogCardUrl}&variant=icon`;
   const description = `Anteprima interattiva RIVO + ${preview.businessName}${
@@ -220,9 +238,9 @@ export async function generateMetadata({ params }: PreviewPageProps): Promise<Me
 
 export default async function ProspectPreviewPage({ params }: PreviewPageProps) {
   const { slug } = await params;
-  const initialPreview = await getSafeProspectPreview(slug);
+  const data = await loadSafePreviewData(slug);
 
-  if (!initialPreview) {
+  if (!data) {
     return (
       <main className="min-h-screen bg-[#09090B] text-[#FAFAFA] flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md rounded-3xl bg-[#121214] border border-[#27272A] p-7 text-center space-y-5 shadow-2xl">
@@ -267,5 +285,5 @@ export default async function ProspectPreviewPage({ params }: PreviewPageProps) 
     );
   }
 
-  return <ProspectDemoSandbox preview={initialPreview} />;
+  return <ProspectDemoSandbox preview={data.preview} />;
 }

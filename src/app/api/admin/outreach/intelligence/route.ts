@@ -13,6 +13,8 @@ import {
   findInstagramProfileViaGeminiSearch,
   normalizeInstagramProfileUrl,
 } from '@/lib/outreach/instagram';
+import { searchWebForInstagramProfile } from '@/lib/outreach/brand-discovery';
+import { extractSocialProfileOgImage } from '@/lib/outreach/logo-resolver';
 import type { OutreachProspectRecord } from '@/lib/outreach/types';
 import { isValidUUID } from '@/lib/security';
 
@@ -125,7 +127,9 @@ export async function POST(request: NextRequest) {
             evidence_source: 'Sito web pubblico',
           };
         } else {
-          const igRes = await findInstagramProfileViaGeminiSearch(prospect);
+          const igRes = await findInstagramProfileViaGeminiSearch(prospect, {
+            webSearchFallback: searchWebForInstagramProfile,
+          });
           if (igRes.instagramUrl) {
             prospect = {
               ...prospect,
@@ -427,6 +431,7 @@ export async function POST(request: NextRequest) {
         const geminiMatches = await discoverInstagramProfilesBatch(geminiTargets, {
           concurrency: 4,
           maxItems: 15,
+          webSearchFallback: searchWebForInstagramProfile,
         });
         for (const [id, res] of geminiMatches.entries()) {
           if (res.instagramUrl) {
@@ -461,12 +466,17 @@ export async function POST(request: NextRequest) {
             return;
           }
 
+          const discoveredLogoUrl = !p.digital_signals?.logoUrl
+            ? await extractSocialProfileOgImage(found.instagramUrl)
+            : null;
+
           const mergedSignals = {
             ...(p.digital_signals || {}),
             instagramDiscoverySource: found.evidenceSource,
             instagramHandle: found.handle,
             instagramConfidence: found.confidence,
             instagramDiscoveredAt: nowIso,
+            ...(discoveredLogoUrl ? { logoUrl: discoveredLogoUrl } : {}),
           };
 
           let updatedAiAnalysis = p.ai_analysis;

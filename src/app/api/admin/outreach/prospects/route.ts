@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySuperAdminAccess } from '@/lib/outreach/auth';
+import { ensureProspectLogoPersisted } from '@/lib/outreach/brand-discovery';
 import {
   extractWebsiteDomain,
   mergeDuplicateProspects,
@@ -12,6 +13,20 @@ import { OUTREACH_PIPELINE_STAGES, type OutreachCommercialStatus } from '@/lib/o
 import { isValidUUID } from '@/lib/security';
 
 const VALID_STATUSES = new Set<string>(OUTREACH_PIPELINE_STAGES.map((s) => s.id));
+const MAX_LOGO_UPLOAD_BYTES = 5 * 1024 * 1024;
+const ALLOWED_LOGO_UPLOAD_MIMES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+const ALLOWED_LOGO_UPLOAD_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
+
+function toSignalsRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+}
 
 export async function GET(request: NextRequest) {
   const auth = await verifySuperAdminAccess(request);
@@ -69,7 +84,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Check potential duplicates (same normalized_name or website_domain)
-      let duplicateCandidates: any[] = [];
+      let duplicateCandidates: Array<Record<string, unknown>> = [];
       if (prospect.normalized_name) {
         const { data: dups } = await adminDb
           .from('outreach_prospects')
@@ -150,9 +165,9 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err?.message || 'Errore nel caricamento dei prospect.' },
+      { error: err instanceof Error ? err.message : 'Errore nel caricamento dei prospect.' },
       { status: 500 }
     );
   }
@@ -164,6 +179,115 @@ export async function POST(request: NextRequest) {
   const { adminDb, user } = auth;
 
   try {
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.toLowerCase().includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const formAction = String(formData.get('action') || '');
+
+      if (formAction === 'upload_prospect_logo') {
+        const prospectId = String(formData.get('prospect_id') || '').trim();
+        if (!isValidUUID(prospectId)) {
+          return NextResponse.json({ error: 'ID prospect non valido.' }, { status: 400 });
+        }
+
+        const rawFile = formData.get('file');
+        if (!rawFile || typeof rawFile === 'string' || typeof rawFile.arrayBuffer !== 'function') {
+          return NextResponse.json({ error: 'Nessun file selezionato.' }, { status: 400 });
+        }
+
+        const mimeType = (rawFile.type || '').toLowerCase();
+        const fallbackExt = ALLOWED_LOGO_UPLOAD_MIMES[mimeType];
+        if (!fallbackExt) {
+          return NextResponse.json(
+            { error: 'Formato file non supportato. Usa PNG, JPEG, WEBP o GIF.' },
+            { status: 400 }
+          );
+        }
+
+        if (rawFile.size <= 0) {
+          return NextResponse.json({ error: 'Il file selezionato è vuoto.' }, { status: 400 });
+        }
+        if (rawFile.size > MAX_LOGO_UPLOAD_BYTES) {
+          return NextResponse.json(
+            { error: 'Il file è troppo grande. Dimensione massima 5MB.' },
+            { status: 400 }
+          );
+        }
+
+        const { data: existingProspect, error: existingErr } = await adminDb
+          .from('outreach_prospects')
+          .select('id, digital_signals')
+          .eq('id', prospectId)
+          .maybeSingle();
+
+        if (existingErr) {
+          return NextResponse.json({ error: existingErr.message }, { status: 500 });
+        }
+        if (!existingProspect) {
+          return NextResponse.json({ error: 'Prospect non trovato.' }, { status: 404 });
+        }
+
+        const fileName = 'name' in rawFile && typeof rawFile.name === 'string' ? rawFile.name : '';
+        const nameExt = fileName.split('.').pop()?.toLowerCase() || '';
+        const ext = ALLOWED_LOGO_UPLOAD_EXTS.has(nameExt) ? nameExt : fallbackExt;
+
+        const filePath = `outreach-prospects/${prospectId}/logo-${Date.now()}.${ext}`;
+        const fileBuffer = Buffer.from(await rawFile.arrayBuffer());
+
+        const { error: uploadError } = await adminDb.storage
+          .from('logos')
+          .upload(filePath, fileBuffer, {
+            contentType: mimeType,
+            upsert: true,
+          });
+
+        if (uploadError) {
+          return NextResponse.json(
+            { error: `Errore caricamento storage: ${uploadError.message}` },
+            { status: 500 }
+          );
+        }
+
+        const { data: publicUrlData } = adminDb.storage
+          .from('logos')
+          .getPublicUrl(filePath);
+        const publicUrl = publicUrlData.publicUrl;
+
+        const existingSignals = toSignalsRecord(existingProspect.digital_signals);
+        const { data: updated, error: updateError } = await adminDb
+          .from('outreach_prospects')
+          .update({
+            digital_signals: {
+              ...existingSignals,
+              customLogoUrl: publicUrl,
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', prospectId)
+          .select('*')
+          .single();
+
+        if (updateError) {
+          return NextResponse.json({ error: updateError.message }, { status: 500 });
+        }
+
+        await adminDb.from('outreach_activity_logs').insert({
+          prospect_id: prospectId,
+          action: 'prospect_logo_uploaded',
+          metadata: { logo_url: publicUrl, file_path: filePath },
+          admin_user_id: user.id,
+        });
+
+        return NextResponse.json({
+          success: true,
+          prospect: updated,
+          logoUrl: publicUrl,
+        });
+      }
+
+      return NextResponse.json({ error: 'Azione multipart non riconosciuta.' }, { status: 400 });
+    }
+
     const body = await request.json();
     const action = String(body.action || '');
 
@@ -259,12 +383,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Prospect non trovato.' }, { status: 404 });
         }
 
-        const existingSignals =
-          existingProspect.digital_signals &&
-          typeof existingProspect.digital_signals === 'object' &&
-          !Array.isArray(existingProspect.digital_signals)
-            ? (existingProspect.digital_signals as Record<string, unknown>)
-            : {};
+        const existingSignals = toSignalsRecord(existingProspect.digital_signals);
 
         updates.digital_signals = {
           ...existingSignals,
@@ -314,12 +433,7 @@ export async function POST(request: NextRequest) {
       }
 
       const signals = await inspectPublicWebsiteMetadata(prospect.website);
-      const existingSignals =
-        prospect.digital_signals &&
-        typeof prospect.digital_signals === 'object' &&
-        !Array.isArray(prospect.digital_signals)
-          ? (prospect.digital_signals as Record<string, unknown>)
-          : {};
+      const existingSignals = toSignalsRecord(prospect.digital_signals);
       const existingCustom =
         typeof existingSignals.customLogoUrl === 'string' && existingSignals.customLogoUrl.trim()
           ? existingSignals.customLogoUrl.trim()
@@ -356,6 +470,64 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ success: true, prospect: updated });
+    }
+
+    // 3b. Auto-discover verified brand logo (website, social, app stores, Gemini grounding fallback)
+    if (action === 'discover_logo') {
+      const prospectId = String(body.prospect_id || '');
+      if (!isValidUUID(prospectId)) {
+        return NextResponse.json({ error: 'ID prospect non valido.' }, { status: 400 });
+      }
+
+      const { data: prospect, error: prospectErr } = await adminDb
+        .from('outreach_prospects')
+        .select('*')
+        .eq('id', prospectId)
+        .maybeSingle();
+
+      if (prospectErr) {
+        return NextResponse.json({ error: prospectErr.message }, { status: 500 });
+      }
+      if (!prospect) {
+        return NextResponse.json({ error: 'Prospect non trovato.' }, { status: 404 });
+      }
+
+      const result = await ensureProspectLogoPersisted(adminDb, prospect, {
+        discoverIfMissing: true,
+        forceRediscover: true,
+        allowGeminiFallback: true,
+        timeoutMs: 3200,
+      });
+
+      const { data: freshProspect, error: freshErr } = await adminDb
+        .from('outreach_prospects')
+        .select('*')
+        .eq('id', prospectId)
+        .single();
+
+      if (freshErr) {
+        return NextResponse.json({ error: freshErr.message }, { status: 500 });
+      }
+
+      if (result.logoUrl) {
+        await adminDb.from('outreach_activity_logs').insert({
+          prospect_id: prospectId,
+          action: 'prospect_logo_discovered',
+          metadata: {
+            logo_url: result.logoUrl,
+            logo_source: result.logoSource,
+          },
+          admin_user_id: user.id,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        found: Boolean(result.logoUrl),
+        logoUrl: result.logoUrl,
+        logoSource: result.logoSource,
+        prospect: freshProspect,
+      });
     }
 
     // 4. Merge duplicate prospects
@@ -434,9 +606,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Azione non riconosciuta.' }, { status: 400 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err?.message || 'Errore durante l’operazione sui prospect.' },
+      { error: err instanceof Error ? err.message : 'Errore durante l’operazione sui prospect.' },
       { status: 500 }
     );
   }

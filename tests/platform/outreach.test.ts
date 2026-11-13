@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
 import {
   normalizeBusinessName,
   extractWebsiteDomain,
@@ -23,9 +26,16 @@ import {
 import {
   isSafePublicHttpUrl,
   extractLogoCandidateFromHtml,
+  extractLogoCandidatesFromHtml,
+  extractFacebookPageSlug,
+  buildFacebookGraphPictureUrl,
   getBusinessInitials,
   computeLogoVersionTag,
 } from '@/lib/outreach/logo-resolver';
+import {
+  extractDistinctiveBrandTokens,
+  fetchSafeLogoBinary,
+} from '@/lib/outreach/brand-discovery';
 import {
   extractInstagramHandle,
   normalizeInstagramProfileUrl,
@@ -498,7 +508,7 @@ describe('RIVO OUTREACH — Logo Resolver & Co-Branding Helpers', () => {
     const tagNone = computeLogoVersionTag(null, 'Pizzeria Da Michele');
 
     expect(tagA1).toBe(tagA2);
-    expect(tagA1).toMatch(/^2-[0-9a-z]+$/);
+    expect(tagA1).toMatch(/^3-[0-9a-z]+$/);
     expect(tagA1).not.toBe(tagB);
     expect(tagA1).not.toBe(tagNone);
     expect(tagB).not.toBe(tagNone);
@@ -632,5 +642,149 @@ describe('RIVO OUTREACH — Instagram Discovery & Assisted DM', () => {
     expect(draft).toContain('/preview/');
     expect(draft).toContain(expectedDemoUrl);
     expect(draft).toContain('Napoli');
+  });
+});
+
+describe('RIVO OUTREACH — Brand Discovery & Offline Logo Pipeline', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('extractLogoCandidatesFromHtml prioritizes JSON-LD logo, apple-touch-icon, and srcset/data-lazy-src while allowing social CDNs and rejecting decorative social icons', () => {
+    const baseUrl = 'https://amerigo-barbiere.it/';
+    const html = `
+      <html>
+        <head>
+          <script type="application/ld+json">
+            {
+              "@context": "https://schema.org",
+              "@type": "Barbershop",
+              "name": "Amerigo Il Barbiere",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "/brand/jsonld-logo.png"
+              }
+            }
+          </script>
+          <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+          <meta property="og:image" content="https://scontent-fco2-1.cdninstagram.com/v/t51/avatar.jpg" />
+        </head>
+        <body>
+          <img class="social-share" src="https://example.com/icons/facebook-icon.png" alt="Facebook" />
+          <img class="site-logo" data-lazy-src="/uploads/lazy-brand-logo.webp" alt="Amerigo" />
+          <img class="navbar-brand" srcset="/uploads/srcset-brand.jpg 1x, /uploads/srcset-brand@2x.jpg 2x" alt="Brand" />
+        </body>
+      </html>
+    `;
+
+    const candidates = extractLogoCandidatesFromHtml(html, baseUrl, 'Amerigo Il Barbiere');
+
+    expect(candidates[0]).toBe('https://amerigo-barbiere.it/brand/jsonld-logo.png');
+    expect(candidates).toContain('https://amerigo-barbiere.it/icons/apple-touch-icon.png');
+    expect(candidates).toContain('https://amerigo-barbiere.it/uploads/lazy-brand-logo.webp');
+    expect(candidates).toContain('https://amerigo-barbiere.it/uploads/srcset-brand.jpg');
+    expect(candidates).toContain('https://scontent-fco2-1.cdninstagram.com/v/t51/avatar.jpg');
+    expect(candidates).not.toContain('https://example.com/icons/facebook-icon.png');
+  });
+
+  it('extracts Facebook page slugs and builds Graph picture URLs while rejecting reserved paths', () => {
+    expect(extractFacebookPageSlug('https://www.facebook.com/MirkoBarberNapoli/')).toBe(
+      'MirkoBarberNapoli'
+    );
+    expect(buildFacebookGraphPictureUrl('https://www.facebook.com/MirkoBarberNapoli/')).toBe(
+      'https://graph.facebook.com/MirkoBarberNapoli/picture?type=large&width=400&height=400'
+    );
+
+    expect(extractFacebookPageSlug('https://www.facebook.com/p/MirkoBarber-100040185918112/')).toBe(
+      '100040185918112'
+    );
+    expect(
+      buildFacebookGraphPictureUrl('https://www.facebook.com/p/MirkoBarber-100040185918112/')
+    ).toBe('https://graph.facebook.com/100040185918112/picture?type=large&width=400&height=400');
+
+    expect(extractFacebookPageSlug('https://www.facebook.com/profile.php?id=100046894040117')).toBe(
+      '100046894040117'
+    );
+    expect(
+      buildFacebookGraphPictureUrl('https://www.facebook.com/profile.php?id=100046894040117')
+    ).toBe('https://graph.facebook.com/100046894040117/picture?type=large&width=400&height=400');
+
+    expect(extractFacebookPageSlug('https://www.facebook.com/login/')).toBeNull();
+    expect(buildFacebookGraphPictureUrl('https://www.facebook.com/login/')).toBeNull();
+    expect(extractFacebookPageSlug('https://www.facebook.com/groups/barberitalia/')).toBeNull();
+    expect(buildFacebookGraphPictureUrl('https://www.facebook.com/groups/barberitalia/')).toBeNull();
+  });
+
+  it('extracts distinctive brand tokens cleanly and falls back to all tokens for generic names', () => {
+    expect(extractDistinctiveBrandTokens('AMERIGO IL BARBIERE').distinctiveTokens).toEqual([
+      'amerigo',
+    ]);
+    expect(extractDistinctiveBrandTokens('Mirko Barber Salon').distinctiveTokens).toEqual([
+      'mirko',
+    ]);
+    expect(extractDistinctiveBrandTokens('La Barberia').distinctiveTokens).toEqual([
+      'la',
+      'barberia',
+    ]);
+  });
+
+  it('fetchSafeLogoBinary converts valid SVG logos to PNG via Sharp and rejects tiny <32x32 PNG favicons', async () => {
+    // Minimal 16x16 PNG header (valid signature + IHDR chunk with width=16, height=16)
+    const tinyPng = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d,
+      0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x10, // width = 16
+      0x00, 0x00, 0x00, 0x10, // height = 16
+      0x08, 0x06, 0x00, 0x00, 0x00,
+    ]);
+
+    const svgLogo = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" fill="#BFFF00"/><circle cx="64" cy="64" r="36" fill="#09090B"/></svg>',
+      'utf8'
+    );
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes('tiny-favicon.png')) {
+        return new Response(tinyPng, {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
+      }
+      if (url.includes('brand-logo.svg')) {
+        return new Response(svgLogo, {
+          status: 200,
+          headers: { 'content-type': 'image/svg+xml' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const tinyOnlyResult = await fetchSafeLogoBinary(['https://example.com/tiny-favicon.png']);
+    expect(tinyOnlyResult).toBeNull();
+
+    const convertedAsset = await fetchSafeLogoBinary([
+      'https://example.com/tiny-favicon.png',
+      'https://example.com/brand-logo.svg',
+    ]);
+
+    expect(convertedAsset).not.toBeNull();
+    expect(convertedAsset?.mimeType).toBe('image/png');
+    expect(convertedAsset?.sourceUrl).toBe('https://example.com/brand-logo.svg');
+    // Verify PNG magic signature
+    expect(convertedAsset?.bytes[0]).toBe(0x89);
+    expect(convertedAsset?.bytes[1]).toBe(0x50);
+    expect(convertedAsset?.bytes[2]).toBe(0x4e);
+    expect(convertedAsset?.bytes[3]).toBe(0x47);
+    // Verify width >= 32 in converted PNG IHDR
+    const width = convertedAsset!.bytes.readUInt32BE(16);
+    const height = convertedAsset!.bytes.readUInt32BE(20);
+    expect(width).toBeGreaterThanOrEqual(32);
+    expect(height).toBeGreaterThanOrEqual(32);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

@@ -9,14 +9,15 @@ import {
   type PublicProspectPreviewDTO,
   type PublicRecommendedModuleDTO,
 } from '@/lib/outreach/preview';
-import { resolveProspectLogoCandidates } from '@/lib/outreach/logo-resolver';
+import { ensureProspectLogoPersisted } from '@/lib/outreach/brand-discovery';
+import { computeLogoVersionTag } from '@/lib/outreach/logo-resolver';
 import type { OutreachCommercialStatus, PublicDigitalSignals } from '@/lib/outreach/types';
 import { sanitizeString } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
 const SAFE_PROSPECT_COLUMNS =
-  'id, business_name, category, subcategory, city, province, region, address, website, website_domain, digital_signals, ai_analysis, merged_into_id, commercial_status';
+  'id, business_name, category, subcategory, city, province, region, address, website, website_domain, instagram_url, facebook_url, digital_signals, ai_analysis, merged_into_id, commercial_status';
 
 const DEMO_OPEN_DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -40,6 +41,8 @@ interface SafeProspectRow {
   address: string | null;
   website: string | null;
   website_domain: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
   digital_signals: PublicDigitalSignals | Record<string, unknown> | null;
   ai_analysis: unknown;
   merged_into_id: string | null;
@@ -186,11 +189,20 @@ export async function GET(
     const activeRow = await loadSafeProspectBySlug(adminDb, slug);
     if (!activeRow) return prospectNotFoundResponse();
 
-    const { primaryLogoUrl } = await resolveProspectLogoCandidates(activeRow, {
-      allowLiveWebsiteFetch: true,
-      timeoutMs: 1500,
+    const canonicalSlug = encodePreviewSlug(activeRow.business_name, activeRow.id);
+    const brand = await ensureProspectLogoPersisted(adminDb, activeRow, {
+      discoverIfMissing: true,
+      allowGeminiFallback: true,
+      timeoutMs: 3600,
     });
-    const preview = buildPublicPreviewDTO(activeRow, primaryLogoUrl);
+    const logoProxyUrl =
+      brand.logoUrl || brand.imageAsset
+        ? `/api/outreach/preview/${canonicalSlug}/logo?v=${computeLogoVersionTag(
+            brand.logoUrl || 'img',
+            activeRow.business_name
+          )}`
+        : null;
+    const preview = buildPublicPreviewDTO(activeRow, logoProxyUrl);
     return NextResponse.json(
       { preview },
       {

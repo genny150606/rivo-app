@@ -4,11 +4,11 @@ import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { decodeProspectIdFromSlug } from '@/lib/outreach/preview';
+import { getBusinessInitials } from '@/lib/outreach/logo-resolver';
 import {
-  fetchSafeSatoriLogoDataUri,
-  getBusinessInitials,
-  resolveProspectLogoCandidates,
-} from '@/lib/outreach/logo-resolver';
+  ensureProspectLogoPersisted,
+  fetchSafeServerSatoriLogoDataUri,
+} from '@/lib/outreach/brand-discovery';
 import { renderCoBrandedOgElement, type CoBrandedOgCardProps } from '@/lib/outreach/og-card';
 import { OUTREACH_DISCOVERY_CATEGORIES, type PublicDigitalSignals } from '@/lib/outreach/types';
 
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const SAFE_OG_PROSPECT_COLUMNS =
-  'id, business_name, category, subcategory, city, website, website_domain, digital_signals, merged_into_id';
+  'id, business_name, category, subcategory, city, province, website, website_domain, instagram_url, facebook_url, digital_signals, merged_into_id';
 
 const OG_CACHE_HEADERS = {
   'Content-Type': 'image/png',
@@ -31,8 +31,11 @@ interface SafeOgProspectRow {
   category: string | null;
   subcategory: string | null;
   city: string | null;
+  province: string | null;
   website: string | null;
   website_domain: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
   digital_signals: PublicDigitalSignals | Record<string, unknown> | null;
   merged_into_id: string | null;
 }
@@ -145,13 +148,17 @@ export async function GET(
         category = formatCategoryBadge(row.category, row.subcategory);
         initials = getBusinessInitials(businessName);
 
-        const { fallbackCandidates } = await resolveProspectLogoCandidates(row, {
-          allowLiveWebsiteFetch: true,
-          timeoutMs: 1800,
+        const brand = await ensureProspectLogoPersisted(adminDb, row, {
+          discoverIfMissing: true,
+          allowGeminiFallback: true,
+          timeoutMs: 3600,
         });
 
-        if (fallbackCandidates.length > 0) {
-          prospectLogoDataUri = await fetchSafeSatoriLogoDataUri(fallbackCandidates, 2000);
+        if (brand.imageAsset) {
+          prospectLogoDataUri = `data:${brand.imageAsset.mimeType};base64,${brand.imageAsset.bytes.toString('base64')}`;
+        } else if (brand.logoUrl) {
+          const fetched = await fetchSafeServerSatoriLogoDataUri([brand.logoUrl], 2000);
+          prospectLogoDataUri = fetched?.dataUri ?? null;
         }
       }
     }
