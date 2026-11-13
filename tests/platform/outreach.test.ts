@@ -13,6 +13,12 @@ import {
 } from '@/lib/outreach/ai-intelligence';
 import { OutreachComplianceService } from '@/lib/outreach/compliance';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE } from '@/lib/outreach/knowledge-base';
+import {
+  CAMPANIA_GEO_PRESETS,
+  resolveLocationCoordinates,
+  computeDistanceKm,
+  buildGoogleMapsUrl,
+} from '@/lib/outreach/providers/discovery';
 import type { OutreachProspectRecord } from '@/lib/outreach/types';
 
 function makeMockProspect(overrides: Partial<OutreachProspectRecord> = {}): OutreachProspectRecord {
@@ -224,5 +230,44 @@ describe('RIVO OUTREACH — OutreachComplianceService Gate', () => {
     });
     expect(res.allowed).toBe(true);
     expect(res.status).toBe('allowed');
+  });
+});
+
+describe('RIVO OUTREACH — Campania & Maps Discovery Engine', () => {
+  it('exposes Campania geo presets anchored on Napoli with wide-range radius options', () => {
+    const napoliCentro = CAMPANIA_GEO_PRESETS.find((p) => p.id === 'napoli_centro');
+    const campaniaWide = CAMPANIA_GEO_PRESETS.find((p) => p.id === 'campania_wide');
+
+    expect(napoliCentro).toBeDefined();
+    expect(napoliCentro?.query).toBe('Napoli');
+    expect(campaniaWide).toBeDefined();
+    expect(campaniaWide?.radiusKm).toBeGreaterThanOrEqual(75);
+  });
+
+  it('resolves Napoli and Salerno coordinates synchronously with Campania region metadata', async () => {
+    const napoli = await resolveLocationCoordinates('Napoli');
+    const salerno = await resolveLocationCoordinates('Salerno');
+
+    expect(napoli).not.toBeNull();
+    expect(napoli?.region).toBe('Campania');
+    expect(napoli?.lat).toBeCloseTo(40.8518, 2);
+    expect(napoli?.lon).toBeCloseTo(14.2681, 2);
+
+    expect(salerno).not.toBeNull();
+    expect(salerno?.region).toBe('Campania');
+    expect(salerno?.province).toBe('SA');
+  });
+
+  it('computes accurate Haversine distance between Napoli and Salerno', () => {
+    const km = computeDistanceKm(40.8518, 14.2681, 40.6824, 14.7681);
+    expect(km).toBeGreaterThan(43);
+    expect(km).toBeLessThan(50);
+  });
+
+  it('builds encoded Google Maps search URLs from business details', () => {
+    const url = buildGoogleMapsUrl('Pizzeria Da Michele', 'Via Cesare Sersale 1', 'Napoli');
+    expect(url).toContain('https://www.google.com/maps/search/');
+    expect(url).toContain(encodeURIComponent('Pizzeria Da Michele'));
+    expect(url).toContain('Napoli');
   });
 });

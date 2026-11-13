@@ -49,8 +49,8 @@ export default function OutreachCampaignsPage() {
     name: '',
     targetCategory: 'food_beverage',
     targetSubcategory: 'restaurant',
-    targetLocation: 'Milano',
-    radiusKm: 10,
+    targetLocation: 'Napoli',
+    radiusKm: 35,
     maxProspects: 30,
     minLeadScore: 60,
     promotedModules: ['menu', 'service', 'reviews'],
@@ -250,7 +250,7 @@ export default function OutreachCampaignsPage() {
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Es. Ristoranti Milano Q4 — Carrello Condiviso"
+                placeholder="Es. Ristoranti Napoli & Campania — Carrello Condiviso"
                 className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
               />
             </div>

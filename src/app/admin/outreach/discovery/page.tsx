@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -16,11 +16,19 @@ import {
   Database,
   Sparkles,
   FileSpreadsheet,
+  Compass,
+  ExternalLink,
+  Navigation,
 } from 'lucide-react';
 import {
   OUTREACH_DISCOVERY_CATEGORIES,
   type OutreachProspectRecord,
 } from '@/lib/outreach/types';
+import {
+  CAMPANIA_GEO_PRESETS,
+  type CampaniaGeoPreset,
+} from '@/lib/outreach/providers/discovery';
+import OutreachInteractiveMap from '@/components/outreach/OutreachInteractiveMap';
 
 interface ProviderInfo {
   id: string;
@@ -32,15 +40,27 @@ interface ProviderInfo {
 
 export default function OutreachDiscoveryPage() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [locationQuery, setLocationQuery] = useState('Milano');
-  const [radiusKm, setRadiusKm] = useState(5);
+  const [campaniaPresets, setCampaniaPresets] = useState<CampaniaGeoPreset[]>(CAMPANIA_GEO_PRESETS);
+  const [activePresetId, setActivePresetId] = useState<string | null>('campania_wide');
+  const [locationQuery, setLocationQuery] = useState('Napoli');
+  const [centerLat, setCenterLat] = useState<number>(40.8518);
+  const [centerLon, setCenterLon] = useState<number>(14.2681);
+  const [radiusKm, setRadiusKm] = useState(35);
   const [category, setCategory] = useState<string>('food_beverage');
   const [subcategory, setSubcategory] = useState<string>('restaurant');
   const [maxResults, setMaxResults] = useState(25);
-  const [selectedProviders, setSelectedProviders] = useState<string[]>(['openstreetmap_odbl']);
+  const [selectedProviders, setSelectedProviders] = useState<string[]>([
+    'google_places_official',
+    'openstreetmap_odbl',
+  ]);
 
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const mapSectionRef = useRef<HTMLDivElement | null>(null);
+  const [existingProspects, setExistingProspects] = useState<OutreachProspectRecord[]>([]);
+  const [selectedProspect, setSelectedProspect] = useState<OutreachProspectRecord | null>(null);
+  const [newlyInsertedIds, setNewlyInsertedIds] = useState<Set<string>>(new Set());
+  const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
   const [searchResult, setSearchResult] = useState<{
     discoveredCount: number;
     insertedCount: number;
@@ -54,9 +74,9 @@ export default function OutreachDiscoveryPage() {
     business_name: '',
     category: 'food_beverage',
     subcategory: 'restaurant',
-    city: '',
-    province: '',
-    region: '',
+    city: 'Napoli',
+    province: 'NA',
+    region: 'Campania',
     address: '',
     website: '',
     instagram_url: '',
@@ -78,8 +98,14 @@ export default function OutreachDiscoveryPage() {
     try {
       const res = await fetch('/api/admin/outreach/discovery', { cache: 'no-store' });
       const json = await res.json();
-      if (res.ok && json.providers) {
-        setProviders(json.providers);
+      if (res.ok) {
+        if (json.providers) setProviders(json.providers);
+        if (Array.isArray(json.campaniaPresets) && json.campaniaPresets.length > 0) {
+          setCampaniaPresets(json.campaniaPresets);
+        }
+        if (Array.isArray(json.existingProspects)) {
+          setExistingProspects(json.existingProspects);
+        }
       }
     } catch {
       // ignore initial load error
@@ -109,11 +135,31 @@ export default function OutreachDiscoveryPage() {
     );
   };
 
-  const handleRunDiscovery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!locationQuery.trim()) return;
+  const handleSelectPreset = (preset: CampaniaGeoPreset) => {
+    setActivePresetId(preset.id);
+    setLocationQuery(preset.query);
+    setCenterLat(preset.lat);
+    setCenterLon(preset.lon);
+    setRadiusKm(preset.radiusKm);
+  };
+
+  const executeDiscovery = async (opts?: { overrideLat?: number; overrideLon?: number }) => {
+    if (!locationQuery.trim() && opts?.overrideLat == null) return;
     setSearching(true);
     setSearchError(null);
+    setSearchWarnings([]);
+
+    const useCustomCoords = opts?.overrideLat != null && opts?.overrideLon != null;
+    const reqLat = useCustomCoords
+      ? opts.overrideLat
+      : activePresetId
+      ? centerLat
+      : null;
+    const reqLon = useCustomCoords
+      ? opts.overrideLon
+      : activePresetId
+      ? centerLon
+      : null;
 
     try {
       const res = await fetch('/api/admin/outreach/discovery', {
@@ -121,31 +167,74 @@ export default function OutreachDiscoveryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'start_discovery',
-          locationQuery: locationQuery.trim(),
+          locationQuery: locationQuery.trim() || 'Napoli',
           radiusKm,
+          centerLat: reqLat,
+          centerLon: reqLon,
           category,
           subcategory: subcategory || undefined,
           maxResults,
-          providerIds: selectedProviders,
+          providerIds:
+            selectedProviders.length > 0
+              ? selectedProviders
+              : ['google_places_official', 'openstreetmap_odbl'],
         }),
       });
       const json = await res.json();
       if (!res.ok) {
         throw new Error(json.error || 'Errore durante la ricerca delle attività');
       }
+
       const jobRes = json.job?.result || {};
       const insertedProspects: OutreachProspectRecord[] = json.insertedProspects || [];
+      const allSearchProspects: OutreachProspectRecord[] =
+        json.allSearchProspects && json.allSearchProspects.length > 0
+          ? json.allSearchProspects
+          : insertedProspects;
+
+      if (json.searchCenter) {
+        setCenterLat(json.searchCenter.lat);
+        setCenterLon(json.searchCenter.lon);
+      }
+
+      const newIdSet = new Set(insertedProspects.map((p) => p.id));
+      setNewlyInsertedIds(newIdSet);
+      setSearchWarnings(Array.isArray(jobRes.warnings) ? jobRes.warnings : []);
+
       setSearchResult({
-        discoveredCount: jobRes.discoveredCount ?? insertedProspects.length,
+        discoveredCount: jobRes.discoveredTotal ?? allSearchProspects.length,
         insertedCount: jobRes.insertedCount ?? insertedProspects.length,
-        duplicatesSkipped: jobRes.duplicatesSkipped ?? 0,
-        items: insertedProspects,
+        duplicatesSkipped: jobRes.skippedDuplicates ?? 0,
+        items: allSearchProspects,
       });
+
+      // Merge results into existingProspects for map plotting & pick first geo pin
+      setExistingProspects((prev) => {
+        const map = new Map<string, OutreachProspectRecord>();
+        for (const item of allSearchProspects) map.set(item.id, item);
+        for (const old of prev) {
+          if (!map.has(old.id)) map.set(old.id, old);
+        }
+        return Array.from(map.values());
+      });
+
+      const firstMappable =
+        allSearchProspects.find((p) => p.latitude != null && p.longitude != null) ||
+        allSearchProspects[0] ||
+        null;
+      if (firstMappable) {
+        setSelectedProspect(firstMappable);
+      }
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Errore imprevisto');
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleRunDiscovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await executeDiscovery();
   };
 
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -267,10 +356,10 @@ export default function OutreachDiscoveryPage() {
             </span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-bold tracking-[-0.02em] text-[#FAFAFA]">
-            Ricerca e Acquisizione Attività Commerciali
+            Ricerca e Acquisizione Attività — Priority Maps &amp; Campania
           </h1>
           <p className="text-sm text-[#A1A1AA] mt-1">
-            Motore modulare multi-provider (`BusinessDataProvider`) con deduplicazione automatica, arricchimento metadati web pubblici e tracciabilità della fonte.
+            Motore geografico prioritario su Maps centrato su Napoli e Campania a lungo raggio (fino a 120 km), con mappa interattiva live e anteprima schede Google Maps.
           </p>
         </div>
 
@@ -391,7 +480,7 @@ export default function OutreachDiscoveryPage() {
                 type="text"
                 value={manualForm.city}
                 onChange={(e) => setManualForm({ ...manualForm, city: e.target.value })}
-                placeholder="Milano"
+                placeholder="Napoli"
                 className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
@@ -404,7 +493,7 @@ export default function OutreachDiscoveryPage() {
                 type="text"
                 value={manualForm.address}
                 onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })}
-                placeholder="Via Torino 18"
+                placeholder="Via Toledo 148"
                 className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
@@ -443,7 +532,7 @@ export default function OutreachDiscoveryPage() {
                 type="text"
                 value={manualForm.business_phone}
                 onChange={(e) => setManualForm({ ...manualForm, business_phone: e.target.value })}
-                placeholder="+39 02 ..."
+                placeholder="+39 081 ..."
                 className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
@@ -528,7 +617,7 @@ export default function OutreachDiscoveryPage() {
             rows={5}
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
-            placeholder={`business_name,category,subcategory,city,address,website,business_phone,business_email\nBarberia Brera,beauty_personal_care,barber,Milano,Via Brera 12,https://barberiabrera.example.it,+3902123456,info@barberiabrera.example.it`}
+            placeholder={`business_name,category,subcategory,city,address,website,business_phone,business_email\nPizzeria Partenope,food_beverage,pizzeria,Napoli,Via Chiaia 42,https://pizzeriapartenope.example.it,+39081123456,info@pizzeriapartenope.example.it`}
             className="w-full p-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs font-mono text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
           />
           <div className="flex justify-end">
@@ -546,22 +635,60 @@ export default function OutreachDiscoveryPage() {
       {/* Main Search Interface */}
       <form
         onSubmit={handleRunDiscovery}
-        className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-6"
+        className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-5"
       >
+        {/* Campania Geo-Presets Quick Bar */}
+        <div className="space-y-2 pb-4 border-b border-[#27272A]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-[#BFFF00]">
+              <Compass className="w-3.5 h-3.5" />
+              Focus Territoriale: Napoli &amp; Campania a Largo Raggio
+            </span>
+            <span className="text-[11px] font-mono text-[#71717A]">
+              Centro: {centerLat.toFixed(4)}, {centerLon.toFixed(4)} • Raggio {radiusKm} km
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {campaniaPresets.map((preset) => {
+              const isActive = activePresetId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleSelectPreset(preset)}
+                  title={`${preset.label} — ${preset.city} (${preset.province}), raggio ${preset.radiusKm} km`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                    isActive
+                      ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-[#BFFF00] font-semibold'
+                      : 'bg-[#0D0D10] border-[#27272A] text-[#A1A1AA] hover:border-[#3F3F46] hover:text-[#FAFAFA]'
+                  }`}
+                >
+                  <Navigation className="w-3 h-3 shrink-0" />
+                  <span>{preset.label}</span>
+                  <span className="text-[10px] font-mono opacity-75">{preset.radiusKm}km</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Località */}
           <div>
             <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-              Località / Città
+              Località / Città Principale
             </label>
             <div className="relative">
-              <MapPin className="w-4 h-4 text-[#71717A] absolute left-3 top-3" />
+              <MapPin className="w-4 h-4 text-[#BFFF00] absolute left-3 top-3" />
               <input
                 type="text"
                 required
                 value={locationQuery}
-                onChange={(e) => setLocationQuery(e.target.value)}
-                placeholder="Es. Milano, Roma, Torino..."
+                onChange={(e) => {
+                  setActivePresetId(null);
+                  setLocationQuery(e.target.value);
+                }}
+                placeholder="Es. Napoli, Salerno, Caserta, Sorrento..."
                 className="w-full h-10 pl-9 pr-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
@@ -569,17 +696,32 @@ export default function OutreachDiscoveryPage() {
 
           {/* Raggio Geografico */}
           <div>
-            <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-              Raggio Geografico (km)
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={25}
-              value={radiusKm}
-              onChange={(e) => setRadiusKm(Number(e.target.value))}
-              className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm font-mono text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-            />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA]">
+                Raggio (1–120 km)
+              </label>
+              <span className="text-[10px] font-mono text-[#BFFF00]">
+                {radiusKm >= 50 ? 'Largo raggio' : radiusKm >= 20 ? 'Area metropolitana' : 'Urbano'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={1}
+                max={120}
+                value={radiusKm}
+                onChange={(e) => setRadiusKm(Number(e.target.value))}
+                className="w-full accent-[#BFFF00] cursor-pointer"
+              />
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={radiusKm}
+                onChange={(e) => setRadiusKm(Math.max(1, Math.min(120, Number(e.target.value) || 1)))}
+                className="w-16 h-10 px-2 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm font-mono text-[#FAFAFA] text-center focus:outline-none focus:border-[#BFFF00]"
+              />
+            </div>
           </div>
 
           {/* Categoria Commerciale */}
@@ -663,7 +805,12 @@ export default function OutreachDiscoveryPage() {
                       <div>
                         <div className="font-medium flex items-center gap-1.5">
                           <Database className="w-3 h-3 text-[#BFFF00]" />
-                          {p.name}
+                          <span>{p.name}</span>
+                          {p.id === 'google_places_official' && (
+                            <span className="px-1.5 py-0.5 rounded bg-[#BFFF00]/20 text-[#BFFF00] text-[9px] font-mono font-bold uppercase tracking-wider">
+                              #1 MAPS PRIORITARIO
+                            </span>
+                          )}
                         </div>
                         <div className="text-[10px] text-[#71717A]">{p.attribution}</div>
                       </div>
@@ -700,6 +847,58 @@ export default function OutreachDiscoveryPage() {
           <span>{searchError}</span>
         </div>
       )}
+
+      {searchWarnings.length > 0 && (
+        <div className="p-4 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-xs text-[#F59E0B] space-y-1">
+          {searchWarnings.map((warn, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>{warn}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Interactive Geo-Map & Google Maps Preview */}
+      <div ref={mapSectionRef}>
+        <OutreachInteractiveMap
+          centerLat={centerLat}
+          centerLon={centerLon}
+          locationLabel={locationQuery || 'Napoli'}
+          radiusKm={radiusKm}
+          prospects={existingProspects}
+          newlyInsertedIds={newlyInsertedIds}
+          selectedProspect={selectedProspect}
+          onSelectProspect={(p) => setSelectedProspect(p)}
+          onChangeCenter={(lat, lon, label) => {
+            setActivePresetId('custom_map');
+            setCenterLat(lat);
+            setCenterLon(lon);
+            if (label) setLocationQuery(label);
+          }}
+          onSearchThisArea={(lat, lon) =>
+            executeDiscovery({
+              overrideLat: lat ?? centerLat,
+              overrideLon: lon ?? centerLon,
+            })
+          }
+          searching={searching}
+          onProspectAnalyzed={(updated) => {
+            setSelectedProspect(updated);
+            setExistingProspects((prev) =>
+              prev.map((p) => (p.id === updated.id ? updated : p))
+            );
+            setSearchResult((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    items: prev.items.map((p) => (p.id === updated.id ? updated : p)),
+                  }
+                : null
+            );
+          }}
+        />
+      </div>
 
       {/* Results Section */}
       {searchResult && (
@@ -757,67 +956,130 @@ export default function OutreachDiscoveryPage() {
                     <th className="py-3 px-4">Località / Indirizzo</th>
                     <th className="py-3 px-4">Canali Pubblici Rilevati</th>
                     <th className="py-3 px-4">Fonte & Licenza</th>
+                    <th className="py-3 px-4 text-right">Mappa / Preview</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#27272A] text-sm">
-                  {searchResult.items.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#18181B]">
-                      <td className="py-3 px-4 font-medium text-[#FAFAFA]">
-                        {item.business_name}
-                      </td>
-                      <td className="py-3 px-4 text-xs text-[#A1A1AA]">
-                        <div>{item.category}</div>
-                        {item.subcategory && (
-                          <div className="text-[11px] text-[#71717A]">{item.subcategory}</div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-xs text-[#A1A1AA]">
-                        <div>{item.city || '-'}</div>
-                        {item.address && (
-                          <div className="text-[11px] text-[#71717A] truncate max-w-[240px]">
-                            {item.address}
+                  {searchResult.items.map((item) => {
+                    const isSelected = selectedProspect?.id === item.id;
+                    const gmapsHref =
+                      item.digital_signals?.googleMapsUrl ||
+                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        [item.business_name, item.address, item.city].filter(Boolean).join(', ')
+                      )}`;
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`hover:bg-[#18181B] transition-colors ${
+                          isSelected ? 'bg-[#BFFF00]/5' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-medium text-[#FAFAFA]">
+                          <div className="flex items-center gap-2">
+                            <span>{item.business_name}</span>
+                            {newlyInsertedIds.has(item.id) && (
+                              <span className="px-1.5 py-0.5 rounded bg-[#BFFF00]/20 text-[#BFFF00] text-[9px] font-mono uppercase">
+                                NUOVO
+                              </span>
+                            )}
                           </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2 text-xs">
-                          {item.website && (
+                        </td>
+                        <td className="py-3 px-4 text-xs text-[#A1A1AA]">
+                          <div>{item.category}</div>
+                          {item.subcategory && (
+                            <div className="text-[11px] text-[#71717A]">{item.subcategory}</div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-[#A1A1AA]">
+                          <div className="flex items-center gap-1.5">
+                            <span>{item.city || '-'}</span>
+                            {typeof item.digital_signals?.distanceKm === 'number' && (
+                              <span className="text-[10px] font-mono text-[#BFFF00]">
+                                • {item.digital_signals.distanceKm} km
+                              </span>
+                            )}
+                          </div>
+                          {item.address && (
+                            <div className="text-[11px] text-[#71717A] truncate max-w-[240px]">
+                              {item.address}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2 text-xs">
+                            {item.website && (
+                              <a
+                                href={item.website}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#FAFAFA] hover:border-[#BFFF00]"
+                              >
+                                <Globe className="w-3 h-3 text-[#BFFF00]" />
+                                Web
+                              </a>
+                            )}
+                            {item.business_phone && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#A1A1AA] font-mono text-[11px]">
+                                <Phone className="w-3 h-3" />
+                                {item.business_phone}
+                              </span>
+                            )}
+                            {item.business_email && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#BFFF00] font-mono text-[11px]">
+                                <Mail className="w-3 h-3" />
+                                {item.business_email}
+                              </span>
+                            )}
+                            {!item.website && !item.business_phone && !item.business_email && (
+                              <span className="text-[11px] text-[#71717A]">Solo scheda geografica</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-[11px] font-mono text-[#71717A]">
+                          <div>{item.source}</div>
+                          <div className="text-[10px]">{item.source_reference}</div>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedProspect(item);
+                                if (item.latitude != null && item.longitude != null) {
+                                  setCenterLat(item.latitude);
+                                  setCenterLon(item.longitude);
+                                }
+                                mapSectionRef.current?.scrollIntoView({
+                                  behavior: 'smooth',
+                                  block: 'center',
+                                });
+                              }}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${
+                                isSelected
+                                  ? 'bg-[#BFFF00] border-[#BFFF00] text-[#09090B] font-semibold'
+                                  : 'bg-[#0D0D10] border-[#27272A] text-[#FAFAFA] hover:border-[#BFFF00]'
+                              }`}
+                            >
+                              <MapPin className="w-3 h-3" />
+                              Anteprima Maps
+                            </button>
                             <a
-                              href={item.website}
+                              href={gmapsHref}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#FAFAFA] hover:border-[#BFFF00]"
+                              title="Apri su Google Maps"
+                              className="p-1.5 rounded border border-[#27272A] bg-[#0D0D10] text-[#A1A1AA] hover:text-[#BFFF00] hover:border-[#BFFF00] transition-colors"
                             >
-                              <Globe className="w-3 h-3 text-[#BFFF00]" />
-                              Web
+                              <ExternalLink className="w-3 h-3" />
                             </a>
-                          )}
-                          {item.business_phone && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#A1A1AA] font-mono text-[11px]">
-                              <Phone className="w-3 h-3" />
-                              {item.business_phone}
-                            </span>
-                          )}
-                          {item.business_email && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#BFFF00] font-mono text-[11px]">
-                              <Mail className="w-3 h-3" />
-                              {item.business_email}
-                            </span>
-                          )}
-                          {!item.website && !item.business_phone && !item.business_email && (
-                            <span className="text-[11px] text-[#71717A]">Solo scheda geografica</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-[11px] font-mono text-[#71717A]">
-                        <div>{item.source}</div>
-                        <div className="text-[10px]">{item.source_reference}</div>
-                      </td>
-                    </tr>
-                  ))}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {searchResult.items.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-xs text-[#71717A]">
+                      <td colSpan={6} className="py-8 text-center text-xs text-[#71717A]">
                         Nessuna nuova attività inserita con i filtri specificati.
                       </td>
                     </tr>

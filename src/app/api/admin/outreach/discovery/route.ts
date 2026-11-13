@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySuperAdminAccess } from '@/lib/outreach/auth';
 import { OUTREACH_DISCOVERY_CATEGORIES, type OutreachProspectRecord } from '@/lib/outreach/types';
 import {
+  CAMPANIA_GEO_PRESETS,
   getRegisteredDiscoveryProviders,
   inspectPublicWebsiteMetadata,
 } from '@/lib/outreach/providers/discovery';
@@ -25,17 +26,27 @@ export async function GET(request: NextRequest) {
     configured: p.isConfigured(),
   }));
 
-  const { data: recentJobs } = await adminDb
-    .from('outreach_jobs')
-    .select('*')
-    .eq('job_type', 'discovery')
-    .order('created_at', { ascending: false })
-    .limit(12);
+  const [{ data: recentJobs }, { data: existingProspects }] = await Promise.all([
+    adminDb
+      .from('outreach_jobs')
+      .select('*')
+      .eq('job_type', 'discovery')
+      .order('created_at', { ascending: false })
+      .limit(12),
+    adminDb
+      .from('outreach_prospects')
+      .select('*')
+      .is('merged_into_id', null)
+      .order('created_at', { ascending: false })
+      .limit(60),
+  ]);
 
   return NextResponse.json({
     categories: OUTREACH_DISCOVERY_CATEGORIES,
+    campaniaPresets: CAMPANIA_GEO_PRESETS,
     providers,
     recentJobs: recentJobs || [],
+    existingProspects: existingProspects || [],
   });
 }
 
@@ -49,18 +60,20 @@ export async function POST(request: NextRequest) {
     const action = String(body.action || 'start_discovery');
 
     if (action === 'start_discovery') {
-      const locationQuery = String(body.locationQuery || '').trim();
-      const radiusKm = Math.max(1, Math.min(25, Number(body.radiusKm) || 5));
+      const locationQuery = String(body.locationQuery || 'Napoli').trim() || 'Napoli';
+      const radiusKm = Math.max(1, Math.min(120, Number(body.radiusKm) || 35));
+      const centerLat = typeof body.centerLat === 'number' && Number.isFinite(body.centerLat) ? body.centerLat : null;
+      const centerLon = typeof body.centerLon === 'number' && Number.isFinite(body.centerLon) ? body.centerLon : null;
       const category = String(body.category || 'food_beverage');
       const subcategory = String(body.subcategory || 'restaurant');
-      const maxResults = Math.max(1, Math.min(50, Number(body.maxResults) || 20));
-      const providerIds: string[] = Array.isArray(body.providerIds)
+      const maxResults = Math.max(1, Math.min(50, Number(body.maxResults) || 25));
+      const providerIds: string[] = Array.isArray(body.providerIds) && body.providerIds.length > 0
         ? body.providerIds
-        : ['openstreetmap_odbl'];
+        : ['google_places_official', 'openstreetmap_odbl'];
 
-      if (!locationQuery) {
+      if (!locationQuery && (centerLat === null || centerLon === null)) {
         return NextResponse.json(
-          { error: 'Inserisci una località valida (es. Napoli, Milano, Roma).' },
+          { error: 'Inserisci una località valida (es. Napoli, Salerno, Caserta, Campania).' },
           { status: 400 }
         );
       }
@@ -74,6 +87,8 @@ export async function POST(request: NextRequest) {
           payload: {
             locationQuery,
             radiusKm,
+            centerLat,
+            centerLon,
             category,
             subcategory,
             maxResults,
@@ -94,19 +109,26 @@ export async function POST(request: NextRequest) {
       const completedJob = await processOutreachJob(adminDb, createdJob.id, user.id);
 
       const insertedIds: string[] = completedJob?.result?.insertedIds || [];
-      let insertedProspects: any[] = [];
-      if (insertedIds.length > 0) {
+      const allResultIds: string[] = completedJob?.result?.allResultIds || insertedIds;
+
+      let allSearchProspects: any[] = [];
+      if (allResultIds.length > 0) {
         const { data: rows } = await adminDb
           .from('outreach_prospects')
           .select('*')
-          .in('id', insertedIds)
+          .in('id', allResultIds)
           .order('created_at', { ascending: false });
-        insertedProspects = rows || [];
+        allSearchProspects = rows || [];
       }
+
+      const insertedSet = new Set(insertedIds);
+      const insertedProspects = allSearchProspects.filter((r) => insertedSet.has(r.id));
 
       return NextResponse.json({
         job: completedJob,
         insertedProspects,
+        allSearchProspects,
+        searchCenter: completedJob?.result?.searchCenter || null,
       });
     }
 

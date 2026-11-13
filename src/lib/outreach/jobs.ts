@@ -105,17 +105,22 @@ export async function processOutreachJob(
     // ========================================================================
     if (job.job_type === 'discovery') {
       const {
-        locationQuery = 'Milano',
-        radiusKm = 5,
+        locationQuery = 'Napoli',
+        radiusKm = 35,
+        centerLat = null,
+        centerLon = null,
         category = 'food_beverage',
         subcategory = 'restaurant',
-        maxResults = 20,
-        providerIds = ['openstreetmap_odbl'],
+        maxResults = 25,
+        providerIds = ['google_places_official', 'openstreetmap_odbl'],
       } = job.payload || {};
 
-      const providers = getRegisteredDiscoveryProviders().filter((p) =>
+      let providers = getRegisteredDiscoveryProviders().filter((p) =>
         providerIds.includes(p.id)
       );
+      if (providers.length === 0) {
+        providers = [getRegisteredDiscoveryProviders()[0]];
+      }
 
       const { data: existingRows } = await adminDb
         .from('outreach_prospects')
@@ -127,17 +132,36 @@ export async function processOutreachJob(
       let insertedCount = 0;
       let skippedDuplicates = 0;
       const insertedIds: string[] = [];
+      const matchedIds: string[] = [];
+      const matchedSet = new Set<string>();
       const warnings: string[] = [];
+      let searchCenter: {
+        lat: number;
+        lon: number;
+        radiusKm: number;
+        locationQuery: string;
+      } | null = null;
 
       for (const provider of providers) {
         const searchRes = await provider.search({
           locationQuery,
-          radiusKm: Number(radiusKm) || 5,
+          radiusKm: Math.max(1, Math.min(120, Number(radiusKm) || 35)),
+          centerLat: typeof centerLat === 'number' ? centerLat : null,
+          centerLon: typeof centerLon === 'number' ? centerLon : null,
           category,
           subcategory,
-          maxResults: Number(maxResults) || 20,
+          maxResults: Number(maxResults) || 25,
           enrichWebsites: true,
         });
+
+        if (searchRes.center && !searchCenter) {
+          searchCenter = {
+            lat: searchRes.center.lat,
+            lon: searchRes.center.lon,
+            radiusKm: Math.max(1, Math.min(120, Number(radiusKm) || 35)),
+            locationQuery,
+          };
+        }
 
         warnings.push(...searchRes.warnings);
         discoveredTotal += searchRes.candidates.length;
@@ -149,8 +173,39 @@ export async function processOutreachJob(
 
         for (const cand of searchRes.candidates) {
           const dupCheck = matchDuplicateInList(cand, existingList);
-          if (dupCheck.isDuplicate) {
+          if (dupCheck.isDuplicate && dupCheck.matchedProspect) {
             skippedDuplicates++;
+            const existingMatch = dupCheck.matchedProspect;
+            if (!matchedSet.has(existingMatch.id)) {
+              matchedSet.add(existingMatch.id);
+              matchedIds.push(existingMatch.id);
+            }
+
+            // Backfill missing coordinates, address, or Maps link on existing prospect
+            const patch: Record<string, any> = {};
+            if (existingMatch.latitude == null && cand.latitude != null) {
+              patch.latitude = cand.latitude;
+            }
+            if (existingMatch.longitude == null && cand.longitude != null) {
+              patch.longitude = cand.longitude;
+            }
+            if (!existingMatch.address && cand.address) {
+              patch.address = cand.address;
+            }
+            if (!existingMatch.digital_signals?.googleMapsUrl && cand.digital_signals?.googleMapsUrl) {
+              patch.digital_signals = {
+                ...(existingMatch.digital_signals || {}),
+                googleMapsUrl: cand.digital_signals.googleMapsUrl,
+                distanceKm: cand.digital_signals.distanceKm ?? existingMatch.digital_signals?.distanceKm ?? null,
+              };
+            }
+            if (Object.keys(patch).length > 0) {
+              patch.updated_at = new Date().toISOString();
+              await adminDb
+                .from('outreach_prospects')
+                .update(patch)
+                .eq('id', existingMatch.id);
+            }
             continue;
           }
 
@@ -195,11 +250,15 @@ export async function processOutreachJob(
         }
       }
 
+      const allResultIds = Array.from(new Set([...insertedIds, ...matchedIds]));
       const resultSummary = {
         discoveredTotal,
         insertedCount,
         skippedDuplicates,
         insertedIds,
+        matchedIds,
+        allResultIds,
+        searchCenter,
         warnings,
       };
 
@@ -316,10 +375,10 @@ export async function processOutreachJob(
       const channel = cfg.channel || 'email';
 
       // Step 1: Discover new prospects for campaign location & category
-      const osmProvider = getRegisteredDiscoveryProviders()[0];
-      const searchRes = await osmProvider.search({
-        locationQuery: campaign.location,
-        radiusKm: Number(cfg.radiusKm) || 5,
+      const mapsProvider = getRegisteredDiscoveryProviders()[0];
+      const searchRes = await mapsProvider.search({
+        locationQuery: campaign.location || 'Napoli',
+        radiusKm: Math.max(1, Math.min(120, Number(cfg.radiusKm) || 35)),
         category: campaign.category,
         subcategory,
         maxResults: maxToAnalyze,

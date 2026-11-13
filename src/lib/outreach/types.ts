@@ -383,6 +383,10 @@ export interface PublicDigitalSignals {
   detectedSocialLinks?: string[];
   httpStatus?: number | null;
   inspectedAt?: string | null;
+  googleMapsUrl?: string | null;
+  distanceKm?: number | null;
+  rating?: number | null;
+  userRatingCount?: number | null;
 }
 
 export interface OutreachProspectRecord {
