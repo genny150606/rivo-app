@@ -461,88 +461,260 @@ export async function inspectPublicWebsiteMetadata(rawUrl: string): Promise<Publ
   return signals;
 }
 
+export interface SubcategorySearchPlan {
+  nominatimQueries: string[];
+  photonKeywords: string[];
+}
+
+export const SUBCATEGORY_SEARCH_PLAN: Record<string, SubcategorySearchPlan> = {
+  restaurant: {
+    nominatimQueries: ['[amenity=restaurant]', 'ristorante'],
+    photonKeywords: ['ristorante', 'trattoria', 'osteria'],
+  },
+  pizzeria: {
+    nominatimQueries: ['pizzeria', '[cuisine=pizza]', '[amenity=restaurant]'],
+    photonKeywords: ['pizzeria', 'pizza'],
+  },
+  bar: {
+    nominatimQueries: ['[amenity=bar]', '[amenity=cafe]'],
+    photonKeywords: ['bar', 'caffetteria', 'caffe'],
+  },
+  gelateria: {
+    nominatimQueries: ['[amenity=ice_cream]', 'gelateria'],
+    photonKeywords: ['gelateria', 'gelato'],
+  },
+  pasticceria: {
+    nominatimQueries: ['[shop=pastry]', '[shop=bakery]', 'pasticceria'],
+    photonKeywords: ['pasticceria', 'bakery', 'dolceria'],
+  },
+  salon: {
+    nominatimQueries: ['[shop=hairdresser]', 'parrucchiere'],
+    photonKeywords: ['parrucchiere', 'hair', 'acconciature'],
+  },
+  barber: {
+    nominatimQueries: ['barber', 'barbiere', '[shop=hairdresser]'],
+    photonKeywords: ['barber', 'barbiere', 'barberia', 'parrucchiere'],
+  },
+  beauty: {
+    nominatimQueries: ['[shop=beauty]', 'centro estetico'],
+    photonKeywords: ['centro estetico', 'estetica', 'beauty', 'spa'],
+  },
+  nail_salon: {
+    nominatimQueries: ['nail', 'unghie', '[shop=beauty]'],
+    photonKeywords: ['nail', 'nails', 'unghie', 'estetica'],
+  },
+  hotel: {
+    nominatimQueries: ['[tourism=hotel]', 'hotel'],
+    photonKeywords: ['hotel', 'albergo'],
+  },
+  bnb: {
+    nominatimQueries: ['[tourism=guest_house]', 'affittacamere', 'bed and breakfast'],
+    photonKeywords: ['b&b', 'guest house', 'suites', 'affittacamere'],
+  },
+  bb: {
+    nominatimQueries: ['[tourism=guest_house]', 'affittacamere', 'bed and breakfast'],
+    photonKeywords: ['b&b', 'guest house', 'suites', 'affittacamere'],
+  },
+  hospitality_other: {
+    nominatimQueries: ['[tourism=guest_house]', '[tourism=hotel]', 'resort'],
+    photonKeywords: ['resort', 'relais', 'residence', 'casa vacanze'],
+  },
+};
+
+export function getSubcategorySearchPlan(subIdOrCat: string): SubcategorySearchPlan {
+  const key = (subIdOrCat || '').toLowerCase().trim();
+  if (SUBCATEGORY_SEARCH_PLAN[key]) return SUBCATEGORY_SEARCH_PLAN[key];
+  if (key.includes('beauty')) return SUBCATEGORY_SEARCH_PLAN.beauty;
+  if (key.includes('hospitality')) return SUBCATEGORY_SEARCH_PLAN.hotel;
+  return SUBCATEGORY_SEARCH_PLAN.restaurant;
+}
+
 /**
- * Helper to fetch Overpass across multiple public mirrors with failover.
+ * Helper to fetch Overpass in parallel across mirrors with a fast 4s timeout.
  */
 async function queryOverpassWithFailover(overpassQuery: string): Promise<any[]> {
-  for (const mirror of OVERPASS_MIRRORS) {
+  try {
+    return await Promise.any(
+      OVERPASS_MIRRORS.map(async (mirror) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
+        try {
+          const res = await fetch(mirror, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent': RIVO_USER_AGENT,
+            },
+            body: `data=${encodeURIComponent(overpassQuery)}`,
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          if (Array.isArray(json?.elements)) {
+            return json.elements as any[];
+          }
+          throw new Error('No elements array');
+        } catch (err) {
+          clearTimeout(timer);
+          throw err;
+        }
+      })
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Sequential Nominatim search using structured OSM bracketed tags & keywords
+ * bounded to the search viewbox, with an unbounded fallback for small towns.
+ */
+async function queryNominatimCategoryPlaces(
+  subId: string,
+  center: ResolvedCoordinates,
+  radiusKm: number,
+  limit = 40
+): Promise<any[]> {
+  const plan = getSubcategorySearchPlan(subId);
+  const effectiveRadius = Math.max(8, radiusKm);
+  const degLat = Math.max(0.06, Math.min(1.15, effectiveRadius / 111));
+  const degLon = Math.max(
+    0.08,
+    Math.min(1.45, effectiveRadius / (111 * Math.cos((center.lat * Math.PI) / 180)))
+  );
+  const viewbox = `${(center.lon - degLon).toFixed(4)},${(center.lat + degLat).toFixed(4)},${(
+    center.lon + degLon
+  ).toFixed(4)},${(center.lat - degLat).toFixed(4)}`;
+
+  const results: any[] = [];
+  for (const nq of plan.nominatimQueries) {
+    if (results.length >= limit) break;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
+    const timer = setTimeout(() => controller.abort(), 4500);
     try {
-      const res = await fetch(mirror, {
-        method: 'POST',
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&countrycodes=it&viewbox=${viewbox}&bounded=1&limit=35&q=${encodeURIComponent(
+        nq
+      )}`;
+      const res = await fetch(url, {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
           'User-Agent': RIVO_USER_AGENT,
+          'Accept-Language': 'it',
         },
-        body: `data=${encodeURIComponent(overpassQuery)}`,
         signal: controller.signal,
       });
       clearTimeout(timer);
-      if (!res.ok) continue;
-      const json = await res.json();
-      if (Array.isArray(json?.elements)) {
-        return json.elements;
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          results.push(...data);
+        }
       }
     } catch {
       clearTimeout(timer);
     }
   }
-  return [];
+
+  if (results.length < 5 && plan.nominatimQueries.length > 0) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4500);
+    try {
+      const fallbackQ = `${plan.nominatimQueries[0]} ${center.city}`;
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&countrycodes=it&bounded=0&limit=35&q=${encodeURIComponent(
+        fallbackQ
+      )}`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': RIVO_USER_AGENT,
+          'Accept-Language': 'it',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          results.push(...data);
+        }
+      }
+    } catch {
+      clearTimeout(timer);
+    }
+  }
+
+  return results;
 }
 
 /**
- * Parallel Nominatim Category Search for wide-range Campania coverage (30-120 km)
- * or fallback when Overpass is under heavy load.
+ * Parallel Photon (Komoot) GeoJSON search within the area bounding box.
  */
-async function queryNominatimCategoryPlaces(
-  subLabel: string,
+async function queryPhotonCategoryPlaces(
+  subId: string,
   center: ResolvedCoordinates,
   radiusKm: number,
   limit = 40
 ): Promise<any[]> {
-  const citiesToProbe: string[] =
-    radiusKm >= 30
-      ? [center.city, 'Napoli', 'Salerno', 'Caserta', 'Sorrento']
-      : [center.city];
+  const plan = getSubcategorySearchPlan(subId);
+  const effectiveRadius = Math.max(8, radiusKm);
+  const degLat = Math.max(0.06, Math.min(1.15, effectiveRadius / 111));
+  const degLon = Math.max(
+    0.08,
+    Math.min(1.45, effectiveRadius / (111 * Math.cos((center.lat * Math.PI) / 180)))
+  );
+  const bbox = `${(center.lon - degLon).toFixed(4)},${(center.lat - degLat).toFixed(4)},${(
+    center.lon + degLon
+  ).toFixed(4)},${(center.lat + degLat).toFixed(4)}`;
 
-  const uniqueCities = Array.from(new Set(citiesToProbe.filter(Boolean))).slice(0, 4);
+  const validKeys = new Set(['shop', 'amenity', 'tourism', 'craft', 'leisure', 'office']);
+  const maxDistKm = Math.max(radiusKm * 1.25, 15);
 
-  const degLat = Math.min(1.1, radiusKm / 111);
-  const degLon = Math.min(1.4, radiusKm / (111 * Math.cos((center.lat * Math.PI) / 180)));
-  const viewbox = `${center.lon - degLon},${center.lat + degLat},${center.lon + degLon},${center.lat - degLat}`;
-
-  const results: any[] = [];
-  await Promise.all(
-    uniqueCities.map(async (cityName) => {
+  const batches = await Promise.all(
+    plan.photonKeywords.map(async (kw) => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6000);
+      const timer = setTimeout(() => controller.abort(), 3000);
       try {
-        const q = `${subLabel} ${cityName}`;
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&countrycodes=it&viewbox=${viewbox}&bounded=1&limit=${Math.ceil(
-          limit / uniqueCities.length
-        )}&q=${encodeURIComponent(q)}`;
+        const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+          kw
+        )}&bbox=${bbox}&lat=${center.lat}&lon=${center.lon}&limit=25`;
         const res = await fetch(url, {
           headers: {
             'User-Agent': RIVO_USER_AGENT,
-            'Accept-Language': 'it',
           },
           signal: controller.signal,
         });
         clearTimeout(timer);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            results.push(...data);
-          }
-        }
+        if (!res.ok) return [];
+        const json = await res.json();
+        return Array.isArray(json?.features) ? (json.features as any[]) : [];
       } catch {
         clearTimeout(timer);
+        return [];
       }
     })
   );
 
-  return results;
+  const filtered: any[] = [];
+  for (const feat of batches.flat()) {
+    const props = feat?.properties || {};
+    const coords = feat?.geometry?.coordinates;
+    if (!props.name || !String(props.name).trim()) continue;
+    if (!validKeys.has(props.osm_key)) continue;
+    if (!Array.isArray(coords) || coords.length < 2) continue;
+
+    const lon = Number(coords[0]);
+    const lat = Number(coords[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+    const dist = computeDistanceKm(center.lat, center.lon, lat, lon);
+    if (props.countrycode === 'IT' || dist <= maxDistKm) {
+      if (dist <= maxDistKm) {
+        filtered.push(feat);
+      }
+    }
+    if (filtered.length >= limit * 2) break;
+  }
+
+  return filtered;
 }
 
 // ============================================================================
@@ -561,10 +733,11 @@ export class OpenStreetMapOverpassProvider implements BusinessDataProvider {
 
   async search(params: BusinessSearchParams): Promise<BusinessProviderSearchResult> {
     const warnings: string[] = [];
-    const subDef = findSubcategoryDef(params.subcategory || params.category);
+    const subId = params.subcategory || params.category;
+    const subDef = findSubcategoryDef(subId);
     const radiusKm = Math.max(1, Math.min(120, Number(params.radiusKm) || 35));
-    const radiusMeters = Math.round(radiusKm * 1000);
     const maxResults = Math.max(1, Math.min(100, params.maxResults || 25));
+    const maxAllowedDistanceKm = Math.max(radiusKm * 1.25, 12);
 
     const center = await resolveLocationCoordinates(
       params.locationQuery,
@@ -572,27 +745,31 @@ export class OpenStreetMapOverpassProvider implements BusinessDataProvider {
       params.centerLon
     );
 
-    // For wide radii (> 20km), query nodes only in Overpass for sub-3s response and combine with Nominatim hub search
-    const includeWays = radiusKm <= 20;
+    // Tight local bounding box (capped at 12 km) for fast sub-4s Overpass response
+    const ovRadiusKm = Math.min(radiusKm, 12);
+    const ovDegLat = Math.max(0.015, ovRadiusKm / 111);
+    const ovDegLon = Math.max(
+      0.02,
+      ovRadiusKm / (111 * Math.cos((center.lat * Math.PI) / 180))
+    );
+    const ovBbox = `${(center.lat - ovDegLat).toFixed(4)},${(center.lon - ovDegLon).toFixed(
+      4
+    )},${(center.lat + ovDegLat).toFixed(4)},${(center.lon + ovDegLon).toFixed(4)}`;
+
     const tagClauses = subDef.osmQueries
-      .map((q) =>
-        includeWays
-          ? `node["${q.key}"="${q.value}"](around:${radiusMeters},${center.lat},${center.lon});way["${q.key}"="${q.value}"](around:${radiusMeters},${center.lat},${center.lon});`
-          : `node["${q.key}"="${q.value}"](around:${radiusMeters},${center.lat},${center.lon});`
-      )
+      .map((q) => `node["${q.key}"="${q.value}"](${ovBbox});`)
       .join('\n  ');
 
-    const overpassQuery = `[out:json][timeout:14];
+    const overpassQuery = `[out:json][timeout:4];
 (
   ${tagClauses}
 );
-out center tags ${Math.min(150, maxResults * 3)};`;
+out center tags ${Math.min(120, maxResults * 2)};`;
 
-    const [ovElements, nomPlaces] = await Promise.all([
+    const [ovElements, nomPlaces, photonFeatures] = await Promise.all([
       queryOverpassWithFailover(overpassQuery),
-      radiusKm >= 25
-        ? queryNominatimCategoryPlaces(subDef.label, center, radiusKm, maxResults)
-        : Promise.resolve([]),
+      queryNominatimCategoryPlaces(subDef.id || subId, center, radiusKm, maxResults * 2),
+      queryPhotonCategoryPlaces(subDef.id || subId, center, radiusKm, maxResults * 2),
     ]);
 
     const rawCandidates: DiscoveredBusinessCandidate[] = [];
@@ -603,15 +780,13 @@ out center tags ${Math.min(150, maxResults * 3)};`;
       const rawName = (tags.name || tags.brand || '').trim();
       if (!rawName) continue;
 
-      if (params.subcategory === 'barber') {
-        const isMaleOrBarber =
-          tags.male === 'yes' ||
-          tags.unisex === 'no' ||
-          /barber|barbiere|uomo|rasatura|beard/i.test(`${rawName} ${tags.description || ''}`);
-        if (!isMaleOrBarber && ovElements.length > maxResults && rawCandidates.length >= Math.floor(maxResults / 2)) {
-          continue;
-        }
-      }
+      const elLat = typeof el.lat === 'number' ? el.lat : el.center?.lat ?? null;
+      const elLon = typeof el.lon === 'number' ? el.lon : el.center?.lon ?? null;
+      const distanceKm =
+        typeof elLat === 'number' && typeof elLon === 'number'
+          ? computeDistanceKm(center.lat, center.lon, elLat, elLon)
+          : null;
+      if (distanceKm !== null && distanceKm > maxAllowedDistanceKm) continue;
 
       const street = tags['addr:street'] || '';
       const houseNumber = tags['addr:housenumber'] || '';
@@ -653,16 +828,9 @@ out center tags ${Math.min(150, maxResults * 3)};`;
       if (tags.description) descriptionParts.push(String(tags.description));
       if (tags.opening_hours) descriptionParts.push(`Orari: ${tags.opening_hours}`);
 
-      const elLat = typeof el.lat === 'number' ? el.lat : el.center?.lat ?? null;
-      const elLon = typeof el.lon === 'number' ? el.lon : el.center?.lon ?? null;
-      const distanceKm =
-        typeof elLat === 'number' && typeof elLon === 'number'
-          ? computeDistanceKm(center.lat, center.lon, elLat, elLon)
-          : null;
-
       const norm = normalizeBusinessName(rawName);
       const dedupKey = `${norm}::${(city || '').toLowerCase()}`;
-      if (seenKeys.has(dedupKey)) continue;
+      if (!norm || seenKeys.has(dedupKey)) continue;
       seenKeys.add(dedupKey);
 
       rawCandidates.push({
@@ -695,7 +863,7 @@ out center tags ${Math.min(150, maxResults * 3)};`;
       });
     }
 
-    // Merge Nominatim geo places (especially helpful for wide-range Campania searches or if Overpass mirrored fewer hits)
+    // Merge Nominatim geo places
     for (const np of nomPlaces) {
       const rawName = (np.name || np.display_name?.split(',')[0] || '').trim();
       if (!rawName || rawName.length < 2) continue;
@@ -703,18 +871,31 @@ out center tags ${Math.min(150, maxResults * 3)};`;
       const npLon = parseFloat(np.lon);
       if (Number.isNaN(npLat) || Number.isNaN(npLon)) continue;
 
+      const distanceKm = computeDistanceKm(center.lat, center.lon, npLat, npLon);
+      if (distanceKm > maxAllowedDistanceKm) continue;
+
       const addr = np.address || {};
       const city = addr.city || addr.town || addr.village || addr.municipality || center.city;
       const norm = normalizeBusinessName(rawName);
       const dedupKey = `${norm}::${(city || '').toLowerCase()}`;
-      if (seenKeys.has(dedupKey)) continue;
+      if (!norm || seenKeys.has(dedupKey)) continue;
       seenKeys.add(dedupKey);
 
-      const address = [addr.road, addr.house_number].filter(Boolean).join(', ') || np.display_name?.split(',').slice(1, 3).join(',').trim() || null;
+      const address =
+        [addr.road, addr.house_number].filter(Boolean).join(', ') ||
+        np.display_name?.split(',').slice(1, 3).join(',').trim() ||
+        null;
       const extratags = np.extratags || {};
       const website = extratags.website || extratags['contact:website'] || null;
-      const phone = extratags.phone || extratags['contact:phone'] || null;
-      const distanceKm = computeDistanceKm(center.lat, center.lon, npLat, npLon);
+      let instagramUrl = extratags['contact:instagram'] || extratags.instagram || null;
+      if (instagramUrl && !instagramUrl.startsWith('http')) {
+        instagramUrl = `https://www.instagram.com/${instagramUrl.replace(/^@/, '')}`;
+      }
+      let facebookUrl = extratags['contact:facebook'] || extratags.facebook || null;
+      if (facebookUrl && !facebookUrl.startsWith('http')) {
+        facebookUrl = `https://www.facebook.com/${facebookUrl}`;
+      }
+      const phone = extratags.phone || extratags['contact:phone'] || extratags['contact:mobile'] || null;
 
       rawCandidates.push({
         business_name: rawName,
@@ -730,8 +911,8 @@ out center tags ${Math.min(150, maxResults * 3)};`;
         longitude: npLon,
         website,
         website_domain: extractWebsiteDomain(website),
-        instagram_url: extratags['contact:instagram'] || null,
-        facebook_url: extratags['contact:facebook'] || null,
+        instagram_url: instagramUrl,
+        facebook_url: facebookUrl,
         business_phone: phone,
         business_email: extratags.email || extratags['contact:email'] || null,
         description: extratags.description || null,
@@ -746,55 +927,66 @@ out center tags ${Math.min(150, maxResults * 3)};`;
       });
     }
 
-    // Also try Nominatim fallback if Overpass returned 0 elements even on narrow radius
-    if (rawCandidates.length === 0 && radiusKm < 25) {
-      const fallbackNom = await queryNominatimCategoryPlaces(subDef.label, center, radiusKm, maxResults);
-      for (const np of fallbackNom) {
-        const rawName = (np.name || np.display_name?.split(',')[0] || '').trim();
-        if (!rawName || rawName.length < 2) continue;
-        const npLat = parseFloat(np.lat);
-        const npLon = parseFloat(np.lon);
-        if (Number.isNaN(npLat) || Number.isNaN(npLon)) continue;
-        const addr = np.address || {};
-        const city = addr.city || addr.town || addr.village || center.city;
-        const address = [addr.road, addr.house_number].filter(Boolean).join(', ') || null;
-        const extratags = np.extratags || {};
-        const website = extratags.website || extratags['contact:website'] || null;
-        rawCandidates.push({
-          business_name: rawName,
-          normalized_name: normalizeBusinessName(rawName),
-          category: params.category,
-          subcategory: params.subcategory,
-          city,
-          province: addr.county || center.province,
-          region: addr.state || center.region,
-          address,
-          postal_code: addr.postcode || null,
-          latitude: npLat,
-          longitude: npLon,
-          website,
-          website_domain: extractWebsiteDomain(website),
-          instagram_url: null,
-          facebook_url: null,
-          business_phone: extratags.phone || null,
-          business_email: null,
-          description: null,
-          services_offered: [],
-          digital_signals: {
-            googleMapsUrl: buildGoogleMapsUrl(rawName, address, city, npLat, npLon),
-            distanceKm: computeDistanceKm(center.lat, center.lon, npLat, npLon),
-          },
-          source: this.id,
-          source_reference: `osm_nom:${np.osm_type || 'node'}:${np.osm_id || np.place_id}`,
-          source_acquired_at: new Date().toISOString(),
-        });
-      }
+    // Merge Photon (Komoot) GeoJSON places
+    for (const pf of photonFeatures) {
+      const props = pf.properties || {};
+      const rawName = String(props.name || '').trim();
+      if (!rawName || rawName.length < 2) continue;
+      const coords = pf.geometry?.coordinates || [];
+      const pfLon = Number(coords[0]);
+      const pfLat = Number(coords[1]);
+      if (!Number.isFinite(pfLat) || !Number.isFinite(pfLon)) continue;
+
+      const distanceKm = computeDistanceKm(center.lat, center.lon, pfLat, pfLon);
+      if (distanceKm > maxAllowedDistanceKm) continue;
+
+      const city = props.city || props.town || props.village || props.county || center.city;
+      const norm = normalizeBusinessName(rawName);
+      const dedupKey = `${norm}::${(city || '').toLowerCase()}`;
+      if (!norm || seenKeys.has(dedupKey)) continue;
+      seenKeys.add(dedupKey);
+
+      const address = [props.street, props.housenumber].filter(Boolean).join(', ') || props.locality || null;
+
+      rawCandidates.push({
+        business_name: rawName,
+        normalized_name: norm,
+        category: params.category,
+        subcategory: params.subcategory,
+        city,
+        province: props.county || center.province,
+        region: props.state || center.region,
+        address,
+        postal_code: props.postcode || null,
+        latitude: pfLat,
+        longitude: pfLon,
+        website: null,
+        website_domain: null,
+        instagram_url: null,
+        facebook_url: null,
+        business_phone: null,
+        business_email: null,
+        description: null,
+        services_offered: [],
+        digital_signals: {
+          googleMapsUrl: buildGoogleMapsUrl(rawName, address, city, pfLat, pfLon),
+          distanceKm,
+        },
+        source: this.id,
+        source_reference: `osm_photon:${props.osm_type || 'N'}:${props.osm_id || rawName}`,
+        source_acquired_at: new Date().toISOString(),
+      });
     }
 
-    // Prioritize richer records (with website/phone) and diversify across distance
+    // Prioritize dedicated category matches (e.g. barber keywords) + richer records + closest distance
+    const isBarberSub = params.subcategory === 'barber';
     rawCandidates.sort((a, b) => {
-      const scoreA = (a.website ? 3 : 0) + (a.business_phone ? 2 : 0) + (a.address ? 1 : 0);
-      const scoreB = (b.website ? 3 : 0) + (b.business_phone ? 2 : 0) + (b.address ? 1 : 0);
+      const barberBoostA =
+        isBarberSub && /barber|barbiere|barberia|uomo|beard|rasatura/i.test(a.business_name) ? 5 : 0;
+      const barberBoostB =
+        isBarberSub && /barber|barbiere|barberia|uomo|beard|rasatura/i.test(b.business_name) ? 5 : 0;
+      const scoreA = barberBoostA + (a.website ? 3 : 0) + (a.business_phone ? 2 : 0) + (a.address ? 1 : 0);
+      const scoreB = barberBoostB + (b.website ? 3 : 0) + (b.business_phone ? 2 : 0) + (b.address ? 1 : 0);
       if (scoreB !== scoreA) return scoreB - scoreA;
       return (a.digital_signals.distanceKm ?? 999) - (b.digital_signals.distanceKm ?? 999);
     });

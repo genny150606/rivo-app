@@ -15,11 +15,13 @@ import { OutreachComplianceService } from '@/lib/outreach/compliance';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE } from '@/lib/outreach/knowledge-base';
 import {
   CAMPANIA_GEO_PRESETS,
+  SUBCATEGORY_SEARCH_PLAN,
+  getSubcategorySearchPlan,
   resolveLocationCoordinates,
   computeDistanceKm,
   buildGoogleMapsUrl,
 } from '@/lib/outreach/providers/discovery';
-import type { OutreachProspectRecord } from '@/lib/outreach/types';
+import { OUTREACH_DISCOVERY_CATEGORIES, type OutreachProspectRecord } from '@/lib/outreach/types';
 
 function makeMockProspect(overrides: Partial<OutreachProspectRecord> = {}): OutreachProspectRecord {
   return {
@@ -269,5 +271,19 @@ describe('RIVO OUTREACH — Campania & Maps Discovery Engine', () => {
     expect(url).toContain('https://www.google.com/maps/search/');
     expect(url).toContain(encodeURIComponent('Pizzeria Da Michele'));
     expect(url).toContain('Napoli');
+  });
+
+  it('provides clean Nominatim OSM tag queries and Photon keywords for every discovery subcategory', () => {
+    for (const macro of OUTREACH_DISCOVERY_CATEGORIES) {
+      for (const sub of macro.subcategories) {
+        expect(SUBCATEGORY_SEARCH_PLAN[sub.id]).toBeDefined();
+        const plan = getSubcategorySearchPlan(sub.id);
+        expect(plan.nominatimQueries.length).toBeGreaterThan(0);
+        expect(plan.photonKeywords.length).toBeGreaterThan(0);
+        for (const nq of plan.nominatimQueries) {
+          expect(nq).not.toContain('&');
+        }
+      }
+    }
   });
 });

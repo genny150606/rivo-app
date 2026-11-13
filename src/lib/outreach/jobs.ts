@@ -122,6 +122,17 @@ export async function processOutreachJob(
         providers = [getRegisteredDiscoveryProviders()[0]];
       }
 
+      const hasGooglePlacesKey = Boolean(
+        process.env.GOOGLE_PLACES_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+      );
+      if (
+        !hasGooglePlacesKey &&
+        providers.some((p) => p.id === 'google_places_official') &&
+        providers.length > 1
+      ) {
+        providers = providers.filter((p) => p.id !== 'openstreetmap_odbl');
+      }
+
       const { data: existingRows } = await adminDb
         .from('outreach_prospects')
         .select('*')
@@ -259,7 +270,7 @@ export async function processOutreachJob(
         matchedIds,
         allResultIds,
         searchCenter,
-        warnings,
+        warnings: Array.from(new Set(warnings)),
       };
 
       const { data: completedJob } = await adminDb
