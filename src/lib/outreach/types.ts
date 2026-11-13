@@ -381,6 +381,10 @@ export interface PublicDigitalSignals {
   websiteDescription?: string | null;
   logoUrl?: string | null;
   customLogoUrl?: string | null;
+  instagramDiscoverySource?: string | null;
+  instagramHandle?: string | null;
+  instagramConfidence?: 'high' | 'medium' | 'none' | null;
+  instagramDiscoveredAt?: string | null;
   detectedBookingLinks?: string[];
   detectedMenuLinks?: string[];
   detectedSocialLinks?: string[];

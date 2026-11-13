@@ -9,6 +9,7 @@
 import { findSubcategoryDef, type PublicDigitalSignals } from '../types';
 import { extractWebsiteDomain, normalizeBusinessName } from '../deduplication';
 import { buildGoogleFaviconUrl, extractLogoCandidateFromHtml } from '../logo-resolver';
+import { extractVerifiedInstagramFromHtml, normalizeInstagramProfileUrl } from '../instagram';
 
 export interface CampaniaGeoPreset {
   id: string;
@@ -432,15 +433,21 @@ export async function inspectPublicWebsiteMetadata(rawUrl: string): Promise<Publ
     const hrefRegex = /href=["'](https?:\/\/[^"'#\s]+|\/[^"'#\s]+)["']/gi;
     const bookingLinks = new Set<string>();
     const menuLinks = new Set<string>();
-    const socialLinks = new Set<string>();
+    const instagramLinks = new Set<string>();
+    const otherSocialLinks = new Set<string>();
 
     let match: RegExpExecArray | null;
     while ((match = hrefRegex.exec(html)) !== null) {
       const link = match[1];
       const lower = link.toLowerCase();
 
-      if (lower.includes('instagram.com/') || lower.includes('facebook.com/')) {
-        if (link.startsWith('http')) socialLinks.add(link.slice(0, 200));
+      if (lower.includes('instagram.com/') || lower.includes('instagr.am/')) {
+        if (link.startsWith('http')) {
+          const normalizedIg = normalizeInstagramProfileUrl(link);
+          if (normalizedIg) instagramLinks.add(normalizedIg);
+        }
+      } else if (lower.includes('facebook.com/')) {
+        if (link.startsWith('http')) otherSocialLinks.add(link.slice(0, 200));
       }
       if (
         lower.includes('prenot') ||
@@ -459,9 +466,17 @@ export async function inspectPublicWebsiteMetadata(rawUrl: string): Promise<Publ
       }
     }
 
+    const htmlIg = extractVerifiedInstagramFromHtml(html);
+    if (htmlIg) {
+      instagramLinks.add(htmlIg);
+    }
+
     signals.detectedBookingLinks = Array.from(bookingLinks).slice(0, 5);
     signals.detectedMenuLinks = Array.from(menuLinks).slice(0, 5);
-    signals.detectedSocialLinks = Array.from(socialLinks).slice(0, 5);
+    signals.detectedSocialLinks = [
+      ...Array.from(instagramLinks),
+      ...Array.from(otherSocialLinks),
+    ].slice(0, 5);
   } catch {
     // Non-blocking
   }
@@ -1117,11 +1132,24 @@ export class GooglePlacesAuthorizedProvider implements BusinessDataProvider {
               const pLon = typeof p.location?.longitude === 'number' ? p.location.longitude : null;
               const address = p.formattedAddress || null;
               const website = p.websiteUri || null;
-              const webSignals = website ? await inspectPublicWebsiteMetadata(website) : {};
+              const webSignals: PublicDigitalSignals = website
+                ? await inspectPublicWebsiteMetadata(website)
+                : {};
               const distanceKm =
                 pLat !== null && pLon !== null
                   ? computeDistanceKm(center.lat, center.lon, pLat, pLon)
                   : null;
+
+              let instagramUrl: string | null = null;
+              let facebookUrl: string | null = null;
+              for (const sl of webSignals.detectedSocialLinks || []) {
+                if (!instagramUrl && sl.toLowerCase().includes('instagram.com')) {
+                  instagramUrl = normalizeInstagramProfileUrl(sl);
+                }
+                if (!facebookUrl && sl.toLowerCase().includes('facebook.com')) {
+                  facebookUrl = sl;
+                }
+              }
 
               candidates.push({
                 business_name: name,
@@ -1137,8 +1165,8 @@ export class GooglePlacesAuthorizedProvider implements BusinessDataProvider {
                 longitude: pLon,
                 website,
                 website_domain: extractWebsiteDomain(website),
-                instagram_url: null,
-                facebook_url: null,
+                instagram_url: instagramUrl,
+                facebook_url: facebookUrl,
                 business_phone: p.nationalPhoneNumber || null,
                 business_email: null,
                 description: webSignals.websiteDescription || null,

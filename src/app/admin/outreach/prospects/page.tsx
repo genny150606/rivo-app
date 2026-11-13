@@ -23,6 +23,7 @@ import {
   Eye,
   Image as ImageIcon,
 } from 'lucide-react';
+import { InstagramIcon } from '@/components/brand-icons';
 import {
   OUTREACH_DISCOVERY_CATEGORIES,
   OUTREACH_PIPELINE_STAGES,
@@ -30,6 +31,10 @@ import {
   type OutreachCommercialStatus,
 } from '@/lib/outreach/types';
 import { buildProspectDemoUrl } from '@/lib/outreach/preview';
+import {
+  buildInstagramDmDeepLink,
+  extractInstagramHandle,
+} from '@/lib/outreach/instagram';
 import { getBusinessInitials } from '@/lib/outreach/logo-resolver';
 
 export default function OutreachProspectsPage() {
@@ -83,6 +88,8 @@ export default function OutreachProspectsPage() {
 
   // Actions state
   const [actionBusy, setActionBusy] = useState(false);
+  const [bulkFindingIg, setBulkFindingIg] = useState(false);
+  const [findingIgId, setFindingIgId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [customLogoDraft, setCustomLogoDraft] = useState('');
@@ -312,6 +319,136 @@ export default function OutreachProspectsPage() {
     }
   };
 
+  const handleBulkFindInstagram = async () => {
+    const targetIds = selectedIds.slice(0, 15);
+    if (targetIds.length === 0) return;
+    setBulkFindingIg(true);
+    setFeedback(
+      `Ricerca Instagram AI in corso su ${targetIds.length} prospect selezionati...`
+    );
+    try {
+      const res = await fetch('/api/admin/outreach/intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'find_instagram',
+          prospect_ids: targetIds,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore ricerca Instagram AI');
+
+      const foundCount =
+        typeof json.foundCount === 'number'
+          ? json.foundCount
+          : typeof json.discoveredCount === 'number'
+          ? json.discoveredCount
+          : typeof json.job?.result?.foundCount === 'number'
+          ? json.job.result.foundCount
+          : Array.isArray(json.results)
+          ? json.results.filter(
+              (r: { instagramUrl?: string | null; found?: boolean }) =>
+                Boolean(r?.instagramUrl || r?.found)
+            ).length
+          : Array.isArray(json.updatedProspects)
+          ? json.updatedProspects.length
+          : 0;
+      const checkedCount =
+        typeof json.checkedCount === 'number'
+          ? json.checkedCount
+          : typeof json.job?.result?.checkedCount === 'number'
+          ? json.job.result.checkedCount
+          : targetIds.length;
+
+      setFeedback(
+        `Ricerca Instagram AI completata: ${foundCount} / ${checkedCount} profili trovati.`
+      );
+      await fetchProspects();
+      if (activeProspect && targetIds.includes(activeProspect.id)) {
+        await openProspectDetail(activeProspect);
+      }
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Errore ricerca Instagram AI');
+    } finally {
+      setBulkFindingIg(false);
+    }
+  };
+
+  const handleFindInstagramForActive = async () => {
+    if (!activeProspect) return;
+    const targetId = activeProspect.id;
+    setFindingIgId(targetId);
+    setFeedback('Ricerca profilo Instagram pubblico con AI in corso...');
+    try {
+      const res = await fetch('/api/admin/outreach/intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'find_instagram',
+          prospect_id: targetId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore ricerca Instagram AI');
+
+      const updatedList = Array.isArray(json.updatedProspects)
+        ? (json.updatedProspects as OutreachProspectRecord[])
+        : [];
+      const updated =
+        updatedList.find((p) => p.id === targetId) ||
+        updatedList[0] ||
+        (json.prospect as OutreachProspectRecord | undefined) ||
+        null;
+      const discoveredUrl =
+        updated?.instagram_url ||
+        json.instagramUrl ||
+        json.instagram_url ||
+        json.result?.instagramUrl ||
+        null;
+      const handle =
+        extractInstagramHandle(discoveredUrl) ||
+        (typeof json.handle === 'string' ? json.handle.replace(/^@/, '') : null) ||
+        (typeof json.result?.handle === 'string'
+          ? json.result.handle.replace(/^@/, '')
+          : null);
+
+      if (updated) {
+        setActiveProspect(updated);
+        setProspects((prev) =>
+          prev.map((item) => (item.id === updated.id ? updated : item))
+        );
+      } else if (discoveredUrl) {
+        setActiveProspect((prev) =>
+          prev && prev.id === targetId ? { ...prev, instagram_url: discoveredUrl } : prev
+        );
+        setProspects((prev) =>
+          prev.map((item) =>
+            item.id === targetId ? { ...item, instagram_url: discoveredUrl } : item
+          )
+        );
+      }
+
+      if (handle) {
+        setFeedback(`Trovato @${handle} — profilo Instagram collegato al prospect.`);
+      } else if (discoveredUrl) {
+        setFeedback('Profilo Instagram pubblico trovato e salvato.');
+      } else if (activeProspect.instagram_url) {
+        const existingHandle = extractInstagramHandle(activeProspect.instagram_url);
+        setFeedback(
+          existingHandle
+            ? `Profilo Instagram già verificato (@${existingHandle}).`
+            : 'Profilo Instagram già presente.'
+        );
+      } else {
+        setFeedback('Nessun profilo Instagram pubblico verificabile trovato.');
+      }
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Errore ricerca Instagram AI');
+    } finally {
+      setFindingIgId(null);
+    }
+  };
+
   const handleMergeDuplicate = async (duplicateId: string) => {
     if (!activeProspect) return;
     setActionBusy(true);
@@ -420,6 +557,8 @@ export default function OutreachProspectsPage() {
   const activeDemoUrl = activeProspect
     ? buildProspectDemoUrl(activeProspect.business_name, activeProspect.id)
     : null;
+  const activeIgHandle = extractInstagramHandle(activeProspect?.instagram_url);
+  const activeIgDmUrl = buildInstagramDmDeepLink(activeProspect?.instagram_url);
   const activeLogoUrl =
     activeProspect?.digital_signals?.customLogoUrl ||
     activeProspect?.digital_signals?.logoUrl ||
@@ -570,6 +709,50 @@ export default function OutreachProspectsPage() {
         </div>
       </div>
 
+      {/* Bulk Selection Toolbar */}
+      {selectedIds.length > 0 && (
+        <div className="bg-[#121214] border border-fuchsia-500/40 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-[#FAFAFA]">
+            <span className="px-2 py-0.5 rounded bg-[#BFFF00] text-[#09090B] font-mono font-bold">
+              {selectedIds.length}
+            </span>
+            <span>prospect selezionati</span>
+            {selectedIds.length > 15 && (
+              <span className="text-[11px] text-[#A1A1AA]">
+                (scansione AI fino a 15 alla volta)
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={bulkFindingIg}
+              onClick={handleBulkFindInstagram}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/45 hover:border-fuchsia-400 text-xs font-semibold text-fuchsia-300 disabled:opacity-50 transition-colors"
+            >
+              {bulkFindingIg ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  Ricerca Instagram AI...
+                </>
+              ) : (
+                <>
+                  <InstagramIcon className="w-3.5 h-3.5" />
+                  Trova Instagram AI ({selectedIds.length})
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-1.5 rounded-lg bg-[#0D0D10] border border-[#27272A] hover:border-[#3F3F46] text-xs text-[#A1A1AA] hover:text-[#FAFAFA]"
+            >
+              Deseleziona
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Data Table */}
       <div className="bg-[#121214] border border-[#27272A] rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
@@ -650,10 +833,30 @@ export default function OutreachProspectsPage() {
                     </td>
                     <td className="px-4 py-3 text-xs text-[#FAFAFA]">{p.city || '-'}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {p.website && <Globe className="w-3.5 h-3.5 text-[#BFFF00]" />}
                         {p.business_email && <Mail className="w-3.5 h-3.5 text-[#22C55E]" />}
                         {p.business_phone && <Phone className="w-3.5 h-3.5 text-[#A1A1AA]" />}
+                        {p.instagram_url && (() => {
+                          const igHandle = extractInstagramHandle(p.instagram_url);
+                          return (
+                            <a
+                              href={p.instagram_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              title={
+                                igHandle ? `@${igHandle} su Instagram` : 'Apri profilo Instagram'
+                              }
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-500/40 text-fuchsia-400 hover:text-fuchsia-300 hover:border-fuchsia-400 text-[10px] font-mono transition-colors"
+                            >
+                              <InstagramIcon className="w-3 h-3 shrink-0" />
+                              {igHandle && (
+                                <span className="max-w-[88px] truncate">@{igHandle}</span>
+                              )}
+                            </a>
+                          );
+                        })()}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -779,6 +982,51 @@ export default function OutreachProspectsPage() {
               <Send className="w-3.5 h-3.5" />
               Invia Comunicazione
             </Link>
+
+            <button
+              type="button"
+              disabled={actionBusy || findingIgId === activeProspect.id}
+              onClick={handleFindInstagramForActive}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/40 hover:border-fuchsia-400 text-xs font-semibold text-fuchsia-300 disabled:opacity-50"
+            >
+              {findingIgId === activeProspect.id ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  Ricerca IG...
+                </>
+              ) : (
+                <>
+                  <InstagramIcon className="w-3.5 h-3.5" />
+                  Cerca IG con AI
+                </>
+              )}
+            </button>
+
+            {activeProspect.instagram_url && (
+              <>
+                <Link
+                  href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
+                    activeProspect.id
+                  )}`}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#121214] border border-fuchsia-500/40 hover:border-fuchsia-400 text-xs font-medium text-fuchsia-300"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Invia DM IG (Coda)
+                </Link>
+                {activeIgDmUrl && (
+                  <a
+                    href={activeIgDmUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-xs font-mono text-fuchsia-300"
+                  >
+                    <InstagramIcon className="w-3.5 h-3.5" />
+                    ig.me/m/@{activeIgHandle || 'instagram'}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </>
+            )}
 
             {activeDemoUrl && (
               <>
@@ -1111,6 +1359,58 @@ export default function OutreachProspectsPage() {
                 ) : (
                   <span className="text-[#FAFAFA]">Non rilevato</span>
                 )}
+              </div>
+              <div className="md:col-span-2 flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[#71717A]">Instagram: </span>
+                {activeProspect.instagram_url ? (
+                  <>
+                    <a
+                      href={activeProspect.instagram_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-fuchsia-300 hover:underline inline-flex items-center gap-1 font-mono"
+                    >
+                      <InstagramIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                      @{activeIgHandle || 'instagram'}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    {activeIgDmUrl && (
+                      <a
+                        href={activeIgDmUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-500/40 hover:border-fuchsia-400 text-[11px] font-mono text-fuchsia-300"
+                      >
+                        ig.me/m/@{activeIgHandle || 'instagram'}
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    )}
+                    <Link
+                      href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
+                        activeProspect.id
+                      )}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-[11px] text-fuchsia-300"
+                    >
+                      <Send className="w-2.5 h-2.5" />
+                      Invia DM IG (Coda)
+                    </Link>
+                  </>
+                ) : (
+                  <span className="text-[#FAFAFA]">Non rilevato</span>
+                )}
+                <button
+                  type="button"
+                  disabled={actionBusy || findingIgId === activeProspect.id}
+                  onClick={handleFindInstagramForActive}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-[11px] text-fuchsia-300 disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={`w-2.5 h-2.5 ${
+                      findingIgId === activeProspect.id ? 'animate-spin' : ''
+                    }`}
+                  />
+                  {findingIgId === activeProspect.id ? 'Ricerca IG...' : 'Cerca IG con AI'}
+                </button>
               </div>
             </div>
             <div className="pt-2 border-t border-[#27272A] text-[11px] text-[#71717A] font-mono">

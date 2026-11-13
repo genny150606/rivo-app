@@ -7,10 +7,27 @@ import {
 } from '@/lib/outreach/ai-intelligence';
 import { loadActiveKnowledgeBase, processOutreachJob } from '@/lib/outreach/jobs';
 import { inspectPublicWebsiteMetadata } from '@/lib/outreach/providers/discovery';
+import {
+  discoverInstagramProfilesBatch,
+  extractInstagramHandle,
+  findInstagramProfileViaGeminiSearch,
+  normalizeInstagramProfileUrl,
+} from '@/lib/outreach/instagram';
 import type { OutreachProspectRecord } from '@/lib/outreach/types';
 import { isValidUUID } from '@/lib/security';
 
 export const maxDuration = 60;
+
+function findInstagramInSocialLinks(links?: string[] | null): string | null {
+  if (!Array.isArray(links)) return null;
+  for (const link of links) {
+    if (link && /instagram\.com|instagr\.am|ig\.me/i.test(link)) {
+      const normalized = normalizeInstagramProfileUrl(link);
+      if (normalized) return normalized;
+    }
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   const auth = await verifySuperAdminAccess(request);
@@ -76,9 +93,59 @@ export async function POST(request: NextRequest) {
         const signals = await inspectPublicWebsiteMetadata(prospect.website);
         prospect = {
           ...prospect,
-          digital_signals: signals,
+          digital_signals: {
+            ...(prospect.digital_signals || {}),
+            ...signals,
+          },
           description: prospect.description || signals.websiteDescription || null,
         };
+      }
+
+      let discoveredIgLogMeta: Record<string, unknown> | null = null;
+      if (!normalizeInstagramProfileUrl(prospect.instagram_url)) {
+        const nowIso = new Date().toISOString();
+        const siteIg = findInstagramInSocialLinks(prospect.digital_signals?.detectedSocialLinks);
+        if (siteIg) {
+          const handle = extractInstagramHandle(siteIg);
+          prospect = {
+            ...prospect,
+            instagram_url: siteIg,
+            digital_signals: {
+              ...(prospect.digital_signals || {}),
+              instagramDiscoverySource: 'Sito web pubblico',
+              instagramHandle: handle,
+              instagramConfidence: 'high',
+              instagramDiscoveredAt: nowIso,
+            },
+          };
+          discoveredIgLogMeta = {
+            instagram_url: siteIg,
+            handle,
+            confidence: 'high',
+            evidence_source: 'Sito web pubblico',
+          };
+        } else {
+          const igRes = await findInstagramProfileViaGeminiSearch(prospect);
+          if (igRes.instagramUrl) {
+            prospect = {
+              ...prospect,
+              instagram_url: igRes.instagramUrl,
+              digital_signals: {
+                ...(prospect.digital_signals || {}),
+                instagramDiscoverySource: igRes.evidenceSource,
+                instagramHandle: igRes.handle,
+                instagramConfidence: igRes.confidence,
+                instagramDiscoveredAt: nowIso,
+              },
+            };
+            discoveredIgLogMeta = {
+              instagram_url: igRes.instagramUrl,
+              handle: igRes.handle,
+              confidence: igRes.confidence,
+              evidence_source: igRes.evidenceSource,
+            };
+          }
+        }
       }
 
       const analysis = await analyzeProspectWithAI(prospect, kb);
@@ -86,6 +153,7 @@ export async function POST(request: NextRequest) {
       const { data: updatedProspect } = await adminDb
         .from('outreach_prospects')
         .update({
+          instagram_url: prospect.instagram_url,
           digital_signals: prospect.digital_signals,
           description: prospect.description,
           lead_score: analysis.totalLeadScore,
@@ -120,6 +188,14 @@ export async function POST(request: NextRequest) {
           },
           admin_user_id: user.id,
         }),
+        discoveredIgLogMeta
+          ? adminDb.from('outreach_activity_logs').insert({
+              prospect_id: prospect.id,
+              action: 'ai_instagram_discovered',
+              metadata: discoveredIgLogMeta,
+              admin_user_id: user.id,
+            })
+          : Promise.resolve(),
       ]);
 
       return NextResponse.json({
@@ -264,6 +340,192 @@ export async function POST(request: NextRequest) {
         success: true,
         message: savedMsg,
         hallucinationNotes: check.notes,
+      });
+    }
+
+    // 4. Dedicated Instagram Profile Discovery (Single or Batch up to 15)
+    if (action === 'find_instagram') {
+      const rawIds: unknown[] = Array.isArray(body.prospect_ids)
+        ? body.prospect_ids
+        : body.prospect_id
+        ? [body.prospect_id]
+        : [];
+      const prospectIds = Array.from(
+        new Set(rawIds.map((id) => String(id || '').trim()).filter((id) => isValidUUID(id)))
+      ).slice(0, 15);
+
+      if (prospectIds.length === 0) {
+        return NextResponse.json(
+          { error: 'Specifica almeno un ID prospect valido per la ricerca Instagram.' },
+          { status: 400 }
+        );
+      }
+
+      const { data: pRows, error: fetchErr } = await adminDb
+        .from('outreach_prospects')
+        .select('*')
+        .in('id', prospectIds)
+        .is('merged_into_id', null);
+
+      if (fetchErr) {
+        return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+      }
+
+      const prospects = (pRows || []) as OutreachProspectRecord[];
+      if (prospects.length === 0) {
+        return NextResponse.json({
+          checkedCount: 0,
+          foundCount: 0,
+          updatedProspects: [],
+        });
+      }
+
+      const siteInspectedIds = new Set<string>();
+      await Promise.all(
+        prospects.map(async (p) => {
+          if (p.website && !p.digital_signals?.inspectedAt) {
+            const signals = await inspectPublicWebsiteMetadata(p.website);
+            p.digital_signals = {
+              ...(p.digital_signals || {}),
+              ...signals,
+            };
+            if (!p.description && signals.websiteDescription) {
+              p.description = signals.websiteDescription;
+            }
+            siteInspectedIds.add(p.id);
+          }
+        })
+      );
+
+      const discoveredMap = new Map<
+        string,
+        {
+          instagramUrl: string;
+          handle: string | null;
+          evidenceSource: string | null;
+          confidence: 'high' | 'medium' | 'none';
+        }
+      >();
+      const geminiTargets: OutreachProspectRecord[] = [];
+
+      for (const p of prospects) {
+        if (normalizeInstagramProfileUrl(p.instagram_url)) continue;
+        const siteIg = findInstagramInSocialLinks(p.digital_signals?.detectedSocialLinks);
+        if (siteIg) {
+          discoveredMap.set(p.id, {
+            instagramUrl: siteIg,
+            handle: extractInstagramHandle(siteIg),
+            evidenceSource: 'Sito web pubblico',
+            confidence: 'high',
+          });
+        } else {
+          geminiTargets.push(p);
+        }
+      }
+
+      if (geminiTargets.length > 0) {
+        const geminiMatches = await discoverInstagramProfilesBatch(geminiTargets, {
+          concurrency: 4,
+          maxItems: 15,
+        });
+        for (const [id, res] of geminiMatches.entries()) {
+          if (res.instagramUrl) {
+            discoveredMap.set(id, {
+              instagramUrl: res.instagramUrl,
+              handle: res.handle,
+              evidenceSource: res.evidenceSource,
+              confidence: res.confidence,
+            });
+          }
+        }
+      }
+
+      const nowIso = new Date().toISOString();
+      const updatedProspects: OutreachProspectRecord[] = [];
+      const activityInserts: Array<Record<string, unknown>> = [];
+
+      await Promise.all(
+        prospects.map(async (p) => {
+          const found = discoveredMap.get(p.id);
+          if (!found) {
+            if (siteInspectedIds.has(p.id)) {
+              await adminDb
+                .from('outreach_prospects')
+                .update({
+                  digital_signals: p.digital_signals,
+                  description: p.description,
+                  updated_at: nowIso,
+                })
+                .eq('id', p.id);
+            }
+            return;
+          }
+
+          const mergedSignals = {
+            ...(p.digital_signals || {}),
+            instagramDiscoverySource: found.evidenceSource,
+            instagramHandle: found.handle,
+            instagramConfidence: found.confidence,
+            instagramDiscoveredAt: nowIso,
+          };
+
+          let updatedAiAnalysis = p.ai_analysis;
+          if (updatedAiAnalysis && typeof updatedAiAnalysis === 'object') {
+            const existingFacts = Array.isArray(updatedAiAnalysis.verifiedFactsUsed)
+              ? updatedAiAnalysis.verifiedFactsUsed
+              : [];
+            const igFact = `Profilo Instagram pubblico: ${found.instagramUrl}`;
+            updatedAiAnalysis = {
+              ...updatedAiAnalysis,
+              digitalPresenceAssessment: {
+                ...(updatedAiAnalysis.digitalPresenceAssessment || {}),
+                hasInstagram: true,
+              },
+              verifiedFactsUsed: existingFacts.includes(igFact)
+                ? existingFacts
+                : [...existingFacts, igFact],
+            };
+          }
+
+          const { data: updatedRow } = await adminDb
+            .from('outreach_prospects')
+            .update({
+              instagram_url: found.instagramUrl,
+              digital_signals: mergedSignals,
+              description: p.description,
+              ...(updatedAiAnalysis ? { ai_analysis: updatedAiAnalysis } : {}),
+              updated_at: nowIso,
+            })
+            .eq('id', p.id)
+            .select('*')
+            .single();
+
+          if (updatedRow) {
+            updatedProspects.push(updatedRow as OutreachProspectRecord);
+          }
+
+          activityInserts.push({
+            prospect_id: p.id,
+            action: 'ai_instagram_discovered',
+            metadata: {
+              instagram_url: found.instagramUrl,
+              handle: found.handle,
+              confidence: found.confidence,
+              evidence_source: found.evidenceSource,
+            },
+            admin_user_id: user.id,
+          });
+        })
+      );
+
+      if (activityInserts.length > 0) {
+        await adminDb.from('outreach_activity_logs').insert(activityInserts);
+      }
+
+      return NextResponse.json({
+        checkedCount: prospects.length,
+        foundCount: updatedProspects.length,
+        updatedProspects,
       });
     }
 

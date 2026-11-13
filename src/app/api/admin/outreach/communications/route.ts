@@ -5,6 +5,11 @@ import {
   getCommunicationChannelsStatus,
 } from '@/lib/outreach/providers/communication';
 import { OutreachComplianceService } from '@/lib/outreach/compliance';
+import {
+  buildInstagramDmDeepLink,
+  extractInstagramHandle,
+  normalizeInstagramProfileUrl,
+} from '@/lib/outreach/instagram';
 import type {
   LegalBasisType,
   OutreachChannel,
@@ -24,6 +29,7 @@ export async function GET(request: NextRequest) {
       { data: permissions },
       { data: suppressions },
       { data: prospects },
+      { data: pitchRows },
     ] = await Promise.all([
       adminDb
         .from('outreach_messages')
@@ -42,11 +48,24 @@ export async function GET(request: NextRequest) {
         .limit(100),
       adminDb
         .from('outreach_prospects')
-        .select('id, business_name, category, subcategory, city, business_email, business_phone, instagram_url, website, commercial_status')
+        .select('id, business_name, category, subcategory, city, business_email, business_phone, instagram_url, website, commercial_status, lead_score, digital_signals, ai_analysis')
         .is('merged_into_id', null)
         .order('updated_at', { ascending: false })
         .limit(150),
+      adminDb
+        .from('outreach_ai_generations')
+        .select('prospect_id, generated_content, created_at')
+        .eq('generation_type', 'sales_pitch')
+        .order('created_at', { ascending: false })
+        .limit(80),
     ]);
+
+    const pitchByProspectId: Record<string, unknown> = {};
+    for (const row of pitchRows || []) {
+      if (row.prospect_id && !(row.prospect_id in pitchByProspectId)) {
+        pitchByProspectId[row.prospect_id] = row.generated_content;
+      }
+    }
 
     return NextResponse.json({
       channels: getCommunicationChannelsStatus(),
@@ -54,6 +73,7 @@ export async function GET(request: NextRequest) {
       permissions: permissions || [],
       suppressions: suppressions || [],
       prospects: prospects || [],
+      pitchByProspectId,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -273,6 +293,178 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Prospect aggiunto alla lista di soppressione e bloccato da futuri contatti.',
+      });
+    }
+
+    // 5. Log Assisted Manual 1-to-1 Instagram DM (Compliance-gated)
+    if (action === 'log_assisted_instagram_dm') {
+      const prospectId = String(body.prospect_id || '');
+      const content = String(body.content || '').trim();
+      const subject = body.subject ? String(body.subject).trim() : '';
+      const variantUsed = body.variant_used ? String(body.variant_used).trim() : '';
+
+      if (!isValidUUID(prospectId) || !content) {
+        return NextResponse.json(
+          { error: 'Prospect e contenuto del messaggio Instagram obbligatori.' },
+          { status: 400 }
+        );
+      }
+
+      const { data: pRow } = await adminDb
+        .from('outreach_prospects')
+        .select('*')
+        .eq('id', prospectId)
+        .maybeSingle();
+
+      if (!pRow) {
+        return NextResponse.json({ error: 'Prospect non trovato.' }, { status: 404 });
+      }
+      if (pRow.merged_into_id) {
+        return NextResponse.json(
+          { error: 'Questa scheda prospect è stata unita ad un’altra scheda e non può essere contattata.' },
+          { status: 400 }
+        );
+      }
+
+      if (pRow.commercial_status === 'non_contattare') {
+        return NextResponse.json(
+          {
+            error:
+              'Bloccato da compliance: il prospect è nello stato "Non contattare" (opt-out o blocco commerciale attivo).',
+          },
+          { status: 400 }
+        );
+      }
+
+      const { data: matchingSuppressions } = await adminDb
+        .from('outreach_suppressions')
+        .select('id, channel, reason')
+        .eq('prospect_id', prospectId)
+        .in('channel', ['all', 'instagram'])
+        .limit(1);
+
+      if (matchingSuppressions && matchingSuppressions.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Bloccato dalla Lista di Soppressione GDPR (${matchingSuppressions[0].reason || 'opt-out registrato'}).`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const normalizedIg = normalizeInstagramProfileUrl(pRow.instagram_url);
+      const handle = extractInstagramHandle(normalizedIg);
+      const deepLink = buildInstagramDmDeepLink(normalizedIg);
+      const nowIso = new Date().toISOString();
+
+      const [{ data: existingManualPerm }, { data: existingConv }] = await Promise.all([
+        adminDb
+          .from('outreach_contact_permissions')
+          .select('id')
+          .eq('prospect_id', prospectId)
+          .eq('channel', 'manual')
+          .eq('legal_basis', 'manual_1to1_inquiry')
+          .is('withdrawn_at', null)
+          .limit(1)
+          .maybeSingle(),
+        adminDb
+          .from('outreach_conversations')
+          .select('id')
+          .eq('prospect_id', prospectId)
+          .eq('channel', 'instagram')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (!existingManualPerm) {
+        await adminDb.from('outreach_contact_permissions').insert({
+          prospect_id: prospectId,
+          channel: 'manual',
+          permission_status: 'granted',
+          legal_basis: 'manual_1to1_inquiry',
+          evidence_reference: 'Invio DM manuale assistito da Admin RIVO',
+          source: 'admin_instagram_dm_queue',
+          scope: 'b2b_commercial_outreach',
+        });
+      }
+
+      let conversationId: string | null = existingConv?.id || null;
+      if (conversationId) {
+        await adminDb
+          .from('outreach_conversations')
+          .update({
+            conversation_status: 'awaiting_reply',
+            updated_at: nowIso,
+          })
+          .eq('id', conversationId);
+      } else {
+        const { data: insertedConv } = await adminDb
+          .from('outreach_conversations')
+          .insert({
+            prospect_id: prospectId,
+            channel: 'instagram',
+            conversation_status: 'awaiting_reply',
+            updated_at: nowIso,
+          })
+          .select('id')
+          .single();
+        conversationId = insertedConv?.id || null;
+      }
+
+      const { data: savedMessage, error: msgErr } = await adminDb
+        .from('outreach_messages')
+        .insert({
+          prospect_id: prospectId,
+          conversation_id: conversationId,
+          channel: 'instagram',
+          direction: 'outbound',
+          delivery_mode: 'manual',
+          subject: subject || 'DM Instagram Assistito',
+          content,
+          variant_used: variantUsed || 'B_informal',
+          provider_status: 'sent',
+          sent_at: nowIso,
+        })
+        .select('*')
+        .single();
+
+      if (msgErr) {
+        return NextResponse.json({ error: msgErr.message }, { status: 500 });
+      }
+
+      await Promise.all([
+        adminDb
+          .from('outreach_prospects')
+          .update({
+            commercial_status: 'in_conversazione',
+            updated_at: nowIso,
+          })
+          .eq('id', prospectId)
+          .in('commercial_status', [
+            'nuovo',
+            'da_analizzare',
+            'analizzato',
+            'da_contattare',
+            'contatto_consentito',
+          ]),
+        adminDb.from('outreach_activity_logs').insert({
+          prospect_id: prospectId,
+          action: 'instagram_dm_assisted_sent',
+          metadata: {
+            handle,
+            deep_link: deepLink,
+            message_id: savedMessage?.id || null,
+          },
+          admin_user_id: user.id,
+        }),
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        message: savedMessage,
+        handle,
+        deepLink,
       });
     }
 

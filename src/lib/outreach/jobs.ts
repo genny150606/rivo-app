@@ -12,6 +12,7 @@ import {
   generatePersonalizedSalesPitches,
 } from './ai-intelligence';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE, type RivoProductKnowledgeBase } from './knowledge-base';
+import { discoverInstagramProfilesBatch, normalizeInstagramProfileUrl } from './instagram';
 import type { OutreachProspectRecord } from './types';
 
 export interface OutreachJobRecord {
@@ -52,6 +53,96 @@ export async function loadActiveKnowledgeBase(
     };
   }
   return DEFAULT_RIVO_KNOWLEDGE_BASE;
+}
+
+/**
+ * Discovers missing public Instagram profiles for a deduplicated pool of prospects,
+ * persists found URLs & metadata, logs activity, and syncs in-memory records before AI analysis.
+ */
+async function discoverAndPersistMissingInstagram(
+  adminDb: SupabaseClient,
+  candidates: OutreachProspectRecord[],
+  options: {
+    maxItems: number;
+    autoOnDiscovery?: boolean;
+    adminUserId?: string;
+    syncTargets?: OutreachProspectRecord[];
+  }
+): Promise<number> {
+  const poolMap = new Map<string, OutreachProspectRecord>();
+  for (const p of candidates) {
+    if (p?.id && !normalizeInstagramProfileUrl(p.instagram_url)) {
+      poolMap.set(p.id, p);
+    }
+  }
+  if (poolMap.size === 0) return 0;
+
+  const igMatches = await discoverInstagramProfilesBatch(Array.from(poolMap.values()), {
+    concurrency: 4,
+    maxItems: options.maxItems,
+  });
+  if (igMatches.size === 0) return 0;
+
+  const syncMap = new Map<string, OutreachProspectRecord>();
+  for (const p of options.syncTargets || []) {
+    if (p?.id) syncMap.set(p.id, p);
+  }
+
+  const nowIso = new Date().toISOString();
+  const activityInserts: Array<Record<string, unknown>> = [];
+
+  await Promise.all(
+    Array.from(igMatches.entries()).map(async ([prospectId, igRes]) => {
+      if (!igRes.instagramUrl) return;
+      const candidateRef = poolMap.get(prospectId);
+      const syncRef = syncMap.get(prospectId);
+      const baseSignals = syncRef?.digital_signals || candidateRef?.digital_signals || {};
+      const mergedSignals = {
+        ...baseSignals,
+        instagramDiscoverySource: igRes.evidenceSource,
+        instagramHandle: igRes.handle,
+        instagramConfidence: igRes.confidence,
+        instagramDiscoveredAt: nowIso,
+      };
+
+      await adminDb
+        .from('outreach_prospects')
+        .update({
+          instagram_url: igRes.instagramUrl,
+          digital_signals: mergedSignals,
+          updated_at: nowIso,
+        })
+        .eq('id', prospectId);
+
+      if (candidateRef) {
+        candidateRef.instagram_url = igRes.instagramUrl;
+        candidateRef.digital_signals = mergedSignals;
+      }
+      if (syncRef) {
+        syncRef.instagram_url = igRes.instagramUrl;
+        syncRef.digital_signals = mergedSignals;
+      }
+
+      activityInserts.push({
+        prospect_id: prospectId,
+        action: 'ai_instagram_discovered',
+        metadata: {
+          instagram_url: igRes.instagramUrl,
+          handle: igRes.handle,
+          confidence: igRes.confidence,
+          evidence_source: igRes.evidenceSource,
+          ...(options.autoOnDiscovery ? { auto_on_discovery: true } : {}),
+        },
+        admin_user_id: options.adminUserId || null,
+      });
+    })
+  );
+
+  if (activityInserts.length > 0) {
+    await adminDb.from('outreach_activity_logs').insert(activityInserts);
+  }
+
+  return igMatches.size;
 }
 
 /**
@@ -311,12 +402,23 @@ export async function processOutreachJob(
       }
       const prospectsToAnalyze = Array.from(toAnalyzeMap.values());
 
+      const instagramDiscoveredCount = await discoverAndPersistMissingInstagram(
+        adminDb,
+        [...insertedRows, ...Array.from(matchedProspectsMap.values())],
+        {
+          maxItems: 18,
+          autoOnDiscovery: true,
+          adminUserId,
+          syncTargets: prospectsToAnalyze,
+        }
+      );
+
       let analyzedCount = 0;
       if (prospectsToAnalyze.length > 0) {
         const analysisMap = await analyzeProspectsBatchWithAI(prospectsToAnalyze, kb);
         const nowIso = new Date().toISOString();
         const generationInserts: any[] = [];
-        const activityInserts: any[] = [];
+        const activityInserts: Array<Record<string, unknown>> = [];
 
         await Promise.all(
           prospectsToAnalyze.map(async (p) => {
@@ -382,6 +484,7 @@ export async function processOutreachJob(
         skippedDuplicates,
         analyzedCount: analyzedCount + alreadyAnalyzedMatchedCount,
         newlyAnalyzedCount: analyzedCount,
+        instagramDiscoveredCount,
         insertedIds,
         matchedIds,
         allResultIds,
@@ -418,6 +521,16 @@ export async function processOutreachJob(
           : { data: [] };
 
       const targetProspects = (pRows || []) as OutreachProspectRecord[];
+      const instagramDiscoveredCount = await discoverAndPersistMissingInstagram(
+        adminDb,
+        targetProspects,
+        {
+          maxItems: 15,
+          adminUserId,
+          syncTargets: targetProspects,
+        }
+      );
+
       const analysisMap = await analyzeProspectsBatchWithAI(targetProspects, kb);
       const nowIso = new Date().toISOString();
       const generationInserts: any[] = [];
@@ -463,7 +576,7 @@ export async function processOutreachJob(
         .update({
           status: 'completed',
           progress: 100,
-          result: { analyzedCount },
+          result: { analyzedCount, instagramDiscoveredCount },
           completed_at: new Date().toISOString(),
         })
         .eq('id', job.id)

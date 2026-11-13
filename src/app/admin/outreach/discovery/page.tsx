@@ -19,7 +19,13 @@ import {
   Compass,
   ExternalLink,
   Navigation,
+  Send,
 } from 'lucide-react';
+import { InstagramIcon } from '@/components/brand-icons';
+import {
+  buildInstagramDmDeepLink,
+  extractInstagramHandle,
+} from '@/lib/outreach/instagram';
 import {
   OUTREACH_DISCOVERY_CATEGORIES,
   type OutreachProspectRecord,
@@ -66,6 +72,7 @@ export default function OutreachDiscoveryPage() {
     insertedCount: number;
     duplicatesSkipped: number;
     analyzedCount: number;
+    instagramDiscoveredCount: number;
     items: OutreachProspectRecord[];
   } | null>(null);
 
@@ -208,12 +215,19 @@ export default function OutreachDiscoveryPage() {
       const analyzedInResult = sortedSearchProspects.filter(
         (p) => Boolean(p.ai_analysis) || (p.lead_score ?? 0) > 0
       ).length;
+      const instagramInResult = sortedSearchProspects.filter((p) =>
+        Boolean(p.instagram_url)
+      ).length;
 
       setSearchResult({
         discoveredCount: jobRes.discoveredTotal ?? sortedSearchProspects.length,
         insertedCount: jobRes.insertedCount ?? insertedProspects.length,
         duplicatesSkipped: jobRes.skippedDuplicates ?? 0,
         analyzedCount: jobRes.analyzedCount ?? analyzedInResult,
+        instagramDiscoveredCount:
+          typeof jobRes.instagramDiscoveredCount === 'number'
+            ? jobRes.instagramDiscoveredCount
+            : instagramInResult,
         items: sortedSearchProspects,
       });
 
@@ -949,11 +963,20 @@ export default function OutreachDiscoveryPage() {
 
           <div className="bg-[#121214] border border-[#27272A] rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-[#27272A] flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-[#BFFF00]" />
                 <h2 className="text-sm font-semibold text-[#FAFAFA]">
                   Risultati Acquisiti &amp; Analizzati dall&apos;AI ({searchResult.items.length})
                 </h2>
+                {searchResult.instagramDiscoveredCount > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/35 text-[11px] font-mono text-fuchsia-300">
+                    <InstagramIcon className="w-3 h-3" />
+                    • {searchResult.instagramDiscoveredCount}{' '}
+                    {searchResult.instagramDiscoveredCount === 1
+                      ? 'profilo Instagram trovato con AI'
+                      : 'profili Instagram trovati con AI'}
+                  </span>
+                )}
               </div>
               <Link
                 href="/admin/outreach/intelligence"
@@ -996,6 +1019,8 @@ export default function OutreachDiscoveryPage() {
                       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                         [item.business_name, item.address, item.city].filter(Boolean).join(', ')
                       )}`;
+                    const igHandle = extractInstagramHandle(item.instagram_url);
+                    const igDmLink = buildInstagramDmDeepLink(item.instagram_url);
                     return (
                       <tr
                         key={item.id}
@@ -1064,7 +1089,7 @@ export default function OutreachDiscoveryPage() {
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-2 text-xs">
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
                             {item.website && (
                               <a
                                 href={item.website}
@@ -1075,6 +1100,38 @@ export default function OutreachDiscoveryPage() {
                                 <Globe className="w-3 h-3 text-[#BFFF00]" />
                                 Web
                               </a>
+                            )}
+                            {item.instagram_url && (
+                              <div className="inline-flex items-center gap-1">
+                                <a
+                                  href={item.instagram_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title={
+                                    igHandle
+                                      ? `@${igHandle} su Instagram`
+                                      : 'Apri profilo Instagram'
+                                  }
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-500/35 text-fuchsia-300 hover:border-fuchsia-400"
+                                >
+                                  <InstagramIcon className="w-3 h-3" />
+                                  <span>@{igHandle || 'instagram'}</span>
+                                </a>
+                                <Link
+                                  href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
+                                    item.id
+                                  )}`}
+                                  title={
+                                    igDmLink
+                                      ? `Apri coda DM Instagram (${igDmLink})`
+                                      : 'Apri coda DM Instagram'
+                                  }
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-fuchsia-300 text-[11px] font-mono"
+                                >
+                                  <Send className="w-2.5 h-2.5" />
+                                  DM
+                                </Link>
+                              </div>
                             )}
                             {item.business_phone && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#A1A1AA] font-mono text-[11px]">
@@ -1088,9 +1145,14 @@ export default function OutreachDiscoveryPage() {
                                 {item.business_email}
                               </span>
                             )}
-                            {!item.website && !item.business_phone && !item.business_email && (
-                              <span className="text-[11px] text-[#71717A]">Solo scheda geografica</span>
-                            )}
+                            {!item.website &&
+                              !item.instagram_url &&
+                              !item.business_phone &&
+                              !item.business_email && (
+                                <span className="text-[11px] text-[#71717A]">
+                                  Solo scheda geografica
+                                </span>
+                              )}
                           </div>
                         </td>
                         <td className="py-3 px-4 text-[11px] font-mono text-[#71717A]">

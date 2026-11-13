@@ -16,7 +16,12 @@ import {
   ExternalLink,
   Link2,
 } from 'lucide-react';
+import { InstagramIcon } from '@/components/brand-icons';
 import { buildProspectDemoUrl } from '@/lib/outreach/preview';
+import {
+  buildInstagramDmDeepLink,
+  extractInstagramHandle,
+} from '@/lib/outreach/instagram';
 import type {
   OutreachProspectRecord,
   OutreachPitchGenerationPayload,
@@ -48,6 +53,7 @@ function OutreachIntelligenceContent() {
   );
   const [analyzing, setAnalyzing] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
+  const [findingInstagram, setFindingInstagram] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -121,6 +127,8 @@ function OutreachIntelligenceContent() {
   const prospectDemoUrl = selectedProspect
     ? buildProspectDemoUrl(selectedProspect.business_name, selectedProspect.id)
     : null;
+  const selectedIgHandle = extractInstagramHandle(selectedProspect?.instagram_url);
+  const selectedIgDmUrl = buildInstagramDmDeepLink(selectedProspect?.instagram_url);
 
   const handleVariantSwitch = (variant: PitchApproachVariant) => {
     setActiveVariant(variant);
@@ -240,6 +248,87 @@ function OutreachIntelligenceContent() {
     setEditBody((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${snippet}` : snippet));
   };
 
+  const handleFindInstagram = async () => {
+    if (!selectedId) return;
+    setFindingInstagram(true);
+    setFeedback(null);
+    try {
+      const res = await fetch('/api/admin/outreach/intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'find_instagram',
+          prospect_id: selectedId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore ricerca profilo Instagram');
+
+      const updatedList = Array.isArray(json.updatedProspects)
+        ? (json.updatedProspects as OutreachProspectRecord[])
+        : [];
+      const updatedProspect =
+        updatedList.find((p) => p.id === selectedId) ||
+        updatedList[0] ||
+        (json.prospect as OutreachProspectRecord | undefined) ||
+        null;
+      const discoveredUrl =
+        updatedProspect?.instagram_url ||
+        json.instagramUrl ||
+        json.instagram_url ||
+        json.result?.instagramUrl ||
+        null;
+      const discoveredHandle =
+        extractInstagramHandle(discoveredUrl) ||
+        (typeof json.handle === 'string' ? json.handle.replace(/^@/, '') : null) ||
+        (typeof json.result?.handle === 'string'
+          ? json.result.handle.replace(/^@/, '')
+          : null);
+
+      if (updatedProspect) {
+        setSelectedProspect(updatedProspect);
+        setProspects((prev) =>
+          prev.map((p) => (p.id === updatedProspect.id ? updatedProspect : p))
+        );
+      } else if (discoveredUrl) {
+        setSelectedProspect((prev) =>
+          prev && prev.id === selectedId ? { ...prev, instagram_url: discoveredUrl } : prev
+        );
+        setProspects((prev) =>
+          prev.map((p) =>
+            p.id === selectedId ? { ...p, instagram_url: discoveredUrl } : p
+          )
+        );
+      }
+
+      if (discoveredHandle) {
+        setFeedback(`Trovato @${discoveredHandle}`);
+      } else if (discoveredUrl) {
+        setFeedback('Profilo Instagram pubblico trovato e salvato.');
+      } else {
+        setFeedback('Nessun profilo Instagram pubblico verificabile trovato');
+      }
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : 'Errore ricerca profilo Instagram');
+    } finally {
+      setFindingInstagram(false);
+    }
+  };
+
+  const handleCopyDmAndOpenChat = () => {
+    if (!selectedProspect?.instagram_url) return;
+    const dmUrl =
+      buildInstagramDmDeepLink(selectedProspect.instagram_url) ||
+      selectedProspect.instagram_url;
+    if (editBody.trim()) {
+      navigator.clipboard.writeText(editBody);
+      setCopiedId('ig-dm');
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+    window.open(dmUrl, '_blank', 'noopener,noreferrer');
+    setFeedback('Testo DM copiato e chat Instagram aperta in una nuova scheda.');
+  };
+
   const breakdown = selectedProspect?.ai_analysis?.scoreBreakdown;
 
   return (
@@ -341,7 +430,77 @@ function OutreachIntelligenceContent() {
       </div>
 
       {selectedProspect && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="space-y-6">
+          {/* Top Prospect Actions Strip */}
+          <div className="bg-[#121214] border border-[#27272A] rounded-xl px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              <span className="font-semibold text-[#FAFAFA]">
+                {selectedProspect.business_name}
+              </span>
+              <span className="text-[#71717A]">•</span>
+              <span className="text-[#A1A1AA]">
+                {selectedProspect.city || 'Città N/D'} ({selectedProspect.subcategory || selectedProspect.category})
+              </span>
+              {selectedProspect.website && (
+                <a
+                  href={selectedProspect.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#0D0D10] border border-[#27272A] text-[#A1A1AA] hover:text-[#BFFF00] hover:border-[#BFFF00] text-[11px]"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  {selectedProspect.website_domain || 'Sito Web'}
+                </a>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedProspect.instagram_url ? (
+                <>
+                  <a
+                    href={selectedProspect.instagram_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/40 hover:border-fuchsia-400 text-xs font-medium text-fuchsia-300 transition-colors"
+                  >
+                    <InstagramIcon className="w-3.5 h-3.5" />
+                    <span>@{selectedIgHandle || 'instagram'}</span>
+                    <ExternalLink className="w-3 h-3 opacity-80" />
+                  </a>
+                  <Link
+                    href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
+                      selectedProspect.id
+                    )}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-xs font-medium text-[#FAFAFA] transition-colors"
+                  >
+                    <Send className="w-3.5 h-3.5 text-fuchsia-400" />
+                    Apri in Coda DM
+                  </Link>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={findingInstagram}
+                  onClick={handleFindInstagram}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/40 hover:border-fuchsia-400 text-xs font-semibold text-fuchsia-300 transition-colors disabled:opacity-50"
+                >
+                  {findingInstagram ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Ricerca Instagram AI...
+                    </>
+                  ) : (
+                    <>
+                      <InstagramIcon className="w-3.5 h-3.5" />
+                      Trova Instagram con AI
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Explainable Lead Score & Opportunities */}
           <div className="lg:col-span-5 space-y-6">
             {/* 6-Factor Lead Scoring Card */}
@@ -621,6 +780,41 @@ function OutreachIntelligenceContent() {
                           </>
                         )}
                       </button>
+                      {selectedProspect.instagram_url && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleCopyDmAndOpenChat}
+                            title={
+                              selectedIgDmUrl
+                                ? `Copia messaggio e apri ${selectedIgDmUrl}`
+                                : 'Copia messaggio e apri Instagram'
+                            }
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-fuchsia-500/15 border border-fuchsia-500/40 hover:border-fuchsia-400 text-xs font-medium text-fuchsia-300"
+                          >
+                            {copiedId === 'ig-dm' ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-fuchsia-300" />
+                                DM Copiato!
+                              </>
+                            ) : (
+                              <>
+                                <InstagramIcon className="w-3.5 h-3.5" />
+                                Copia DM &amp; Apri Chat IG
+                              </>
+                            )}
+                          </button>
+                          <Link
+                            href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
+                              selectedProspect.id
+                            )}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-xs text-fuchsia-300"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            Apri in Coda DM
+                          </Link>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -713,6 +907,7 @@ function OutreachIntelligenceContent() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
       )}

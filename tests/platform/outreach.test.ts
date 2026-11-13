@@ -26,6 +26,14 @@ import {
   getBusinessInitials,
   computeLogoVersionTag,
 } from '@/lib/outreach/logo-resolver';
+import {
+  extractInstagramHandle,
+  normalizeInstagramProfileUrl,
+  buildInstagramDmDeepLink,
+  extractVerifiedInstagramFromHtml,
+  scoreInstagramCandidateForProspect,
+  buildInstagramDmDraft,
+} from '@/lib/outreach/instagram';
 import { OutreachComplianceService } from '@/lib/outreach/compliance';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE } from '@/lib/outreach/knowledge-base';
 import {
@@ -494,5 +502,135 @@ describe('RIVO OUTREACH — Logo Resolver & Co-Branding Helpers', () => {
     expect(tagA1).not.toBe(tagB);
     expect(tagA1).not.toBe(tagNone);
     expect(tagB).not.toBe(tagNone);
+  });
+});
+
+describe('RIVO OUTREACH — Instagram Discovery & Assisted DM', () => {
+  it('extracts and normalizes @handles, full URLs with query params, ig.me/m links, and trailing punctuation while rejecting reserved paths', () => {
+    expect(extractInstagramHandle('@Osteria_Napoli')).toBe('osteria_napoli');
+    expect(
+      extractInstagramHandle(
+        'https://www.instagram.com/osteria_napoli/?igsh=MXabc123&utm_source=ig_web_copy_link'
+      )
+    ).toBe('osteria_napoli');
+    expect(extractInstagramHandle('https://ig.me/m/Osteria.Napoli?ref=bio')).toBe(
+      'osteria.napoli'
+    );
+    expect(extractInstagramHandle('https://instagram.com/osteria_napoli.)')).toBe(
+      'osteria_napoli'
+    );
+    expect(extractInstagramHandle('https://instagram.com/osteria_napoli/,')).toBe(
+      'osteria_napoli'
+    );
+
+    expect(normalizeInstagramProfileUrl('@Osteria_Napoli')).toBe(
+      'https://www.instagram.com/osteria_napoli/'
+    );
+    expect(
+      normalizeInstagramProfileUrl('https://instagram.com/osteria_napoli/?utm_medium=copy_link')
+    ).toBe('https://www.instagram.com/osteria_napoli/');
+    expect(normalizeInstagramProfileUrl('https://ig.me/m/osteria_napoli')).toBe(
+      'https://www.instagram.com/osteria_napoli/'
+    );
+
+    expect(extractInstagramHandle('https://www.instagram.com/p/C8xyz123/')).toBeNull();
+    expect(extractInstagramHandle('https://www.instagram.com/reel/C8xyz123/')).toBeNull();
+    expect(extractInstagramHandle('https://www.instagram.com/explore/tags/napoli/')).toBeNull();
+    expect(extractInstagramHandle('https://www.instagram.com/accounts/login/')).toBeNull();
+    expect(normalizeInstagramProfileUrl('https://www.instagram.com/p/C8xyz123/')).toBeNull();
+    expect(normalizeInstagramProfileUrl('https://www.instagram.com/reel/C8xyz123/')).toBeNull();
+    expect(normalizeInstagramProfileUrl('https://www.instagram.com/explore/')).toBeNull();
+    expect(normalizeInstagramProfileUrl('https://www.instagram.com/accounts/emailsignup/')).toBeNull();
+  });
+
+  it('builds official ig.me/m direct-message deep links for valid Instagram handles and rejects invalid paths', () => {
+    expect(buildInstagramDmDeepLink('https://www.instagram.com/pizzeria_partenope/')).toBe(
+      'https://ig.me/m/pizzeria_partenope'
+    );
+    expect(buildInstagramDmDeepLink('@Pizzeria_Partenope')).toBe(
+      'https://ig.me/m/pizzeria_partenope'
+    );
+    expect(buildInstagramDmDeepLink('https://www.instagram.com/reel/XYZ999/')).toBeNull();
+    expect(buildInstagramDmDeepLink(null)).toBeNull();
+  });
+
+  it('extracts verified public Instagram profile URLs from HTML while skipping post/reel/explore links', () => {
+    const htmlWithEmbedAndProfile = `
+      <html>
+        <body>
+          <a href="https://www.instagram.com/p/C9post123/">Post</a>
+          <a href="https://www.instagram.com/reel/C9reel123/">Reel</a>
+          <a href="https://www.instagram.com/explore/">Explore</a>
+          <a href="https://www.instagram.com/trattoria_da_enzo/?hl=it">Seguici su IG</a>
+        </body>
+      </html>
+    `;
+    expect(extractVerifiedInstagramFromHtml(htmlWithEmbedAndProfile)).toBe(
+      'https://www.instagram.com/trattoria_da_enzo/'
+    );
+
+    const htmlOnlyEmbeds = `
+      <a href="https://www.instagram.com/p/C9post123/">Post</a>
+      <a href="https://www.instagram.com/accounts/login/">Login</a>
+    `;
+    expect(extractVerifiedInstagramFromHtml(htmlOnlyEmbeds)).toBeNull();
+  });
+
+  it('scores grounding candidates accurately: high for matching business, negative for tripadvisor, zero for unrelated pages', () => {
+    const prospect = {
+      business_name: 'Antica Pizzeria Da Michele',
+      city: 'Napoli',
+      website: 'https://www.damichele.net',
+    };
+
+    const matchingScore = scoreInstagramCandidateForProspect(
+      {
+        handle: 'pizzeriadamichele_napoli',
+        title: 'Antica Pizzeria Da Michele (@pizzeriadamichele_napoli) • Instagram photos and videos',
+        snippet: 'Dal 1870 nel cuore di Napoli.',
+        fromGroundingChunk: true,
+      },
+      prospect
+    );
+    expect(matchingScore).toBeGreaterThanOrEqual(52);
+
+    const portalScore = scoreInstagramCandidateForProspect(
+      {
+        handle: 'tripadvisor',
+        title: 'Antica Pizzeria Da Michele - TripAdvisor',
+        snippet: 'Recensioni TripAdvisor a Napoli',
+        fromGroundingChunk: true,
+      },
+      prospect
+    );
+    expect(portalScore).toBeLessThan(0);
+
+    const unrelatedScore = scoreInstagramCandidateForProspect(
+      {
+        handle: 'salone_fashion_roma',
+        title: 'Salone Fashion Roma',
+        snippet: 'Parrucchiere a Roma',
+        fromGroundingChunk: true,
+      },
+      prospect
+    );
+    expect(unrelatedScore).toBe(0);
+  });
+
+  it('builds a clean Instagram DM draft containing the business name and its /preview/ demo URL', () => {
+    const prospect = makeMockProspect({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      business_name: 'Pizzeria Spaccanapoli',
+      subcategory: 'pizzeria',
+      category: 'food_beverage',
+      city: 'Napoli',
+    });
+    const expectedDemoUrl = buildProspectDemoUrl(prospect.business_name, prospect.id);
+    const draft = buildInstagramDmDraft(prospect);
+
+    expect(draft).toContain('Pizzeria Spaccanapoli');
+    expect(draft).toContain('/preview/');
+    expect(draft).toContain(expectedDemoUrl);
+    expect(draft).toContain('Napoli');
   });
 });
