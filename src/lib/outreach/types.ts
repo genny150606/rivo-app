@@ -379,6 +379,8 @@ export interface OutreachPitchGenerationPayload {
 export interface PublicDigitalSignals {
   websiteTitle?: string | null;
   websiteDescription?: string | null;
+  logoUrl?: string | null;
+  customLogoUrl?: string | null;
   detectedBookingLinks?: string[];
   detectedMenuLinks?: string[];
   detectedSocialLinks?: string[];

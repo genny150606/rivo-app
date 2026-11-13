@@ -8,6 +8,7 @@
 
 import { findSubcategoryDef, type PublicDigitalSignals } from '../types';
 import { extractWebsiteDomain, normalizeBusinessName } from '../deduplication';
+import { buildGoogleFaviconUrl, extractLogoCandidateFromHtml } from '../logo-resolver';
 
 export interface CampaniaGeoPreset {
   id: string;
@@ -378,6 +379,7 @@ export async function inspectPublicWebsiteMetadata(rawUrl: string): Promise<Publ
   const signals: PublicDigitalSignals = {
     websiteTitle: null,
     websiteDescription: null,
+    logoUrl: null,
     detectedBookingLinks: [],
     detectedMenuLinks: [],
     detectedSocialLinks: [],
@@ -385,8 +387,9 @@ export async function inspectPublicWebsiteMetadata(rawUrl: string): Promise<Publ
     inspectedAt: new Date().toISOString(),
   };
 
-  if (!rawUrl) return signals;
+  if (!rawUrl || !rawUrl.trim()) return signals;
   const targetUrl = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`;
+  signals.logoUrl = buildGoogleFaviconUrl(targetUrl);
 
   try {
     const controller = new AbortController();
@@ -406,6 +409,11 @@ export async function inspectPublicWebsiteMetadata(rawUrl: string): Promise<Publ
     if (!res.ok) return signals;
 
     const html = (await res.text()).slice(0, 100000);
+    const resolvedBaseUrl = res.url || targetUrl;
+    signals.logoUrl =
+      extractLogoCandidateFromHtml(html, resolvedBaseUrl) ||
+      buildGoogleFaviconUrl(resolvedBaseUrl) ||
+      signals.logoUrl;
 
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     if (titleMatch?.[1]) {

@@ -9,13 +9,14 @@ import {
   type PublicProspectPreviewDTO,
   type PublicRecommendedModuleDTO,
 } from '@/lib/outreach/preview';
-import type { OutreachCommercialStatus } from '@/lib/outreach/types';
+import { resolveProspectLogoCandidates } from '@/lib/outreach/logo-resolver';
+import type { OutreachCommercialStatus, PublicDigitalSignals } from '@/lib/outreach/types';
 import { sanitizeString } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
 const SAFE_PROSPECT_COLUMNS =
-  'id, business_name, category, subcategory, city, province, region, address, ai_analysis, merged_into_id, commercial_status';
+  'id, business_name, category, subcategory, city, province, region, address, website, website_domain, digital_signals, ai_analysis, merged_into_id, commercial_status';
 
 const DEMO_OPEN_DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -37,6 +38,9 @@ interface SafeProspectRow {
   province: string | null;
   region: string | null;
   address: string | null;
+  website: string | null;
+  website_domain: string | null;
+  digital_signals: PublicDigitalSignals | Record<string, unknown> | null;
   ai_analysis: unknown;
   merged_into_id: string | null;
   commercial_status: OutreachCommercialStatus;
@@ -126,12 +130,16 @@ function extractRecommendedModules(
   return modules.length > 0 ? modules : getVerticalDefaultModules(vertical);
 }
 
-function buildPublicPreviewDTO(row: SafeProspectRow): PublicProspectPreviewDTO {
+function buildPublicPreviewDTO(
+  row: SafeProspectRow,
+  logoUrl: string | null = null
+): PublicProspectPreviewDTO {
   const vertical = resolveDemoVertical(row.category, row.subcategory);
   return {
     id: row.id,
     slug: encodePreviewSlug(row.business_name, row.id),
     businessName: row.business_name,
+    logoUrl,
     category: row.category,
     subcategory: row.subcategory ?? null,
     city: row.city ?? null,
@@ -175,10 +183,14 @@ export async function GET(
     if (!adminDb) return serviceNotConfiguredResponse();
 
     const { slug } = await context.params;
-    const row = await loadSafeProspectBySlug(adminDb, slug);
-    if (!row) return prospectNotFoundResponse();
+    const activeRow = await loadSafeProspectBySlug(adminDb, slug);
+    if (!activeRow) return prospectNotFoundResponse();
 
-    const preview = buildPublicPreviewDTO(row);
+    const { primaryLogoUrl } = await resolveProspectLogoCandidates(activeRow, {
+      allowLiveWebsiteFetch: true,
+      timeoutMs: 1500,
+    });
+    const preview = buildPublicPreviewDTO(activeRow, primaryLogoUrl);
     return NextResponse.json(
       { preview },
       {

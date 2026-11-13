@@ -8,17 +8,23 @@ import ProspectDemoSandbox from '@/components/preview/ProspectDemoSandbox';
 import {
   decodeProspectIdFromSlug,
   encodePreviewSlug,
+  getPublicAppBaseUrl,
   getVerticalDefaultModules,
   resolveDemoVertical,
   type DemoVerticalMode,
   type PublicProspectPreviewDTO,
   type PublicRecommendedModuleDTO,
 } from '@/lib/outreach/preview';
+import {
+  computeLogoVersionTag,
+  resolveProspectLogoCandidates,
+} from '@/lib/outreach/logo-resolver';
+import type { PublicDigitalSignals } from '@/lib/outreach/types';
 
 export const dynamic = 'force-dynamic';
 
 const PROSPECT_PREVIEW_SELECT =
-  'id, business_name, category, subcategory, city, province, region, address, ai_analysis, merged_into_id';
+  'id, business_name, category, subcategory, city, province, region, address, website, website_domain, digital_signals, ai_analysis, merged_into_id';
 
 interface ProspectPreviewRow {
   id: string;
@@ -29,6 +35,9 @@ interface ProspectPreviewRow {
   province: string | null;
   region: string | null;
   address: string | null;
+  website: string | null;
+  website_domain: string | null;
+  digital_signals: PublicDigitalSignals | Record<string, unknown> | null;
   ai_analysis: unknown;
   merged_into_id: string | null;
 }
@@ -122,10 +131,22 @@ const getSafeProspectPreview = cache(
     const vertical = resolveDemoVertical(activeRow.category, activeRow.subcategory);
     const recommendedModules = normalizeRecommendedModules(activeRow.ai_analysis, vertical);
 
+    let primaryLogoUrl: string | null = null;
+    try {
+      const resolvedLogos = await resolveProspectLogoCandidates(activeRow, {
+        allowLiveWebsiteFetch: true,
+        timeoutMs: 1600,
+      });
+      primaryLogoUrl = resolvedLogos.primaryLogoUrl;
+    } catch {
+      primaryLogoUrl = null;
+    }
+
     return {
       id: activeRow.id,
       slug: encodePreviewSlug(activeRow.business_name, activeRow.id),
       businessName: activeRow.business_name,
+      logoUrl: primaryLogoUrl,
       category: activeRow.category,
       subcategory: activeRow.subcategory ?? null,
       city: activeRow.city ?? null,
@@ -142,13 +163,54 @@ export async function generateMetadata({ params }: PreviewPageProps): Promise<Me
   const { slug } = await params;
   const preview = await getSafeProspectPreview(slug);
 
+  if (!preview) {
+    return {
+      title: 'Anteprima RIVO',
+      description: 'Anteprima interattiva RIVO.',
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const baseUrl = getPublicAppBaseUrl();
+  const versionTag = computeLogoVersionTag(preview.logoUrl, preview.businessName);
+  const ogCardUrl = `${baseUrl}/api/outreach/preview/${encodeURIComponent(preview.slug)}/og?v=${encodeURIComponent(versionTag)}`;
+  const ogIconUrl = `${ogCardUrl}&variant=icon`;
+  const description = `Anteprima interattiva RIVO + ${preview.businessName}${
+    preview.city ? ` (${preview.city})` : ''
+  }: prova la Vista Cliente e la Vista Titolare in tempo reale.`;
+
   return {
-    title: preview ? `Anteprima RIVO — ${preview.businessName}` : 'Anteprima RIVO',
-    description: preview
-      ? `Anteprima interattiva RIVO personalizzata per ${preview.businessName}${
-          preview.city ? ` (${preview.city})` : ''
-        }.`
-      : 'Anteprima interattiva RIVO.',
+    title: `RIVO + ${preview.businessName} — Anteprima Demo`,
+    description,
+    openGraph: {
+      title: `RIVO + ${preview.businessName}`,
+      description,
+      type: 'website',
+      url: `${baseUrl}/preview/${encodeURIComponent(preview.slug)}`,
+      siteName: 'RIVO',
+      images: [
+        {
+          url: ogCardUrl,
+          width: 1200,
+          height: 630,
+          type: 'image/png',
+          alt: `RIVO + ${preview.businessName}`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `RIVO + ${preview.businessName}`,
+      description,
+      images: [ogCardUrl],
+    },
+    icons: {
+      icon: ogIconUrl,
+      apple: ogIconUrl,
+    },
     robots: {
       index: false,
       follow: false,

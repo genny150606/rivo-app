@@ -20,6 +20,12 @@ import {
   decodeProspectIdFromSlug,
   resolveDemoVertical,
 } from '@/lib/outreach/preview';
+import {
+  isSafePublicHttpUrl,
+  extractLogoCandidateFromHtml,
+  getBusinessInitials,
+  computeLogoVersionTag,
+} from '@/lib/outreach/logo-resolver';
 import { OutreachComplianceService } from '@/lib/outreach/compliance';
 import { DEFAULT_RIVO_KNOWLEDGE_BASE } from '@/lib/outreach/knowledge-base';
 import {
@@ -402,5 +408,91 @@ describe('RIVO OUTREACH — Personalized Interactive Preview & Decision A2 Pitch
       if (prevGemini !== undefined) process.env.GEMINI_API_KEY = prevGemini;
       if (prevGoogle !== undefined) process.env.GOOGLE_AI_API_KEY = prevGoogle;
     }
+  });
+});
+
+describe('RIVO OUTREACH — Logo Resolver & Co-Branding Helpers', () => {
+  it('validates public http(s) URLs, normalizes omitted https://, and blocks SSRF/private/non-http URLs', () => {
+    const validHttps = isSafePublicHttpUrl('https://pizzeria-napoli.it/logo.png');
+    expect(validHttps).not.toBeNull();
+    expect(validHttps?.toString()).toBe('https://pizzeria-napoli.it/logo.png');
+
+    const normalizedDomain = isSafePublicHttpUrl('pizzeria-napoli.it/logo.png');
+    expect(normalizedDomain).not.toBeNull();
+    expect(normalizedDomain?.toString()).toBe('https://pizzeria-napoli.it/logo.png');
+
+    expect(isSafePublicHttpUrl('http://127.0.0.1/logo.png')).toBeNull();
+    expect(isSafePublicHttpUrl('http://localhost:3000/a.png')).toBeNull();
+    expect(isSafePublicHttpUrl('http://169.254.169.254/latest')).toBeNull();
+    expect(isSafePublicHttpUrl('http://192.168.1.10/x.png')).toBeNull();
+    expect(isSafePublicHttpUrl('ftp://bad.it/logo.png')).toBeNull();
+    expect(isSafePublicHttpUrl('https://user:pass@pizzeria-napoli.it/logo.png')).toBeNull();
+    expect(isSafePublicHttpUrl('')).toBeNull();
+  });
+
+  it('extracts and ranks brand logos and apple-touch-icon while filtering pixels/social icons and falling back to og:image', () => {
+    const baseUrl = 'https://pizzeria-napoli.it/menu';
+
+    const htmlWithBrandImg = `
+      <html>
+        <head>
+          <meta property="og:image" content="/assets/og-banner.jpg" />
+        </head>
+        <body>
+          <img class="logo" src="/tracking/1x1-pixel.png" alt="tracking" />
+          <img class="brand" src="/icons/facebook-share.png" alt="Facebook" />
+          <img class="navbar-brand" src="/assets/logo-pizzeria.png" alt="Logo Pizzeria" />
+        </body>
+      </html>
+    `;
+    expect(extractLogoCandidateFromHtml(htmlWithBrandImg, baseUrl)).toBe(
+      'https://pizzeria-napoli.it/assets/logo-pizzeria.png'
+    );
+
+    const htmlWithAppleTouchIcon = `
+      <html>
+        <head>
+          <link rel="icon" href="/favicon.ico" />
+          <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+          <meta property="og:image" content="/assets/og-banner.jpg" />
+        </head>
+      </html>
+    `;
+    expect(extractLogoCandidateFromHtml(htmlWithAppleTouchIcon, baseUrl)).toBe(
+      'https://pizzeria-napoli.it/assets/apple-touch-icon.png'
+    );
+
+    const htmlOgFallbackOnly = `
+      <html>
+        <head>
+          <meta property="og:image" content="/assets/og-cover.jpg" />
+        </head>
+        <body>
+          <img class="logo" src="/images/pixel.png" />
+          <img class="brand" src="/images/instagram-badge.png" />
+        </body>
+      </html>
+    `;
+    expect(extractLogoCandidateFromHtml(htmlOgFallbackOnly, baseUrl)).toBe(
+      'https://pizzeria-napoli.it/assets/og-cover.jpg'
+    );
+  });
+
+  it('produces crisp business initials and deterministic version tags that update when logoUrl changes', () => {
+    expect(getBusinessInitials('Pizzeria Da Michele')).toBe('PD');
+    expect(getBusinessInitials('Rivo')).toBe('RI');
+    expect(getBusinessInitials("L'Angolo 9")).toBe('A9');
+    expect(getBusinessInitials('---')).toBe('RV');
+
+    const tagA1 = computeLogoVersionTag('https://pizzeria-napoli.it/logo.png', 'Pizzeria Da Michele');
+    const tagA2 = computeLogoVersionTag('https://pizzeria-napoli.it/logo.png', 'Pizzeria Da Michele');
+    const tagB = computeLogoVersionTag('https://pizzeria-napoli.it/logo-new.png', 'Pizzeria Da Michele');
+    const tagNone = computeLogoVersionTag(null, 'Pizzeria Da Michele');
+
+    expect(tagA1).toBe(tagA2);
+    expect(tagA1).toMatch(/^2-[0-9a-z]+$/);
+    expect(tagA1).not.toBe(tagB);
+    expect(tagA1).not.toBe(tagNone);
+    expect(tagB).not.toBe(tagNone);
   });
 });

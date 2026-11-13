@@ -50,6 +50,7 @@ import {
   type PublicProspectPreviewDTO,
   type PublicRecommendedModuleDTO,
 } from '@/lib/outreach/preview';
+import { getBusinessInitials } from '@/lib/outreach/logo-resolver';
 
 type ViewMode = 'client' | 'owner';
 type OwnerItemKind = 'order' | 'waiter' | 'bill' | 'booking' | 'hospitality' | 'retail';
@@ -306,6 +307,86 @@ function VerticalGlyph({ vertical, className }: { vertical: DemoVerticalMode; cl
     default:
       return <Utensils className={className} />;
   }
+}
+
+interface CoBrandedLockupProps {
+  businessName: string;
+  logoUrl?: string | null;
+  compact?: boolean;
+}
+
+function ProspectLogoBadge({ businessName, logoUrl, compact = false }: CoBrandedLockupProps) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const tileClasses = compact ? 'w-8 h-8 rounded-xl' : 'w-9 h-9 rounded-xl';
+
+  if (logoUrl && !imgFailed) {
+    return (
+      <div
+        className={`${tileClasses} bg-white border border-white/90 flex items-center justify-center overflow-hidden p-1 shadow-sm shrink-0`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logoUrl}
+          alt={businessName}
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-contain"
+          onError={() => setImgFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${tileClasses} bg-[#18181B] border border-[#BFFF00]/45 flex items-center justify-center shadow-sm shrink-0`}
+      aria-label={businessName}
+    >
+      <span
+        className={`font-black tracking-tight text-[#BFFF00] select-none ${
+          compact ? 'text-[10px]' : 'text-xs'
+        }`}
+      >
+        {getBusinessInitials(businessName)}
+      </span>
+    </div>
+  );
+}
+
+function CoBrandedLockup({ businessName, logoUrl, compact = false }: CoBrandedLockupProps) {
+  const tileClasses = compact ? 'w-8 h-8 rounded-xl' : 'w-9 h-9 rounded-xl';
+  const rivoIconSize = compact ? 20 : 24;
+
+  return (
+    <div className="inline-flex items-center shrink-0" aria-label={`RIVO + ${businessName}`}>
+      <div
+        className={`${tileClasses} bg-white border border-white/90 flex items-center justify-center p-1 shadow-sm shrink-0`}
+      >
+        <Image
+          src="/brand/rivo-icon.png"
+          alt="RIVO"
+          width={rivoIconSize}
+          height={rivoIconSize}
+          className="w-full h-full object-contain rounded-xs"
+        />
+      </div>
+
+      <span
+        className={`relative z-10 rounded-full bg-[#BFFF00] text-[#09090B] font-black flex items-center justify-center shadow-sm ring-2 ring-[#09090B] shrink-0 ${
+          compact ? '-mx-1.5 w-4 h-4 text-[10px]' : '-mx-2 w-5 h-5 text-xs'
+        }`}
+        aria-hidden="true"
+      >
+        <Plus className={compact ? 'w-2.5 h-2.5 stroke-[3.2]' : 'w-3 h-3 stroke-[3.2]'} />
+      </span>
+
+      <ProspectLogoBadge
+        key={logoUrl || 'none'}
+        businessName={businessName}
+        logoUrl={logoUrl}
+        compact={compact}
+      />
+    </div>
+  );
 }
 
 interface WheelAndReviewsProps {
@@ -978,23 +1059,21 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
       <header className="sticky top-0 z-40 bg-[#09090B]/92 backdrop-blur-xl border-b border-[#27272A]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-start sm:items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#121214] border border-[#27272A] flex items-center justify-center shrink-0 p-1.5">
-              <Image
-                src="/brand/rivo-icon.png"
-                alt="RIVO"
-                width={24}
-                height={24}
-                className="rounded-xs"
-              />
-            </div>
+            <CoBrandedLockup
+              businessName={preview.businessName}
+              logoUrl={preview.logoUrl}
+            />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-[#BFFF00]/15 text-[#BFFF00] border border-[#BFFF00]/30">
                   <Sparkles className="w-2.5 h-2.5" />
                   MODALITÀ ANTEPRIMA INTERATTIVA
                 </span>
+                <span className="text-[11px] font-mono text-[#A1A1AA] truncate max-w-[220px] sm:max-w-xs">
+                  RIVO + {preview.businessName}
+                </span>
                 <span className="text-[11px] text-[#A1A1AA] hidden md:inline">
-                  Ambiente simulato senza modifiche reali
+                  • Ambiente simulato senza modifiche reali
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-1">
@@ -1165,18 +1244,20 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
 
                 {/* Branded App Header inside Phone */}
                 <div className="px-4 pt-2 pb-3 border-b border-[#27272A] bg-[#121214]/90 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2.5">
                     <div className="min-w-0">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#BFFF00] block">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#BFFF00] block truncate">
                         {verticalMeta.contextBadge}
                       </span>
                       <h3 className="text-sm font-extrabold text-[#FAFAFA] truncate">
                         {preview.businessName}
                       </h3>
                     </div>
-                    <div className="w-8 h-8 rounded-xl bg-[#18181B] border border-[#27272A] flex items-center justify-center shrink-0">
-                      <VerticalGlyph vertical={preview.vertical} className="w-4 h-4 text-[#BFFF00]" />
-                    </div>
+                    <CoBrandedLockup
+                      businessName={preview.businessName}
+                      logoUrl={preview.logoUrl}
+                      compact
+                    />
                   </div>
 
                   {/* Phone Sub-Tabs */}

@@ -18,6 +18,7 @@ export interface PublicProspectPreviewDTO {
   id: string;
   slug: string;
   businessName: string;
+  logoUrl?: string | null;
   category: string;
   subcategory: string | null;
   city: string | null;

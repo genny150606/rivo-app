@@ -6,6 +6,7 @@ import {
   normalizeBusinessName,
 } from '@/lib/outreach/deduplication';
 import { inspectPublicWebsiteMetadata } from '@/lib/outreach/providers/discovery';
+import { isSafePublicHttpUrl } from '@/lib/outreach/logo-resolver';
 import { convertProspectToRivoClient } from '@/lib/outreach/conversion';
 import { OUTREACH_PIPELINE_STAGES, type OutreachCommercialStatus } from '@/lib/outreach/types';
 import { isValidUUID } from '@/lib/security';
@@ -211,7 +212,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'ID prospect non valido.' }, { status: 400 });
       }
 
-      const updates: Record<string, any> = {
+      const updates: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
 
@@ -230,6 +231,46 @@ export async function POST(request: NextRequest) {
       if (typeof body.facebook_url === 'string') updates.facebook_url = body.facebook_url.trim() || null;
       if (typeof body.city === 'string') updates.city = body.city.trim() || null;
       if (typeof body.address === 'string') updates.address = body.address.trim() || null;
+
+      if (typeof body.custom_logo_url === 'string') {
+        const trimmedLogo = body.custom_logo_url.trim();
+        let nextCustomLogoUrl: string | null = null;
+        if (trimmedLogo) {
+          const validUrl = isSafePublicHttpUrl(trimmedLogo);
+          if (!validUrl) {
+            return NextResponse.json(
+              { error: 'URL logo non valido (usa un link https:// pubblico).' },
+              { status: 400 }
+            );
+          }
+          nextCustomLogoUrl = validUrl.toString();
+        }
+
+        const { data: existingProspect, error: existingErr } = await adminDb
+          .from('outreach_prospects')
+          .select('digital_signals')
+          .eq('id', prospectId)
+          .maybeSingle();
+
+        if (existingErr) {
+          return NextResponse.json({ error: existingErr.message }, { status: 500 });
+        }
+        if (!existingProspect) {
+          return NextResponse.json({ error: 'Prospect non trovato.' }, { status: 404 });
+        }
+
+        const existingSignals =
+          existingProspect.digital_signals &&
+          typeof existingProspect.digital_signals === 'object' &&
+          !Array.isArray(existingProspect.digital_signals)
+            ? (existingProspect.digital_signals as Record<string, unknown>)
+            : {};
+
+        updates.digital_signals = {
+          ...existingSignals,
+          customLogoUrl: nextCustomLogoUrl,
+        };
+      }
 
       const { data: updated, error } = await adminDb
         .from('outreach_prospects')
@@ -255,6 +296,10 @@ export async function POST(request: NextRequest) {
     // 3. Enrich public website metadata
     if (action === 'enrich_website') {
       const prospectId = String(body.prospect_id || '');
+      if (!isValidUUID(prospectId)) {
+        return NextResponse.json({ error: 'ID prospect non valido.' }, { status: 400 });
+      }
+
       const { data: prospect } = await adminDb
         .from('outreach_prospects')
         .select('*')
@@ -269,16 +314,46 @@ export async function POST(request: NextRequest) {
       }
 
       const signals = await inspectPublicWebsiteMetadata(prospect.website);
-      const { data: updated } = await adminDb
+      const existingSignals =
+        prospect.digital_signals &&
+        typeof prospect.digital_signals === 'object' &&
+        !Array.isArray(prospect.digital_signals)
+          ? (prospect.digital_signals as Record<string, unknown>)
+          : {};
+      const existingCustom =
+        typeof existingSignals.customLogoUrl === 'string' && existingSignals.customLogoUrl.trim()
+          ? existingSignals.customLogoUrl.trim()
+          : null;
+
+      const mergedSignals = {
+        ...signals,
+        ...(existingCustom ? { customLogoUrl: existingCustom } : {}),
+        ...(typeof existingSignals.googleMapsUrl === 'string'
+          ? { googleMapsUrl: existingSignals.googleMapsUrl }
+          : {}),
+        ...(typeof existingSignals.distanceKm === 'number'
+          ? { distanceKm: existingSignals.distanceKm }
+          : {}),
+        ...(typeof existingSignals.rating === 'number' ? { rating: existingSignals.rating } : {}),
+        ...(typeof existingSignals.userRatingCount === 'number'
+          ? { userRatingCount: existingSignals.userRatingCount }
+          : {}),
+      };
+
+      const { data: updated, error: enrichErr } = await adminDb
         .from('outreach_prospects')
         .update({
-          digital_signals: signals,
+          digital_signals: mergedSignals,
           description: prospect.description || signals.websiteDescription || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', prospectId)
         .select('*')
         .single();
+
+      if (enrichErr) {
+        return NextResponse.json({ error: enrichErr.message }, { status: 500 });
+      }
 
       return NextResponse.json({ success: true, prospect: updated });
     }

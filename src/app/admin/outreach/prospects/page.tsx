@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Search,
   Sparkles,
@@ -20,6 +21,7 @@ import {
   Copy,
   Check,
   Eye,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   OUTREACH_DISCOVERY_CATEGORIES,
@@ -28,6 +30,7 @@ import {
   type OutreachCommercialStatus,
 } from '@/lib/outreach/types';
 import { buildProspectDemoUrl } from '@/lib/outreach/preview';
+import { getBusinessInitials } from '@/lib/outreach/logo-resolver';
 
 export default function OutreachProspectsPage() {
   const [prospects, setProspects] = useState<OutreachProspectRecord[]>([]);
@@ -82,6 +85,12 @@ export default function OutreachProspectsPage() {
   const [actionBusy, setActionBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
+  const [customLogoDraft, setCustomLogoDraft] = useState('');
+  const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
+  const [logoFeedback, setLogoFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   // Convert to Client Modal
   const [showConvertModal, setShowConvertModal] = useState(false);
@@ -125,6 +134,9 @@ export default function OutreachProspectsPage() {
   const openProspectDetail = async (p: OutreachProspectRecord) => {
     setActiveProspect(p);
     setNotesDraft(p.admin_notes || '');
+    setCustomLogoDraft(p.digital_signals?.customLogoUrl || '');
+    setFailedLogoUrl(null);
+    setLogoFeedback(null);
     setConvertOwnerFirstName(p.business_name);
     setConvertOwnerLastName('Titolare');
     setConvertOwnerEmail(p.business_email || '');
@@ -135,6 +147,7 @@ export default function OutreachProspectsPage() {
       if (res.ok) {
         setActiveProspect(json.prospect);
         setNotesDraft(json.prospect?.admin_notes || '');
+        setCustomLogoDraft(json.prospect?.digital_signals?.customLogoUrl || '');
         setActiveDetail({
           generations: json.generations || [],
           messages: json.messages || [],
@@ -193,6 +206,81 @@ export default function OutreachProspectsPage() {
       fetchProspects();
     } catch (err) {
       setFeedback(err instanceof Error ? err.message : 'Errore salvataggio note');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleSaveCustomLogo = async () => {
+    if (!activeProspect) return;
+    setActionBusy(true);
+    setLogoFeedback(null);
+    try {
+      const res = await fetch('/api/admin/outreach/prospects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_prospect',
+          prospect_id: activeProspect.id,
+          custom_logo_url: customLogoDraft,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore salvataggio logo');
+      const updatedProspect = json.prospect as OutreachProspectRecord;
+      setActiveProspect(updatedProspect);
+      setCustomLogoDraft(updatedProspect.digital_signals?.customLogoUrl || '');
+      setFailedLogoUrl(null);
+      setProspects((prev) =>
+        prev.map((item) => (item.id === updatedProspect.id ? updatedProspect : item))
+      );
+      const msg = customLogoDraft.trim()
+        ? 'Logo personalizzato salvato per il co-branding demo.'
+        : 'Logo personalizzato rimosso.';
+      setLogoFeedback({ type: 'success', message: msg });
+      setFeedback(msg);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Errore salvataggio logo';
+      setLogoFeedback({ type: 'error', message: msg });
+      setFeedback(msg);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleEnrichWebsiteLogo = async () => {
+    if (!activeProspect || !activeProspect.website) return;
+    setActionBusy(true);
+    setLogoFeedback(null);
+    try {
+      const res = await fetch('/api/admin/outreach/prospects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'enrich_website',
+          prospect_id: activeProspect.id,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore rilevamento sito web');
+      const updatedProspect = json.prospect as OutreachProspectRecord;
+      setActiveProspect(updatedProspect);
+      setCustomLogoDraft(updatedProspect.digital_signals?.customLogoUrl || '');
+      setFailedLogoUrl(null);
+      setProspects((prev) =>
+        prev.map((item) => (item.id === updatedProspect.id ? updatedProspect : item))
+      );
+      const resolvedLogo =
+        updatedProspect.digital_signals?.customLogoUrl || updatedProspect.digital_signals?.logoUrl;
+      const msg = resolvedLogo
+        ? 'Metadati e logo rilevati dal sito web.'
+        : 'Metadati sito aggiornati (nessun logo trovato nel HTML).';
+      setLogoFeedback({ type: 'success', message: msg });
+      setFeedback(msg);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Errore rilevamento sito web';
+      setLogoFeedback({ type: 'error', message: msg });
+      setFeedback(msg);
     } finally {
       setActionBusy(false);
     }
@@ -332,6 +420,11 @@ export default function OutreachProspectsPage() {
   const activeDemoUrl = activeProspect
     ? buildProspectDemoUrl(activeProspect.business_name, activeProspect.id)
     : null;
+  const activeLogoUrl =
+    activeProspect?.digital_signals?.customLogoUrl ||
+    activeProspect?.digital_signals?.logoUrl ||
+    null;
+  const showActiveLogoImage = Boolean(activeLogoUrl && failedLogoUrl !== activeLogoUrl);
   const activeLogs = activeDetail?.logs || [];
   const demoOpenedLogs = activeLogs.filter((l) => l.action === 'demo_opened');
   const demoCtaLogs = activeLogs.filter((l) => l.action === 'demo_cta_submitted');
@@ -867,6 +960,117 @@ export default function OutreachProspectsPage() {
               </div>
             </form>
           )}
+
+          {/* Co-Branding Demo Preview & Custom Logo */}
+          <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-3 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase text-[#BFFF00]">
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>Anteprima Co-Branding Link Demo (RIVO + Attività)</span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-[#18181B] border border-[#27272A] text-[#A1A1AA]">
+                {activeProspect.digital_signals?.customLogoUrl
+                  ? 'Logo Custom'
+                  : activeProspect.digital_signals?.logoUrl
+                  ? 'Rilevato dal Sito'
+                  : 'Monogramma Auto'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0D0D10] border border-[#27272A]">
+              <div className="inline-flex items-center gap-1.5 shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-white border border-white/90 flex items-center justify-center p-1 shadow-sm shrink-0">
+                  <Image
+                    src="/brand/rivo-icon.png"
+                    alt="RIVO"
+                    width={24}
+                    height={24}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <span className="text-xs font-mono font-bold text-[#71717A]">+</span>
+                {showActiveLogoImage && activeLogoUrl ? (
+                  <div className="w-9 h-9 rounded-xl bg-white border border-white/90 flex items-center justify-center overflow-hidden p-1 shadow-sm shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={activeLogoUrl}
+                      alt={activeProspect.business_name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain"
+                      onError={() => setFailedLogoUrl(activeLogoUrl)}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="w-9 h-9 rounded-xl bg-[#18181B] border border-[#BFFF00]/45 flex items-center justify-center shadow-sm shrink-0"
+                    aria-label={activeProspect.business_name}
+                  >
+                    <span className="text-xs font-black tracking-tight text-[#BFFF00] select-none">
+                      {getBusinessInitials(activeProspect.business_name)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold text-[#FAFAFA] truncate">
+                  RIVO + {activeProspect.business_name}
+                </div>
+                <div className="text-[11px] text-[#71717A] truncate">
+                  {activeLogoUrl ||
+                    `Monogramma: ${getBusinessInitials(activeProspect.business_name)}`}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[11px] text-[#A1A1AA]">
+                URL Logo Attività (PNG/JPG pubblico, opzionale)
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={customLogoDraft}
+                  onChange={(e) => setCustomLogoDraft(e.target.value)}
+                  placeholder="https://esempio.it/logo.png"
+                  className="flex-1 min-w-[200px] h-9 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
+                />
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={handleSaveCustomLogo}
+                  className="h-9 px-3.5 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold disabled:opacity-50"
+                >
+                  Salva Logo
+                </button>
+                {activeProspect.website && (
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={handleEnrichWebsiteLogo}
+                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs font-medium text-[#FAFAFA] disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${actionBusy ? 'animate-spin' : ''}`} />
+                    Rileva dal Sito
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {logoFeedback && (
+              <div
+                className={`text-[11px] font-medium ${
+                  logoFeedback.type === 'error' ? 'text-[#EF4444]' : 'text-[#BFFF00]'
+                }`}
+              >
+                {logoFeedback.message}
+              </div>
+            )}
+
+            <p className="text-[11px] text-[#71717A] leading-relaxed">
+              Appare nella card anteprima su WhatsApp/Telegram e dentro la demo interattiva quando condividi il link.
+            </p>
+          </div>
 
           {/* Provenance & Contacts */}
           <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-2 text-xs">
