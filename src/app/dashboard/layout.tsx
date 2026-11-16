@@ -21,6 +21,7 @@ import {
   Users,
   Sun,
   Moon,
+  ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -175,17 +176,28 @@ function SidebarContent({
         </div>
       </div>
 
-      {/* Footer / Account / Theme */}
-      <div className="pt-3 space-y-1 border-t border-[var(--border-subtle)] mt-2 shrink-0">
-        <ThemeToggle showLabel={true} />
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex items-center gap-3 w-full px-3.5 py-2 min-h-[44px] rounded-lg text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--accent-critical-text)] hover:bg-[var(--accent-critical-bg)] transition-colors cursor-pointer"
-        >
-          <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-          <span>Disconnetti</span>
-        </button>
+      {/* Telemetry & Account Footer */}
+      <div className="pt-3 space-y-2 border-t border-[var(--border-subtle)] mt-2 shrink-0">
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--rivo-volt)]" />
+            SYNC LIVE
+          </span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">
+            RLS
+          </span>
+        </div>
+        <div className="space-y-1">
+          <ThemeToggle showLabel={true} />
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-3 w-full px-3.5 py-2 min-h-[44px] rounded-lg text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--accent-critical-text)] hover:bg-[var(--accent-critical-bg)] transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            <span>Disconnetti</span>
+          </button>
+        </div>
       </div>
     </>
   );
@@ -206,6 +218,7 @@ export default function DashboardLayout({
   const [userRole, setUserRole] = useState<string>('owner');
   const [activeModules, setActiveModules] = useState<Set<ModuleSlug>>(new Set());
   const [activeDeviceCount, setActiveDeviceCount] = useState<number | null>(null);
+  const [firstDeviceCode, setFirstDeviceCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const closeSidebar = useCallback(() => {
@@ -243,7 +256,7 @@ export default function DashboardLayout({
         }
 
         if (targetOrgId && isMounted) {
-          const [{ data: org }, { count: devicesCount }] = await Promise.all([
+          const [{ data: org }, { data: devicesData, count: devicesCount }] = await Promise.all([
             supabase
               .from('organizations')
               .select('name, category, business_type, business_type_id')
@@ -251,13 +264,19 @@ export default function DashboardLayout({
               .single(),
             supabase
               .from('devices')
-              .select('id', { count: 'exact', head: true })
+              .select('id, unique_code', { count: 'exact' })
               .eq('organization_id', targetOrgId)
-              .eq('status', 'active'),
+              .eq('status', 'active')
+              .limit(1),
           ]);
 
-          if (isMounted && typeof devicesCount === 'number') {
-            setActiveDeviceCount(devicesCount);
+          if (isMounted) {
+            if (typeof devicesCount === 'number') {
+              setActiveDeviceCount(devicesCount);
+            }
+            if (devicesData?.[0]?.unique_code) {
+              setFirstDeviceCode(devicesData[0].unique_code);
+            }
           }
 
           let resolvedCategory: BusinessTypeSlug = 'restaurant';
@@ -365,6 +384,16 @@ export default function DashboardLayout({
     category || undefined
   );
   const navGroups = useMemo(() => projectNavigationPillars(legacyGroups), [legacyGroups]);
+
+  const activeNavLabel = useMemo(() => {
+    for (const g of navGroups) {
+      const found = g.items.find((i) =>
+        i.href === '/dashboard' ? pathname === '/dashboard' : Boolean(pathname?.startsWith(i.href))
+      );
+      if (found) return found.label;
+    }
+    return null;
+  }, [navGroups, pathname]);
 
   const vertical = category ? getVertical(category) : null;
   const verticalLabel = vertical?.name || 'RIVO Business';
@@ -497,7 +526,12 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 lg:ml-64 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 lg:ml-64 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 relative">
+        <div
+          className="fixed inset-0 lg:left-64 pointer-events-none z-0 bg-rivo-grid opacity-[0.05] dark:opacity-[0.20]"
+          aria-hidden="true"
+        />
+
         {/* Top Command Bar */}
         <header className="h-14 border-b border-[var(--border-subtle)] px-4 sm:px-6 lg:px-8 flex items-center justify-between glass-chrome shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -528,7 +562,7 @@ export default function DashboardLayout({
 
             {/* Breadcrumb Context */}
             <div className="hidden lg:flex items-center gap-2 text-xs text-[var(--text-secondary)] min-w-0">
-              <span className="flex items-center gap-1.5 text-[var(--text-primary)] font-semibold truncate">
+              <span className="flex items-center gap-1.5 text-[var(--text-primary)] font-semibold truncate max-w-[200px]">
                 <Building2
                   className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0"
                   strokeWidth={1.75}
@@ -536,9 +570,17 @@ export default function DashboardLayout({
                 <span className="truncate">{orgName || 'Attività'}</span>
               </span>
               <ChevronRight className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
-              <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">
+              <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-secondary)] shrink-0">
                 {verticalLabel}
               </span>
+              {activeNavLabel && (
+                <>
+                  <ChevronRight className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
+                  <span className="text-[var(--text-primary)] font-semibold truncate">
+                    {activeNavLabel}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -546,6 +588,20 @@ export default function DashboardLayout({
             <CommandPaletteTrigger onClick={() => setCommandOpen(true)} />
             {isRetailVertical && <SimpleModeToggle />}
             <ThemeToggle />
+
+            {firstDeviceCode && (
+              <Link
+                href={`/hub/${firstDeviceCode}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[32px] rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-[11px] font-bold text-[var(--text-primary)] transition-colors"
+                title="Apri la vista cliente NFC live in una nuova scheda"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--rivo-volt)] shrink-0" />
+                <span>Apri Hub Live</span>
+                <ExternalLink className="w-3 h-3 text-[var(--text-muted)]" aria-hidden="true" />
+              </Link>
+            )}
 
             <Link href="/dashboard/devices" className="hidden sm:inline-flex">
               <StatusBadge
@@ -565,7 +621,7 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto min-w-0">{children}</div>
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto min-w-0">{children}</div>
       </main>
 
       {/* Mobile Bottom Navigation Dock (< 1024px) */}

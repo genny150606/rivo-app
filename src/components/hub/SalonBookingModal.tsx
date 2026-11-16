@@ -373,10 +373,10 @@ export default function SalonBookingModal({
         role="dialog"
         aria-modal="true"
         aria-label={savedPass ? 'Appuntamento confermato' : 'Prenota appuntamento'}
-        className="w-full max-w-lg bg-[#111215] text-[#F4F4F6] border-t sm:border border-white/[0.12] rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden space-y-3.5"
+        className="w-full max-w-lg bg-[#111215] text-[#F4F4F6] border-t sm:border border-[#22242A] rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden space-y-3.5"
       >
         {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
+        <div className="flex items-center justify-between border-b border-[#22242A] pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
             {!savedPass && step > 1 ? (
               <button
@@ -402,7 +402,7 @@ export default function SalonBookingModal({
               <h3 className="text-sm sm:text-base font-extrabold text-[#F4F4F6]">
                 {savedPass ? 'Il Tuo Appuntamento Confermato' : 'Prenota il tuo Appuntamento'}
               </h3>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-[#A1A1AA]">
                 {savedPass
                   ? organizationName
                   : step === 1
@@ -420,7 +420,7 @@ export default function SalonBookingModal({
             type="button"
             aria-label="Chiudi prenotazione"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-xl min-h-[48px] min-w-[48px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+            className="p-2 text-[#A1A1AA] hover:text-white rounded-xl min-h-[48px] min-w-[48px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -449,7 +449,7 @@ export default function SalonBookingModal({
               <h4 className="text-base font-extrabold text-white">
                 Ti aspettiamo, {savedPass.customer_name}!
               </h4>
-              <p className="text-xs text-zinc-300 tabular-nums">
+              <p className="text-xs text-[#D4D4D8] tabular-nums">
                 {new Date(savedPass.booking_date + 'T12:00:00').toLocaleDateString('it-IT', {
                   weekday: 'long',
                   day: 'numeric',
@@ -459,9 +459,9 @@ export default function SalonBookingModal({
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3 text-xs">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <span className="text-zinc-400">Operatore scelto:</span>
+            <div className="p-4 rounded-2xl bg-white/[0.04] border border-[#22242A] space-y-3 text-xs">
+              <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5">
+                <span className="text-[#A1A1AA]">Operatore scelto:</span>
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <span
                     className="w-3 h-3 rounded-full inline-block"
@@ -472,21 +472,21 @@ export default function SalonBookingModal({
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-zinc-400 block tabular-nums">
+                <span className="text-[#A1A1AA] block tabular-nums">
                   Trattamenti ({savedPass.total_duration_minutes} min):
                 </span>
                 {savedPass.services.map((srv) => (
                   <div key={srv.id} className="flex items-center justify-between text-white font-semibold">
                     <span>• {srv.name}</span>
-                    <span className="font-mono tabular-nums text-zinc-300">
+                    <span className="font-mono tabular-nums text-[#D4D4D8]">
                       {formatEuroPrice(srv.price)}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/10 pt-2.5">
-                <span className="text-zinc-400 font-semibold">Totale in salone:</span>
+              <div className="flex items-center justify-between border-t border-[#22242A] pt-2.5">
+                <span className="text-[#A1A1AA] font-semibold">Totale in salone:</span>
                 <span className="text-sm font-mono tabular-nums font-extrabold" style={{ color: accentColor }}>
                   {formatEuroPrice(savedPass.total_price)}
                 </span>
@@ -529,7 +529,7 @@ export default function SalonBookingModal({
                       setConfirmCancelId(null);
                       setStep(1);
                     }}
-                    className="min-h-[48px] py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+                    className="min-h-[48px] py-2.5 rounded-xl bg-[#18191E] hover:bg-white/10 text-[#D4D4D8] text-xs font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                   >
                     Nuova Prenotazione
                   </button>
@@ -586,7 +586,7 @@ export default function SalonBookingModal({
         ) : loading ? (
           <div className="py-16 text-center space-y-3">
             <Loader2 className="w-7 h-7 animate-spin mx-auto" style={{ color: accentColor }} />
-            <p className="text-xs text-zinc-400">Caricamento disponibilità salone…</p>
+            <p className="text-xs text-[#A1A1AA]">Caricamento disponibilità salone…</p>
           </div>
         ) : (
           <>
@@ -603,7 +603,7 @@ export default function SalonBookingModal({
                     className={`min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                       categoryFilter === 'all'
                         ? 'shadow'
-                        : 'bg-white/5 text-zinc-400 hover:text-white border border-white/10'
+                        : 'bg-[#18191E] text-[#A1A1AA] hover:text-white border border-[#22242A]'
                     }`}
                     style={
                       categoryFilter === 'all'
@@ -635,7 +635,7 @@ export default function SalonBookingModal({
                           className={`min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-colors inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                             active
                               ? 'shadow'
-                              : 'bg-white/5 text-zinc-400 hover:text-white border border-white/10'
+                              : 'bg-[#18191E] text-[#A1A1AA] hover:text-white border border-[#22242A]'
                           }`}
                           style={
                             active ? { backgroundColor: accentColor, color: contrastText } : undefined
@@ -660,7 +660,7 @@ export default function SalonBookingModal({
                         className={`w-full p-3.5 rounded-2xl border text-left transition-colors flex items-start justify-between gap-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                           isSelected
                             ? 'bg-white/[0.08] border-emerald-400/60 shadow-md'
-                            : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.05]'
+                            : 'bg-[#18191E] border-[#22242A] hover:bg-white/[0.05]'
                         }`}
                       >
                         <div className="flex items-start gap-3 min-w-0">
@@ -678,11 +678,11 @@ export default function SalonBookingModal({
                               {srv.name}
                             </h4>
                             {srv.description && (
-                              <p className="text-[11px] text-zinc-400 leading-relaxed line-clamp-2">
+                              <p className="text-[11px] text-[#A1A1AA] leading-relaxed line-clamp-2">
                                 {srv.description}
                               </p>
                             )}
-                            <span className="inline-flex items-center gap-1 text-[10px] font-mono tabular-nums text-zinc-300 bg-white/5 px-2 py-0.5 rounded-md">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono tabular-nums text-[#D4D4D8] bg-[#18191E] px-2 py-0.5 rounded-md">
                               <Clock className="w-3 h-3 text-emerald-400" aria-hidden="true" />
                               {srv.duration_minutes} min
                             </span>
@@ -701,9 +701,9 @@ export default function SalonBookingModal({
                 </div>
 
                 {/* Step 1 Sticky Footer */}
-                <div className="pt-3 border-t border-white/10 space-y-2.5 shrink-0">
+                <div className="pt-3 border-t border-[#22242A] space-y-2.5 shrink-0">
                   <div className="flex items-center justify-between text-xs tabular-nums">
-                    <span className="text-zinc-400 inline-flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[#A1A1AA] inline-flex items-center gap-1.5 flex-wrap">
                       <span>
                         {selectedServices.length}{' '}
                         {selectedServices.length === 1 ? 'trattamento' : 'trattamenti'} •
@@ -751,7 +751,7 @@ export default function SalonBookingModal({
                   className={`w-full p-4 rounded-2xl border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                     selectedStaffId === 'any'
                       ? 'bg-emerald-500/15 border-emerald-400/50'
-                      : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.07]'
+                      : 'bg-white/[0.04] border-[#22242A] hover:bg-white/[0.07]'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -768,12 +768,12 @@ export default function SalonBookingModal({
                           Consigliato
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">
+                      <p className="text-xs text-[#A1A1AA] mt-0.5">
                         Ti mostra tutti gli orari liberi del salone con qualsiasi operatore
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-[#A1A1AA] shrink-0" />
                 </button>
 
                 {/* Individual Staff Members */}
@@ -802,7 +802,7 @@ export default function SalonBookingModal({
                         className={`p-3.5 rounded-2xl border text-left transition-colors flex flex-col justify-between gap-2.5 cursor-pointer disabled:opacity-45 ${
                           selectedStaffId === member.id
                             ? 'bg-white/10 border-white/40'
-                            : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'
+                            : 'bg-[#18191E] border-[#22242A] hover:bg-white/[0.06]'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -816,7 +816,7 @@ export default function SalonBookingModal({
                             <h4 className="text-sm font-extrabold text-white truncate">
                               {member.name}
                             </h4>
-                            <p className="text-[11px] text-zinc-400 truncate">{member.role_title}</p>
+                            <p className="text-[11px] text-[#A1A1AA] truncate">{member.role_title}</p>
                           </div>
                         </div>
 
@@ -829,7 +829,7 @@ export default function SalonBookingModal({
                             <span className="font-mono tabular-nums">{nextSlot.start_time}</span>
                           </div>
                         ) : (
-                          <div className="px-2.5 py-1 rounded-xl bg-white/5 text-[11px] text-zinc-400">
+                          <div className="px-2.5 py-1 rounded-xl bg-[#18191E] text-[11px] text-[#A1A1AA]">
                             Nessuno slot nei prossimi 7gg
                           </div>
                         )}
@@ -862,7 +862,7 @@ export default function SalonBookingModal({
                         className={`min-w-[64px] min-h-[60px] py-2 px-2.5 rounded-2xl border text-center transition-colors shrink-0 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                           isSelected
                             ? 'shadow-lg font-extrabold'
-                            : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/[0.07]'
+                            : 'bg-[#18191E] border-[#22242A] text-[#D4D4D8] hover:bg-white/[0.07]'
                         }`}
                         style={
                           isSelected
@@ -888,11 +888,11 @@ export default function SalonBookingModal({
                 <div className="overflow-y-auto overscroll-contain flex-1 space-y-4 pr-1">
                   {availableSlots.length === 0 ? (
                     <div className="py-10 text-center space-y-2">
-                      <Calendar className="w-8 h-8 text-zinc-500 mx-auto" />
-                      <p className="text-xs font-bold text-zinc-300">
+                      <Calendar className="w-8 h-8 text-[#71717A] mx-auto" />
+                      <p className="text-xs font-bold text-[#D4D4D8]">
                         Nessun orario libero per questa giornata
                       </p>
-                      <p className="text-[11px] text-zinc-400">
+                      <p className="text-[11px] text-[#A1A1AA]">
                         Prova a selezionare un altro giorno qui sopra o scegli &ldquo;Primo Disponibile&rdquo;.
                       </p>
                     </div>
@@ -918,7 +918,7 @@ export default function SalonBookingModal({
                                   className={`min-h-[48px] p-2.5 rounded-xl border text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                                     active
                                       ? 'font-extrabold shadow-md'
-                                      : 'bg-white/[0.04] border-white/10 text-[#F4F4F6] hover:bg-white/10'
+                                      : 'bg-white/[0.04] border-[#22242A] text-[#F4F4F6] hover:bg-white/10'
                                   }`}
                                   style={
                                     active
@@ -961,7 +961,7 @@ export default function SalonBookingModal({
                                   className={`min-h-[48px] p-2.5 rounded-xl border text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                                     active
                                       ? 'font-extrabold shadow-md'
-                                      : 'bg-white/[0.04] border-white/10 text-[#F4F4F6] hover:bg-white/10'
+                                      : 'bg-white/[0.04] border-[#22242A] text-[#F4F4F6] hover:bg-white/10'
                                   }`}
                                   style={
                                     active
@@ -988,10 +988,10 @@ export default function SalonBookingModal({
                 </div>
 
                 {/* Step 3 Footer */}
-                <div className="pt-3 border-t border-white/10 space-y-2.5 shrink-0">
+                <div className="pt-3 border-t border-[#22242A] space-y-2.5 shrink-0">
                   {selectedSlotObj && (
-                    <div className="flex items-center justify-between text-xs bg-white/5 rounded-xl px-3 py-2">
-                      <span className="text-zinc-300 tabular-nums">
+                    <div className="flex items-center justify-between text-xs bg-[#18191E] rounded-xl px-3 py-2">
+                      <span className="text-[#D4D4D8] tabular-nums">
                         Orario: <strong className="text-[#F4F4F6]">{selectedSlotObj.start_time} - {selectedSlotObj.end_time}</strong>
                       </span>
                       <span className="text-emerald-300 font-bold">
@@ -1024,14 +1024,14 @@ export default function SalonBookingModal({
                 onSubmit={handleConfirmBooking}
                 className="overflow-y-auto overscroll-contain flex-1 space-y-3.5 pr-1"
               >
-                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-1.5 text-xs">
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-[#22242A] space-y-1.5 text-xs">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 block">
                     Riepilogo Appuntamento
                   </span>
                   <p className="text-[#F4F4F6] font-bold">
                     {selectedServices.map((s) => s.name).join(' + ')} ({totalDuration} min)
                   </p>
-                  <p className="text-zinc-300 tabular-nums flex items-center gap-1.5 flex-wrap">
+                  <p className="text-[#D4D4D8] tabular-nums flex items-center gap-1.5 flex-wrap">
                     <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
                     <span>
                       {new Date(selectedDate + 'T12:00:00').toLocaleDateString('it-IT', {
@@ -1042,8 +1042,8 @@ export default function SalonBookingModal({
                       • ore <strong>{selectedSlotObj?.start_time} - {selectedSlotObj?.end_time}</strong>
                     </span>
                   </p>
-                  <div className="flex items-center justify-between pt-1 border-t border-white/10">
-                    <span className="text-zinc-400">
+                  <div className="flex items-center justify-between pt-1 border-t border-[#22242A]">
+                    <span className="text-[#A1A1AA]">
                       Operatore: <strong className="text-[#F4F4F6]">{selectedSlotObj?.staff_name}</strong>
                     </span>
                     <span className="font-mono tabular-nums font-extrabold text-sm" style={{ color: accentColor }}>
@@ -1056,9 +1056,9 @@ export default function SalonBookingModal({
                   <div>
                     <label
                       htmlFor="salon-customer-name"
-                      className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5 mb-1"
+                      className="text-[11px] font-bold text-[#D4D4D8] flex items-center gap-1.5 mb-1"
                     >
-                      <User className="w-3.5 h-3.5 text-zinc-400" />
+                      <User className="w-3.5 h-3.5 text-[#A1A1AA]" />
                       Il tuo Nome e Cognome *
                     </label>
                     <input
@@ -1069,16 +1069,16 @@ export default function SalonBookingModal({
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Es. Alessandro Rossi"
-                      className="w-full min-h-[48px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
+                      className="w-full min-h-[48px] bg-[#18191E] border border-[#22242A] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="salon-customer-phone"
-                      className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5 mb-1"
+                      className="text-[11px] font-bold text-[#D4D4D8] flex items-center gap-1.5 mb-1"
                     >
-                      <Phone className="w-3.5 h-3.5 text-zinc-400" />
+                      <Phone className="w-3.5 h-3.5 text-[#A1A1AA]" />
                       Cellulare / WhatsApp *
                     </label>
                     <input
@@ -1089,14 +1089,14 @@ export default function SalonBookingModal({
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="Es. +39 333 1234567"
-                      className="w-full min-h-[48px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
+                      className="w-full min-h-[48px] bg-[#18191E] border border-[#22242A] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="salon-customer-notes"
-                      className="text-[11px] font-bold text-zinc-300 block mb-1"
+                      className="text-[11px] font-bold text-[#D4D4D8] block mb-1"
                     >
                       Note per il parrucchiere / barbiere (opzionale)
                     </label>
@@ -1107,7 +1107,7 @@ export default function SalonBookingModal({
                       value={customerNotes}
                       onChange={(e) => setCustomerNotes(e.target.value)}
                       placeholder="Es. Sfumatura media, allergie particolari…"
-                      className="w-full min-h-[48px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
+                      className="w-full min-h-[48px] bg-[#18191E] border border-[#22242A] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
                     />
                   </div>
                 </div>

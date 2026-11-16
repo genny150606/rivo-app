@@ -60,7 +60,7 @@ export function TablePresenceBar({
 
   if (!cart.isActive) {
     return (
-      <div className="w-full rounded-2xl border border-white/[0.12] bg-[#111215]/95 text-[#F4F4F6] p-3 flex items-center justify-between gap-3">
+      <div className="w-full rounded-2xl border border-[#22242A] bg-[#111215]/95 text-[#F4F4F6] p-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -75,7 +75,7 @@ export function TablePresenceBar({
                 {tableLabel} • Ordine Condiviso
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400 truncate">
+            <p className="text-[11px] text-[#A1A1AA] truncate">
               Ordina insieme ai tuoi amici in tempo reale
             </p>
           </div>
@@ -107,7 +107,7 @@ export function TablePresenceBar({
   };
 
   return (
-    <div className="w-full rounded-2xl border border-white/[0.12] bg-[#111215]/95 text-[#F4F4F6] p-3 space-y-2">
+    <div className="w-full rounded-2xl border border-[#22242A] bg-[#111215]/95 text-[#F4F4F6] p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -117,9 +117,9 @@ export function TablePresenceBar({
           }}
           className="flex items-center gap-2 min-w-0 min-h-[44px] text-left cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
           <span className="text-xs font-extrabold text-[#F4F4F6] truncate">{tableLabel}</span>
-          <span className="text-[11px] text-zinc-400 shrink-0">
+          <span className="text-[11px] text-[#A1A1AA] shrink-0">
             • {guests.length} {guests.length === 1 ? 'commensale' : 'commensali'}
           </span>
         </button>
@@ -133,10 +133,10 @@ export function TablePresenceBar({
               setEditingName(true);
             }}
             aria-label="Modifica il tuo nome al tavolo"
-            className="min-h-[44px] text-[11px] text-zinc-300 hover:text-white flex items-center gap-1.5 px-2.5 rounded-xl bg-white/5 border border-white/10 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+            className="min-h-[44px] text-[11px] text-[#D4D4D8] hover:text-white flex items-center gap-1.5 px-2.5 rounded-xl bg-[#18191E] border border-[#22242A] shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           >
             <span>Tu: <strong className="text-[#F4F4F6]">{me.guest_name}</strong></span>
-            <Pencil className="w-3 h-3 text-zinc-400" aria-hidden="true" />
+            <Pencil className="w-3 h-3 text-[#A1A1AA]" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -154,7 +154,7 @@ export function TablePresenceBar({
             maxLength={30}
             placeholder="Il tuo nome..."
             autoFocus
-            className="flex-1 min-h-[44px] bg-[#18191E] border border-white/20 rounded-xl px-3 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+            className="flex-1 min-h-[44px] bg-[#18191E] border border-white/20 rounded-xl px-3 py-2 text-xs text-[#F4F4F6] placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           />
           <button
             type="submit"
@@ -167,7 +167,7 @@ export function TablePresenceBar({
             type="button"
             aria-label="Annulla modifica nome"
             onClick={() => setEditingName(false)}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-[#A1A1AA] hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -185,7 +185,7 @@ export function TablePresenceBar({
                 className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all ${
                   g.is_ready
                     ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200'
-                    : 'bg-white/5 border-white/10 text-zinc-200'
+                    : 'bg-white/5 border-[#22242A] text-[#E4E4E7]'
                 } ${away ? 'opacity-50' : ''}`}
               >
                 <span
@@ -198,7 +198,7 @@ export function TablePresenceBar({
                 {g.is_ready ? (
                   <Check className="w-3 h-3 text-emerald-400 shrink-0" />
                 ) : (
-                  <Clock className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
+                  <Clock className="w-2.5 h-2.5 text-[#A1A1AA] shrink-0" />
                 )}
               </div>
             );
@@ -211,7 +211,7 @@ export function TablePresenceBar({
           </span>
         )}
         {readyCheck.kind === 'all_ready' && (
-          <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 rounded-full shrink-0 animate-pulse">
+          <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 rounded-full shrink-0 ">
             Tutti pronti!
           </span>
         )}
@@ -264,7 +264,7 @@ export function JoinTableModal({
         role="dialog"
         aria-modal="true"
         aria-label={`Ingresso ${tableLabel}`}
-        className="w-full max-w-sm rounded-2xl bg-[#111215] text-[#F4F4F6] border border-white/[0.12] p-5 shadow-2xl space-y-4"
+        className="w-full max-w-sm rounded-2xl bg-[#111215] text-[#F4F4F6] border border-[#22242A] p-5 shadow-2xl space-y-4"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -285,13 +285,13 @@ export function JoinTableModal({
             type="button"
             aria-label="Chiudi finestra"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-[#A1A1AA] hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <p className="text-xs text-zinc-300 leading-relaxed">
+        <p className="text-xs text-[#D4D4D8] leading-relaxed">
           Inserisci il tuo nome per vedere in tempo reale i piatti scelti dai tuoi amici, dividere i piatti al centro e confermare insieme l&apos;ordine.
         </p>
 
@@ -299,7 +299,7 @@ export function JoinTableModal({
           <div>
             <label
               htmlFor="table-cart-guest-name"
-              className="text-[11px] font-bold text-zinc-300 block mb-1.5"
+              className="text-[11px] font-bold text-[#D4D4D8] block mb-1.5"
             >
               Come ti chiami?
             </label>
@@ -312,7 +312,7 @@ export function JoinTableModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="Es. Marco"
               autoFocus
-              className="w-full min-h-[48px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3.5 py-2.5 text-sm text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
+              className="w-full min-h-[48px] bg-[#18191E] border border-[#22242A] rounded-xl px-3.5 py-2.5 text-sm text-[#F4F4F6] placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
             />
           </div>
 
@@ -392,10 +392,10 @@ export function AddDishCollaborativeSheet({
       aria-modal="true"
       aria-labelledby="add-dish-sheet-title"
     >
-      <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-[#111215] text-[#F4F4F6] border-t sm:border border-white/[0.12] p-5 shadow-2xl space-y-4">
+      <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-[#111215] text-[#F4F4F6] border-t sm:border border-[#22242A] p-5 shadow-2xl space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#A1A1AA]">
               Aggiungi al carrello del tavolo
             </span>
             <h3 id="add-dish-sheet-title" className="text-base font-extrabold text-[#F4F4F6] leading-snug">
@@ -409,7 +409,7 @@ export function AddDishCollaborativeSheet({
             type="button"
             aria-label="Chiudi scheda piatto"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-[#A1A1AA] hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -418,7 +418,7 @@ export function AddDishCollaborativeSheet({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Who is it for? */}
           <div className="space-y-1.5">
-            <span id="collab-dish-recipient-label" className="text-[11px] font-bold text-zinc-300 block">
+            <span id="collab-dish-recipient-label" className="text-[11px] font-bold text-[#D4D4D8] block">
               Per chi è questa portata?
             </span>
             <div role="group" aria-labelledby="collab-dish-recipient-label" className="grid grid-cols-2 gap-2">
@@ -432,14 +432,14 @@ export function AddDishCollaborativeSheet({
                 className={`p-3 rounded-2xl border text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                   !isShared
                     ? 'bg-white/10 border-white/40 text-[#F4F4F6]'
-                    : 'bg-white/[0.03] border-white/10 text-zinc-400'
+                    : 'bg-white/[0.03] border-[#22242A] text-[#A1A1AA]'
                 }`}
               >
                 <span className="text-xs font-extrabold flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                   <span>Per me ({guestName})</span>
                 </span>
-                <span className="text-[10px] text-zinc-400 block mt-0.5">
+                <span className="text-[10px] text-[#A1A1AA] block mt-0.5">
                   Conteggiato nella tua quota
                 </span>
               </button>
@@ -454,14 +454,14 @@ export function AddDishCollaborativeSheet({
                 className={`p-3 rounded-2xl border text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                   isShared
                     ? 'bg-amber-500/15 border-amber-400/50 text-amber-200'
-                    : 'bg-white/[0.03] border-white/10 text-zinc-400'
+                    : 'bg-white/[0.03] border-[#22242A] text-[#A1A1AA]'
                 }`}
               >
                 <span className="text-xs font-extrabold flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                   <span>Al Centro</span>
                 </span>
-                <span className="text-[10px] text-zinc-400 block mt-0.5">
+                <span className="text-[10px] text-[#A1A1AA] block mt-0.5">
                   Diviso tra tutto il tavolo
                 </span>
               </button>
@@ -469,8 +469,8 @@ export function AddDishCollaborativeSheet({
           </div>
 
           {/* Quantity */}
-          <div className="flex items-center justify-between bg-[#18191E] border border-white/[0.12] rounded-2xl p-3">
-            <span className="text-xs font-bold text-zinc-200">Quantità</span>
+          <div className="flex items-center justify-between bg-[#18191E] border border-[#22242A] rounded-2xl p-3">
+            <span className="text-xs font-bold text-[#E4E4E7]">Quantità</span>
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
@@ -503,7 +503,7 @@ export function AddDishCollaborativeSheet({
 
           {/* Notes */}
           <div>
-            <label htmlFor="collab-dish-notes" className="text-[11px] font-bold text-zinc-300 block mb-1">
+            <label htmlFor="collab-dish-notes" className="text-[11px] font-bold text-[#D4D4D8] block mb-1">
               Note o variazioni (opzionale)
             </label>
             <input
@@ -513,7 +513,7 @@ export function AddDishCollaborativeSheet({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Es. ben cotta, senza cipolla, poco ghiaccio..."
-              className="w-full min-h-[44px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/30"
+              className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl px-3 py-2 text-xs text-[#F4F4F6] placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/30"
             />
           </div>
 
@@ -606,7 +606,7 @@ export function CollaborativeFloatingBar({
               </span>
             )}
           </div>
-          <p className={`text-[11px] font-mono truncate tabular-nums ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+          <p className={`text-[11px] font-mono truncate tabular-nums ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
             La tua quota:{' '}
             <strong style={{ color: isLight && contrastText === '#000000' ? '#09090B' : accentColor }}>
               {formatEuro(myQuota)}
@@ -700,7 +700,7 @@ export function CollaborativeTableCartModal({
     >
       <div className="w-full max-w-lg bg-[#111215] text-[#F4F4F6] border-t sm:border border-white/15 rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden space-y-3.5">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
+        <div className="flex items-center justify-between border-b border-[#22242A] pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
@@ -717,7 +717,7 @@ export function CollaborativeTableCartModal({
                   {guests.length} al tavolo
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-[#A1A1AA]">
                 L&apos;ordine parte quando tutti i commensali confermano di essere pronti
               </p>
             </div>
@@ -729,7 +729,7 @@ export function CollaborativeTableCartModal({
               hapticTap();
               onClose();
             }}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+            className="p-1.5 text-[#A1A1AA] hover:text-white rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -773,7 +773,7 @@ export function CollaborativeTableCartModal({
                   <span>Comanda #{lastSubmittedRound} inviata in cucina!</span>
                   <ChefHat className="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
                 </h4>
-                <p className="text-[11px] text-zinc-300">
+                <p className="text-[11px] text-[#D4D4D8]">
                   Il personale ha ricevuto l&apos;ordine di tutto il tavolo. Potete ordinare altri giri quando volete.
                 </p>
               </div>
@@ -782,7 +782,7 @@ export function CollaborativeTableCartModal({
               type="button"
               aria-label="Chiudi conferma ordine"
               onClick={cart.dismissSubmitted}
-              className="text-zinc-400 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg cursor-pointer"
+              className="text-[#A1A1AA] hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -794,8 +794,8 @@ export function CollaborativeTableCartModal({
           {cart.drafts.length === 0 && sent.length === 0 ? (
             <div className="py-10 text-center space-y-2">
               <UtensilsCrossed className="w-8 h-8 text-zinc-600 mx-auto" />
-              <p className="text-xs font-bold text-zinc-300">Il carrello del tavolo è vuoto</p>
-              <p className="text-[11px] text-zinc-500 max-w-xs mx-auto">
+              <p className="text-xs font-bold text-[#D4D4D8]">Il carrello del tavolo è vuoto</p>
+              <p className="text-[11px] text-[#71717A] max-w-xs mx-auto">
                 Aggiungi i tuoi piatti dal menù: compariranno qui in tempo reale per tutto il tavolo.
               </p>
             </div>
@@ -805,7 +805,7 @@ export function CollaborativeTableCartModal({
               {me && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#D4D4D8] flex items-center gap-1.5">
                       <span
                         className="w-3.5 h-3.5 rounded-full inline-block"
                         style={{ backgroundColor: me.color }}
@@ -818,7 +818,7 @@ export function CollaborativeTableCartModal({
                   </div>
 
                   {myDrafts.length === 0 ? (
-                    <p className="text-[11px] text-zinc-500 italic bg-white/[0.02] border border-white/5 rounded-xl p-2.5">
+                    <p className="text-[11px] text-[#71717A] italic bg-white/[0.02] border border-white/5 rounded-xl p-2.5">
                       Non hai ancora aggiunto piatti personali in questo giro.
                     </p>
                   ) : (
@@ -875,7 +875,7 @@ export function CollaborativeTableCartModal({
               {/* 3. OTHERS' DISHES */}
               {othersDrafts.length > 0 && (
                 <div className="space-y-2">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#A1A1AA] flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>Piatti degli altri commensali</span>
                   </span>
@@ -890,7 +890,7 @@ export function CollaborativeTableCartModal({
 
               {/* 4. ALREADY SENT TO KITCHEN */}
               {sent.length > 0 && (
-                <div className="pt-2 border-t border-white/10 space-y-2">
+                <div className="pt-2 border-t border-[#22242A] space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                       <ChefHat className="w-3.5 h-3.5" />
@@ -918,12 +918,12 @@ export function CollaborativeTableCartModal({
                                 🤝 Centro
                               </span>
                             ) : author ? (
-                              <span className="text-[10px] text-zinc-400 shrink-0">
+                              <span className="text-[10px] text-[#A1A1AA] shrink-0">
                                 ({author.guest_name})
                               </span>
                             ) : null}
                           </div>
-                          <span className="font-mono text-zinc-300 shrink-0 ml-2">
+                          <span className="font-mono text-[#D4D4D8] shrink-0 ml-2">
                             {formatEuro(item.unit_price * item.quantity)}
                           </span>
                         </div>
@@ -939,11 +939,11 @@ export function CollaborativeTableCartModal({
         {/* ================================================================= */}
         {/* READY CHECK BAR & QUOTA FOOTER */}
         {/* ================================================================= */}
-        <div className="pt-3 border-t border-white/10 space-y-3 shrink-0">
+        <div className="pt-3 border-t border-[#22242A] space-y-3 shrink-0">
           {/* Quota Summary */}
-          <div className="grid grid-cols-2 gap-2 bg-[var(--bg-elevated)] border border-white/10 rounded-2xl p-2.5">
+          <div className="grid grid-cols-2 gap-2 bg-[var(--bg-elevated)] border border-[#22242A] rounded-2xl p-2.5">
             <div>
-              <span className="text-[10px] uppercase text-zinc-400 font-semibold block">
+              <span className="text-[10px] uppercase text-[#A1A1AA] font-semibold block">
                 Totale Tavolo
               </span>
               <span className="text-sm font-mono font-extrabold text-white tabular-nums">
@@ -951,7 +951,7 @@ export function CollaborativeTableCartModal({
               </span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] uppercase text-zinc-400 font-semibold block">
+              <span className="text-[10px] uppercase text-[#A1A1AA] font-semibold block">
                 La tua quota ({me?.guest_name})
               </span>
               <span className="text-sm font-mono font-extrabold tabular-nums" style={{ color: accentColor }}>
@@ -962,9 +962,9 @@ export function CollaborativeTableCartModal({
 
           {/* Ready Check Grid when there are draft items */}
           {cart.drafts.length > 0 && (
-            <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-3 space-y-2.5">
+            <div className="rounded-2xl bg-white/[0.03] border border-[#22242A] p-3 space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-300">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#D4D4D8]">
                   Conferma del Tavolo (Ready Check)
                 </span>
                 {readyCheck.kind === 'waiting' && (
@@ -985,7 +985,7 @@ export function CollaborativeTableCartModal({
                       className={`px-2.5 py-1.5 rounded-xl border flex items-center justify-between gap-1.5 text-xs ${
                         g.is_ready
                           ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
-                          : 'bg-black/40 border-white/10 text-zinc-300'
+                          : 'bg-black/40 border-[#22242A] text-[#D4D4D8]'
                       }`}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -1016,7 +1016,7 @@ export function CollaborativeTableCartModal({
                           <span>{justNudged ? 'Inviato!' : 'Bussa'}</span>
                         </button>
                       ) : (
-                        <span className="text-[10px] text-zinc-400 shrink-0 inline-flex items-center gap-1">
+                        <span className="text-[10px] text-[#A1A1AA] shrink-0 inline-flex items-center gap-1">
                           <Clock className="w-3 h-3" aria-hidden="true" />
                           <span>Scegliendo</span>
                         </span>
@@ -1082,7 +1082,7 @@ export function CollaborativeTableCartModal({
                 readyCheck.kind === 'waiting' &&
                 forceAvailableInMs !== null &&
                 forceAvailableInMs > 0 && (
-                  <p className="text-[10px] text-center text-zinc-500">
+                  <p className="text-[10px] text-center text-[#71717A]">
                     In attesa che {readyCheck.waitingFor.map((w) => w.guest_name).join(', ')} tocchi &ldquo;Sono pronto&rdquo;...
                   </p>
                 )}
@@ -1132,7 +1132,7 @@ function EditableCartItemRow({
   onToggleShared: () => void;
 }) {
   return (
-    <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-2.5">
+    <div className="p-3 rounded-2xl bg-white/[0.04] border border-[#22242A] flex items-center justify-between gap-2.5">
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center gap-1.5 flex-wrap">
           <h4 className="text-xs font-bold text-white truncate">{item.dish_name}</h4>
@@ -1145,7 +1145,7 @@ function EditableCartItemRow({
             className={`text-[9px] px-1.5 py-0.5 rounded font-bold border inline-flex items-center gap-1 cursor-pointer ${
               item.is_shared
                 ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
-                : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                : 'bg-white/5 border-[#22242A] text-[#A1A1AA] hover:text-white'
             }`}
             title="Cambia tra piatto personale e condiviso al centro"
           >
@@ -1165,7 +1165,7 @@ function EditableCartItemRow({
         {item.notes && (
           <p className="text-[10px] text-amber-300/90 italic truncate">Note: {item.notes}</p>
         )}
-        <p className="text-[10px] text-zinc-400 font-mono">
+        <p className="text-[10px] text-[#A1A1AA] font-mono">
           {formatEuro(item.unit_price)} cad. •{' '}
           <strong style={{ color: accentColor }}>
             {formatEuro(item.unit_price * item.quantity)}
@@ -1236,15 +1236,15 @@ function ReadOnlyCartItemRow({
               {author.guest_name}
             </span>
           )}
-          <h4 className="text-xs font-bold text-zinc-200 truncate">
+          <h4 className="text-xs font-bold text-[#E4E4E7] truncate">
             {item.quantity}x {item.dish_name}
           </h4>
         </div>
         {item.notes && (
-          <p className="text-[10px] text-zinc-400 italic truncate">Note: {item.notes}</p>
+          <p className="text-[10px] text-[#A1A1AA] italic truncate">Note: {item.notes}</p>
         )}
       </div>
-      <span className="text-xs font-mono font-bold text-zinc-300 shrink-0">
+      <span className="text-xs font-mono font-bold text-[#D4D4D8] shrink-0">
         {formatEuro(item.unit_price * item.quantity)}
       </span>
     </div>

@@ -93,35 +93,35 @@ export interface HubThemeOption {
 export const HUB_THEME_OPTIONS: HubThemeOption[] = [
   {
     id: 'dark',
-    name: 'Onyx Deep (Scuro)',
-    bgHex: '#0c0f0d',
-    cardBgHex: '#161816',
-    textHex: '#ffffff',
-    borderHex: 'rgba(255, 255, 255, 0.08)',
+    name: 'Carbon Control (Scuro)',
+    bgHex: '#09090B',
+    cardBgHex: '#111215',
+    textHex: '#F4F4F6',
+    borderHex: '#22242A',
   },
   {
     id: 'midnight',
     name: 'Midnight Navy (Notte)',
-    bgHex: '#070b14',
-    cardBgHex: '#0f172a',
-    textHex: '#ffffff',
-    borderHex: 'rgba(56, 189, 248, 0.12)',
+    bgHex: '#0B0D13',
+    cardBgHex: '#121620',
+    textHex: '#F4F4F6',
+    borderHex: 'rgba(56, 189, 248, 0.16)',
   },
   {
     id: 'warm_charcoal',
     name: 'Warm Charcoal (Bistrot)',
-    bgHex: '#141210',
-    cardBgHex: '#1c1917',
-    textHex: '#ffffff',
-    borderHex: 'rgba(245, 158, 11, 0.12)',
+    bgHex: '#111110',
+    cardBgHex: '#191917',
+    textHex: '#F4F4F6',
+    borderHex: 'rgba(245, 158, 11, 0.16)',
   },
   {
     id: 'minimal_light',
-    name: 'Ivory Minimal (Chiaro)',
-    bgHex: '#f8fafc',
-    cardBgHex: '#ffffff',
-    textHex: '#0f172a',
-    borderHex: 'rgba(15, 23, 42, 0.10)',
+    name: 'Alabaster Crisp (Chiaro)',
+    bgHex: '#F6F7F9',
+    cardBgHex: '#FFFFFF',
+    textHex: '#09090B',
+    borderHex: '#E4E6EB',
   },
 ];
 
@@ -135,27 +135,27 @@ export interface HubCardStyleOption {
 export const HUB_CARD_STYLE_OPTIONS: HubCardStyleOption[] = [
   {
     id: 'glass',
-    name: 'Vetro Glassmorphism',
-    description: 'Effetto satinato trasparente e moderno con sfocatura di fondo',
-    previewClass: 'backdrop-blur-md bg-white/[0.04] border border-white/10 shadow-lg',
+    name: 'Graphite Control',
+    description: 'Superficie #111215 con bordo di precisione da 1px e profondità minima',
+    previewClass: 'bg-[#111215] border border-[#22242A]',
   },
   {
     id: 'solid',
-    name: 'Solido & Deciso',
-    description: 'Sfondo compatto e scuro per la massima leggibilità immediata',
-    previewClass: 'bg-[#181b19] border border-white/5 shadow-md',
+    name: 'Carbon Elevated',
+    description: 'Sfondo pieno ad alto contrasto per leggibilità istantanea in movimento',
+    previewClass: 'bg-[#18191E] border border-[#2A2D35]',
   },
   {
     id: 'bordered',
-    name: 'Bordo Satinato',
-    description: 'Contorni definiti e sottili per un look geometrico e minimale',
-    previewClass: 'bg-[#121413] border-2 border-white/20 shadow',
+    name: 'Architectural Outline',
+    description: 'Contorni geometrici definiti su superficie opaca #09090B',
+    previewClass: 'bg-[#09090B] border border-[#32353E]',
   },
   {
     id: 'neon',
-    name: 'Neon Glow',
-    description: 'Bagliore soffuso sul perimetro con l’accento cromatico del locale',
-    previewClass: 'bg-[#141715] border border-white/10 shadow-[0_0_15px_rgba(191,255,0,0.15)]',
+    name: 'Volt Telemetry',
+    description: 'Bordo di stato con accento RIVO Volt sul perimetro',
+    previewClass: 'bg-[#111215] border border-[#BFFF00]/35',
   },
 ];
 
@@ -194,9 +194,9 @@ export interface HubModuleConfig {
 
 export const ALL_HUB_MODULE_TEMPLATES: Omit<HubModuleConfig, 'order'>[] = [
   { id: 'menu', enabled: true, title: 'Menù Digitale', subtitle: 'Piatti, prezzi & vini', badge: 'Carta', colSpan: 1 },
-  { id: 'service', enabled: true, title: 'Chiama Sala', subtitle: 'Cameriere o conto', badge: '1-Tap', colSpan: 1 },
+  { id: 'service', enabled: true, title: 'Chiama Sala', subtitle: 'Cameriere o conto', badge: 'Rapido', colSpan: 1 },
   { id: 'sommelier', enabled: true, title: 'AI Sommelier', subtitle: 'Consigli abbinamento vini', badge: 'AI', colSpan: 1 },
-  { id: 'wifi', enabled: true, title: 'Wi-Fi Ospiti', subtitle: 'Accesso rapido 1-tap', badge: 'Gratis', colSpan: 1 },
+  { id: 'wifi', enabled: true, title: 'Wi-Fi Ospiti', subtitle: 'Accesso Wi-Fi ospite', badge: 'Gratis', colSpan: 1 },
   { id: 'wheel', enabled: true, title: 'Ruota Premi', subtitle: 'Gira & vinci un dolce/caffè', badge: 'Bonus', colSpan: 1 },
   { id: 'loyalty', enabled: true, title: 'Fidelity Pass', subtitle: 'Timbri digitali al tavolo', badge: 'Fedeltà', colSpan: 1 },
   { id: 'reviews', enabled: true, title: 'Lascia Recensione', subtitle: 'Valuta l’esperienza su Google', badge: '5.0', colSpan: 2 },
@@ -267,7 +267,7 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
           enabled: true,
           order: 2,
           title: 'Wi-Fi Ospiti',
-          subtitle: 'Accesso Rapido 1-Tap',
+          subtitle: 'Accesso Wi-Fi ospite',
           badge: 'Gratis',
         },
         {
@@ -325,7 +325,7 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
           order: 3,
           title: 'Wi-Fi Spiaggia',
           subtitle: 'Connessione al lido',
-          badge: '1-Tap',
+          badge: 'Rapido',
         },
         {
           id: 'wheel',
@@ -434,7 +434,7 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
           enabled: true,
           order: 4,
           title: 'Wi-Fi Boutique',
-          subtitle: 'Accesso rapido 1-Tap',
+          subtitle: 'Accesso Wi-Fi ospite',
           badge: 'Gratis',
         },
         {
@@ -517,7 +517,7 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
           order: 1,
           title: 'Chiama Sala',
           subtitle: 'Cameriere o conto',
-          badge: '1-Tap',
+          badge: 'Rapido',
         },
         {
           id: 'sommelier',
@@ -532,7 +532,7 @@ export function getDefaultModules(category: BusinessCategory = 'restaurant'): Hu
           enabled: true,
           order: 3,
           title: 'Wi-Fi Ospiti',
-          subtitle: 'Accesso rapido 1-tap',
+          subtitle: 'Accesso Wi-Fi ospite',
           badge: 'Free',
         },
         {
@@ -614,6 +614,16 @@ export function getDefaultHubConfig(category: BusinessCategory = 'restaurant'): 
 
 export const DEFAULT_HUB_CONFIG: HubConfig = getDefaultHubConfig('restaurant');
 
+function normalizeLegacyAccent(color?: string | null): string | undefined {
+  if (!color) return undefined;
+  const trimmed = color.trim();
+  const upper = trimmed.toUpperCase();
+  if (upper === '#00FF66' || upper === '#B4F02A') {
+    return '#BFFF00';
+  }
+  return trimmed;
+}
+
 export function mergeHubConfig(
   rawConfig: unknown,
   category: BusinessCategory = 'restaurant',
@@ -629,8 +639,9 @@ export function mergeHubConfig(
   if (!rawConfig || typeof rawConfig !== 'object') {
     // Fill from legacy fields if present
     const res = { ...defaults };
-    if (legacyFields?.primaryColor) {
-      res.primaryColor = legacyFields.primaryColor;
+    const normalizedLegacy = normalizeLegacyAccent(legacyFields?.primaryColor);
+    if (normalizedLegacy) {
+      res.primaryColor = normalizedLegacy;
     }
     if (legacyFields?.lunchDestinationUrl) {
       res.hero.destinationType = 'external';
@@ -707,7 +718,9 @@ export function mergeHubConfig(
     themeMode: conf.themeMode || defaults.themeMode,
     cardStyle: conf.cardStyle || defaults.cardStyle,
     primaryColor:
-      conf.primaryColor || legacyFields?.primaryColor || defaults.primaryColor,
+      normalizeLegacyAccent(conf.primaryColor) ||
+      normalizeLegacyAccent(legacyFields?.primaryColor) ||
+      defaults.primaryColor,
     accentGlow: conf.accentGlow ?? defaults.accentGlow,
     tableBadgeLabel:
       conf.tableBadgeLabel || defaults.tableBadgeLabel,
@@ -733,7 +746,7 @@ export function mergeHubConfig(
     bgImageUrl: conf.bgImageUrl || '',
     bgBlur: typeof conf.bgBlur === 'number' ? conf.bgBlur : 8,
     bgOverlayOpacity: typeof conf.bgOverlayOpacity === 'number' ? conf.bgOverlayOpacity : 50,
-    bgGradientStops: conf.bgGradientStops || ['#0c0f0d', '#1a241b'],
+    bgGradientStops: conf.bgGradientStops || ['#09090B', '#111215'],
     borderRadius: conf.borderRadius || '2xl',
     // Advanced Customization Controls
     cardDensity: conf.cardDensity || 'comfortable',

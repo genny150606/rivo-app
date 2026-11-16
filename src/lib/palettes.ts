@@ -9,10 +9,10 @@ export interface ColorPalette {
 export const HUB_COLOR_PRESETS: ColorPalette[] = [
   {
     id: 'lime',
-    name: 'Lime Neon',
-    primary: '#B4F02A',
-    label: 'Lime Neon (Default)',
-    description: 'Iconico, dinamico e ad alto contrasto (ispirato allo screenshot)',
+    name: 'RIVO Volt',
+    primary: '#BFFF00',
+    label: 'RIVO Volt (Default)',
+    description: 'Firma cromatica RIVO ad alto contrasto su Carbon #09090B',
   },
   {
     id: 'cyan',
@@ -58,7 +58,7 @@ export const HUB_COLOR_PRESETS: ColorPalette[] = [
   },
 ];
 
-export const DEFAULT_HUB_COLOR = '#B4F02A';
+export const DEFAULT_HUB_COLOR = '#BFFF00';
 
 /**
  * Returns '#000000' or '#FFFFFF' depending on the luminance of the hex color

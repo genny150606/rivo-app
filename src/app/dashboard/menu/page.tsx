@@ -1431,7 +1431,7 @@ export default function CanvaMenuStudioPage() {
           <div className="relative mx-auto w-full max-w-[340px] sm:max-w-[360px] rounded-[48px] p-3 bg-[#09090B] border-4 border-[var(--border-strong)] shadow-2xl">
             {/* Dynamic Island / Notch */}
             <div className="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-4 bg-black rounded-full z-30 flex items-center justify-end px-3">
-              <div className="w-2.5 h-2.5 rounded-full bg-zinc-900 border border-zinc-800" />
+              <div className="w-2.5 h-2.5 rounded-full bg-[#18191E] border border-[#22242A]" />
             </div>
 
             {/* Screen Inner Viewport */}
@@ -1457,7 +1457,7 @@ export default function CanvaMenuStudioPage() {
                     className="object-cover opacity-80"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-r from-amber-600/40 via-red-600/30 to-purple-800/40" />
+                  <div className="w-full h-full bg-gradient-to-br from-[#18191E] via-[#111215] to-[#09090B]" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
@@ -1488,7 +1488,7 @@ export default function CanvaMenuStudioPage() {
 
                 {menuConfig.tableOrdersEnabled && (
                   <div className="pt-1 flex items-center gap-1.5 text-[10px] font-sans text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     <span>Ordini al tavolo attivi per questo dispositivo</span>
                   </div>
                 )}
@@ -1609,22 +1609,22 @@ export default function CanvaMenuStudioPage() {
 
               {/* Floating Bottom Table Orders Bar in Smartphone */}
               {menuConfig.tableOrdersEnabled && (
-                <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-2xl bg-zinc-950/95 border border-white/15 backdrop-blur-md flex items-center justify-between shadow-2xl font-sans">
+                <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-2xl bg-[#111215]/95 border border-[#22242A] backdrop-blur-md flex items-center justify-between shadow-2xl font-sans">
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-black font-black text-xs"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[#09090B] font-black text-xs"
                       style={{ backgroundColor: menuConfig.accentColor }}
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold text-white">Il tuo Tavolo</div>
-                      <div className="text-[8px] text-zinc-400">Pronto per l&apos;invio</div>
+                      <div className="text-[10px] font-bold text-[#F4F4F6]">Il tuo Tavolo</div>
+                      <div className="text-[8px] text-[#A1A1AA]">Pronto per l&apos;invio</div>
                     </div>
                   </div>
 
                   <span
-                    className="text-[10px] font-black px-2.5 py-1 rounded-lg text-black"
+                    className="text-[10px] font-black px-2.5 py-1 rounded-lg text-[#09090B]"
                     style={{ backgroundColor: menuConfig.accentColor }}
                   >
                     Invia Comanda

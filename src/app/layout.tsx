@@ -51,7 +51,7 @@ const themeInitScript = `
 (function() {
   try {
     var stored = localStorage.getItem('rivo-theme');
-    var isDark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var isDark = stored ? stored === 'dark' : true;
     var root = document.documentElement;
     if (isDark) {
       root.classList.add('dark');

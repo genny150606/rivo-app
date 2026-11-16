@@ -204,8 +204,8 @@ export default function CallServicePage({ params }: CallPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex items-center justify-center p-4">
-        <div className="w-14 h-14 rounded-2xl bg-[#111114] border border-[#27272A] flex items-center justify-center">
+      <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex items-center justify-center p-4">
+        <div className="w-14 h-14 rounded-2xl bg-[#111215] border border-[#22242A] flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-[#BFFF00] animate-spin motion-reduce:animate-none" />
         </div>
       </div>
@@ -214,15 +214,15 @@ export default function CallServicePage({ params }: CallPageProps) {
 
   if (!device) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col items-center justify-center p-4 text-center">
         <div className="w-14 h-14 rounded-2xl border border-red-500/20 bg-red-500/10 flex items-center justify-center mb-3 text-red-400">
           <AlertCircle className="w-7 h-7" />
         </div>
         <h2 className="text-lg font-bold">Dispositivo non trovato</h2>
-        <p className="text-xs text-zinc-400 max-w-xs mb-4">Questo chip non risulta attivo o registrato.</p>
+        <p className="text-xs text-[#A1A1AA] max-w-xs mb-4">Questo chip non risulta attivo o registrato.</p>
         <Link
           href={`/hub/${code}`}
-          className="min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18181B] border border-[#27272A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center"
+          className="min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18191E] border border-[#22242A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center"
         >
           Torna all&apos;Hub
         </Link>
@@ -237,18 +237,18 @@ export default function CallServicePage({ params }: CallPageProps) {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#09090B] text-[#FAFAFA] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
+    <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
       {/* TOP NAVIGATION BAR: RETURN TO HUB */}
       <nav className="w-full max-w-md mx-auto flex items-center justify-between gap-2 z-10 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111114] hover:bg-[#18181B] border border-[#27272A] text-xs font-semibold text-zinc-200 hover:text-white transition-colors active:scale-[0.98]"
+          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111215] hover:bg-[#18191E] border border-[#22242A] text-xs font-semibold text-[#E4E4E7] hover:text-white transition-colors active:scale-[0.98]"
         >
           <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400 truncate max-w-[170px]">
+        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA] truncate max-w-[170px]">
           <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
           <span className="text-white font-semibold truncate">{device.name}</span>
         </span>
@@ -261,34 +261,28 @@ export default function CallServicePage({ params }: CallPageProps) {
           <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
             {org?.name || 'Servizio di Sala'}
           </h1>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-[#A1A1AA]">
             Invia una notifica istantanea allo staff del locale
           </p>
         </div>
 
         {/* ACTIVE REQUEST CONFIRMATION */}
         {activeRequest ? (
-          <div className="rounded-2xl border border-emerald-500/40 bg-[#111114] p-5 sm:p-6 text-center space-y-4 shadow-2xl animate-fade-in relative overflow-hidden">
-            {/* Sonar / Radar Wave Central Icon with Swinging Bell */}
-            <div className="relative w-24 h-24 mx-auto flex items-center justify-center my-1">
-              <div className="absolute inset-2 rounded-full border-2 border-emerald-400/60 bg-emerald-400/10 animate-radar-wave-1 motion-reduce:hidden pointer-events-none" />
-              <div className="absolute inset-2 rounded-full border-2 border-[#BFFF00]/50 bg-[#BFFF00]/10 animate-radar-wave-2 motion-reduce:hidden pointer-events-none" />
-
-              <div className="relative z-10 w-16 h-16 rounded-full bg-[#18181B] border border-emerald-500/50 text-emerald-400 flex items-center justify-center shadow-lg">
-                <BellRing className="w-8 h-8 text-[#BFFF00] animate-bell-swing motion-reduce:animate-none origin-top" />
-                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-[#09090B] flex items-center justify-center border-2 border-[#111114] shadow-sm">
+          <div className="rounded-2xl border border-[#BFFF00]/35 bg-[#111215] p-5 sm:p-6 text-center space-y-4 shadow-2xl animate-fade-in relative overflow-hidden">
+            {/* Clean Status Icon */}
+            <div className="relative w-20 h-20 mx-auto flex items-center justify-center my-1">
+              <div className="relative z-10 w-16 h-16 rounded-2xl bg-[#18191E] border border-[#BFFF00]/45 flex items-center justify-center">
+                <BellRing className="w-7 h-7 text-[#BFFF00]" />
+                <span className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 text-[#09090B] flex items-center justify-center border-2 border-[#111215]">
                   <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />
                 </span>
               </div>
             </div>
 
-            {/* Badge di stato pulsante */}
+            {/* Badge di stato */}
             <div className="flex justify-center">
               <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs ${isOfflineRequest ? 'bg-amber-500/10 border-amber-500/35 text-amber-300' : 'bg-emerald-500/10 border-emerald-500/35 text-emerald-300'}`}>
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className={`animate-ping motion-reduce:hidden absolute inline-flex h-full w-full rounded-full ${isOfflineRequest ? 'bg-amber-400' : 'bg-emerald-400'} opacity-75`} />
-                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isOfflineRequest ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                </span>
+                <span className={`inline-flex rounded-full h-2 w-2 ${isOfflineRequest ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                 <span className="font-semibold tracking-tight">
                   {isOfflineRequest ? 'Richiesta salvata offline • Coda Outbox' : 'Segnale ricevuto dallo staff • In arrivo'}
                 </span>
@@ -299,14 +293,14 @@ export default function CallServicePage({ params }: CallPageProps) {
               <h2 className="text-base sm:text-lg font-extrabold text-white">
                 {typeLabels[activeRequest] || 'Richiesta ricevuta'}!
               </h2>
-              <p className="text-xs text-zinc-300 mt-1 max-w-xs mx-auto leading-relaxed">
+              <p className="text-xs text-[#D4D4D8] mt-1 max-w-xs mx-auto leading-relaxed">
                 {isOfflineRequest
                   ? `Richiesta memorizzata per ${device.name}. Verrà recapitata allo staff non appena si riaggancia la linea.`
                   : <>La sala ha ricevuto l&apos;alert per <strong>{device.name}</strong>. Il cameriere arriverà a breve.</>}
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-mono tabular-nums text-zinc-300 bg-[#09090B] px-3 py-1 rounded-full border border-[#27272A]">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-mono tabular-nums text-[#D4D4D8] bg-[#09090B] px-3 py-1 rounded-full border border-[#22242A]">
               <Clock className="w-3 h-3 text-[#BFFF00]" />
               <span>Inviato alle {requestedTime?.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
@@ -321,7 +315,7 @@ export default function CallServicePage({ params }: CallPageProps) {
               <button
                 type="button"
                 onClick={() => setActiveRequest(null)}
-                className="min-h-[44px] text-xs text-zinc-400 hover:text-white underline py-1 active:scale-95 transition-colors cursor-pointer"
+                className="min-h-[44px] text-xs text-[#A1A1AA] hover:text-white underline py-1 active:scale-95 transition-colors cursor-pointer"
               >
                 Invia un&apos;altra richiesta
               </button>
@@ -337,7 +331,7 @@ export default function CallServicePage({ params }: CallPageProps) {
                 setShowBillModal(true);
               }}
               disabled={submitting}
-              className="w-full min-h-[68px] text-left rounded-2xl border border-cyan-500/45 bg-[#111114] hover:bg-[#18181B] hover:border-cyan-400 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] shadow-xl cursor-pointer"
+              className="w-full min-h-[68px] text-left rounded-2xl border border-cyan-500/45 bg-[#111215] hover:bg-[#18191E] hover:border-cyan-400 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] shadow-xl cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/35 text-cyan-300 flex items-center justify-center shrink-0">
@@ -353,7 +347,7 @@ export default function CallServicePage({ params }: CallPageProps) {
                       Fattura SDI
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-300 mt-0.5">
+                  <p className="text-[11px] text-[#D4D4D8] mt-0.5">
                     Calcola quota per persona e compila i dati fiscali con QR AdE
                   </p>
                 </div>
@@ -366,7 +360,7 @@ export default function CallServicePage({ params }: CallPageProps) {
               type="button"
               onClick={() => handleCall('waiter')}
               disabled={submitting}
-              className="w-full min-h-[64px] text-left rounded-2xl border border-[#27272A] bg-[#111114] hover:bg-[#18181B] hover:border-red-500/45 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full min-h-[64px] text-left rounded-2xl border border-[#22242A] bg-[#111215] hover:bg-[#18191E] hover:border-red-500/45 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative w-12 h-12 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 flex items-center justify-center shrink-0">
@@ -381,12 +375,12 @@ export default function CallServicePage({ params }: CallPageProps) {
                     <h3 className="text-sm font-bold text-white">Chiama Cameriere</h3>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-semibold">Tavolo</span>
                   </div>
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[11px] text-[#A1A1AA]">
                     {submitting && submittingType === 'waiter' ? 'Invio segnale alla sala...' : 'Richiedi assistenza immediata del personale'}
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors shrink-0" />
+              <ChevronRight className="w-4 h-4 text-[#71717A] group-hover:text-white transition-colors shrink-0" />
             </button>
 
             {/* Action 2: Bill POS */}
@@ -394,7 +388,7 @@ export default function CallServicePage({ params }: CallPageProps) {
               type="button"
               onClick={() => handleCall('bill_pos')}
               disabled={submitting}
-              className="w-full min-h-[64px] text-left rounded-2xl border border-[#27272A] bg-[#111114] hover:bg-[#18181B] hover:border-sky-500/45 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full min-h-[64px] text-left rounded-2xl border border-[#22242A] bg-[#111215] hover:bg-[#18191E] hover:border-sky-500/45 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative w-12 h-12 rounded-xl bg-sky-500/15 border border-sky-500/25 text-sky-400 flex items-center justify-center shrink-0">
@@ -405,12 +399,12 @@ export default function CallServicePage({ params }: CallPageProps) {
                     <h3 className="text-sm font-bold text-white">Conto Rapido POS</h3>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-semibold">Carte/Apple Pay</span>
                   </div>
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[11px] text-[#A1A1AA]">
                     {submitting && submittingType === 'bill_pos' ? 'Invio segnale alla cassa...' : 'Porta il terminale per il pagamento elettronico'}
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors shrink-0" />
+              <ChevronRight className="w-4 h-4 text-[#71717A] group-hover:text-white transition-colors shrink-0" />
             </button>
 
             {/* Action 3: Bill Cash */}
@@ -418,7 +412,7 @@ export default function CallServicePage({ params }: CallPageProps) {
               type="button"
               onClick={() => handleCall('bill_cash')}
               disabled={submitting}
-              className="w-full min-h-[64px] text-left rounded-2xl border border-[#27272A] bg-[#111114] hover:bg-[#18181B] hover:border-emerald-500/45 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full min-h-[64px] text-left rounded-2xl border border-[#22242A] bg-[#111215] hover:bg-[#18191E] hover:border-emerald-500/45 p-4 transition-all flex items-center justify-between gap-3 group active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 flex items-center justify-center shrink-0">
@@ -429,12 +423,12 @@ export default function CallServicePage({ params }: CallPageProps) {
                     <h3 className="text-sm font-bold text-white">Conto Rapido Contanti</h3>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Cassa</span>
                   </div>
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[11px] text-[#A1A1AA]">
                     {submitting && submittingType === 'bill_cash' ? 'Invio segnale alla cassa...' : 'Richiedi conto cartaceo per contanti'}
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors shrink-0" />
+              <ChevronRight className="w-4 h-4 text-[#71717A] group-hover:text-white transition-colors shrink-0" />
             </button>
           </div>
         )}
@@ -457,7 +451,7 @@ export default function CallServicePage({ params }: CallPageProps) {
 
       {/* Hardware RIVO Footer Badge */}
       <footer className="w-full max-w-md mx-auto pt-4 pb-2 flex items-center justify-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
           <span>Gestione Sala Smart • Powered by</span>
           <strong className="text-white font-bold tracking-wide">RIVO</strong>

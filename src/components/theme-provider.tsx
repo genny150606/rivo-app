@@ -41,10 +41,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeState(stored);
       syncDocumentTheme(stored);
     } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const initial = prefersDark ? 'dark' : 'light';
-      setThemeState(initial);
-      syncDocumentTheme(initial);
+      setThemeState('dark');
+      syncDocumentTheme('dark');
     }
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

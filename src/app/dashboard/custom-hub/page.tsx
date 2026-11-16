@@ -817,21 +817,21 @@ export default function CustomHubStudioPage() {
     switch (hubConfig.cardStyle) {
       case 'solid':
         return isLight
-          ? 'bg-white border border-slate-200/90 shadow-sm text-slate-900'
-          : 'bg-[#161816] border border-white/10 shadow-md text-white';
+          ? 'bg-white border border-[#E4E6EB] shadow-sm text-[#09090B]'
+          : 'bg-[#111215] border border-[#22242A] shadow-sm text-[#F4F4F6]';
       case 'bordered':
         return isLight
-          ? 'bg-white/80 border-2 border-slate-300 shadow text-slate-900'
-          : 'bg-[#121413] border-2 border-white/20 shadow text-white';
+          ? 'bg-[#F6F7F9] border-2 border-[#D4D4D8] text-[#09090B]'
+          : 'bg-[#18191E] border-2 border-[#323640] text-[#F4F4F6]';
       case 'neon':
         return isLight
-          ? 'bg-white border border-slate-300 shadow-sm text-slate-900'
-          : 'bg-[#141715] border border-white/15 text-white';
+          ? 'bg-white border border-[#E4E6EB] shadow-sm text-[#09090B]'
+          : 'bg-[#111215] border border-[#22242A] text-[#F4F4F6]';
       case 'glass':
       default:
         return isLight
-          ? 'backdrop-blur-md bg-white/70 border border-slate-200/80 shadow text-slate-900'
-          : 'backdrop-blur-md bg-white/[0.05] border border-white/10 shadow text-white';
+          ? 'backdrop-blur-md bg-white/80 border border-[#E4E6EB] shadow-sm text-[#09090B]'
+          : 'backdrop-blur-md bg-[#111215]/85 border border-[#22242A] shadow-sm text-[#F4F4F6]';
     }
   };
 
@@ -1236,7 +1236,7 @@ export default function CustomHubStudioPage() {
                         </div>
                         <p className="text-[11px] text-[var(--text-secondary)] mb-2.5">{s.description}</p>
                         <div className="p-1.5 rounded-xl bg-[#09090B]">
-                          <div className={cn('py-1.5 px-3 rounded-lg text-[10px] font-semibold text-zinc-200', s.previewClass)}>
+                          <div className={cn('py-1.5 px-3 rounded-lg text-[10px] font-semibold text-[#E4E4E7]', s.previewClass)}>
                             Anteprima: Tasto Servizio
                           </div>
                         </div>
@@ -1908,7 +1908,7 @@ export default function CustomHubStudioPage() {
                             value={m.badge || ''}
                             onChange={(e) => updateModuleField(m.id, 'badge', e.target.value)}
                             className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
-                            placeholder="es. 1-Tap, Free, AI, 5.0"
+                            placeholder="es. Rapido, Free, AI, 5.0"
                           />
                         </div>
                       </div>
@@ -2062,7 +2062,7 @@ export default function CustomHubStudioPage() {
                         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 bg-[var(--accent-telemetry-bg)] border border-[var(--accent-telemetry-border)] rounded-xl p-2.5">
                           <div className="flex items-center gap-2 text-[var(--accent-telemetry-text)] text-[11px] font-medium min-w-0">
                             <Wifi className="w-3.5 h-3.5 shrink-0" />
-                            <span>Vuoi il <strong>Ponte Wi-Fi 1-Tap</strong> automatico al tavolo (Opzione D)?</span>
+                            <span>Vuoi il <strong>Ponte Wi-Fi Ospiti</strong> automatico al tavolo (Opzione D)?</span>
                           </div>
                           <button
                             type="button"
@@ -2276,7 +2276,7 @@ export default function CustomHubStudioPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {['NFC LIVE', 'SMART HUB', 'LIVE PASS', '1-TAP NFC', 'RIVO SMART'].map((suggestion) => (
+                  {['NFC LIVE', 'SMART HUB', 'LIVE PASS', 'NTAG 424', 'RIVO SMART'].map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
@@ -2703,7 +2703,7 @@ export default function CustomHubStudioPage() {
                 <div className="flex items-center justify-between">
                   <label htmlFor="review-shield-toggle" className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)] cursor-pointer">
                     <ShieldCheck className="w-4 h-4 text-[var(--accent-warning-text)]" />
-                    <span>Review Shield Attivo (1-Tap Google)</span>
+                    <span>Review Shield Attivo (Google)</span>
                   </label>
                   <input
                     id="review-shield-toggle"
@@ -2877,25 +2877,24 @@ export default function CustomHubStudioPage() {
                   />
                   <div
                     className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center shadow-xl ${
-                      mockupNfcPhase === 'synced' ? 'animate-nfc-contact-flash' : 'animate-float-gentle'
+                      mockupNfcPhase === 'synced' ? 'animate-nfc-contact-flash' : ''
                     }`}
                     style={{
                       borderColor: hubConfig.primaryColor,
-                      backgroundColor: isLight ? '#ffffff' : '#141715',
-                      boxShadow: `0 0 35px ${hubConfig.primaryColor}40`,
+                      backgroundColor: isLight ? '#FFFFFF' : '#111215',
                     }}
                   >
                     {mockupNfcPhase === 'synced' ? (
                       <CheckCircle2 className="w-9 h-9" style={{ color: hubConfig.primaryColor }} />
                     ) : (
-                      <Radio className="w-8 h-8 animate-pulse" style={{ color: hubConfig.primaryColor }} />
+                      <Radio className="w-8 h-8" style={{ color: hubConfig.primaryColor }} />
                     )}
                   </div>
                 </div>
                 <p className="text-xs font-bold text-center">
                   {mockupNfcPhase === 'synced' ? 'Tag Riconosciuto!' : 'Avvicinamento Tag NFC...'}
                 </p>
-                <span className="text-[10px] text-zinc-400 mt-0.5">
+                <span className={`text-[10px] mt-0.5 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                   {mockupNfcPhase === 'synced' ? `${devices[0]?.name || 'Tavolo 1'} Connesso` : 'Frequenza 13.56 MHz'}
                 </span>
               </div>
@@ -2904,7 +2903,7 @@ export default function CustomHubStudioPage() {
             {/* Ambient inner glow based on chosen primary color */}
             {hubConfig.accentGlow && (
               <div
-                className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-48 blur-[80px] rounded-full pointer-events-none opacity-35 transition-all duration-300"
+                className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-48 blur-[80px] rounded-full pointer-events-none opacity-25 transition-all duration-300"
                 style={{ backgroundColor: hubConfig.primaryColor }}
               />
             )}
@@ -2914,77 +2913,48 @@ export default function CustomHubStudioPage() {
               <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden rounded-[40px]">
                 <div
                   key={shimmerKey}
-                  className="w-1/2 h-[200%] -top-1/2 absolute bg-gradient-to-r from-transparent via-white/25 to-transparent animate-shimmer-slide pointer-events-none"
-                  style={{ animationDuration: '1.4s' }}
+                  className="w-1/2 h-[200%] -top-1/2 absolute bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer-slide pointer-events-none"
+                  style={{ animationDuration: '1.2s' }}
                 />
               </div>
             )}
 
             {/* Top Status Bar: Clock + Centered Dynamic Island + Live Tag Badge */}
             <div className="relative z-20 flex items-center justify-between mb-2 px-1">
-              <span className={`text-[10px] font-mono tabular-nums font-bold tracking-tight ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+              <span className={`text-[10px] font-mono tabular-nums font-bold tracking-tight ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                 12:45
               </span>
 
               {/* Dynamic Island / Notch */}
-              <div className="w-20 h-3.5 bg-black rounded-full flex items-center justify-end px-2 border border-white/10 shadow-inner">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1c221e]" />
+              <div className="w-20 h-3.5 bg-black rounded-full flex items-center justify-end px-2 border border-[#22242A] shadow-inner">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#18191E]" />
               </div>
 
-              {/* Synchronized Pulsating Live Tag Badge */}
+              {/* Synchronized Live Tag Badge */}
               <div
-                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border backdrop-blur-md shadow-sm ${
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${
                   isLight
-                    ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
-                    : 'bg-emerald-950/70 border-emerald-500/30 text-emerald-400'
+                    ? 'bg-emerald-50 border-emerald-200 text-[#15803D]'
+                    : 'bg-[#18191E] border-[#22242A] text-emerald-400'
                 }`}
                 title="Sincronizzazione Live NFC"
               >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                 <span className="text-[8px] font-black tracking-wider uppercase font-mono leading-none">
                   {hubConfig.tableLiveTag || 'NFC LIVE'}
                 </span>
               </div>
             </div>
 
-            {/* NFC Magic Sparkle Burst inside Mockup */}
-            {mockupNfcPhase === 'assembling' && (
-              <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center overflow-hidden">
-                {[...Array(8)].map((_, i) => {
-                  const angle = (i * 45) * (Math.PI / 180);
-                  const dist = 50;
-                  const tx = `${Math.round(Math.cos(angle) * dist)}px`;
-                  const ty = `${Math.round(Math.sin(angle) * dist)}px`;
-                  return (
-                    <div
-                      key={i}
-                      className="absolute w-1.5 h-1.5 rounded-full animate-sparkle-drift"
-                      style={{
-                        backgroundColor: i % 2 === 0 ? hubConfig.primaryColor : '#fbbf24',
-                        boxShadow: `0 0 10px ${hubConfig.primaryColor}`,
-                        '--tx': tx,
-                        '--ty': ty,
-                      } as React.CSSProperties}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
             {/* Hub Header inside Mockup */}
-            <div className={`flex items-center justify-between gap-2 relative z-10 mb-3 ${
-              mockupNfcPhase === 'assembling' ? 'animate-assemble-header' : ''
-            }`}>
+            <div className="flex items-center justify-between gap-2 relative z-10 mb-3">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={logoUrl}
                     alt="Logo"
-                    className="w-9 h-9 rounded-full object-cover border shadow-sm bg-black"
+                    className="w-9 h-9 rounded-full object-cover border shadow-sm bg-[#09090B]"
                     style={{ borderColor: hubConfig.primaryColor }}
                   />
                 ) : (
@@ -2996,11 +2966,11 @@ export default function CustomHubStudioPage() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <h4 className={`text-xs font-extrabold truncate leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <h4 className={`text-xs font-extrabold truncate leading-none ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
                     {name || 'Nome Attività'}
                   </h4>
-                  <div className={`flex items-center gap-1 text-[9px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                    <span className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: hubConfig.primaryColor }} />
+                  <div className={`flex items-center gap-1 text-[9px] mt-0.5 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
+                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: hubConfig.primaryColor }} />
                     <span className="truncate">
                       {hubConfig.tableBadgeLabel || 'Tavolo Connesso'} • {devices[0]?.name || 'Tavolo 1'}
                     </span>
@@ -3009,10 +2979,10 @@ export default function CustomHubStudioPage() {
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
-                <div className={`w-7 h-7 rounded-full border flex items-center justify-center relative ${
-                  isLight ? 'bg-slate-100 border-slate-300' : 'bg-[#181b19] border-white/10'
+                <div className={`w-7 h-7 rounded-xl border flex items-center justify-center relative ${
+                  isLight ? 'bg-[#F6F7F9] border-[#E4E6EB]' : 'bg-[#18191E] border-[#22242A]'
                 }`}>
-                  <BellRing className={`w-3.5 h-3.5 ${isLight ? 'text-slate-700' : 'text-zinc-300'}`} />
+                  <BellRing className={`w-3.5 h-3.5 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`} />
                   <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400" />
                 </div>
               </div>
@@ -3020,29 +2990,31 @@ export default function CustomHubStudioPage() {
 
             {/* Table Badge inside Mockup */}
             <div
-              className={`w-full flex items-center justify-between px-3 py-1.5 mb-2.5 backdrop-blur-md border transition-all ${getBorderRadiusClass(hubConfig.borderRadius)} ${
+              className={`w-full flex items-center justify-between px-3 py-1.5 mb-2.5 border transition-colors ${getBorderRadiusClass(hubConfig.borderRadius)} ${
                 isLight
-                  ? 'bg-white/90 border-slate-200 text-slate-800'
-                  : 'bg-[#141715]/90 border-white/[0.08] text-white'
-              } ${mockupNfcPhase === 'assembling' ? 'animate-assemble-badge' : ''}`}
+                  ? 'bg-white border-[#E4E6EB] text-[#09090B]'
+                  : 'bg-[#111215] border-[#22242A] text-[#F4F4F6]'
+              }`}
               style={getBorderRadiusStyle(hubConfig.borderRadius)}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                  {hubConfig.tableBadgeLabel || 'Tavolo Connesso'}: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{devices[0]?.name || 'Tavolo 1'}</strong>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className={`text-[10px] font-medium truncate ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
+                  {hubConfig.tableBadgeLabel || 'Tavolo Connesso'}: <strong className={isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}>{devices[0]?.name || 'Tavolo 1'}</strong>
                 </span>
               </div>
               <div
-                className={`flex items-center gap-1 text-[8px] font-mono px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0`}
+                className={`flex items-center gap-1 text-[8px] font-mono px-1.5 py-0.5 border font-semibold shrink-0 ${getBorderRadiusClass(hubConfig.borderRadius)} ${
+                  isLight ? 'bg-emerald-50 text-[#15803D] border-emerald-200' : 'bg-[#18191E] text-emerald-400 border-[#22242A]'
+                }`}
                 style={getBorderRadiusStyle(hubConfig.borderRadius)}
               >
-                <Zap className="w-2.5 h-2.5 animate-pulse" />
+                <Zap className="w-2.5 h-2.5" />
                 <span>{hubConfig.tableLiveTag || 'NFC LIVE'}</span>
               </div>
             </div>
 
-            {/* Wi-Fi Bridge Live Simulator Card (Strictly only when enabled and ssid present) */}
+            {/* Wi-Fi Bridge Live Simulator Card */}
             {hubConfig.wifiBridge?.enabled && Boolean(hubConfig.wifiBridge.ssid?.trim()) && (
               <div
                 onClick={() => {
@@ -3050,34 +3022,29 @@ export default function CustomHubStudioPage() {
                   setSimulatedWifiConnected(true);
                   setTimeout(() => setSimulatedWifiConnected(false), 2800);
                 }}
-                className={`w-full p-2.5 mb-2.5 relative z-10 border transition-all cursor-pointer touch-press active:scale-[0.98] ${getCardStyleClass()} ${
-                  mockupNfcPhase === 'assembling' ? 'animate-assemble-badge' : ''
-                } ${getBorderRadiusClass(hubConfig.borderRadius)}`}
-                style={{
-                  boxShadow: `0 4px 16px ${hubConfig.primaryColor}20`,
-                  ...getBorderRadiusStyle(hubConfig.borderRadius),
-                }}
+                className={`w-full p-2.5 mb-2.5 relative z-10 border transition-colors cursor-pointer touch-press active:scale-[0.98] ${getCardStyleClass()} ${getBorderRadiusClass(hubConfig.borderRadius)}`}
+                style={getBorderRadiusStyle(hubConfig.borderRadius)}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} flex items-center justify-center shrink-0 ${
-                        isLight ? 'bg-sky-50 text-sky-600' : 'bg-sky-500/15 text-sky-400'
+                      className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} border flex items-center justify-center shrink-0 ${
+                        isLight ? 'bg-[#F6F7F9] border-[#E4E6EB] text-[#15803D]' : 'bg-[#18191E] border-[#22242A] text-[#BFFF00]'
                       }`}
                       style={getBorderRadiusStyle(hubConfig.borderRadius)}
                     >
-                      <Wifi className="w-3.5 h-3.5 animate-pulse" />
+                      <Wifi className="w-3.5 h-3.5" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] font-bold truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        <span className={`text-[10px] font-bold truncate leading-tight ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
                           Wi-Fi: {hubConfig.wifiBridge.ssid}
                         </span>
-                        <span className="text-[7.5px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 shrink-0">
-                          1-Tap
+                        <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#18191E] border border-[#22242A] text-[#BFFF00] shrink-0">
+                          NTAG
                         </span>
                       </div>
-                      <span className={`text-[8.5px] block truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      <span className={`text-[8.5px] block truncate mt-0.5 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                         {hubConfig.wifiBridge.welcomeNotice || 'Connessione rapida al Wi-Fi del locale'}
                       </span>
                     </div>
@@ -3091,16 +3058,16 @@ export default function CustomHubStudioPage() {
                       setSimulatedWifiConnected(true);
                       setTimeout(() => setSimulatedWifiConnected(false), 2800);
                     }}
-                    className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1 shadow-sm transition-transform active:scale-95 cursor-pointer"
+                    className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1 transition-transform active:scale-95 cursor-pointer"
                     style={{
-                      backgroundColor: simulatedWifiConnected ? '#10b981' : hubConfig.primaryColor,
+                      backgroundColor: simulatedWifiConnected ? '#15803D' : hubConfig.primaryColor,
                       color: simulatedWifiConnected ? '#ffffff' : contrastText,
                     }}
                   >
                     {simulatedWifiConnected ? (
                       <>
                         <Check className="w-2.5 h-2.5" />
-                        <span>Connesso!</span>
+                        <span>Connesso</span>
                       </>
                     ) : (
                       <>
@@ -3119,13 +3086,10 @@ export default function CustomHubStudioPage() {
               {hubConfig.hero.enabled && (
                 <div
                   onClick={() => hapticTap()}
-                  className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] shadow-lg transition-all relative overflow-hidden cursor-pointer touch-press active:scale-95 ${
-                    mockupNfcPhase === 'assembling' ? 'animate-assemble-hero' : ''
-                  }`}
+                  className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] shadow-sm transition-colors relative overflow-hidden cursor-pointer touch-press active:scale-95`}
                   style={{
                     backgroundColor: hubConfig.primaryColor,
                     color: contrastText,
-                    boxShadow: `0 8px 20px ${hubConfig.primaryColor}35`,
                     ...getBorderRadiusStyle(hubConfig.borderRadius),
                   }}
                 >
@@ -3159,41 +3123,31 @@ export default function CustomHubStudioPage() {
               {/* RENDER DYNAMIC MODULES ORDERED & ENABLED */}
               {hubConfig.modules
                 .filter((m) => m.enabled)
-                .map((m, idx) => {
+                .map((m) => {
                   const Icon = getModuleIcon(m.id, m.iconName);
-                  const isNeon = hubConfig.cardStyle === 'neon';
-                  const isLeft = idx % 2 === 0;
                   const isFullWidth = m.colSpan === 2;
+                  const mockAccent = isLight && contrastText === '#000000' ? '#15803D' : hubConfig.primaryColor;
 
                   return (
                     <div
                       key={m.id}
                       onClick={() => hapticTap()}
-                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} ${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] transition-all relative overflow-hidden cursor-pointer touch-press active:scale-95 ${getCardStyleClass()} ${
-                        mockupNfcPhase === 'assembling'
-                          ? isLeft
-                            ? 'animate-assemble-left'
-                            : 'animate-assemble-right'
-                          : ''
-                      }`}
-                      style={{
-                        boxShadow: isNeon ? `0 0 14px ${hubConfig.primaryColor}25` : undefined,
-                        ...getBorderRadiusStyle(hubConfig.borderRadius),
-                      }}
+                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} ${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] transition-colors relative overflow-hidden cursor-pointer touch-press active:scale-95 ${getCardStyleClass()}`}
+                      style={getBorderRadiusStyle(hubConfig.borderRadius)}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <div
-                          className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} flex items-center justify-center ${
-                            isLight ? 'bg-slate-100' : 'bg-white/5'
+                          className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} border flex items-center justify-center ${
+                            isLight ? 'bg-[#F6F7F9] border-[#E4E6EB]' : 'bg-[#18191E] border-[#22242A]'
                           }`}
                           style={getBorderRadiusStyle(hubConfig.borderRadius)}
                         >
-                          <Icon className="w-3.5 h-3.5" style={{ color: hubConfig.primaryColor }} />
+                          <Icon className="w-3.5 h-3.5" style={{ color: mockAccent }} />
                         </div>
                         {m.badge && (
                           <span
-                            className={`text-[8px] font-bold px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} ${
-                              isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
+                            className={`text-[8px] font-mono font-bold px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} ${
+                              isLight ? 'bg-[#F6F7F9] text-[#52525B] border border-[#E4E6EB]' : 'bg-[#18191E] text-[#A1A1AA] border border-[#22242A]'
                             }`}
                             style={getBorderRadiusStyle(hubConfig.borderRadius)}
                           >
@@ -3203,10 +3157,10 @@ export default function CustomHubStudioPage() {
                       </div>
 
                       <div>
-                        <span className={`text-[11px] font-bold block leading-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        <span className={`text-[11px] font-bold block leading-tight truncate ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
                           {m.title}
                         </span>
-                        <span className={`text-[9px] block truncate ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                        <span className={`text-[9px] block truncate ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                           {m.subtitle}
                         </span>
                       </div>
@@ -3218,21 +3172,18 @@ export default function CustomHubStudioPage() {
             {/* Review Shield inside Mockup */}
             {reviewShieldEnabled && (
               <div
-                className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-2.5 mb-2 relative z-10 border transition-all ${getCardStyleClass()}`}
-                style={{
-                  boxShadow: `0 4px 15px ${hubConfig.primaryColor}15`,
-                  ...getBorderRadiusStyle(hubConfig.borderRadius),
-                }}
+                className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-2.5 mb-2 relative z-10 border transition-colors ${getCardStyleClass()}`}
+                style={getBorderRadiusStyle(hubConfig.borderRadius)}
               >
-                <div className={`flex items-center justify-between mb-1 text-[10px] font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <div className={`flex items-center justify-between mb-1 text-[10px] font-bold ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
                   <span className="flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" style={{ color: hubConfig.primaryColor }} />
+                    <ShieldCheck className="w-3.5 h-3.5" style={{ color: isLight && contrastText === '#000000' ? '#15803D' : hubConfig.primaryColor }} />
                     Valuta Esperienza
                   </span>
-                  <span className={`text-[9px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>1-Tap</span>
+                  <span className={`text-[9px] font-mono ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>Verificata</span>
                 </div>
                 <div
-                  className={`flex items-center justify-around py-1 ${getBorderRadiusClass(hubConfig.borderRadius)} ${isLight ? 'bg-slate-100' : 'bg-black/40'}`}
+                  className={`flex items-center justify-around py-1 ${getBorderRadiusClass(hubConfig.borderRadius)} ${isLight ? 'bg-[#F6F7F9]' : 'bg-[#09090B]'}`}
                   style={getBorderRadiusStyle(hubConfig.borderRadius)}
                 >
                   {[1, 2, 3, 4, 5].map((s) => (
@@ -3252,8 +3203,8 @@ export default function CustomHubStudioPage() {
 
             {/* Docked Bottom Bar inside Mockup */}
             <div className="relative z-10 pt-1">
-              <div className={`rounded-full px-3 py-1.5 flex items-center justify-between shadow-xl border ${
-                isLight ? 'bg-white/95 border-slate-200 text-slate-600' : 'bg-[#141715]/95 border-white/10 text-zinc-400'
+              <div className={`rounded-full px-3 py-1.5 flex items-center justify-between shadow-lg border ${
+                isLight ? 'bg-white/95 border-[#E4E6EB] text-[#52525B]' : 'bg-[#111215]/95 border-[#22242A] text-[#A1A1AA]'
               }`}>
                 <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Home</button>
                 <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Menù</button>
@@ -3261,11 +3212,10 @@ export default function CustomHubStudioPage() {
                 <button
                   type="button"
                   onClick={() => hapticWaiterCall()}
-                  className="w-8 h-8 -mt-4 rounded-full flex items-center justify-center shadow-lg cursor-pointer touch-press active:scale-90"
+                  className="w-8 h-8 -mt-4 rounded-full flex items-center justify-center shadow-md cursor-pointer touch-press active:scale-90"
                   style={{
                     backgroundColor: hubConfig.primaryColor,
                     color: contrastText,
-                    boxShadow: `0 4px 12px ${hubConfig.primaryColor}60`,
                   }}
                   aria-label="Simula Chiama Sala"
                 >
@@ -3822,21 +3772,21 @@ export default function CustomHubStudioPage() {
                       const getTplCardClass = () => {
                         switch (cfg.cardStyle) {
                           case 'solid':
-                            return isTplLight ? 'bg-white border border-slate-200 shadow-sm' : 'bg-[#181b19] border border-white/5 shadow-md';
+                            return isTplLight ? 'bg-white border border-[#E4E6EB] shadow-sm' : 'bg-[#111215] border border-[#22242A]';
                           case 'bordered':
-                            return isTplLight ? 'bg-slate-50 border-2 border-slate-300' : 'bg-[#121413] border-2 border-white/20 shadow';
+                            return isTplLight ? 'bg-[#F6F7F9] border-2 border-[#D4D4D8]' : 'bg-[#18191E] border-2 border-[#323640]';
                           case 'neon':
-                            return isTplLight ? 'bg-white border-2 border-sky-400/40 shadow-md' : 'bg-[#141715] border border-white/10 shadow-[0_0_15px_rgba(0,240,255,0.15)]';
+                            return isTplLight ? 'bg-white border border-[#E4E6EB] shadow-sm' : 'bg-[#111215] border border-[#22242A]';
                           case 'glass':
                           default:
-                            return isTplLight ? 'bg-white/80 backdrop-blur-md border border-slate-200/80 shadow-md' : 'bg-white/[0.04] backdrop-blur-md border border-white/10 shadow-lg';
+                            return isTplLight ? 'bg-white/80 backdrop-blur-md border border-[#E4E6EB] shadow-sm' : 'bg-[#111215]/85 backdrop-blur-md border border-[#22242A]';
                         }
                       };
 
                       return (
                         <div
                           className={cn(
-                            'w-full max-w-[320px] sm:max-w-[340px] border-[8px] border-[#222624] rounded-[44px] p-3.5 shadow-2xl relative overflow-hidden flex flex-col justify-between select-none',
+                            'w-full max-w-[320px] sm:max-w-[340px] border-[8px] border-[#18191E] rounded-[44px] p-3.5 shadow-2xl relative overflow-hidden flex flex-col justify-between select-none',
                             HUB_FONT_CLASSES
                           )}
                           style={{
@@ -3866,16 +3816,16 @@ export default function CustomHubStudioPage() {
 
                           {/* Top Status Bar */}
                           <div className="relative z-20 flex items-center justify-between mb-2 px-1">
-                            <span className={`text-[10px] font-mono tabular-nums font-bold ${isTplLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                            <span className={`text-[10px] font-mono tabular-nums font-bold ${isTplLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                               12:45
                             </span>
-                            <div className="w-16 h-3 bg-black rounded-full border border-white/10 shadow-inner" />
+                            <div className="w-16 h-3 bg-black rounded-full border border-[#22242A] shadow-inner" />
                             <div
                               className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[8px] font-bold font-mono ${
-                                isTplLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-950/70 text-emerald-400 border-emerald-500/30'
+                                isTplLight ? 'bg-emerald-50 text-[#15803D] border-emerald-200' : 'bg-[#18191E] text-emerald-400 border-[#22242A]'
                               }`}
                             >
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               <span>{cfg.tableLiveTag || 'NFC LIVE'}</span>
                             </div>
                           </div>
@@ -3884,8 +3834,8 @@ export default function CustomHubStudioPage() {
                           <div className="relative z-10 flex-1 overflow-y-auto pr-0.5 space-y-2.5 scrollbar-none">
                             {/* Table Badge */}
                             <div
-                              className={`w-full flex items-center justify-between px-2.5 py-1.5 border backdrop-blur-md ${radiusClass} ${
-                                isTplLight ? 'bg-white/80 border-slate-200 text-slate-800' : 'bg-black/30 border-white/10 text-white'
+                              className={`w-full flex items-center justify-between px-2.5 py-1.5 border ${radiusClass} ${
+                                isTplLight ? 'bg-white border-[#E4E6EB] text-[#09090B]' : 'bg-[#111215] border-[#22242A] text-[#F4F4F6]'
                               }`}
                               style={radiusStyle}
                             >
@@ -3895,7 +3845,7 @@ export default function CustomHubStudioPage() {
                                   {cfg.tableBadgeLabel || 'Tavolo Riservato'}
                                 </span>
                               </div>
-                              <span className="text-[8px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-white/10 text-zinc-300 font-semibold">
+                              <span className="text-[8px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-[#18191E] text-[#A1A1AA] border border-[#22242A] font-semibold">
                                 TAVOLO 1
                               </span>
                             </div>
@@ -3903,11 +3853,10 @@ export default function CustomHubStudioPage() {
                             {/* Hero Card */}
                             {cfg.hero && cfg.hero.enabled !== false && (
                               <div
-                                className={`${radiusClass} p-3 flex flex-col justify-between min-h-[90px] shadow-lg relative overflow-hidden text-left`}
+                                className={`${radiusClass} p-3 flex flex-col justify-between min-h-[90px] shadow-sm relative overflow-hidden text-left`}
                                 style={{
                                   backgroundColor: pColor,
                                   color: cText,
-                                  boxShadow: cfg.buttonGlow !== false ? `0 6px 20px ${pColor}40` : 'none',
                                   ...radiusStyle,
                                 }}
                               >
@@ -3945,6 +3894,7 @@ export default function CustomHubStudioPage() {
                                 .map((m) => {
                                   const isFull = m.colSpan === 2;
                                   const ModIcon = getModuleIcon(m.id, m.iconName);
+                                  const tplAccent = isTplLight && cText === '#000000' ? '#15803D' : pColor;
                                   return (
                                     <button
                                       key={m.id}
@@ -3963,17 +3913,17 @@ export default function CustomHubStudioPage() {
                                     >
                                       <div className="flex items-start justify-between w-full mb-1">
                                         <div
-                                          className={`w-6 h-6 ${radiusClass} flex items-center justify-center ${
-                                            isTplLight ? 'bg-slate-100 text-slate-800' : 'bg-white/10 text-white'
+                                          className={`w-6 h-6 ${radiusClass} border flex items-center justify-center ${
+                                            isTplLight ? 'bg-[#F6F7F9] border-[#E4E6EB] text-[#09090B]' : 'bg-[#18191E] border-[#22242A] text-[#F4F4F6]'
                                           }`}
                                           style={radiusStyle}
                                         >
-                                          <ModIcon className="w-3.5 h-3.5" style={{ color: pColor }} />
+                                          <ModIcon className="w-3.5 h-3.5" style={{ color: tplAccent }} />
                                         </div>
                                         {m.badge && (
                                           <span
-                                            className={`text-[8px] font-bold px-1.5 py-0.5 ${radiusClass} ${
-                                              isTplLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
+                                            className={`text-[8px] font-mono font-bold px-1.5 py-0.5 ${radiusClass} ${
+                                              isTplLight ? 'bg-[#F6F7F9] text-[#52525B] border border-[#E4E6EB]' : 'bg-[#18191E] text-[#A1A1AA] border border-[#22242A]'
                                             }`}
                                             style={radiusStyle}
                                           >
@@ -3982,11 +3932,11 @@ export default function CustomHubStudioPage() {
                                         )}
                                       </div>
                                       <div>
-                                        <h5 className={`text-[11px] font-bold truncate leading-tight ${isTplLight ? 'text-slate-900' : 'text-white'}`}>
+                                        <h5 className={`text-[11px] font-bold truncate leading-tight ${isTplLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
                                           {m.title}
                                         </h5>
                                         {m.subtitle && (
-                                          <p className={`text-[9px] truncate mt-0.5 ${isTplLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                                          <p className={`text-[9px] truncate mt-0.5 ${isTplLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                                             {m.subtitle}
                                           </p>
                                         )}
@@ -4015,7 +3965,7 @@ export default function CustomHubStudioPage() {
                             <div className="relative z-20 pt-2">
                               <div
                                 className={`flex items-center justify-around py-1.5 px-3 rounded-full border shadow-md ${
-                                  isTplLight ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-black/60 border-white/10 text-zinc-300'
+                                  isTplLight ? 'bg-white/95 border-[#E4E6EB] text-[#52525B]' : 'bg-[#111215]/95 border-[#22242A] text-[#A1A1AA]'
                                 }`}
                               >
                                 <span className="text-[9px] font-bold">Home</span>

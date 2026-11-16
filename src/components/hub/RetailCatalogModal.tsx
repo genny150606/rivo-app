@@ -120,14 +120,14 @@ export default function RetailCatalogModal({
         aria-label={`Catalogo ${orgName}`}
         className={`w-full max-w-lg h-[92vh] sm:h-[86vh] rounded-t-2xl sm:rounded-2xl border flex flex-col overflow-hidden shadow-2xl transition-colors relative ${
           isLight
-            ? 'bg-white text-zinc-900 border-zinc-200'
-            : 'bg-[#09090B] text-zinc-100 border-white/10'
+            ? 'bg-white text-[#09090B] border-[#E4E6EB]'
+            : 'bg-[#09090B] text-[#F4F4F6] border-[#22242A]'
         }`}
       >
         {/* Header */}
         <div
           className={`p-4 border-b flex items-center justify-between gap-2 shrink-0 z-10 ${
-            isLight ? 'border-zinc-200 bg-zinc-50' : 'border-white/10 bg-[#121215]'
+            isLight ? 'border-[#E4E6EB] bg-[#F6F7F9]' : 'border-[#22242A] bg-[#111215]'
           }`}
         >
           <div className="flex items-center gap-2.5 min-w-0">
@@ -143,7 +143,7 @@ export default function RetailCatalogModal({
               </h3>
               <p
                 className={`text-[11px] truncate flex items-center gap-1.5 ${
-                  isLight ? 'text-zinc-600' : 'text-zinc-400'
+                  isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'
                 }`}
               >
                 <span>{orgName}</span>
@@ -167,8 +167,8 @@ export default function RetailCatalogModal({
             }}
             className={`p-2 rounded-xl min-h-[48px] min-w-[48px] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
               isLight
-                ? 'text-zinc-600 hover:text-zinc-950 bg-zinc-200/70 hover:bg-zinc-200'
-                : 'text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10'
+                ? 'text-[#52525B] hover:text-zinc-950 bg-zinc-200/70 hover:bg-zinc-200'
+                : 'text-[#A1A1AA] hover:text-white bg-white/5 hover:bg-white/10'
             }`}
             aria-label="Chiudi catalogo"
           >
@@ -179,7 +179,7 @@ export default function RetailCatalogModal({
         {/* Search & Categories Bar */}
         <div
           className={`p-3 border-b space-y-2.5 shrink-0 ${
-            isLight ? 'border-zinc-200 bg-zinc-50/70' : 'border-white/10 bg-[#0D0D10]'
+            isLight ? 'border-[#E4E6EB] bg-[#F6F7F9]/70' : 'border-[#22242A] bg-[#0D0D10]'
           }`}
         >
           <div className="relative">
@@ -188,7 +188,7 @@ export default function RetailCatalogModal({
             </label>
             <Search
               className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${
-                isLight ? 'text-zinc-500' : 'text-zinc-400'
+                isLight ? 'text-[#71717A]' : 'text-[#A1A1AA]'
               }`}
             />
             <input
@@ -199,8 +199,8 @@ export default function RetailCatalogModal({
               placeholder="Cerca modello, brand, taglia (es. Nike, 42, Air)…"
               className={`w-full min-h-[44px] pl-9 pr-12 py-2 rounded-xl text-xs border focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] transition-colors ${
                 isLight
-                  ? 'bg-white border-zinc-300 text-zinc-900 placeholder:text-zinc-500 focus:border-zinc-900'
-                  : 'bg-[#121215] border-white/10 text-white placeholder:text-zinc-500 focus:border-white/30'
+                  ? 'bg-white border-[#D4D4D8] text-[#09090B] placeholder:text-[#71717A] focus:border-[#09090B]'
+                  : 'bg-[#111215] border-[#22242A] text-white placeholder:text-[#71717A] focus:border-white/30'
               }`}
             />
             {search && (
@@ -209,7 +209,7 @@ export default function RetailCatalogModal({
                 aria-label="Cancella ricerca"
                 onClick={() => setSearch('')}
                 className={`absolute right-1 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
-                  isLight ? 'text-zinc-500 hover:text-zinc-900' : 'text-zinc-400 hover:text-white'
+                  isLight ? 'text-[#71717A] hover:text-[#09090B]' : 'text-[#A1A1AA] hover:text-white'
                 }`}
               >
                 <X className="w-4 h-4" />
@@ -231,8 +231,8 @@ export default function RetailCatalogModal({
                 selectedCategory === 'all'
                   ? ''
                   : isLight
-                  ? 'bg-white text-zinc-700 hover:text-zinc-950 border border-zinc-200'
-                  : 'bg-white/5 text-zinc-300 hover:text-white border border-white/10'
+                  ? 'bg-white text-zinc-700 hover:text-zinc-950 border border-[#E4E6EB]'
+                  : 'bg-white/5 text-[#D4D4D8] hover:text-white border border-[#22242A]'
               }`}
               style={
                 selectedCategory === 'all'
@@ -256,8 +256,8 @@ export default function RetailCatalogModal({
                   selectedCategory === cat
                     ? ''
                     : isLight
-                    ? 'bg-white text-zinc-700 hover:text-zinc-950 border border-zinc-200'
-                    : 'bg-white/5 text-zinc-300 hover:text-white border border-white/10'
+                    ? 'bg-white text-zinc-700 hover:text-zinc-950 border border-[#E4E6EB]'
+                    : 'bg-white/5 text-[#D4D4D8] hover:text-white border border-[#22242A]'
                 }`}
                 style={
                   selectedCategory === cat
@@ -274,7 +274,7 @@ export default function RetailCatalogModal({
         {/* Scrollable Products List */}
         <div className="overflow-y-auto overscroll-contain flex-1 p-3.5 space-y-3 no-scrollbar">
           {filteredProducts.length === 0 ? (
-            <div className="py-16 text-center text-zinc-500 space-y-2">
+            <div className="py-16 text-center text-[#71717A] space-y-2">
               <ShoppingBag className="w-8 h-8 mx-auto opacity-40" />
               <p className="text-xs">Nessun articolo trovato con i filtri attuali.</p>
             </div>
@@ -286,8 +286,8 @@ export default function RetailCatalogModal({
                   key={prod.id}
                   className={`p-3.5 rounded-2xl border transition-colors ${
                     isLight
-                      ? 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100/80'
-                      : 'bg-[#121215] border-white/10 hover:border-white/20'
+                      ? 'bg-zinc-50 border-[#E4E6EB] hover:bg-[#F6F7F9]/80'
+                      : 'bg-[#111215] border-[#22242A] hover:border-white/20'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -295,7 +295,7 @@ export default function RetailCatalogModal({
                       {prod.brand && (
                         <span
                           className={`text-[10px] font-bold uppercase tracking-wider block mb-0.5 ${
-                            isLight ? 'text-zinc-500' : 'text-zinc-400'
+                            isLight ? 'text-[#71717A]' : 'text-[#A1A1AA]'
                           }`}
                         >
                           {prod.brand}
@@ -311,7 +311,7 @@ export default function RetailCatalogModal({
                       {prod.description && (
                         <p
                           className={`text-[11px] mt-1 line-clamp-2 leading-relaxed ${
-                            isLight ? 'text-zinc-600' : 'text-zinc-400'
+                            isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'
                           }`}
                         >
                           {prod.description}
@@ -347,12 +347,12 @@ export default function RetailCatalogModal({
                   {prod.variants && prod.variants.length > 0 && (
                     <div
                       className={`mt-3 pt-2.5 border-t ${
-                        isLight ? 'border-zinc-200' : 'border-white/10'
+                        isLight ? 'border-[#E4E6EB]' : 'border-[#22242A]'
                       }`}
                     >
                       <span
                         className={`text-[10px] uppercase font-bold block mb-1.5 flex items-center gap-1 ${
-                          isLight ? 'text-zinc-600' : 'text-zinc-400'
+                          isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'
                         }`}
                       >
                         <Tag
@@ -370,18 +370,18 @@ export default function RetailCatalogModal({
                               className={`px-2 py-1 rounded-lg text-xs font-mono tabular-nums flex items-center gap-1.5 border transition-colors ${
                                 isAvailable
                                   ? isLight
-                                    ? 'bg-white border-zinc-300 text-zinc-900'
-                                    : 'bg-zinc-900 border-zinc-700 text-white'
+                                    ? 'bg-white border-[#D4D4D8] text-[#09090B]'
+                                    : 'bg-[#18191E] border-[#22242A] text-[#F4F4F6]'
                                   : isLight
-                                  ? 'bg-zinc-100 border-zinc-200 text-zinc-400 line-through opacity-70'
-                                  : 'bg-zinc-900/40 border-zinc-800 text-zinc-500 line-through opacity-60'
+                                  ? 'bg-[#F6F7F9] border-[#E4E6EB] text-[#A1A1AA] line-through opacity-70'
+                                  : 'bg-[#111215] border-[#22242A] text-[#71717A] line-through opacity-60'
                               }`}
                             >
                               <span className="font-bold">{v.size || 'Taglia unica'}</span>
                               {v.color && (
                                 <span
                                   className={`text-[9px] font-sans ${
-                                    isLight ? 'text-zinc-500' : 'text-zinc-400'
+                                    isLight ? 'text-[#71717A]' : 'text-[#A1A1AA]'
                                   }`}
                                 >
                                   ({v.color})
@@ -398,8 +398,8 @@ export default function RetailCatalogModal({
                                       ? 'bg-amber-100 text-amber-800'
                                       : 'bg-amber-500/20 text-amber-400'
                                     : isLight
-                                    ? 'text-zinc-600'
-                                    : 'text-zinc-400'
+                                    ? 'text-[#52525B]'
+                                    : 'text-[#A1A1AA]'
                                 }`}
                               >
                                 {v.stock > 0 ? `${v.stock} pz` : '0'}
@@ -420,8 +420,8 @@ export default function RetailCatalogModal({
         <div
           className={`p-3 border-t text-center shrink-0 ${
             isLight
-              ? 'border-zinc-200 bg-zinc-50 text-zinc-600'
-              : 'border-white/10 bg-[#121215] text-zinc-400'
+              ? 'border-[#E4E6EB] bg-[#F6F7F9] text-[#52525B]'
+              : 'border-[#22242A] bg-[#111215] text-[#A1A1AA]'
           }`}
         >
           <p className="text-[11px]">

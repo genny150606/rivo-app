@@ -172,7 +172,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
   if (loading) {
     return (
       <div className="min-h-screen min-h-dvh bg-[#09090B] flex items-center justify-center p-4">
-        <div className="w-14 h-14 rounded-2xl bg-[#111114] border border-[#27272A] flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-[#111215] border border-[#22242A] flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-[#BFFF00] animate-spin motion-reduce:animate-none" />
         </div>
       </div>
@@ -181,14 +181,14 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
 
   if (!device) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col items-center justify-center p-4 text-center">
         <div className="w-14 h-14 rounded-2xl border border-red-500/20 bg-red-500/10 flex items-center justify-center mb-3 text-red-400">
           <AlertCircle className="w-7 h-7" />
         </div>
         <h2 className="text-lg font-bold">Dispositivo non trovato</h2>
         <Link
           href={`/hub/${code}`}
-          className="mt-4 min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18181B] border border-[#27272A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center active:scale-95 transition-all"
+          className="mt-4 min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18191E] border border-[#22242A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center active:scale-95 transition-all"
         >
           Torna all&apos;Hub
         </Link>
@@ -201,18 +201,18 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
   const isCompleted = currentStamps >= maxStamps;
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#09090B] text-[#FAFAFA] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
+    <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
       {/* TOP NAVIGATION: BACK TO HUB */}
       <nav className="w-full max-w-md mx-auto flex items-center justify-between gap-2 z-10 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111114] hover:bg-[#18181B] border border-[#27272A] text-xs font-semibold text-zinc-200 hover:text-white transition-colors active:scale-[0.98]"
+          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111215] hover:bg-[#18191E] border border-[#22242A] text-xs font-semibold text-[#E4E4E7] hover:text-white transition-colors active:scale-[0.98]"
         >
           <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400 truncate max-w-[170px]">
+        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA] truncate max-w-[170px]">
           <CreditCard className="w-3.5 h-3.5 text-[#BFFF00] shrink-0" />
           <span className="text-white font-semibold truncate">{device.name}</span>
         </span>
@@ -225,14 +225,14 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
           <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
             {org?.name || 'Carta Fedeltà'}
           </h1>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-[#A1A1AA]">
             Colleziona timbri digitali con 1 tap al tavolo
           </p>
         </div>
 
         {/* VISUAL DIGITAL FIDELITY PASS */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#111114] p-4 sm:p-5 relative overflow-hidden space-y-3.5 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-[#27272A] pb-2.5 gap-2">
+        <div className="rounded-2xl border border-[#22242A] bg-[#111215] p-4 sm:p-5 relative overflow-hidden space-y-3.5 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5 gap-2">
             <div className="min-w-0">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#BFFF00] block">
                 Fidelity Pass Ufficiale
@@ -241,7 +241,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
                 {card?.customer_name || 'Pass Digitale'}
               </span>
             </div>
-            <div className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-[11px] text-emerald-300 font-mono font-bold tabular-nums shrink-0">
+            <div className="px-2.5 py-1 rounded-full bg-[#BFFF00]/12 border border-[#BFFF00]/35 text-[11px] text-[#BFFF00] font-mono font-bold tabular-nums shrink-0">
               {currentStamps} / {maxStamps} Timbri
             </div>
           </div>
@@ -252,21 +252,6 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
               const isStamped = index < currentStamps;
               const isRewardSlot = index === maxStamps - 1;
               const isNewlyStamped = newlyStampedIndex === index;
-
-              // Organic ink stamp rotation angles mimicking physical hand stamping
-              const stampRotations = [
-                '-rotate-3',
-                'rotate-2',
-                '-rotate-2',
-                'rotate-3',
-                '-rotate-1',
-                'rotate-2',
-                '-rotate-3',
-                'rotate-2',
-                '-rotate-2',
-                'rotate-1',
-              ];
-              const rotClass = stampRotations[index % stampRotations.length];
 
               return (
                 <button
@@ -286,40 +271,36 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
                     }
                   }}
                   aria-label={`Timbro ${index + 1}`}
-                  className={`aspect-square min-h-[48px] rounded-xl flex flex-col items-center justify-center relative transition-all duration-300 select-none overflow-hidden cursor-pointer active:scale-95 motion-reduce:transition-none ${
+                  className={`aspect-square min-h-[48px] rounded-xl flex flex-col items-center justify-center relative transition-colors select-none overflow-hidden cursor-pointer active:scale-95 ${
                     isStamped
-                      ? `bg-emerald-500/15 border-2 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.28)] ${
-                          isNewlyStamped ? 'animate-stamp-bounce ring-2 ring-[#BFFF00]/50 motion-reduce:animate-none' : ''
+                      ? `bg-[#BFFF00]/12 border-2 border-[#BFFF00] text-[#BFFF00] ${
+                          isNewlyStamped ? 'ring-2 ring-[#BFFF00]/40' : ''
                         }`
                       : isRewardSlot
-                      ? 'bg-amber-500/10 border-2 border-dashed border-amber-500/50 text-amber-400'
-                      : 'bg-[#09090B] border border-[#27272A] text-zinc-500'
+                      ? 'bg-[#BFFF00]/5 border border-dashed border-[#BFFF00]/45 text-[#BFFF00]'
+                      : 'bg-[#09090B] border border-[#22242A] text-[#71717A]'
                   }`}
                 >
                   {isStamped ? (
-                    <div
-                      className={`flex flex-col items-center justify-center transition-transform ${rotClass} ${
-                        isNewlyStamped ? 'animate-stamp-bounce motion-reduce:animate-none' : ''
-                      }`}
-                    >
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-emerald-300/80 bg-emerald-500/25 flex items-center justify-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#BFFF00] text-[#09090B] flex items-center justify-center">
                         {isRewardSlot ? (
-                          <Award className="w-4 h-4 sm:w-5 sm:h-5 text-[#BFFF00] stroke-[2.5]" />
+                          <Award className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
                         ) : (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-300 stroke-[2.5]" />
+                          <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
                         )}
                       </div>
-                      <span className="text-[9px] font-mono font-black text-emerald-400 tracking-tight mt-0.5 tabular-nums">
+                      <span className="text-[9px] font-mono font-black text-[#BFFF00] tracking-tight mt-0.5 tabular-nums">
                         {index + 1}
                       </span>
                     </div>
                   ) : isRewardSlot ? (
                     <div className="flex flex-col items-center justify-center gap-0.5">
-                      <Gift className="w-5 h-5 text-amber-400" />
-                      <span className="text-[9px] font-mono font-bold text-amber-400 tabular-nums">{index + 1}</span>
+                      <Gift className="w-5 h-5 text-[#BFFF00]" />
+                      <span className="text-[9px] font-mono font-bold text-[#BFFF00] tabular-nums">{index + 1}</span>
                     </div>
                   ) : (
-                    <span className="text-xs font-mono font-semibold text-zinc-500 tabular-nums">{index + 1}</span>
+                    <span className="text-xs font-mono font-semibold text-[#71717A] tabular-nums">{index + 1}</span>
                   )}
                 </button>
               );
@@ -345,18 +326,18 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
                 </span>
               </div>
               <div className="flex items-center justify-between pt-0.5 gap-2">
-                <span className="text-[11px] text-zinc-300">Il tuo omaggio:</span>
+                <span className="text-[11px] text-[#D4D4D8]">Il tuo omaggio:</span>
                 <span className="text-xs sm:text-sm font-extrabold text-white">
                   {org?.loyalty_reward_text || 'Omaggio Esclusivo'}
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-300 text-center pt-0.5">
+              <p className="text-[11px] text-[#D4D4D8] text-center pt-0.5">
                 Mostra questa schermata al cameriere per ricevere il premio al tuo tavolo.
               </p>
             </button>
           ) : (
-            <div className="bg-[#09090B] rounded-xl p-3 border border-[#27272A] flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-zinc-400 text-[11px]">
+            <div className="bg-[#09090B] rounded-xl p-3 border border-[#22242A] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-[#A1A1AA] text-[11px]">
                 <Gift className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>Premio al 10° timbro:</span>
               </div>
@@ -381,7 +362,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
         )}
 
         {/* LOOKUP / ADD STAMP FORM */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#111114] p-4 shadow-xl space-y-3">
+        <div className="rounded-2xl border border-[#22242A] bg-[#111215] p-4 shadow-xl space-y-3">
           {message && (
             <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-xs font-medium animate-fade-in flex items-center justify-center gap-2 text-center">
               {isCompleted ? (
@@ -405,7 +386,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Il tuo Nome"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                  className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl px-3 text-xs text-white placeholder-[#71717A] focus:outline-none focus:border-[#BFFF00]"
                 />
               </div>
             )}
@@ -421,7 +402,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Numero di Cellulare (es. 3331234567)"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl px-3 text-xs text-white placeholder-[#71717A] focus:outline-none focus:border-[#BFFF00]"
               />
             </div>
 
@@ -431,9 +412,9 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
                 type="button"
                 onClick={handleLookupCard}
                 disabled={submitting || searching || !phone.trim()}
-                className="w-full min-h-[48px] bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] hover:border-zinc-500 text-zinc-100 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                className="w-full min-h-[48px] bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] hover:border-zinc-500 text-[#F4F4F6] font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
               >
-                <Search className="w-4 h-4 text-zinc-400" />
+                <Search className="w-4 h-4 text-[#A1A1AA]" />
                 <span>{searching ? 'Ricerca in corso...' : 'Cerca Tessera'}</span>
               </button>
 
@@ -452,7 +433,7 @@ export default function LoyaltyPage({ params }: LoyaltyPageProps) {
 
       {/* Hardware RIVO Footer Badge */}
       <footer className="w-full max-w-md mx-auto pt-4 pb-2 flex items-center justify-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
           <span>Fidelity Pass Smart • Powered by</span>
           <strong className="text-white font-bold tracking-wide">RIVO</strong>

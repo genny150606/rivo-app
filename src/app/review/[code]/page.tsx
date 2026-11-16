@@ -252,14 +252,14 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex items-center justify-center p-4">
-        <div className="w-full max-w-sm p-6 rounded-2xl border border-[#27272A] bg-[#111114] text-center space-y-4">
-          <div className="w-16 h-16 bg-zinc-800 rounded-full mx-auto animate-pulse motion-reduce:animate-none" />
-          <div className="h-5 bg-zinc-800 rounded w-3/4 mx-auto animate-pulse motion-reduce:animate-none" />
-          <div className="h-4 bg-zinc-800 rounded w-1/2 mx-auto animate-pulse motion-reduce:animate-none" />
+      <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm p-6 rounded-2xl border border-[#22242A] bg-[#111215] text-center space-y-4">
+          <div className="w-16 h-16 bg-[#18191E] rounded-full mx-auto animate-pulse motion-reduce:animate-none" />
+          <div className="h-5 bg-[#18191E] rounded w-3/4 mx-auto animate-pulse motion-reduce:animate-none" />
+          <div className="h-4 bg-[#18191E] rounded w-1/2 mx-auto animate-pulse motion-reduce:animate-none" />
           <div className="flex justify-center gap-2 pt-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="w-12 h-12 bg-zinc-800 rounded-xl animate-pulse motion-reduce:animate-none" />
+              <div key={i} className="w-12 h-12 bg-[#18191E] rounded-xl animate-pulse motion-reduce:animate-none" />
             ))}
           </div>
         </div>
@@ -269,13 +269,13 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
 
   if (notFound || !device) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex items-center justify-center p-4">
-        <div className="w-full max-w-sm p-6 rounded-2xl border border-red-500/20 bg-[#111114] text-center space-y-3">
+      <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm p-6 rounded-2xl border border-red-500/20 bg-[#111215] text-center space-y-3">
           <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto">
             <AlertCircle className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-semibold">Dispositivo non trovato</h2>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-[#A1A1AA]">
             Questo chip NFC o codice QR (<span className="font-mono text-white">{code}</span>) non risulta associato a un punto vendita attivo.
           </p>
         </div>
@@ -294,18 +294,18 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
   const activeHoverOrRating = hoverRating || rating || 0;
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#09090B] text-[#FAFAFA] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden selection:bg-[#BFFF00] selection:text-[#09090B]">
+    <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden selection:bg-[#BFFF00] selection:text-[#09090B]">
       {/* TOP NAVIGATION: BACK TO HUB */}
       <nav className="w-full max-w-md mx-auto flex items-center justify-between gap-2 z-10 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111114] hover:bg-[#18181B] border border-[#27272A] text-xs font-semibold text-zinc-200 hover:text-white transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111215] hover:bg-[#18191E] border border-[#22242A] text-xs font-semibold text-[#E4E4E7] hover:text-white transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
         >
           <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-300">
+        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#D4D4D8]">
           <ShieldCheck className="w-3.5 h-3.5 text-[#BFFF00]" />
           <span>Review Shield™</span>
         </span>
@@ -320,10 +320,10 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
             alt={org.name}
             width={56}
             height={56}
-            className="w-14 h-14 rounded-2xl object-cover mx-auto mb-2.5 border border-[#27272A] shadow-xl"
+            className="w-14 h-14 rounded-2xl object-cover mx-auto mb-2.5 border border-[#22242A] shadow-xl"
           />
         ) : (
-          <div className="w-12 h-12 rounded-2xl bg-[#111114] border border-[#27272A] flex items-center justify-center mx-auto mb-2.5 text-lg font-bold text-[#BFFF00] shadow-xl">
+          <div className="w-12 h-12 rounded-2xl bg-[#111215] border border-[#22242A] flex items-center justify-center mx-auto mb-2.5 text-lg font-bold text-[#BFFF00] shadow-xl">
             {org?.name ? org.name.charAt(0).toUpperCase() : 'R'}
           </div>
         )}
@@ -331,14 +331,14 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
         <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-white">
           {org?.name || 'La tua opinione'}
         </h1>
-        <p className="text-xs text-zinc-400 mt-1 max-w-xs mx-auto">
+        <p className="text-xs text-[#A1A1AA] mt-1 max-w-xs mx-auto">
           Come valuteresti la tua esperienza oggi?
         </p>
       </div>
 
       {/* Main card */}
       <div className="max-w-md w-full mx-auto my-auto py-4">
-        <div className="rounded-2xl border border-[#27272A] bg-[#111114] shadow-2xl p-5 sm:p-6 space-y-5">
+        <div className="rounded-2xl border border-[#22242A] bg-[#111215] shadow-2xl p-5 sm:p-6 space-y-5">
 
           {/* Star selector */}
           <div className="space-y-3">
@@ -355,21 +355,18 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                     onMouseEnter={() => setHoverRating(star)}
                     onMouseLeave={() => setHoverRating(null)}
                     aria-label={`Valuta ${star} stelle su 5`}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 cursor-pointer ${
-                      shouldPop ? 'animate-star-pop motion-reduce:animate-none' : ''
-                    } ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center transition-colors duration-150 active:scale-95 cursor-pointer ${
                       isFilled
-                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/60 scale-105 shadow-[0_0_16px_rgba(245,158,11,0.3)]'
-                        : 'bg-[#18181B] text-zinc-500 border border-[#27272A] hover:text-zinc-300 hover:border-white/20'
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/60 scale-105'
+                        : 'bg-[#18191E] text-[#71717A] border border-[#22242A] hover:text-[#D4D4D8] hover:border-[#323640]'
                     }`}
-                    style={shouldPop ? { animationDelay: `${(star - 1) * 45}ms` } : undefined}
                   >
                     <Star
                       key={`${star}-${popKey}`}
                       className={`w-6 h-6 sm:w-7 sm:h-7 transition-all duration-200 ${
                         isFilled
                           ? 'fill-amber-400 text-amber-400'
-                          : 'text-zinc-500'
+                          : 'text-[#71717A]'
                       }`}
                     />
                   </button>
@@ -384,21 +381,21 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                   {ratingLabels[activeHoverOrRating]}
                 </span>
               ) : (
-                <span className="text-xs text-zinc-400">Tocca una stella per valutare</span>
+                <span className="text-xs text-[#A1A1AA]">Tocca una stella per valutare</span>
               )}
             </div>
           </div>
 
           {/* POSITIVE FLOW: 4 or 5 stars WITH AI REVIEW BOOSTER */}
           {rating && rating >= 4 && (
-            <div className="pt-4 border-t border-[#27272A] text-center space-y-4 animate-fade-in">
+            <div className="pt-4 border-t border-[#22242A] text-center space-y-4 animate-fade-in">
               <div className="w-12 h-12 rounded-full bg-[#BFFF00]/15 border border-[#BFFF00]/40 text-[#BFFF00] flex items-center justify-center mx-auto">
                 <HeartHandshake className="w-6 h-6" />
               </div>
 
               <div>
                 <h3 className="text-base font-bold text-white">Grazie di cuore!</h3>
-                <p className="text-xs text-zinc-300 mt-1">
+                <p className="text-xs text-[#D4D4D8] mt-1">
                   La tua opinione è fondamentale. Aiutaci su Google con una recensione a 5 stelle!
                 </p>
               </div>
@@ -419,7 +416,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                             {countdown}s
                           </span>
                         </div>
-                        <p className="text-[11px] text-zinc-300">
+                        <p className="text-[11px] text-[#D4D4D8]">
                           Apertura automatica della scheda recensioni
                         </p>
                       </div>
@@ -432,7 +429,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                           triggerHaptic(10);
                           setIsCountdownPaused(true);
                         }}
-                        className="min-h-[44px] px-3.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] text-xs text-zinc-200 font-semibold transition-all active:scale-95 cursor-pointer"
+                        className="min-h-[44px] px-3.5 rounded-xl bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-xs text-[#E4E4E7] font-semibold transition-all active:scale-95 cursor-pointer"
                       >
                         Pausa
                       </button>
@@ -458,7 +455,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
               )}
 
               {isCountdownPaused && (
-                <div className="px-3.5 py-2.5 rounded-xl bg-[#18181B] border border-[#27272A] text-xs text-zinc-300 flex items-center justify-between gap-2 text-left">
+                <div className="px-3.5 py-2.5 rounded-xl bg-[#18191E] border border-[#22242A] text-xs text-[#D4D4D8] flex items-center justify-between gap-2 text-left">
                   <span>Timer in pausa: usa l&apos;AI per creare una recensione perfetta!</span>
                   <button
                     type="button"
@@ -476,14 +473,14 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
               )}
 
               {/* AI Review Booster Box */}
-              <div className="p-4 rounded-xl bg-[#18181B] border border-[#27272A] text-left space-y-3">
+              <div className="p-4 rounded-xl bg-[#18191E] border border-[#22242A] text-left space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-[#BFFF00] flex items-center gap-1.5">
                     <Wand2 className="w-3.5 h-3.5 text-[#BFFF00]" />
                     <span>AI Review Booster</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#BFFF00]/20 text-[#BFFF00] font-mono">1-CLICK</span>
                   </span>
-                  <span className="text-[11px] text-zinc-400">Cosa ti è piaciuto di più?</span>
+                  <span className="text-[11px] text-[#A1A1AA]">Cosa ti è piaciuto di più?</span>
                 </div>
 
                 {/* Quick Tags Selector */}
@@ -505,7 +502,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                         className={`text-xs min-h-[44px] px-3 rounded-xl border transition-all duration-150 flex items-center gap-1.5 active:scale-95 cursor-pointer ${
                           isSelected
                             ? 'bg-[#BFFF00]/15 text-[#BFFF00] border-[#BFFF00]/60 font-semibold'
-                            : 'bg-[#111114] text-zinc-300 border-[#27272A] hover:text-white hover:border-zinc-600'
+                            : 'bg-[#111215] text-[#D4D4D8] border-[#22242A] hover:text-white hover:border-[#323640]'
                         }`}
                       >
                         <TagIcon className="w-3.5 h-3.5 shrink-0" />
@@ -517,8 +514,8 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
 
                 {/* Generated AI Review Preview */}
                 {aiReviewText ? (
-                  <div className="space-y-3 pt-2 border-t border-[#27272A] animate-fade-in">
-                    <p className="text-xs text-zinc-100 italic bg-[#09090B] p-3 rounded-xl border border-[#27272A] leading-relaxed">
+                  <div className="space-y-3 pt-2 border-t border-[#22242A] animate-fade-in">
+                    <p className="text-xs text-[#F4F4F6] italic bg-[#09090B] p-3 rounded-xl border border-[#22242A] leading-relaxed">
                       &ldquo;{aiReviewText}&rdquo;
                     </p>
                     <button
@@ -545,7 +542,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                     type="button"
                     onClick={handleGenerateAiReview}
                     disabled={generatingAi}
-                    className="w-full min-h-[48px] bg-[#111114] hover:bg-[#27272A] text-white font-semibold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 border border-[#27272A] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                    className="w-full min-h-[48px] bg-[#111215] hover:bg-[#22242A] text-white font-semibold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 border border-[#22242A] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   >
                     {generatingAi ? (
                       <>
@@ -566,7 +563,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                 <button
                   type="button"
                   onClick={handleImmediateRedirect}
-                  className="inline-flex items-center justify-center gap-1.5 min-h-[48px] px-4 text-xs text-zinc-300 hover:text-white transition-colors rounded-xl border border-[#27272A] hover:border-white/20 active:scale-95 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 min-h-[48px] px-4 text-xs text-[#D4D4D8] hover:text-white transition-colors rounded-xl border border-[#22242A] hover:border-white/20 active:scale-95 cursor-pointer"
                 >
                   <span>Oppure vai direttamente a Google Reviews</span>
                   <ArrowRight className="w-3.5 h-3.5 text-[#BFFF00]" />
@@ -577,9 +574,9 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
 
           {/* NEGATIVE/CONSTRUCTIVE FLOW: 1, 2 or 3 stars */}
           {rating && rating <= 3 && !feedbackSubmitted && (
-            <div className="pt-4 border-t border-[#27272A] space-y-4 animate-fade-in text-left">
+            <div className="pt-4 border-t border-[#22242A] space-y-4 animate-fade-in text-left">
               {/* Badge protetto "Messaggio riservato alla direzione" */}
-              <div className="flex flex-wrap items-center justify-between gap-2 bg-[#18181B] border border-emerald-500/35 rounded-xl px-3.5 py-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-[#18191E] border border-emerald-500/35 rounded-xl px-3.5 py-2.5">
                 <div className="inline-flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -607,7 +604,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
 
               <form onSubmit={handleSubmitFeedback} className="space-y-3">
                 <div>
-                  <label htmlFor="review-comment" className="block text-xs font-medium text-zinc-200 mb-1.5">
+                  <label htmlFor="review-comment" className="block text-xs font-medium text-[#E4E4E7] mb-1.5">
                     Cosa possiamo migliorare? <span className="text-red-400">*</span>
                   </label>
                   <textarea
@@ -617,13 +614,13 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder="Es. tempi di attesa, pietanza, servizio al tavolo..."
-                    className="w-full bg-[#18181B] border border-[#27272A] rounded-xl p-3 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00] transition-colors resize-none"
+                    className="w-full bg-[#18191E] border border-[#22242A] rounded-xl p-3 text-xs sm:text-sm text-white placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00] transition-colors resize-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="review-customer-name" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                    <label htmlFor="review-customer-name" className="block text-[11px] font-medium text-[#D4D4D8] mb-1">
                       Il tuo nome (opzionale)
                     </label>
                     <input
@@ -632,11 +629,11 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Mario Rossi"
-                      className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00]"
+                      className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl px-3 text-xs text-white placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00]"
                     />
                   </div>
                   <div>
-                    <label htmlFor="review-customer-contact" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                    <label htmlFor="review-customer-contact" className="block text-[11px] font-medium text-[#D4D4D8] mb-1">
                       Contatto (se desideri risposta)
                     </label>
                     <input
@@ -645,7 +642,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                       value={customerContact}
                       onChange={(e) => setCustomerContact(e.target.value)}
                       placeholder="Cellulare o Email"
-                      className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00]"
+                      className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl px-3 text-xs text-white placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00]"
                     />
                   </div>
                 </div>
@@ -657,7 +654,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
                 <button
                   type="submit"
                   disabled={submittingFeedback}
-                  className="w-full min-h-[48px] bg-[#BFFF00] hover:bg-[#d2ff4d] text-[#09090B] font-extrabold text-xs sm:text-sm px-4 py-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111114]"
+                  className="w-full min-h-[48px] bg-[#BFFF00] hover:bg-[#d2ff4d] text-[#09090B] font-extrabold text-xs sm:text-sm px-4 py-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111215]"
                 >
                   {submittingFeedback ? (
                     <>
@@ -677,12 +674,12 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
 
           {/* FEEDBACK CONFIRMATION (1-3 stars submitted) */}
           {rating && rating <= 3 && feedbackSubmitted && (
-            <div className="pt-4 border-t border-[#27272A] text-center space-y-3 animate-fade-in">
+            <div className="pt-4 border-t border-[#22242A] text-center space-y-3 animate-fade-in">
               <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 className="text-base font-bold text-white">Messaggio inviato</h3>
-              <p className="text-xs text-zinc-300 leading-relaxed max-w-xs mx-auto">
+              <p className="text-xs text-[#D4D4D8] leading-relaxed max-w-xs mx-auto">
                 Grazie per la tua franchezza. Il titolare ha ricevuto la tua segnalazione e faremo tutto il possibile per offrirti un&apos;esperienza migliore.
               </p>
             </div>
@@ -693,7 +690,7 @@ export default function ReviewShieldPage({ params }: ReviewPageProps) {
 
       {/* Hardware RIVO Footer Badge */}
       <footer className="w-full max-w-md mx-auto pt-3 pb-2 flex items-center justify-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
           <span>Esperienza protetta da</span>
           <strong className="text-white font-bold tracking-wide">RIVO</strong>

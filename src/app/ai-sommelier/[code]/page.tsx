@@ -134,7 +134,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
   if (loading) {
     return (
       <div className="min-h-screen min-h-dvh bg-[#09090B] flex items-center justify-center p-4">
-        <div className="w-14 h-14 rounded-2xl bg-[#111114] border border-[#27272A] flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-[#111215] border border-[#22242A] flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-[#BFFF00] animate-spin motion-reduce:animate-none" />
         </div>
       </div>
@@ -143,14 +143,14 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
 
   if (!device) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col items-center justify-center p-4 text-center">
         <div className="w-14 h-14 rounded-2xl border border-red-500/20 bg-red-500/10 flex items-center justify-center mb-3 text-red-400">
           <AlertCircle className="w-7 h-7" />
         </div>
         <h2 className="text-lg font-bold">Dispositivo non trovato</h2>
         <Link
           href={`/hub/${code}`}
-          className="mt-4 min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18181B] border border-[#27272A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center"
+          className="mt-4 min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18191E] border border-[#22242A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center"
         >
           Torna all&apos;Hub
         </Link>
@@ -159,18 +159,18 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
   }
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#09090B] text-[#FAFAFA] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
+    <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
       {/* TOP NAVIGATION: BACK TO HUB */}
-      <nav className="w-full max-w-md mx-auto flex items-center justify-between gap-2 z-10 pb-3 border-b border-[#27272A]">
+      <nav className="w-full max-w-md mx-auto flex items-center justify-between gap-2 z-10 pb-3 border-b border-[#22242A]">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111114] hover:bg-[#18181B] border border-[#27272A] text-xs font-semibold text-zinc-200 hover:text-white transition-colors active:scale-[0.98]"
+          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111215] hover:bg-[#18191E] border border-[#22242A] text-xs font-semibold text-[#E4E4E7] hover:text-white transition-colors active:scale-[0.98]"
         >
           <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-300">
+        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#D4D4D8]">
           <Wine className="w-3.5 h-3.5 text-amber-400" />
           <span className="text-white font-semibold">AI Sommelier</span>
         </span>
@@ -181,7 +181,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
         {org?.name && (
           <div className="text-center pb-3">
             <h1 className="text-sm font-bold text-white">{org.name}</h1>
-            <p className="text-[11px] text-zinc-400">Sommelier &amp; Maître di Sala Virtuale</p>
+            <p className="text-[11px] text-[#A1A1AA]">Sommelier &amp; Maître di Sala Virtuale</p>
           </div>
         )}
         <div className="overflow-y-auto space-y-3 pr-1 max-h-[58vh] sm:max-h-[62vh]">
@@ -193,14 +193,14 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
                 className={`flex items-start gap-2 ${isAi ? 'justify-start' : 'justify-end'}`}
               >
                 {isAi && (
-                  <div className="w-8 h-8 rounded-xl bg-[#18181B] border border-[#27272A] text-[#BFFF00] flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#18191E] border border-[#22242A] text-[#BFFF00] flex items-center justify-center shrink-0 mt-0.5">
                     <Bot className="w-4 h-4" />
                   </div>
                 )}
                 <div
                   className={`rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed max-w-[82%] shadow-md ${
                     isAi
-                      ? 'bg-[#111114] border border-[#27272A] text-zinc-100'
+                      ? 'bg-[#111215] border border-[#22242A] text-[#F4F4F6]'
                       : 'bg-[#BFFF00] text-[#09090B] font-semibold'
                   }`}
                 >
@@ -212,10 +212,10 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
 
           {typing && (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#18181B] border border-[#27272A] text-[#BFFF00] flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-[#18191E] border border-[#22242A] text-[#BFFF00] flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4" />
               </div>
-              <div className="rounded-2xl px-3.5 py-3 bg-[#111114] border border-[#27272A] text-xs text-zinc-400 flex items-center gap-1.5">
+              <div className="rounded-2xl px-3.5 py-3 bg-[#111215] border border-[#22242A] text-xs text-[#A1A1AA] flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00] animate-bounce motion-reduce:animate-none" />
                 <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00] animate-bounce motion-reduce:animate-none [animation-delay:0.2s]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00] animate-bounce motion-reduce:animate-none [animation-delay:0.4s]" />
@@ -236,7 +236,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
               type="button"
               onClick={() => sendMessage(q)}
               disabled={typing}
-              className="shrink-0 min-h-[44px] text-xs px-3.5 rounded-xl bg-[#111114] hover:bg-[#18181B] border border-[#27272A] text-zinc-200 transition-colors cursor-pointer disabled:opacity-50"
+              className="shrink-0 min-h-[44px] text-xs px-3.5 rounded-xl bg-[#111215] hover:bg-[#18191E] border border-[#22242A] text-[#E4E4E7] transition-colors cursor-pointer disabled:opacity-50"
             >
               {q}
             </button>
@@ -260,7 +260,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Chiedi un consiglio sul menù..."
-            className="flex-1 min-h-[48px] bg-[#111114] border border-[#27272A] rounded-xl px-3.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+            className="flex-1 min-h-[48px] bg-[#111215] border border-[#22242A] rounded-xl px-3.5 text-xs text-white placeholder-[#71717A] focus:outline-none focus:border-[#BFFF00]"
           />
           <button
             type="submit"
@@ -273,7 +273,7 @@ export default function AiSommelierPage({ params }: SommelierPageProps) {
         </form>
 
         <div className="pt-1 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
             <span>AI Sommelier • Powered by</span>
             <strong className="text-white font-bold tracking-wide">RIVO</strong>

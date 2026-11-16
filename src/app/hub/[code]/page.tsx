@@ -402,22 +402,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [, setIsLunchTime] = useState(false);
 
-  // Replay NFC Tap & Assemble Magic Animation
+  // Replay NFC Tap telemetry feedback without blocking the UI
   const replayNfcTap = () => {
-    setNfcPhase('sensing');
     hapticNfcPulse();
-    setLoading(true);
+    setNfcPhase('assembling');
     setTimeout(() => {
-      setNfcPhase('synced');
-      hapticSuccess();
-      setTimeout(() => {
-        setLoading(false);
-        setNfcPhase('assembling');
-        setTimeout(() => {
-          setNfcPhase('ready');
-        }, 850);
-      }, 450);
-    }, 400);
+      setNfcPhase('ready');
+    }, 350);
   };
 
   useEffect(() => {
@@ -572,22 +563,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               }
             }
 
-            // Phase 2: NFC Tag Synced Feedback with Haptic Wave
-            setNfcPhase('synced');
+            // Immediate sync transition for zero-lag Tap-to-Cloud feel
             hapticSuccess();
-
-            // Phase 3: Transition to Hub with Spring Bloom Assembling
-            setTimeout(() => {
-              if (isCancelled) return;
-              setLoading(false);
-              setNfcPhase('assembling');
-
-              // Phase 4: Settle into ready state
-              setTimeout(() => {
-                if (isCancelled) return;
-                setNfcPhase('ready');
-              }, 850);
-            }, 460);
+            setNfcPhase('ready');
+            setLoading(false);
             return;
           }
         }
@@ -1205,41 +1184,41 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   }, [activeConfig.themeMode]);
 
   const isLight = activeTheme.id === 'minimal_light';
+  const accessibleAccent = isLight && contrastText === '#000000' ? '#15803D' : primaryColor;
 
   const cardBaseClass = useMemo(() => {
     switch (activeConfig.cardStyle) {
       case 'glass':
         return isLight
-          ? 'backdrop-blur-md bg-white/70 border border-slate-200/90 shadow-md hover:bg-white/85'
-          : 'backdrop-blur-md bg-white/[0.04] border border-white/10 shadow-lg hover:bg-white/[0.07]';
+          ? 'bg-white/95 border border-[#E4E6EB] hover:border-[#CFD4DC] shadow-xs'
+          : 'bg-[#111215]/95 border border-[#22242A] hover:border-[#32353E] shadow-xs';
       case 'solid':
         return isLight
-          ? 'bg-white border border-slate-200 shadow-md hover:bg-slate-50'
-          : 'bg-[#181b19] border border-white/5 shadow-md hover:bg-[#1f2320]';
+          ? 'bg-white border border-[#E4E6EB] hover:bg-[#F6F7F9]'
+          : 'bg-[#18191E] border border-[#22242A] hover:border-[#32353E]';
       case 'bordered':
         return isLight
-          ? 'bg-white border-2 border-slate-300 shadow hover:border-slate-400'
-          : 'bg-[#121413] border-2 border-white/20 shadow hover:border-white/30';
+          ? 'bg-white border border-[#CFD4DC] hover:border-[#09090B]'
+          : 'bg-[#09090B] border border-[#32353E] hover:border-[#F4F4F6]/30';
       case 'neon':
         return isLight
-          ? 'bg-white border border-slate-200 shadow-md hover:bg-slate-50'
-          : 'bg-[#141715] border border-white/10 shadow-lg hover:bg-[#1a1d1b]';
+          ? 'bg-white border border-[#E4E6EB] hover:border-[#CFD4DC]'
+          : 'bg-[#111215] border border-[#22242A] hover:border-[#32353E]';
       default:
         return isLight
-          ? 'bg-white border border-slate-200 shadow-md hover:bg-slate-50'
-          : 'bg-[#161816]/95 border border-white/[0.08] shadow-lg hover:bg-[#1c201d]';
+          ? 'bg-white border border-[#E4E6EB] hover:border-[#CFD4DC]'
+          : 'bg-[#111215] border border-[#22242A] hover:border-[#32353E]';
     }
   }, [activeConfig.cardStyle, isLight]);
 
   const cardCustomStyle = useMemo<React.CSSProperties>(() => {
     if (activeConfig.cardStyle === 'neon') {
       return {
-        boxShadow: `0 0 16px ${primaryColor}25`,
-        borderColor: `${primaryColor}40`,
+        borderColor: `${accessibleAccent}55`,
       };
     }
     return {};
-  }, [activeConfig.cardStyle, primaryColor]);
+  }, [activeConfig.cardStyle, accessibleAccent]);
 
   const enabledModules = useMemo(() => {
     return [...(activeConfig.modules || [])]
@@ -1248,129 +1227,56 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   }, [activeConfig.modules]);
 
   if (loading) {
-    const isSynced = nfcPhase === 'synced';
     return (
       <div
-        className={`min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden select-none transition-colors duration-300 ${HUB_FONT_CLASSES}`}
+        className={`min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden select-none ${HUB_FONT_CLASSES}`}
         style={{
           backgroundColor: activeTheme.bgHex,
           color: activeTheme.textHex,
           fontFamily: activeFont.cssFamily,
         }}
       >
-        {/* Background Radial Highlight */}
         <div
-          className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-500"
-          style={{
-            background: `radial-gradient(circle at 50% 45%, ${primaryColor}${isSynced ? (isLight ? '20' : '24') : (isLight ? '10' : '16')} 0%, transparent 55%)`,
-          }}
+          aria-hidden="true"
+          className={`fixed inset-0 pointer-events-none bg-rivo-grid ${isLight ? 'opacity-20' : 'opacity-35'}`}
         />
-
-        {/* Central NFC Resonator Hub */}
-        <div className="relative z-10 flex flex-col items-center">
-          {/* Concentric Radar / Sonar Rings */}
-          <div className="relative flex items-center justify-center w-40 h-40 sm:w-48 sm:h-48 mb-6">
-            {/* Pulsing Sonar Ring 1 */}
-            <div
-              className="absolute inset-0 rounded-full border border-dashed pointer-events-none animate-nfc-sonar-1 motion-reduce:animate-none"
-              style={{
-                borderColor: `${primaryColor}65`,
-                boxShadow: `0 0 25px ${primaryColor}20`,
-              }}
-            />
-            {/* Pulsing Sonar Ring 2 */}
-            <div
-              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-2 motion-reduce:animate-none"
-              style={{
-                borderColor: `${primaryColor}45`,
-                boxShadow: `0 0 35px ${primaryColor}15`,
-              }}
-            />
-            {/* Pulsing Sonar Ring 3 */}
-            <div
-              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-3 motion-reduce:animate-none"
-              style={{
-                borderColor: `${primaryColor}25`,
-              }}
-            />
-
-            {/* Core Floating Glass NFC Token */}
-            <div
-              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 flex items-center justify-center relative shadow-2xl transition-all duration-500 motion-reduce:animate-none ${
-                isSynced ? 'animate-nfc-contact-flash' : 'animate-float-gentle'
-              } ${
-                isLight
-                  ? 'bg-white/95 border-slate-200/90 shadow-slate-300/60'
-                  : 'bg-[#141715]/95 border-white/20 shadow-black/80'
-              }`}
-              style={{
-                borderColor: isSynced ? primaryColor : undefined,
-                boxShadow: isSynced
-                  ? `0 0 40px ${primaryColor}50, inset 0 0 18px ${primaryColor}20`
-                  : `0 12px 35px rgba(0,0,0,0.35)`,
-              }}
-            >
-              {/* Internal Tint */}
-              <div
-                className="absolute inset-1 rounded-xl opacity-15 pointer-events-none transition-opacity duration-300"
-                style={{
-                  backgroundColor: primaryColor,
-                }}
-              />
-
-              {isSynced ? (
-                <div className="flex flex-col items-center justify-center gap-1 animate-scale-in motion-reduce:animate-none">
-                  <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12" style={{ color: primaryColor }} />
-                </div>
-              ) : (
-                <div className="relative flex items-center justify-center">
-                  <NfcWaveIcon className="w-9 h-9 sm:w-11 sm:h-11 animate-pulse motion-reduce:animate-none" style={{ color: primaryColor }} />
-                  <span
-                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-[#141715] animate-ping motion-reduce:hidden"
-                    style={{ backgroundColor: primaryColor }}
-                  />
-                </div>
-              )}
-            </div>
+        <div className="relative z-10 flex flex-col items-center max-w-xs w-full text-center space-y-5">
+          <div
+            className={`w-20 h-20 rounded-2xl border flex items-center justify-center ${
+              isLight ? 'bg-white border-[#E4E6EB]' : 'bg-[#111215] border-[#22242A]'
+            }`}
+          >
+            <NfcWaveIcon className="w-9 h-9" style={{ color: accessibleAccent }} />
           </div>
 
-          {/* Dynamic Status Text with Magic Feedback */}
-          <div className="text-center max-w-xs px-4">
-            {isSynced ? (
-              <div className="space-y-1 animate-fade-in">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 mb-1">
-                  <Zap className="w-3 h-3" />
-                  <span>Tag NFC Riconosciuto</span>
-                </div>
-                <h2 className={`text-base sm:text-lg font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {device?.name || 'Tavolo Connesso'}
-                </h2>
-                <p className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                  {org?.name ? `Benvenuto da ${org.name}` : 'Apertura esperienza RIVO in corso...'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase bg-white/5 border border-white/10 text-zinc-400">
-                  <Radio className="w-3 h-3 animate-pulse text-emerald-400" />
-                  <span>Sincronizzazione 13.56 MHz</span>
-                </div>
-                <h2 className={`text-sm sm:text-base font-bold tracking-tight ${isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
-                  Avvicinamento al Tag NFC...
-                </h2>
-                <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
-                  Connessione istantanea con il locale
-                </p>
+          <div className="space-y-1.5">
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-mono text-[10px] font-semibold tracking-wider uppercase ${
+                isLight
+                  ? 'bg-white border-[#E4E6EB] text-[#4B5563]'
+                  : 'bg-[#111215] border-[#22242A] text-[#A1A1AA]'
+              }`}
+            >
+              <Radio className="w-3 h-3" style={{ color: accessibleAccent }} />
+              <span>NFC NTAG 424 // 13.56 MHZ</span>
+            </div>
+            <h2 className={`text-sm sm:text-base font-bold tracking-tight ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
+              Connessione in corso…
+            </h2>
+            <p className={`text-xs ${isLight ? 'text-[#6B7280]' : 'text-[#71717A]'}`}>
+              Apertura esperienza RIVO
+            </p>
+          </div>
 
-                {/* Shimmer Loading Beam */}
-                <div className="w-36 h-1 mx-auto mt-3 rounded-full bg-white/10 overflow-hidden relative">
-                  <div
-                    className="absolute inset-y-0 w-1/2 rounded-full animate-shimmer-beam"
-                    style={{ backgroundColor: primaryColor }}
-                  />
-                </div>
-              </div>
-            )}
+          <div
+            className={`w-36 h-1 rounded-full overflow-hidden ${
+              isLight ? 'bg-[#E4E6EB]' : 'bg-[#22242A]'
+            }`}
+          >
+            <div
+              className="h-full w-1/2 rounded-full animate-pulse motion-reduce:animate-none"
+              style={{ backgroundColor: accessibleAccent }}
+            />
           </div>
         </div>
       </div>
@@ -1425,7 +1331,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
   return (
     <div
-      className={`min-h-screen min-h-dvh flex flex-col justify-between relative selection:bg-white selection:text-black overflow-x-hidden transition-colors duration-300 ${HUB_FONT_CLASSES}`}
+      className={`min-h-screen min-h-dvh flex flex-col justify-between relative selection:bg-[#BFFF00] selection:text-[#09090B] overflow-x-hidden transition-colors duration-300 ${HUB_FONT_CLASSES}`}
       style={{
         backgroundColor: activeTheme.bgHex,
         color: activeTheme.textHex,
@@ -1433,7 +1339,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       }}
     >
       {/* Visual Atmosphere & Custom Background Layer */}
-      {activeConfig.bgType === 'image' && activeConfig.bgImageUrl && (
+      {activeConfig.bgType === 'image' && activeConfig.bgImageUrl ? (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
           <div
             className="absolute inset-0 bg-cover bg-center transition-all duration-700"
@@ -1450,14 +1356,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             }}
           />
         </div>
+      ) : (
+        <div
+          className={`fixed inset-0 pointer-events-none z-0 bg-rivo-grid ${
+            isLight ? 'opacity-[0.04]' : 'opacity-[0.18]'
+          }`}
+          aria-hidden="true"
+        />
       )}
 
-      {/* Dynamic Ambient Radial Accent Highlight */}
+      {/* Subtle Ambient Top Edge Accent */}
       {activeConfig.accentGlow !== false && (
         <div
           className="fixed inset-0 pointer-events-none z-0"
           style={{
-            background: `radial-gradient(circle at 50% 0%, ${primaryColor}${isLight ? '16' : '22'} 0%, transparent 58%)`,
+            background: `radial-gradient(circle at 50% 0%, ${primaryColor}${isLight ? '0D' : '14'} 0%, transparent 52%)`,
           }}
         />
       )}
@@ -1465,72 +1378,38 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* Share Toast Notification */}
       {sharedNotification && (
         <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl text-xs font-semibold shadow-2xl flex items-center gap-2 animate-fade-in ${
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-xs font-semibold shadow-xl flex items-center gap-2 animate-fade-in ${
             isLight
-              ? 'bg-white border border-slate-200 text-slate-900'
-              : 'bg-[#161816] border border-white/20 text-white'
+              ? 'bg-white border border-[#E4E6EB] text-[#09090B]'
+              : 'bg-[#111215] border border-[#22242A] text-[#F4F4F6]'
           }`}
         >
-          <Check className="w-4 h-4" style={{ color: primaryColor }} />
+          <Check className="w-4 h-4" style={{ color: accessibleAccent }} />
           <span>Link copiato negli appunti!</span>
         </div>
       )}
 
-      {/* NFC Magic Assemble Sparkle Burst from Center */}
-      {nfcPhase === 'assembling' && (
-        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center overflow-hidden">
-          {[...Array(12)].map((_, i) => {
-            const angle = (i * 30) * (Math.PI / 180);
-            const dist = 75 + (i % 4) * 28;
-            const tx = `${Math.round(Math.cos(angle) * dist)}px`;
-            const ty = `${Math.round(Math.sin(angle) * dist)}px`;
-            return (
-              <div
-                key={i}
-                className="absolute w-2 h-2 rounded-full animate-sparkle-drift"
-                style={{
-                  backgroundColor: i % 2 === 0 ? primaryColor : '#fbbf24',
-                  boxShadow: `0 0 14px ${primaryColor}`,
-                  '--tx': tx,
-                  '--ty': ty,
-                  '--s': i % 2 === 0 ? 1.3 : 0.8,
-                } as React.CSSProperties}
-              />
-            );
-          })}
-        </div>
-      )}
-
       {/* Center Phone-Proportioned Main Container */}
-      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-4 pt-2.5 sm:pt-4 pb-24 sm:pb-28 relative z-10 gap-2.5 sm:gap-3">
+      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-4 pt-3 sm:pt-4 pb-24 sm:pb-28 relative z-10 gap-2.5 sm:gap-3">
         
         {/* ========================================================================= */}
         {/* TOP APP BAR / HEADER */}
         {/* ========================================================================= */}
-        <header
-          className={`${
-            nfcPhase === 'assembling' ? 'animate-assemble-header' : 'animate-nfc-stagger-1'
-          } relative z-50 flex items-center justify-between gap-3 pt-0.5`}
-        >
+        <header className="relative z-50 flex items-center justify-between gap-3 pt-0.5">
           {/* Left: Avatar / Logo + Business Name */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="shrink-0 relative group">
-              {/* Breathing Halo Glow Ring */}
-              <div
-                className="absolute -inset-1 rounded-full blur-xs opacity-70 animate-pulse pointer-events-none"
-                style={{ backgroundColor: primaryColor }}
-              />
               {org.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={org.logo_url}
                   alt={org.name}
-                  className="relative w-11 h-11 rounded-full object-cover border-2 shadow-lg bg-black transition-transform duration-300 group-hover:scale-105"
+                  className="relative w-11 h-11 rounded-full object-cover border-2 bg-[#09090B] transition-transform duration-200 group-hover:scale-105"
                   style={{ borderColor: primaryColor }}
                 />
               ) : (
                 <div
-                  className="relative w-11 h-11 rounded-full flex items-center justify-center shadow-lg text-black font-bold transition-transform duration-300 group-hover:scale-105"
+                  className="relative w-11 h-11 rounded-full flex items-center justify-center font-bold transition-transform duration-200 group-hover:scale-105"
                   style={{ backgroundColor: primaryColor }}
                 >
                   <CatIcon className="w-5 h-5" style={{ color: contrastText }} />
@@ -1541,17 +1420,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <div className="min-w-0 flex-1">
               <h1
                 className={`text-base font-extrabold tracking-tight truncate leading-tight ${
-                  isLight ? 'text-slate-900' : 'text-white'
+                  isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'
                 }`}
               >
                 {org.name}
               </h1>
-              <div className="flex items-center gap-1.5 text-[11px] mt-0.5">
-                <span className={`font-semibold truncate max-w-[140px] ${isLight ? 'text-slate-600' : 'text-zinc-300'}`}>
+              <div className="flex items-center gap-1.5 text-[11px] mt-0.5 min-w-0">
+                <span className={`font-semibold truncate min-w-0 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                   {catDef.label}
                 </span>
-                <span className={isLight ? 'text-slate-400' : 'text-zinc-600'}>•</span>
-                <span className={`font-mono text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>RIVO Hub</span>
+                <span className={`shrink-0 ${isLight ? 'text-[#A1A1AA]' : 'text-[#52525B]'}`}>•</span>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[#71717A] shrink-0 whitespace-nowrap">
+                  RIVO Hub
+                </span>
               </div>
             </div>
           </div>
@@ -1567,10 +1448,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setShowLangMenu(!showLangMenu);
                 }}
                 aria-label="Cambia lingua"
-                className={`touch-press min-h-[44px] min-w-[44px] px-2.5 rounded-full border flex items-center justify-center gap-1.5 transition-all text-xs font-bold active:scale-95 cursor-pointer ${
+                className={`touch-press min-h-[44px] min-w-[44px] px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-colors text-xs font-bold active:scale-95 cursor-pointer ${
                   isLight
-                    ? 'bg-white border-slate-200 text-slate-800 shadow-xs'
-                    : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-200'
+                    ? 'bg-white hover:bg-[#F6F7F9] border-[#E4E6EB] text-[#09090B]'
+                    : 'bg-[#111215] hover:bg-[#18191E] border-[#22242A] text-[#F4F4F6]'
                 }`}
               >
                 <Globe className="w-3.5 h-3.5 opacity-80" aria-hidden="true" />
@@ -1584,10 +1465,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     onClick={() => setShowLangMenu(false)}
                   />
                   <div
-                    className={`absolute right-0 top-12 z-50 py-1.5 px-1 rounded-2xl shadow-2xl border min-w-[155px] animate-fade-in ${
+                    className={`absolute right-0 top-12 z-50 py-1.5 px-1.5 rounded-xl shadow-2xl border min-w-[155px] animate-fade-in ${
                       isLight
-                        ? 'bg-white border-slate-200 text-slate-900 shadow-[0_10px_35px_rgba(0,0,0,0.15)]'
-                        : 'bg-[#161816] border-white/10 text-white shadow-[0_10px_35px_rgba(0,0,0,0.7)]'
+                        ? 'bg-white border-[#E4E6EB] text-[#09090B] shadow-[0_10px_35px_rgba(0,0,0,0.12)]'
+                        : 'bg-[#111215] border-[#22242A] text-[#F4F4F6] shadow-[0_10px_35px_rgba(0,0,0,0.75)]'
                     }`}
                   >
                     {SUPPORTED_LANGUAGES.map((lang) => (
@@ -1599,19 +1480,27 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                           setSelectedLang(lang.code);
                           setShowLangMenu(false);
                         }}
-                        className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                        className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                           selectedLang === lang.code
-                            ? 'bg-amber-500/20 text-amber-400 font-bold'
+                            ? 'font-bold'
                             : isLight
-                            ? 'hover:bg-slate-100 text-slate-700'
-                            : 'hover:bg-white/5 text-zinc-300'
+                            ? 'hover:bg-[#F6F7F9] text-[#52525B]'
+                            : 'hover:bg-[#18191E] text-[#A1A1AA]'
                         }`}
+                        style={
+                          selectedLang === lang.code
+                            ? {
+                                backgroundColor: isLight ? '#15803D14' : `${primaryColor}1A`,
+                                color: accessibleAccent,
+                              }
+                            : undefined
+                        }
                       >
                         <span className="flex items-center gap-2">
-                          <span>{lang.flag}</span>
+                          <span className="font-mono text-[10px] uppercase opacity-70 w-5 text-left">{lang.code}</span>
                           <span>{lang.label}</span>
                         </span>
-                        {selectedLang === lang.code && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                        {selectedLang === lang.code && <Check className="w-3.5 h-3.5" style={{ color: accessibleAccent }} />}
                       </button>
                     ))}
                   </div>
@@ -1627,14 +1516,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 setShowContactModal(true);
               }}
               aria-label="Notifiche e assistenza"
-              className={`touch-press min-w-[44px] min-h-[44px] rounded-full border flex items-center justify-center transition-all relative active:scale-95 cursor-pointer ${
+              className={`touch-press min-w-[44px] min-h-[44px] rounded-xl border flex items-center justify-center transition-colors relative active:scale-95 cursor-pointer ${
                 isLight
-                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
-                  : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
+                  ? 'bg-white hover:bg-[#F6F7F9] border-[#E4E6EB] text-[#52525B] hover:text-[#09090B]'
+                  : 'bg-[#111215] hover:bg-[#18191E] border-[#22242A] text-[#A1A1AA] hover:text-[#F4F4F6]'
               }`}
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#181b19] animate-pulse motion-reduce:animate-none" />
+              <span
+                className={`absolute top-2 right-2 w-2 h-2 rounded-full ring-2 ${
+                  isLight ? 'ring-white' : 'ring-[#111215]'
+                }`}
+                style={{ backgroundColor: primaryColor }}
+              />
             </button>
 
             {/* Share Button */}
@@ -1642,10 +1536,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={handleShare}
               aria-label="Condividi locale"
-              className={`touch-press min-w-[44px] min-h-[44px] rounded-full border flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
+              className={`touch-press min-w-[44px] min-h-[44px] rounded-xl border flex items-center justify-center transition-colors active:scale-95 cursor-pointer ${
                 isLight
-                  ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
-                  : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
+                  ? 'bg-white hover:bg-[#F6F7F9] border-[#E4E6EB] text-[#52525B] hover:text-[#09090B]'
+                  : 'bg-[#111215] hover:bg-[#18191E] border-[#22242A] text-[#A1A1AA] hover:text-[#F4F4F6]'
               }`}
             >
               <Share2 className="w-4 h-4" />
@@ -1659,29 +1553,26 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         <button
           type="button"
           onClick={replayNfcTap}
-          title="Tocca per riprodurre l'animazione di connessione NFC"
-          className={`${
-            nfcPhase === 'assembling' ? 'animate-assemble-badge' : 'animate-nfc-stagger-2'
-          } w-full text-left touch-press active:scale-[0.98] flex items-center justify-between px-3.5 py-2 ${getBorderRadiusClass(activeConfig.borderRadius)} backdrop-blur-md shadow-sm transition-all cursor-pointer ${
+          title="Tocca per verificare lo stato NFC"
+          className={`w-full text-left touch-press active:scale-[0.98] flex items-center justify-between px-3.5 py-2.5 ${getBorderRadiusClass(activeConfig.borderRadius)} border transition-colors cursor-pointer ${
             isLight
-              ? 'bg-white/90 border border-slate-200/90 text-slate-800 hover:bg-slate-50'
-              : 'bg-[#141715]/90 border border-white/[0.08] text-white hover:bg-[#1a1d1b]'
+              ? 'bg-white border-[#E4E6EB] text-[#09090B] hover:bg-[#F6F7F9]'
+              : 'bg-[#111215] border-[#22242A] text-[#F4F4F6] hover:bg-[#18191E]'
           }`}
           style={getBorderRadiusStyle(activeConfig.borderRadius)}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            {/* Pulsing emerald dot (animate-ping + solid dot) */}
-            <div className="relative flex h-2.5 w-2.5 items-center justify-center shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
-            </div>
+            <span
+              className="inline-flex rounded-full h-2 w-2 shrink-0"
+              style={{ backgroundColor: accessibleAccent }}
+            />
             <div className="flex items-center gap-1.5 text-xs min-w-0">
-              <span className={`font-medium shrink-0 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+              <span className={`font-medium shrink-0 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                 {activeConfig.tableBadgeLabel || 'Tavolo Connesso'}:
               </span>
               <span
-                className={`font-bold tracking-wide truncate max-w-[150px] sm:max-w-[200px] ${
-                  isLight ? 'text-slate-900' : 'text-white'
+                className={`font-bold tracking-tight truncate max-w-[150px] sm:max-w-[200px] ${
+                  isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'
                 }`}
               >
                 {device?.name || 'Tavolo Ospiti'}
@@ -1689,10 +1580,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </div>
           </div>
           <div
-            className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0`}
-            style={getBorderRadiusStyle(activeConfig.borderRadius)}
+            className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 border font-semibold shrink-0 ${getBorderRadiusClass(activeConfig.borderRadius)}`}
+            style={{
+              backgroundColor: isLight ? '#15803D12' : `${primaryColor}14`,
+              borderColor: `${accessibleAccent}35`,
+              color: accessibleAccent,
+              ...getBorderRadiusStyle(activeConfig.borderRadius),
+            }}
           >
-            <Zap className="w-2.5 h-2.5 animate-pulse" />
+            <Zap className="w-2.5 h-2.5" />
             <span>{activeConfig.tableLiveTag || 'NFC LIVE'}</span>
           </div>
         </button>
@@ -1702,11 +1598,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* ========================================================================= */}
         {activeConfig.wifiBridge?.enabled && Boolean(activeConfig.wifiBridge.ssid?.trim()) && (
           <div
-            className={`w-full p-2.5 mb-2.5 relative z-10 border transition-colors ${cardBaseClass} ${
-              nfcPhase === 'assembling' ? 'animate-assemble-badge' : 'animate-nfc-stagger-2'
-            } ${getBorderRadiusClass(activeConfig.borderRadius)}`}
+            className={`w-full p-2.5 mb-1 relative z-10 border transition-colors ${cardBaseClass} ${getBorderRadiusClass(activeConfig.borderRadius)}`}
             style={{
-              boxShadow: `0 4px 16px ${primaryColor}20`,
               ...cardCustomStyle,
               ...getBorderRadiusStyle(activeConfig.borderRadius),
             }}
@@ -1714,23 +1607,30 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className={`w-7 h-7 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center shrink-0 ${
-                    isLight ? 'bg-sky-50 text-sky-600' : 'bg-sky-500/15 text-sky-400'
+                  className={`w-8 h-8 ${getBorderRadiusClass(activeConfig.borderRadius)} border flex items-center justify-center shrink-0 ${
+                    isLight ? 'bg-[#F6F7F9] border-[#E4E6EB]' : 'bg-[#18191E] border-[#22242A]'
                   }`}
                   style={getBorderRadiusStyle(activeConfig.borderRadius)}
                 >
-                  <Wifi className="w-3.5 h-3.5 animate-pulse" />
+                  <Wifi className="w-4 h-4" style={{ color: accessibleAccent }} />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-bold truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    <span className={`text-[11px] font-bold truncate leading-tight ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
                       Wi-Fi: {activeConfig.wifiBridge.ssid}
                     </span>
-                    <span className="text-[7.5px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 shrink-0">
-                      1-Tap
+                    <span
+                      className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0"
+                      style={{
+                        backgroundColor: isLight ? '#15803D12' : `${primaryColor}14`,
+                        borderColor: `${accessibleAccent}35`,
+                        color: accessibleAccent,
+                      }}
+                    >
+                      NTAG 424
                     </span>
                   </div>
-                  <span className={`text-[8.5px] block truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                  <span className={`text-[10px] block truncate mt-0.5 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                     {activeConfig.wifiBridge.welcomeNotice || 'Connessione rapida al Wi-Fi del locale'}
                   </span>
                 </div>
@@ -1741,10 +1641,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   type="button"
                   onClick={handleOpenWifiQrModal}
                   aria-label="Mostra QR Code o Password"
-                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border transition-all cursor-pointer ${
+                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
                     isLight
-                      ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                      : 'border-white/10 text-zinc-300 hover:bg-white/10'
+                      ? 'border-[#E4E6EB] text-[#52525B] hover:bg-[#F6F7F9] hover:text-[#09090B]'
+                      : 'border-[#22242A] text-[#A1A1AA] hover:bg-[#18191E] hover:text-[#F4F4F6]'
                   }`}
                   title="Mostra QR Code o Password"
                 >
@@ -1754,16 +1654,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <button
                   type="button"
                   onClick={handleConnectWifi}
-                  className="min-h-[44px] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 cursor-pointer"
+                  className="min-h-[44px] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                   style={{
-                    backgroundColor: wifiConnected ? '#10b981' : primaryColor,
-                    color: wifiConnected ? '#ffffff' : contrastText,
+                    backgroundColor: wifiConnected ? '#15803D' : primaryColor,
+                    color: wifiConnected ? '#FFFFFF' : contrastText,
                   }}
                 >
                   {wifiConnected ? (
                     <>
                       <Check className="w-3 h-3" />
-                      <span>Connesso!</span>
+                      <span>Connesso</span>
                     </>
                   ) : (
                     <>
@@ -1787,28 +1687,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               onClick={() => hapticTap()}
               target="_blank"
               rel="noopener noreferrer"
-              className={`${
-                nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
-              } animate-hero-glow touch-press active:scale-[0.98] min-h-[48px] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left motion-reduce:animate-none`}
+              className={`touch-press active:scale-[0.98] min-h-[48px] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all hover:brightness-95 shadow-sm group relative overflow-hidden w-full text-left`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
-                boxShadow: `0 10px 28px ${primaryColor}35`,
-                '--hero-glow-1': `${primaryColor}35`,
-                '--hero-glow-2': `${primaryColor}20`,
-                '--hero-glow-strong-1': `${primaryColor}65`,
-                '--hero-glow-strong-2': `${primaryColor}40`,
                 ...getBorderRadiusStyle(activeConfig.borderRadius),
-              } as React.CSSProperties}
+              }}
             >
-              {/* Continuous Diagonal Mirror Shimmer Beam */}
-              <div
-                className={`absolute inset-0 pointer-events-none overflow-hidden ${getBorderRadiusClass(activeConfig.borderRadius)}`}
-                style={getBorderRadiusStyle(activeConfig.borderRadius)}
-              >
-                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-beam motion-reduce:hidden" />
-              </div>
-
               <div className="relative z-10 flex-1 min-w-0 pr-3">
                 {activeConfig.hero.badgeText && (
                   <div
@@ -1829,10 +1714,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
               <div className="relative z-10 shrink-0 flex items-center gap-2">
                 <div
-                  className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform`}
+                  className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-105 transition-transform`}
                   style={getBorderRadiusStyle(activeConfig.borderRadius)}
                 >
-                  <ExternalLink className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: contrastText }} />
+                  <ExternalLink className="w-5 h-5" style={{ color: contrastText }} />
                 </div>
               </div>
             </a>
@@ -1849,28 +1734,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setShowMenuModal(true);
                 }
               }}
-              className={`${
-                nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
-              } ${activeConfig.buttonGlow !== false ? 'animate-hero-glow' : ''} touch-press active:scale-[0.98] min-h-[48px] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer motion-reduce:animate-none`}
+              className={`touch-press active:scale-[0.98] min-h-[48px] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all hover:brightness-95 shadow-sm group relative overflow-hidden w-full text-left cursor-pointer`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
-                boxShadow: activeConfig.buttonGlow !== false ? `0 10px 28px ${primaryColor}35` : 'none',
-                '--hero-glow-1': `${primaryColor}35`,
-                '--hero-glow-2': `${primaryColor}20`,
-                '--hero-glow-strong-1': `${primaryColor}65`,
-                '--hero-glow-strong-2': `${primaryColor}40`,
                 ...getBorderRadiusStyle(activeConfig.borderRadius),
-              } as React.CSSProperties}
+              }}
             >
-              {/* Continuous Diagonal Mirror Shimmer Beam */}
-              <div
-                className={`absolute inset-0 pointer-events-none overflow-hidden ${getBorderRadiusClass(activeConfig.borderRadius)}`}
-                style={getBorderRadiusStyle(activeConfig.borderRadius)}
-              >
-                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-beam motion-reduce:hidden" />
-              </div>
-
               <div className="relative z-10 flex-1 min-w-0 pr-3">
                 {activeConfig.hero.badgeText && (
                   <div
@@ -1891,13 +1761,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
               <div className="relative z-10 shrink-0 flex items-center gap-2">
                 <div
-                  className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform`}
+                  className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-105 transition-transform`}
                   style={getBorderRadiusStyle(activeConfig.borderRadius)}
                 >
                   {isSalon ? (
-                    <CalendarCheck className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: contrastText }} />
+                    <CalendarCheck className="w-5 h-5" style={{ color: contrastText }} />
+                  ) : isRetail ? (
+                    <ShoppingBag className="w-5 h-5" style={{ color: contrastText }} />
                   ) : (
-                    <UtensilsCrossed className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: contrastText }} />
+                    <UtensilsCrossed className="w-5 h-5" style={{ color: contrastText }} />
                   )}
                 </div>
               </div>
@@ -1909,7 +1781,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* GRIGLIA MODULI DINAMICA (BENTO GRID CON SUPPORTO 1 E 2 COLONNE) */}
         {/* ========================================================================= */}
         <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
-          {enabledModules.map((mod, modIdx) => {
+          {enabledModules.map((mod) => {
             const isFullWidth = mod.colSpan === 2;
             const cardSpanClass = isFullWidth ? 'col-span-2' : 'col-span-1';
 
@@ -1917,77 +1789,82 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               if (mod.isCustom || mod.iconName) {
                 switch (mod.iconName) {
                   case 'Wine':
-                    return <Wine className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <Wine className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'Coffee':
-                    return <Coffee className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <Coffee className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'Music':
-                    return <Music className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <Music className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'Ticket':
-                    return <Ticket className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <Ticket className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'ShoppingBag':
-                    return <ShoppingBag className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <ShoppingBag className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'Camera':
-                    return <Camera className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <Camera className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'Heart':
                     return <Heart className="w-5 h-5 text-rose-400" />;
                   case 'HelpCircle':
-                    return <HelpCircle className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <HelpCircle className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'Globe':
-                    return <Globe className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <Globe className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'CalendarCheck':
-                    return <CalendarCheck className="w-5 h-5" style={{ color: primaryColor }} />;
+                    return <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'UtensilsCrossed':
-                    return <UtensilsCrossed className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
+                    return <UtensilsCrossed className="w-5 h-5" style={{ color: accessibleAccent }} />;
                   case 'WhatsApp':
                     return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
                   case 'Instagram':
                     return <InstagramIcon className="w-5 h-5 text-pink-500" />;
                   case 'Sparkles':
                   default:
-                    return <Zap className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
+                    return <Zap className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 }
               }
 
               switch (mod.id) {
                 case 'bookings':
-                  return <CalendarCheck className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
+                  return <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 case 'service':
                   return isSalon ? (
-                    <CalendarCheck className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />
+                    <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />
                   ) : (
-                    <BellRing className="w-5 h-5 animate-bell-swing origin-top motion-reduce:animate-none" style={{ color: primaryColor }} />
+                    <BellRing className="w-5 h-5" style={{ color: accessibleAccent }} />
                   );
                 case 'sommelier':
                   return (
                     <div className="relative">
-                      <Wine className="w-5 h-5" style={{ color: primaryColor }} />
-                      <span className="w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#141715] absolute -top-0.5 -right-0.5" />
+                      <Wine className="w-5 h-5" style={{ color: accessibleAccent }} />
+                      <span
+                        className={`w-2 h-2 rounded-full ring-2 ${isLight ? 'ring-white' : 'ring-[#18191E]'} absolute -top-0.5 -right-0.5`}
+                        style={{ backgroundColor: accessibleAccent }}
+                      />
                     </div>
                   );
                 case 'wifi':
-                  return <Wifi className="w-5 h-5 animate-pulse motion-reduce:animate-none" style={{ color: primaryColor }} />;
+                  return <Wifi className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 case 'wheel':
-                  return <Award className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
+                  return <Award className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 case 'loyalty':
-                  return <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />;
+                  return <CreditCard className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 case 'reviews':
                   return <Star className="w-5 h-5 fill-amber-400 text-amber-400" />;
                 case 'guide':
-                  return <BookOpen className="w-5 h-5" style={{ color: primaryColor }} />;
+                  return <BookOpen className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 case 'whatsapp':
                   return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
                 case 'menu':
                   return isSalon ? (
-                    <Scissors className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
+                    <Scissors className="w-5 h-5" style={{ color: accessibleAccent }} />
+                  ) : isRetail ? (
+                    <ShoppingBag className="w-5 h-5" style={{ color: accessibleAccent }} />
                   ) : (
-                    <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
+                    <UtensilsCrossed className="w-5 h-5" style={{ color: accessibleAccent }} />
                   );
                 case 'instagram':
                   return <InstagramIcon className="w-5 h-5 text-pink-500" />;
                 case 'custom_cta':
-                  return <ExternalLink className="w-5 h-5" style={{ color: primaryColor }} />;
+                  return <ExternalLink className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 default:
-                  return <CatIcon className="w-5 h-5" style={{ color: primaryColor }} />;
+                  return <CatIcon className="w-5 h-5" style={{ color: accessibleAccent }} />;
               }
             };
 
@@ -1995,8 +1872,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <>
                 <div className="flex items-start justify-between w-full mb-2">
                   <div
-                    className={`w-10 h-10 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center group-hover:scale-110 transition-transform relative ${
-                      isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.05] border border-white/5'
+                    className={`w-10 h-10 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center group-hover:scale-105 transition-transform relative ${
+                      isLight ? 'bg-[#F6F7F9] border border-[#E4E6EB]' : 'bg-[#18191E] border border-[#22242A]'
                     }`}
                     style={getBorderRadiusStyle(activeConfig.borderRadius)}
                   >
@@ -2004,11 +1881,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   </div>
                   {mod.badge && (
                     <span
-                      className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)}`}
+                      className={`text-[9px] font-mono font-extrabold uppercase tracking-wider px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)}`}
                       style={{
-                        backgroundColor: `${primaryColor}20`,
-                        color: primaryColor,
-                        border: `1px solid ${primaryColor}35`,
+                        backgroundColor: isLight ? '#15803D14' : `${primaryColor}18`,
+                        color: accessibleAccent,
+                        border: `1px solid ${accessibleAccent}35`,
                         ...getBorderRadiusStyle(activeConfig.borderRadius),
                       }}
                     >
@@ -2024,7 +1901,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       <>
                         <h3
                           className={`text-sm sm:text-base font-bold tracking-tight leading-none mb-1 truncate ${
-                            isLight ? 'text-slate-900' : 'text-white'
+                            isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'
                           }`}
                         >
                           {loc.title}
@@ -2032,7 +1909,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         {loc.subtitle && (
                           <p
                             className={`text-[11px] leading-tight truncate ${
-                              isLight ? 'text-slate-500' : 'text-zinc-400'
+                              isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'
                             }`}
                           >
                             {loc.subtitle}
@@ -2045,25 +1922,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </>
             );
 
-            const isLeft = modIdx % 2 === 0;
-            const cardAnimClass =
-              nfcPhase === 'assembling'
-                ? isFullWidth
-                  ? 'animate-assemble-hero'
-                  : isLeft
-                  ? 'animate-assemble-left'
-                  : 'animate-assemble-right'
-                : isLeft
-                ? 'animate-nfc-stagger-3'
-                : 'animate-nfc-stagger-4';
-
             const cardRadiusClass = getBorderRadiusClass(activeConfig.borderRadius);
             const cardRadiusStyle = getBorderRadiusStyle(activeConfig.borderRadius);
 
             const isCompact = activeConfig.cardDensity === 'compact';
             const densityClass = isCompact ? 'p-3 min-h-[96px] sm:min-h-[105px]' : 'p-4 min-h-[115px] sm:min-h-[125px]';
 
-            const cardClassName = `${cardSpanClass} ${cardAnimClass} touch-press active:scale-95 ${cardRadiusClass} ${densityClass} flex flex-col justify-between items-start text-left transition-all group relative overflow-hidden ${cardBaseClass}`;
+            const cardClassName = `${cardSpanClass} touch-press active:scale-[0.98] ${cardRadiusClass} ${densityClass} flex flex-col justify-between items-start text-left transition-colors group relative overflow-hidden ${cardBaseClass}`;
 
             const moduleCardStyle: React.CSSProperties = {
               ...cardCustomStyle,
@@ -2306,11 +2171,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* ========================================================================= */}
         {/* WIDE BANNER CARD (Review Shield 5-Stars & Custom CTA Banner) */}
         {/* ========================================================================= */}
-        <div
-          className={`${
-            nfcPhase === 'assembling' ? 'animate-assemble-center' : 'animate-nfc-stagger-4'
-          } space-y-2.5`}
-        >
+        <div className="space-y-2.5">
           {/* Custom CTA Banner if configured (and not already in modules) */}
           {hasCustomCta && !enabledModules.some((m) => m.id === 'custom_cta') && (
             <a
@@ -2318,35 +2179,35 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               onClick={() => hapticTap()}
               target="_blank"
               rel="noopener noreferrer"
-              className={`touch-press group relative block ${getBorderRadiusClass(activeConfig.borderRadius)} border p-3.5 transition-all active:scale-[0.98] shadow-lg overflow-hidden ${
-                isLight ? 'bg-white border-slate-200' : 'border-white/10'
+              className={`touch-press group relative block ${getBorderRadiusClass(activeConfig.borderRadius)} border p-3.5 transition-colors active:scale-[0.98] overflow-hidden ${
+                isLight ? 'bg-white border-[#E4E6EB]' : 'bg-[#111215] border-[#22242A]'
               }`}
               style={{
-                borderColor: `${primaryColor}60`,
+                borderColor: `${accessibleAccent}50`,
                 background: isLight
-                  ? `linear-gradient(135deg, ${primaryColor}15 0%, #ffffff 100%)`
-                  : `linear-gradient(135deg, ${primaryColor}20 0%, #161816 100%)`,
+                  ? `linear-gradient(135deg, ${primaryColor}10 0%, #FFFFFF 100%)`
+                  : `linear-gradient(135deg, ${primaryColor}12 0%, #111215 100%)`,
                 ...getBorderRadiusStyle(activeConfig.borderRadius),
               }}
             >
               <div className="flex items-center justify-between gap-3 min-h-[48px]">
                 <div className="min-w-0">
                   <span
-                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} mb-1`}
+                    className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider font-extrabold px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} mb-1`}
                     style={{
-                      backgroundColor: `${primaryColor}25`,
-                      color: isLight && contrastText === '#000000' ? '#09090B' : primaryColor,
+                      backgroundColor: isLight ? '#15803D14' : `${primaryColor}1A`,
+                      color: accessibleAccent,
                       ...getBorderRadiusStyle(activeConfig.borderRadius),
                     }}
                   >
                     <Zap className="w-2.5 h-2.5" /> In Evidenza
                   </span>
-                  <h3 className={`text-xs sm:text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <h3 className={`text-xs sm:text-sm font-bold truncate ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
                     {org.custom_cta_label}
                   </h3>
                 </div>
                 <div
-                  className={`w-10 h-10 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md`}
+                  className={`w-10 h-10 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}
                   style={{
                     backgroundColor: primaryColor,
                     color: contrastText,
@@ -2361,28 +2222,29 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
           {/* Interactive Review Shield Banner */}
           <div
-            className={`${getBorderRadiusClass(activeConfig.borderRadius)} border p-4 shadow-xl relative overflow-hidden ${
+            className={`${getBorderRadiusClass(activeConfig.borderRadius)} border p-4 relative overflow-hidden ${
               isLight
-                ? 'bg-white border-slate-200'
-                : 'border-white/[0.08] bg-[#141715]'
+                ? 'bg-white border-[#E4E6EB]'
+                : 'border-[#22242A] bg-[#111215]'
             }`}
             style={{
-              boxShadow: `0 8px 30px ${primaryColor}12`,
               ...getBorderRadiusStyle(activeConfig.borderRadius),
             }}
           >
             <div className="flex items-center justify-between mb-2">
-              <div className={`flex items-center gap-2 text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                <ShieldCheck className="w-4 h-4" style={{ color: isLight && contrastText === '#000000' ? '#09090B' : primaryColor }} />
+              <div className={`flex items-center gap-2 text-xs font-bold ${isLight ? 'text-[#09090B]' : 'text-[#F4F4F6]'}`}>
+                <ShieldCheck className="w-4 h-4" style={{ color: accessibleAccent }} />
                 <span>Valuta la tua esperienza</span>
               </div>
-              <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>1-Tap Google</span>
+              <span className={`text-[10px] font-mono uppercase tracking-wider font-medium ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
+                Recensione Verificata
+              </span>
             </div>
 
             {/* 5 Stars Rating Bar */}
             <div
               className={`flex items-center justify-around py-1.5 ${getBorderRadiusClass(activeConfig.borderRadius)} border ${
-                isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/5'
+                isLight ? 'bg-[#F6F7F9] border-[#E4E6EB]' : 'bg-[#09090B] border-[#22242A]'
               }`}
               style={getBorderRadiusStyle(activeConfig.borderRadius)}
             >
@@ -2396,19 +2258,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     onMouseEnter={() => setRatingHover(star)}
                     onMouseLeave={() => setRatingHover(null)}
                     onClick={() => handleRatingClick(star)}
-                    className="touch-press p-1 transition-transform hover:scale-125 active:scale-90 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center relative cursor-pointer"
+                    className="touch-press p-1 transition-transform hover:scale-110 active:scale-95 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center relative cursor-pointer"
                     aria-label={`Vota ${star} stelle`}
                   >
                     <Star
-                      style={{
-                        animationDelay: isFilled ? '0ms' : `${(star - 1) * 220}ms`,
-                      }}
-                      className={`w-7 h-7 sm:w-8 sm:h-8 transition-all motion-reduce:animate-none ${
+                      className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${
                         isFilled
-                          ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.7)] scale-115 animate-star-pop'
+                          ? 'fill-amber-400 text-amber-400 scale-110'
                           : isLight
-                          ? 'text-slate-300 fill-slate-200 animate-star-twinkle'
-                          : 'text-zinc-600 fill-zinc-800/40 animate-star-twinkle'
+                          ? 'text-[#D4D4D8] fill-[#E4E6EB]'
+                          : 'text-[#52525B] fill-[#18191E]'
                       }`}
                     />
                   </button>
@@ -2425,7 +2284,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <span>{starFeelings[activeStar]?.text}</span>
                 </span>
               ) : (
-                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+                <span className={`text-[10px] ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
                   Tocca una stella per recensire o inviare feedback
                 </span>
               )}
@@ -2436,35 +2295,33 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* Minimal Footer Info */}
         <div className="pt-2 text-center space-y-1">
           {activeConfig.footerNote && (
-            <p className={`text-[10px] sm:text-[11px] max-w-xs mx-auto ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+            <p className={`text-[10px] sm:text-[11px] max-w-xs mx-auto ${isLight ? 'text-[#52525B]' : 'text-[#71717A]'}`}>
               {activeConfig.footerNote}
             </p>
           )}
-          <footer className="text-[11px] flex items-center justify-center gap-1.5 text-zinc-500">
-            <span className={`font-medium truncate max-w-[160px] ${isLight ? 'text-slate-700' : 'text-zinc-400'}`}>
+          <footer className={`text-[11px] flex items-center justify-center gap-1.5 ${isLight ? 'text-[#52525B]' : 'text-[#71717A]'}`}>
+            <span className={`font-medium truncate max-w-[160px] ${isLight ? 'text-[#09090B]' : 'text-[#A1A1AA]'}`}>
               {org.name}
             </span>
-            <span className={isLight ? 'text-slate-400' : 'text-zinc-600'}>•</span>
+            <span className={isLight ? 'text-[#A1A1AA]' : 'text-[#52525B]'}>•</span>
             <span>Powered by</span>
-            <span className="font-bold" style={{ color: isLight && contrastText === '#000000' ? '#09090B' : primaryColor }}>RIVO</span>
+            <span className="font-mono font-bold tracking-wider" style={{ color: accessibleAccent }}>RIVO</span>
           </footer>
         </div>
 
       </div>
 
       {/* ========================================================================= */}
-      {/* DOCKED BOTTOM NAVIGATION BAR (Inspired by native app bottom dock in photo) */}
+      {/* DOCKED BOTTOM NAVIGATION BAR */}
       {/* ========================================================================= */}
       {activeConfig.showBottomDock !== false && (
         <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] inset-x-0 max-w-md mx-auto px-4 z-40 pointer-events-none">
           <nav
             aria-label="Navigazione rapida"
-            className={`pointer-events-auto border rounded-full px-4 py-1.5 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)] ${
-              nfcPhase === 'assembling' ? 'animate-assemble-dock' : ''
-            } ${
+            className={`pointer-events-auto border rounded-full px-4 py-1.5 flex items-center justify-between ${
               isLight
-                ? 'bg-white/95 text-slate-700 border-slate-200/90 shadow-[0_12px_45px_rgba(0,0,0,0.12)]'
-                : 'bg-[#141715]/95 text-zinc-300 border-white/10 shadow-[0_12px_45px_rgba(0,0,0,0.85)]'
+                ? 'bg-white/95 text-[#52525B] border-[#E4E6EB] shadow-[0_12px_36px_rgba(9,9,11,0.12)]'
+                : 'bg-[#111215]/95 text-[#A1A1AA] border-[#22242A] shadow-[0_12px_40px_rgba(0,0,0,0.85)]'
             }`}
           >
             {/* Home */}
@@ -2498,9 +2355,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               className="touch-press active:scale-95 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5 cursor-pointer"
             >
               {isSalon ? (
-                <CalendarCheck className="w-5 h-5 text-amber-400" />
+                <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />
               ) : isRetail ? (
-                <ShoppingBag className="w-5 h-5 text-amber-400" />
+                <ShoppingBag className="w-5 h-5" style={{ color: accessibleAccent }} />
               ) : (
                 <BookOpen className="w-5 h-5" />
               )}
@@ -2514,21 +2371,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               href={`/call/${code}`}
               onClick={() => hapticWaiterCall()}
               aria-label="Chiama Sala Rapido"
-              className="touch-press active:scale-90 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-2xl relative group"
+              className={`touch-press active:scale-90 w-12 h-12 -mt-6 rounded-full flex items-center justify-center transition-all shadow-lg relative group ring-4 ${
+                isLight ? 'ring-[#F6F7F9]' : 'ring-[#09090B]'
+              }`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
-                boxShadow: activeConfig.buttonGlow !== false ? `0 6px 25px ${primaryColor}65` : 'none',
               }}
             >
-              {/* Ambient radar pulse ring */}
-              {activeConfig.buttonGlow !== false && (
-                <span
-                  className="absolute inset-0 rounded-full animate-fab-pulse-ring motion-reduce:hidden pointer-events-none"
-                  style={{ backgroundColor: primaryColor }}
-                />
-              )}
-              <BellRing className="w-5 h-5 relative z-10 animate-bell-swing origin-top motion-reduce:animate-none" />
+              <BellRing className="w-5 h-5 relative z-10" />
             </Link>
 
             {/* Info & Assistenza */}
@@ -2600,7 +2451,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               }}
             >
               {/* Top Header Bar */}
-              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/40 z-10">
+              <div className="p-4 border-b border-[#22242A] flex items-center justify-between gap-2 shrink-0 bg-black/40 z-10">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0"
@@ -2612,9 +2463,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     <h3 className={`text-sm sm:text-base font-extrabold truncate ${canvaPreset.textClass}`}>
                       {canvaMenu.headerTitle || 'Menù & Specialità'}
                     </h3>
-                    <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate flex items-center gap-1.5">
+                    <p className="text-[10px] sm:text-[11px] text-[#A1A1AA] truncate flex items-center gap-1.5">
                       <span>{org.name}</span>
-                      <span className="text-zinc-600">•</span>
+                      <span className="text-[#52525B]">•</span>
                       <span className="font-semibold text-emerald-400 inline-flex items-center gap-1">
                         <MapPin className="w-3 h-3 shrink-0" aria-hidden="true" />
                         <span>{device?.name || 'Tavolo'}</span>
@@ -2629,7 +2480,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       href={org.lunch_destination_url || org.website!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="min-h-[44px] text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 inline-flex items-center gap-1 text-white transition-colors"
+                      className="min-h-[44px] text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-[#22242A] inline-flex items-center gap-1 text-white transition-colors"
                     >
                       <span>PDF / Web</span>
                       <ExternalLink className="w-3 h-3" />
@@ -2641,7 +2492,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       hapticTap();
                       setShowMenuModal(false);
                     }}
-                    className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors cursor-pointer"
+                    className="p-2 text-[#A1A1AA] hover:text-white rounded-xl bg-white/5 hover:bg-white/10 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors cursor-pointer"
                     aria-label="Chiudi menù"
                   >
                     <X className="w-5 h-5" />
@@ -2653,7 +2504,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <div className="overflow-y-auto flex-1 space-y-4 p-4 no-scrollbar">
                 {/* Cover Hero Banner */}
                 {canvaMenu.coverImageUrl ? (
-                  <div className="relative rounded-2xl overflow-hidden min-h-[140px] sm:min-h-[160px] flex flex-col justify-end p-4 border border-white/10 shadow-lg group">
+                  <div className="relative rounded-2xl overflow-hidden min-h-[140px] sm:min-h-[160px] flex flex-col justify-end p-4 border border-[#22242A] shadow-lg group">
                     <img
                       src={canvaMenu.coverImageUrl}
                       alt={canvaMenu.headerTitle || 'Cover menù'}
@@ -2671,7 +2522,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         {canvaMenu.headerTitle || 'Menù Digitale'}
                       </h2>
                       {canvaMenu.headerSubtitle && (
-                        <p className="text-xs text-zinc-200 line-clamp-2">
+                        <p className="text-xs text-[#E4E4E7] line-clamp-2">
                           {canvaMenu.headerSubtitle}
                         </p>
                       )}
@@ -2679,7 +2530,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   </div>
                 ) : (
                   <div
-                    className="p-4 rounded-2xl border border-white/10 text-left space-y-1"
+                    className="p-4 rounded-2xl border border-[#22242A] text-left space-y-1"
                     style={{ background: canvaPreset.decorStyle.cardBackground }}
                   >
                     <span
@@ -2714,7 +2565,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       <strong className="block text-[10px] uppercase tracking-wider font-extrabold" style={{ color: canvaAccent }}>
                         {canvaMenu.allowTableOrders !== false ? 'Ordinazione al Tavolo Attiva' : 'Nota della Cucina'}
                       </strong>
-                      <p className="text-zinc-200 text-[11px] leading-relaxed">
+                      <p className="text-[#E4E4E7] text-[11px] leading-relaxed">
                         {canvaMenu.orderNotice || org.ai_menu_context}
                       </p>
                     </div>
@@ -2736,13 +2587,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 {/* Search Bar & Voice Order Action */}
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Search className="w-4 h-4 text-[#A1A1AA] absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={canvaSearchQuery}
                       onChange={(e) => setCanvaSearchQuery(e.target.value)}
                       placeholder="Cerca piatti, allergeni, ingredienti..."
-                      className="w-full min-h-[44px] bg-white/[0.06] border border-white/10 rounded-xl pl-9 pr-9 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
+                      className="w-full min-h-[44px] bg-white/[0.06] border border-[#22242A] rounded-xl pl-9 pr-9 py-2.5 text-xs text-white placeholder-[#71717A] focus:outline-none transition-all"
                       style={{ borderColor: canvaSearchQuery ? canvaAccent : undefined }}
                     />
                     {canvaSearchQuery && (
@@ -2750,7 +2601,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         type="button"
                         onClick={() => setCanvaSearchQuery('')}
                         aria-label="Cancella ricerca"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] flex items-center justify-center text-[#A1A1AA] hover:text-white cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -2761,10 +2612,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <button
                     type="button"
                     onClick={handleToggleVoiceOrdering}
-                    className="min-h-[44px] px-3 py-2 rounded-xl bg-[#BFFF00]/15 hover:bg-[#BFFF00]/25 border border-[#BFFF00]/35 text-[#BFFF00] text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 cursor-pointer shadow-xs"
+                    className="min-h-[44px] px-3 py-2 rounded-xl bg-[#BFFF00]/12 hover:bg-[#BFFF00]/20 border border-[#BFFF00]/35 text-[#BFFF00] text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors active:scale-95 cursor-pointer"
                     title="Comanda Vocale AI: parla per ordinare"
                   >
-                    <Mic className="w-3.5 h-3.5 text-[#BFFF00] animate-pulse motion-reduce:animate-none" />
+                    <Mic className="w-3.5 h-3.5 text-[#BFFF00]" />
                     <span className="hidden sm:inline">Comanda Vocale</span>
                     <span className="sm:hidden">Voce</span>
                   </button>
@@ -2781,7 +2632,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     className={`shrink-0 text-[11px] px-3.5 py-1.5 rounded-xl font-semibold transition-all flex items-center gap-1.5 ${
                       canvaCategoryTab === 'tutti'
                         ? 'font-bold shadow-md'
-                        : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
+                        : 'bg-[#18191E] text-[#A1A1AA] hover:text-[#F4F4F6] border border-[#22242A]'
                     }`}
                     style={
                       canvaCategoryTab === 'tutti'
@@ -2807,7 +2658,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         className={`shrink-0 text-[11px] px-3.5 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
                           isSelected
                             ? 'font-bold shadow-md'
-                            : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
+                            : 'bg-[#18191E] text-[#A1A1AA] hover:text-[#F4F4F6] border border-[#22242A]'
                         }`}
                         style={
                           isSelected
@@ -2824,8 +2675,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
                 {/* AI Intolerance & Dietary Filter Chips */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-0.5">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider shrink-0 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" style={{ color: canvaAccent }} />
                     <span>Filtro AI:</span>
                   </span>
                   {[
@@ -2845,11 +2696,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                           hapticTap();
                           setActiveAllergyFilter(filter.id);
                         }}
-                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
+                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors shrink-0 cursor-pointer ${
                           active
-                            ? 'bg-emerald-500 text-black border-emerald-400 font-bold shadow-xs'
-                            : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
+                            ? 'font-bold'
+                            : 'bg-[#18191E] border-[#22242A] text-[#A1A1AA] hover:text-[#F4F4F6]'
                         }`}
+                        style={
+                          active
+                            ? { backgroundColor: canvaAccent, color: canvaContrastText, borderColor: canvaAccent }
+                            : undefined
+                        }
                       >
                         {filter.label}
                       </button>
@@ -2859,7 +2715,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
                 {/* Dishes Rendered by Category */}
                 {visibleCanvaCategories.length === 0 ? (
-                  <div className="text-center py-12 text-zinc-500 text-xs space-y-2">
+                  <div className="text-center py-12 text-[#71717A] text-xs space-y-2">
                     <Utensils className="w-8 h-8 mx-auto opacity-30" />
                     <p>Nessun piatto trovato per "{canvaSearchQuery}".</p>
                     <button
@@ -2890,7 +2746,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                               </p>
                             )}
                           </div>
-                          <span className="text-[10px] text-zinc-500 font-mono font-medium">
+                          <span className="text-[10px] text-[#71717A] font-mono font-medium">
                             {category.dishes.length} {category.dishes.length === 1 ? 'portata' : 'portate'}
                           </span>
                         </div>
@@ -2912,7 +2768,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                 <div className="flex gap-3 items-start">
                                   {/* Dish Image */}
                                   {dish.imageUrl && (
-                                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 border border-white/10 relative shadow-md bg-black/40">
+                                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 border border-[#22242A] relative shadow-md bg-black/40">
                                       <img
                                         src={dish.imageUrl}
                                         alt={dish.name}
@@ -2964,7 +2820,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                         {dish.tags.map((tag, idx) => (
                                           <span
                                             key={idx}
-                                            className={`text-[9px] px-2 py-0.5 rounded-md font-medium border border-white/5 ${canvaPreset.badgeBgClass} ${canvaPreset.badgeTextClass}`}
+                                            className={`text-[9px] px-2 py-0.5 rounded-md font-medium border border-[#22242A] ${canvaPreset.badgeBgClass} ${canvaPreset.badgeTextClass}`}
                                           >
                                             {getTagTranslation(tag, selectedLang)}
                                           </span>
@@ -2975,7 +2831,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                 </div>
 
                                 {/* Controls & Wine Pairing */}
-                                <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                                <div className="pt-2 border-t border-[#22242A] flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                                   {/* AI Wine Pairing Button */}
                                   <button
                                     type="button"
@@ -2991,7 +2847,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                   {canvaMenu.allowTableOrders !== false && (
                                     <div className="flex items-center gap-2 ml-auto">
                                       {inCartCount > 0 ? (
-                                        <div className="flex items-center gap-1.5 bg-white/10 rounded-xl p-1 border border-white/10">
+                                        <div className="flex items-center gap-1.5 bg-white/10 rounded-xl p-1 border border-[#22242A]">
                                           <button
                                             type="button"
                                             onClick={() => removeFromTableCart(dish.id)}
@@ -3017,7 +2873,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                         <button
                                           type="button"
                                           onClick={() => addToTableCart(dish)}
-                                          className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow border border-white/10 bg-white/5 hover:bg-white/10 text-white cursor-pointer"
+                                          className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow border border-[#22242A] bg-white/5 hover:bg-white/10 text-white cursor-pointer"
                                           style={{
                                             borderColor: `${canvaAccent}40`,
                                           }}
@@ -3041,7 +2897,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
               {/* Sticky Bottom Tray Bar inside modal */}
               {canvaMenu.allowTableOrders !== false && collabCart.isActive && (collabCart.draftCount > 0 || collabCart.sent.length > 0) && (
-                <div className="p-3 border-t border-white/10 shrink-0 z-20" style={{ background: 'rgba(15, 17, 18, 0.96)' }}>
+                <div className="p-3 border-t border-[#22242A] shrink-0 z-20" style={{ background: 'rgba(17, 18, 21, 0.96)' }}>
                   <CollaborativeFloatingBar
                     cart={collabCart}
                     tableLabel={device?.name || `Tavolo ${code}`}
@@ -3053,8 +2909,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               )}
               {canvaMenu.allowTableOrders !== false && !collabCart.isActive && totalCartCount > 0 && (
                 <div
-                  className="p-3.5 border-t border-white/10 flex items-center justify-between gap-3 shadow-2xl backdrop-blur-xl shrink-0 z-20"
-                  style={{ background: 'rgba(15, 17, 18, 0.95)' }}
+                  className="p-3.5 border-t border-[#22242A] flex items-center justify-between gap-3 shadow-2xl backdrop-blur-xl shrink-0 z-20"
+                  style={{ background: 'rgba(17, 18, 21, 0.95)' }}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
@@ -3092,7 +2948,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               )}
 
               {/* Modal Bottom Footer */}
-              <div className="p-3 bg-black/40 border-t border-white/10 flex items-center gap-2 shrink-0">
+              <div className="p-3 bg-black/40 border-t border-[#22242A] flex items-center gap-2 shrink-0">
                 <Link
                   href={`/call/${code}`}
                   onClick={() => {
@@ -3110,7 +2966,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     hapticTap();
                     setShowMenuModal(false);
                   }}
-                  className="px-4 min-h-[40px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                  className="px-4 min-h-[40px] bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-white font-semibold text-xs rounded-xl transition-colors"
                 >
                   Chiudi
                 </button>
@@ -3119,10 +2975,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           </div>
         ) : (
           <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 overscroll-contain animate-fade-in">
-            <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3">
+            <div className="w-full max-w-md bg-[#111215] border border-[#22242A] rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3">
               
               {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5">
                 <div className="flex items-center gap-2">
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
@@ -3132,7 +2988,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   </div>
                   <div>
                     <h3 className="text-sm sm:text-base font-extrabold text-white">Menù Digitale</h3>
-                    <p className="text-[10px] sm:text-[11px] text-zinc-400">{org.name}</p>
+                    <p className="text-[10px] sm:text-[11px] text-[#A1A1AA]">{org.name}</p>
                   </div>
                 </div>
 
@@ -3142,7 +2998,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       href={org.lunch_destination_url || org.website!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="min-h-[44px] text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10 inline-flex items-center gap-1 text-white"
+                      className="min-h-[44px] text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-[#22242A] inline-flex items-center gap-1 text-white"
                     >
                       <span>PDF / Web</span>
                       <ExternalLink className="w-3 h-3" />
@@ -3154,7 +3010,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       hapticTap();
                       setShowMenuModal(false);
                     }}
-                    className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                    className="p-1.5 text-[#A1A1AA] hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
                     aria-label="Chiudi menù"
                   >
                     <X className="w-5 h-5" />
@@ -3177,20 +3033,20 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     <strong className="block text-[11px] uppercase tracking-wider font-bold" style={{ color: primaryColor }}>
                       Consiglio dello Chef
                     </strong>
-                    <span className="text-zinc-200">{org.ai_menu_context}</span>
+                    <span className="text-[#E4E4E7]">{org.ai_menu_context}</span>
                   </div>
                 </div>
               )}
 
               {/* Search Bar */}
               <div className="relative">
-                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-[#71717A] absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
                   placeholder="Cerca piatti, ingredienti..."
-                  className="w-full min-h-[44px] bg-[#181b19] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none"
+                  className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-[#71717A] focus:outline-none"
                   style={{ borderColor: menuSearch ? primaryColor : undefined }}
                 />
               </div>
@@ -3218,7 +3074,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       className={`shrink-0 min-h-[44px] text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                         isSelected
                           ? 'font-bold shadow-md'
-                          : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
+                          : 'bg-white/[0.05] text-[#A1A1AA] hover:text-white border border-[#22242A]'
                       }`}
                       style={
                         isSelected
@@ -3236,14 +3092,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* Scrollable Dish List */}
               <div className="overflow-y-auto flex-1 space-y-2.5 pr-1 max-h-[48vh]">
                 {filteredMenuItems.length === 0 ? (
-                  <div className="text-center py-8 text-zinc-500 text-xs">
+                  <div className="text-center py-8 text-[#71717A] text-xs">
                     Nessun piatto trovato con questi criteri di ricerca.
                   </div>
                 ) : (
                   filteredMenuItems.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-colors space-y-1.5"
+                      className="p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-[#22242A] transition-colors space-y-1.5"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-1.5">
@@ -3267,7 +3123,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      <p className="text-[11px] text-[#A1A1AA] leading-relaxed">
                         {item.description}
                       </p>
 
@@ -3276,7 +3132,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                           {item.tags.map((tag, idx) => (
                             <span
                               key={idx}
-                              className="text-[9px] px-2 py-0.5 rounded-md bg-black/40 text-zinc-400 border border-white/5"
+                              className="text-[9px] px-2 py-0.5 rounded-md bg-black/40 text-[#A1A1AA] border border-[#22242A]"
                             >
                               {tag}
                             </span>
@@ -3289,7 +3145,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </div>
 
               {/* Bottom Quick Order Footer */}
-              <div className="pt-2 border-t border-white/10 flex items-center gap-2">
+              <div className="pt-2 border-t border-[#22242A] flex items-center gap-2">
                 <Link
                   href={`/call/${code}`}
                   onClick={() => {
@@ -3312,7 +3168,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     hapticTap();
                     setShowMenuModal(false);
                   }}
-                  className="px-4 min-h-[42px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                  className="px-4 min-h-[42px] bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-white font-semibold text-xs rounded-xl transition-colors"
                 >
                   Chiudi
                 </button>
@@ -3356,7 +3212,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <ShoppingBag className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <p className={`text-xs font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <p className={`text-xs font-bold truncate ${isLight ? 'text-[#09090B]' : 'text-white'}`}>
                   {t.tableTray} ({totalCartCount} {t.orderAtTable})
                 </p>
                 <p className="text-[11px] font-mono font-bold" style={{ color: canvaAccent }}>
@@ -3403,9 +3259,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       )}
       {showOrderModal && !collabCart.isActive && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 overscroll-contain animate-fade-in">
-          <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3.5">
+          <div className="w-full max-w-md bg-[#111215] border border-[#22242A] rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3.5">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+            <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5">
               <div className="flex items-center gap-2">
                 <div
                   className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
@@ -3415,7 +3271,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-extrabold text-white">{t.orderSummary}</h3>
-                  <p className="text-[10px] sm:text-[11px] text-zinc-400">
+                  <p className="text-[10px] sm:text-[11px] text-[#A1A1AA]">
                     {t.table}: <strong className="text-white font-semibold">{device?.name || 'Tavolo'}</strong>
                   </p>
                 </div>
@@ -3427,7 +3283,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setShowOrderModal(false);
                 }}
                 aria-label="Chiudi carrello"
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                className="p-1.5 text-[#A1A1AA] hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3440,7 +3296,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
                 <div className="space-y-1.5">
                   <h4 className="text-base font-extrabold text-white">{t.orderSentSuccess}</h4>
-                  <p className="text-xs text-zinc-300 leading-relaxed max-w-xs mx-auto">
+                  <p className="text-xs text-[#D4D4D8] leading-relaxed max-w-xs mx-auto">
                     {orderSuccessMessage}
                   </p>
                 </div>
@@ -3461,7 +3317,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 {/* Dishes in Comanda */}
                 <div className="overflow-y-auto flex-1 space-y-2.5 max-h-[40vh] pr-1">
                   {cartItems.length === 0 ? (
-                    <div className="text-center py-8 text-zinc-500 text-xs">
+                    <div className="text-center py-8 text-[#71717A] text-xs">
                       {t.emptyTrayDesc}
                     </div>
                   ) : (
@@ -3471,11 +3327,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       return (
                         <div
                           key={dish.id}
-                          className="p-3 rounded-2xl bg-white/[0.04] border border-white/5 flex items-center justify-between gap-2.5"
+                          className="p-3 rounded-2xl bg-white/[0.04] border border-[#22242A] flex items-center justify-between gap-2.5"
                         >
                           <div className="min-w-0 flex-1">
                             <h4 className="text-xs font-bold text-white truncate">{dish.name}</h4>
-                            <p className="text-[10px] text-zinc-400 font-mono tabular-nums">
+                            <p className="text-[10px] text-[#A1A1AA] font-mono tabular-nums">
                               {dish.price} cad. • Subtotale:{' '}
                               <span style={{ color: canvaAccent }} className="font-bold">
                                 {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(subtotal)}
@@ -3522,7 +3378,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
                 {/* Notes field */}
                 <div className="space-y-1.5">
-                  <label htmlFor="hub-order-notes" className="text-[11px] font-semibold text-zinc-300 block">
+                  <label htmlFor="hub-order-notes" className="text-[11px] font-semibold text-[#D4D4D8] block">
                     {t.kitchenNotes}:
                   </label>
                   <textarea
@@ -3531,7 +3387,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     onChange={(e) => setOrderNotes(e.target.value)}
                     placeholder={t.kitchenNotesPlaceholder}
                     rows={2}
-                    className="w-full bg-[#181b19] border border-white/10 rounded-xl p-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/25 resize-none"
+                    className="w-full bg-[#18191E] border border-[#22242A] rounded-xl p-2.5 text-xs text-white placeholder-[#71717A] focus:outline-none focus:border-white/25 resize-none"
                   />
                 </div>
 
@@ -3543,9 +3399,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 )}
 
                 {/* Total & Action */}
-                <div className="pt-2 border-t border-white/10 space-y-3">
+                <div className="pt-2 border-t border-[#22242A] space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400">{t.total}:</span>
+                    <span className="text-xs text-[#A1A1AA]">{t.total}:</span>
                     <span className="text-base font-extrabold font-mono tabular-nums" style={{ color: canvaAccent }}>
                       {formattedTotal}
                     </span>
@@ -3581,7 +3437,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         hapticTap();
                         setShowOrderModal(false);
                       }}
-                      className="px-4 min-h-[44px] bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl transition-colors"
+                      className="px-4 min-h-[44px] bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-white font-semibold text-xs rounded-xl transition-colors"
                     >
                       {t.close}
                     </button>
@@ -3611,8 +3467,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {showContactModal && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
-          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+          <div className="w-full max-w-sm bg-[#111215] border border-[#22242A] rounded-2xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5">
               <div className="flex items-center gap-2">
                 <div
                   className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
@@ -3622,7 +3478,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white">Info & Assistenza</h3>
-                  <p className="text-[10px] text-zinc-400">{org.name}</p>
+                  <p className="text-[10px] text-[#A1A1AA]">{org.name}</p>
                 </div>
               </div>
               <button
@@ -3632,7 +3488,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setShowContactModal(false);
                 }}
                 aria-label="Chiudi info"
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                className="p-1.5 text-[#A1A1AA] hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3640,8 +3496,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             <div className="space-y-2.5 text-xs">
               {/* Device table info */}
-              <div className="p-3 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between">
-                <span className="text-zinc-400">Postazione Attuale:</span>
+              <div className="p-3 rounded-2xl bg-black/40 border border-[#22242A] flex items-center justify-between">
+                <span className="text-[#A1A1AA]">Postazione Attuale:</span>
                 <strong className="text-white font-mono">{device?.name || code}</strong>
               </div>
 
@@ -3649,13 +3505,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {org.phone && (
                 <a
                   href={`tel:${org.phone}`}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-[#22242A] transition-colors group"
                 >
                   <div className="flex items-center gap-2.5">
                     <Phone className="w-4 h-4 text-emerald-400" />
                     <div>
                       <span className="font-bold text-white block">Telefono Locale</span>
-                      <span className="text-[10px] text-zinc-400">{org.phone}</span>
+                      <span className="text-[10px] text-[#A1A1AA]">{org.phone}</span>
                     </div>
                   </div>
                   <span className="text-[11px] text-emerald-400 font-bold group-hover:underline">Chiama</span>
@@ -3676,7 +3532,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     <WhatsAppIcon className="w-4 h-4" color="#25D366" />
                     <div>
                       <span className="font-bold text-white block">Chat WhatsApp</span>
-                      <span className="text-[10px] text-zinc-400">Messaggio rapido al locale</span>
+                      <span className="text-[10px] text-[#A1A1AA]">Messaggio rapido al locale</span>
                     </div>
                   </div>
                   <span className="text-[11px] text-emerald-400 font-bold group-hover:underline">Chat</span>
@@ -3695,7 +3551,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     <InstagramIcon className="w-4 h-4" color="#E1306C" />
                     <div>
                       <span className="font-bold text-white block">Profilo Instagram</span>
-                      <span className="text-[10px] text-zinc-400">Seguici per storie e foto</span>
+                      <span className="text-[10px] text-[#A1A1AA]">Seguici per storie e foto</span>
                     </div>
                   </div>
                   <span className="text-[11px] text-pink-400 font-bold group-hover:underline">Apri</span>
@@ -3708,13 +3564,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   href={org.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-[#22242A] transition-colors group"
                 >
                   <div className="flex items-center gap-2.5">
                     <ExternalLink className="w-4 h-4 text-sky-400" />
                     <div>
                       <span className="font-bold text-white block">Sito Web Ufficiale</span>
-                      <span className="text-[10px] text-zinc-400 truncate max-w-[180px] block">{org.website}</span>
+                      <span className="text-[10px] text-[#A1A1AA] truncate max-w-[180px] block">{org.website}</span>
                     </div>
                   </div>
                   <span className="text-[11px] text-sky-400 font-bold group-hover:underline">Apri</span>
@@ -3728,7 +3584,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 hapticTap();
                 setShowContactModal(false);
               }}
-              className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[48px] cursor-pointer"
+              className="w-full py-2.5 rounded-2xl bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-white text-xs font-bold transition-colors min-h-[48px] cursor-pointer"
             >
               Chiudi
             </button>
@@ -3741,8 +3597,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {showCityGuide && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
-          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-2xl p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+          <div className="w-full max-w-sm bg-[#111215] border border-[#22242A] rounded-2xl p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5">
               <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-white">
                 <Compass className="w-4 h-4" style={{ color: primaryColor }} />
                 <span>Guida & Luoghi Consigliati</span>
@@ -3754,21 +3610,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setShowCityGuide(false);
                 }}
                 aria-label="Chiudi guida"
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                className="p-1.5 text-[#A1A1AA] hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2 text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
+            <div className="space-y-2 text-xs text-[#D4D4D8] leading-relaxed whitespace-pre-wrap">
               {org.city_guide_text ? (
                 <p>{org.city_guide_text}</p>
               ) : (
                 <div className="text-center py-3 space-y-1.5">
-                  <p className="text-zinc-400 text-xs">
+                  <p className="text-[#A1A1AA] text-xs">
                     I consigli personalizzati su attrazioni, ristoranti convenzionati e trasporti saranno disponibili a breve.
                   </p>
-                  <p className="text-[11px] text-zinc-500">
+                  <p className="text-[11px] text-[#71717A]">
                     Chiedi direttamente alla reception per qualsiasi necessità!
                   </p>
                 </div>
@@ -3781,7 +3637,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 hapticTap();
                 setShowCityGuide(false);
               }}
-              className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[48px] cursor-pointer"
+              className="w-full py-2.5 rounded-2xl bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-white text-xs font-bold transition-colors min-h-[48px] cursor-pointer"
             >
               Chiudi Guida
             </button>
@@ -3794,8 +3650,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {activeCustomModal && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
-          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-2xl p-5 shadow-2xl space-y-3.5 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+          <div className="w-full max-w-sm bg-[#111215] border border-[#22242A] rounded-2xl p-5 shadow-2xl space-y-3.5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5">
               <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-white">
                 <Zap className="w-4 h-4" style={{ color: primaryColor }} />
                 <span>{activeCustomModal.title}</span>
@@ -3807,17 +3663,17 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setActiveCustomModal(null);
                 }}
                 aria-label="Chiudi dettagli"
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                className="p-1.5 text-[#A1A1AA] hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2 text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
+            <div className="space-y-2 text-xs text-[#D4D4D8] leading-relaxed whitespace-pre-wrap">
               {activeCustomModal.content ? (
                 <p>{activeCustomModal.content}</p>
               ) : (
-                <p className="text-zinc-500 italic">Nessun dettaglio aggiuntivo disponibile al momento.</p>
+                <p className="text-[#71717A] italic">Nessun dettaglio aggiuntivo disponibile al momento.</p>
               )}
             </div>
 
@@ -3844,7 +3700,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {upsellSuggestion && (
         <div className="fixed bottom-24 inset-x-4 max-w-sm mx-auto z-40 animate-slide-up pointer-events-auto">
-          <div className="p-3.5 rounded-2xl bg-[#141715] border border-amber-500/40 shadow-2xl flex items-center justify-between gap-3 text-white">
+          <div className="p-3.5 rounded-2xl bg-[#111215] border border-amber-500/40 shadow-2xl flex items-center justify-between gap-3 text-white">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                 <Zap className="w-4 h-4" />
@@ -3874,7 +3730,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 type="button"
                 onClick={() => setUpsellSuggestion(null)}
                 aria-label="Chiudi suggerimento"
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-[#A1A1AA] hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3888,8 +3744,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {showWinePairingModal && pairingDish && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
-          <div className="w-full max-w-sm bg-[#141615] border border-amber-500/35 rounded-2xl p-5 shadow-2xl space-y-4 text-white">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="w-full max-w-sm bg-[#111215] border border-amber-500/35 rounded-2xl p-5 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-[#22242A] pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-400 flex items-center justify-center">
                   <Wine className="w-4 h-4" />
@@ -3898,14 +3754,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <h3 className="text-sm font-bold text-white">
                     Sommelier Virtuale AI
                   </h3>
-                  <p className="text-[10px] text-zinc-400">Abbinamento per: {pairingDish.name}</p>
+                  <p className="text-[10px] text-[#A1A1AA]">Abbinamento per: {pairingDish.name}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowWinePairingModal(false)}
                 aria-label="Chiudi abbinamento"
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[#A1A1AA] hover:text-white rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3914,7 +3770,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {winePairingLoading ? (
               <div className="py-10 text-center space-y-3">
                 <Loader2 className="w-8 h-8 text-amber-400 animate-spin mx-auto" />
-                <p className="text-xs text-zinc-300">
+                <p className="text-xs text-[#D4D4D8]">
                   Il sommelier sta selezionando l&apos;abbinamento perfetto per &quot;{pairingDish.name}&quot;...
                 </p>
               </div>
@@ -3935,16 +3791,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-zinc-300 leading-relaxed italic">
+                  <p className="text-[11px] text-[#D4D4D8] leading-relaxed italic">
                     &quot;{winePairingResult.winePairing.tastingNotes}&quot;
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-white/5 border border-white/5 space-y-1">
+                <div className="p-3 rounded-xl bg-white/5 border border-[#22242A] space-y-1">
                   <strong className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
                     Perché si abbina:
                   </strong>
-                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                  <p className="text-[11px] text-[#E4E4E7] leading-relaxed">
                     {winePairingResult.winePairing.whyItWorks}
                   </p>
                 </div>
@@ -3980,8 +3836,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {showVoiceModal && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
-          <div className="w-full max-w-sm bg-[#141715] border border-[#BFFF00]/35 rounded-2xl p-6 shadow-2xl space-y-5 text-center text-white">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+          <div className="w-full max-w-sm bg-[#111215] border border-[#BFFF00]/35 rounded-2xl p-6 shadow-2xl space-y-5 text-center text-white">
+            <div className="flex items-center justify-between border-b border-[#22242A] pb-2">
               <span className="text-xs font-bold text-[#BFFF00] flex items-center gap-1.5">
                 <Mic className="w-3.5 h-3.5 animate-pulse motion-reduce:animate-none" />
                 <span>Comanda Vocale AI</span>
@@ -3990,7 +3846,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 type="button"
                 onClick={() => setShowVoiceModal(false)}
                 aria-label="Chiudi microfono"
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[#A1A1AA] hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3998,9 +3854,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {/* Pulsing Mic Graphic */}
             <div className="relative py-4 flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-[#BFFF00]/20 animate-ping motion-reduce:hidden absolute inset-0 m-auto" />
-              <div className="w-16 h-16 rounded-full bg-[#BFFF00] flex items-center justify-center shadow-lg relative z-10">
-                <Mic className="w-8 h-8 text-[#09090B] animate-pulse motion-reduce:animate-none" />
+              <div className="w-20 h-20 rounded-full bg-[#BFFF00]/12 border border-[#BFFF00]/25 absolute inset-0 m-auto" />
+              <div className="w-16 h-16 rounded-full bg-[#BFFF00] flex items-center justify-center relative z-10">
+                <Mic className="w-8 h-8 text-[#09090B]" />
               </div>
             </div>
 
@@ -4008,7 +3864,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <h3 className="text-base font-bold text-white">
                 {isVoiceListening ? 'Ti sto ascoltando...' : 'Elaborazione comanda...'}
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-[#A1A1AA]">
                 Parla liberamente, ad esempio: <br />
                 <span className="text-[#BFFF00] font-semibold italic">
                   &quot;Due margherite e una tagliata di manzo&quot;
@@ -4018,7 +3874,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {/* Live Transcript Display */}
             {voiceLiveTranscript && (
-              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-zinc-200">
+              <div className="p-3 rounded-xl bg-white/5 border border-[#22242A] text-xs font-mono text-[#E4E4E7]">
                 &quot;{voiceLiveTranscript}&quot;
               </div>
             )}
@@ -4033,7 +3889,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <button
               type="button"
               onClick={() => setShowVoiceModal(false)}
-              className="w-full min-h-[48px] py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold cursor-pointer"
+              className="w-full min-h-[48px] py-2.5 rounded-xl bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-[#E4E4E7] text-xs font-semibold cursor-pointer"
             >
               Chiudi
             </button>
@@ -4046,22 +3902,22 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {showInDiningShieldModal && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
-          <div className="w-full max-w-sm bg-[#171918] border border-amber-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+          <div className="w-full max-w-sm bg-[#111215] border border-amber-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-[#22242A] pb-2.5">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
                   <ShieldAlert className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white">Ci dispiace molto!</h3>
-                  <p className="text-[10px] text-zinc-400">Risolviamo subito al tuo tavolo</p>
+                  <p className="text-[10px] text-[#A1A1AA]">Risolviamo subito al tuo tavolo</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowInDiningShieldModal(false)}
                 aria-label="Chiudi segnalazione"
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[#A1A1AA] hover:text-white rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4073,13 +3929,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <h4 className="text-sm font-bold text-white">Segnalazione inviata al Maître!</h4>
-                <p className="text-xs text-zinc-300">
+                <p className="text-xs text-[#D4D4D8]">
                   Un responsabile dello staff sta arrivando subito al vostro tavolo per assistervi. Grazie per avercelo detto!
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-xs text-zinc-300 leading-relaxed">
+                <p className="text-xs text-[#D4D4D8] leading-relaxed">
                   Vogliamo che la tua esperienza da <strong>{org.name}</strong> sia perfetta. Dicci cosa non è andato (es. piatto freddo, cottura o tempi d&apos;attesa):
                 </p>
 
@@ -4088,14 +3944,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   value={inDiningFeedbackText}
                   onChange={(e) => setInDiningFeedbackText(e.target.value)}
                   placeholder="Es. La carne è troppo cotta / Stiamo aspettando da molto..."
-                  className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 resize-none"
+                  className="w-full bg-black/40 border border-[#22242A] rounded-xl p-3 text-xs text-white placeholder-[#71717A] focus:outline-none focus:border-amber-400 resize-none"
                 />
 
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => setShowInDiningShieldModal(false)}
-                    className="min-h-[48px] px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer"
+                    className="min-h-[48px] px-4 py-2.5 rounded-xl bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-[#D4D4D8] text-xs font-semibold cursor-pointer"
                   >
                     Annulla
                   </button>
@@ -4128,7 +3984,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 overscroll-contain animate-fade-in">
           <div
             className={`w-full max-w-sm border p-6 shadow-2xl relative space-y-4 ${
-              isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#121214] border-zinc-800 text-white'
+              isLight ? 'bg-white border-[#E4E6EB] text-[#09090B]' : 'bg-[#111215] border-[#22242A] text-white'
             } ${getBorderRadiusClass(activeConfig.borderRadius)}`}
             style={getBorderRadiusStyle(activeConfig.borderRadius)}
           >
@@ -4136,21 +3992,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={() => setWifiQrModalOpen(false)}
               aria-label="Chiudi QR Wi-Fi"
-              className="absolute top-3 right-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="absolute top-3 right-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-[#A1A1AA] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="text-center space-y-1">
               <div
-                className={`w-12 h-12 mx-auto rounded-2xl flex items-center justify-center ${
-                  isLight ? 'bg-sky-50 text-sky-600' : 'bg-sky-500/20 text-sky-400'
+                className={`w-12 h-12 mx-auto rounded-2xl border flex items-center justify-center ${
+                  isLight ? 'bg-[#F6F7F9] border-[#E4E6EB]' : 'bg-[#18191E] border-[#22242A]'
                 }`}
               >
-                <Wifi className="w-6 h-6 animate-pulse motion-reduce:animate-none" />
+                <Wifi className="w-6 h-6" style={{ color: accessibleAccent }} />
               </div>
               <h3 className="text-base font-bold">Wi-Fi Ospiti</h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-[#A1A1AA]">
                 {activeConfig.wifiBridge.welcomeNotice || 'Inquadra il QR con la fotocamera per connetterti'}
               </p>
             </div>
@@ -4164,16 +4020,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             <div
               className={`p-3 rounded-xl border text-xs space-y-1 ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900 border-zinc-800'
+                isLight ? 'bg-[#F6F7F9] border-[#E4E6EB]' : 'bg-[#18191E] border-[#22242A]'
               }`}
             >
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">Rete:</span>
+                <span className="text-[#A1A1AA]">Rete:</span>
                 <span className="font-bold">{activeConfig.wifiBridge.ssid}</span>
               </div>
               {activeConfig.wifiBridge.password && (
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-400">Password:</span>
+                  <span className="text-[#A1A1AA]">Password:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono font-bold">{activeConfig.wifiBridge.password}</span>
                     <button
@@ -4186,7 +4042,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                           setTimeout(() => setWifiPasswordCopied(false), 2000);
                         } catch {}
                       }}
-                      className="min-h-[44px] px-2.5 py-1 rounded bg-zinc-800 text-[10px] text-zinc-200 hover:text-white cursor-pointer"
+                      className="min-h-[44px] px-2.5 py-1 rounded bg-[#18191E] border border-[#22242A] text-[10px] text-[#E4E4E7] hover:text-white cursor-pointer"
                     >
                       {wifiPasswordCopied ? 'Copiata!' : 'Copia'}
                     </button>
@@ -4216,7 +4072,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {collabToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-sm animate-fade-in pointer-events-none">
-          <div className="px-4 py-2.5 rounded-2xl bg-[#111413]/95 border border-emerald-400/40 shadow-2xl text-xs font-extrabold text-white text-center backdrop-blur-md">
+          <div className="px-4 py-2.5 rounded-2xl bg-[#111215]/95 border border-emerald-400/40 shadow-2xl text-xs font-extrabold text-white text-center backdrop-blur-md">
             {collabToast}
           </div>
         </div>

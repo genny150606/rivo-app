@@ -104,7 +104,7 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
   if (loading) {
     return (
       <div className="min-h-screen min-h-dvh bg-[#09090B] flex items-center justify-center p-4">
-        <div className="w-14 h-14 rounded-2xl bg-[#111114] border border-[#27272A] flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-[#111215] border border-[#22242A] flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-[#BFFF00] animate-spin motion-reduce:animate-none" />
         </div>
       </div>
@@ -113,15 +113,15 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
 
   if (!device) {
     return (
-      <div className="min-h-screen min-h-dvh bg-[#09090B] text-white flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col items-center justify-center p-4 text-center">
         <div className="w-14 h-14 rounded-2xl border border-red-500/20 bg-red-500/10 flex items-center justify-center mb-3 text-red-400">
           <AlertCircle className="w-7 h-7" />
         </div>
         <h2 className="text-lg font-bold">Dispositivo non trovato</h2>
-        <p className="text-xs text-zinc-400 max-w-xs mb-4">Questo chip non risulta attivo o registrato.</p>
+        <p className="text-xs text-[#A1A1AA] max-w-xs mb-4">Questo chip non risulta attivo o registrato.</p>
         <Link
           href={`/hub/${code}`}
-          className="min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18181B] border border-[#27272A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center"
+          className="min-h-[48px] px-5 py-2.5 rounded-xl bg-[#18191E] border border-[#22242A] hover:border-white/20 text-white text-xs font-semibold inline-flex items-center justify-center"
         >
           Torna all&apos;Hub
         </Link>
@@ -130,18 +130,18 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
   }
 
   return (
-    <div className="min-h-screen min-h-dvh bg-[#09090B] text-[#FAFAFA] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
+    <div className="min-h-screen min-h-dvh bg-[#09090B] bg-rivo-grid text-[#F4F4F6] flex flex-col justify-between p-4 sm:p-5 overflow-x-hidden relative selection:bg-[#BFFF00] selection:text-[#09090B]">
       {/* TOP NAVIGATION: BACK TO HUB */}
       <nav className="w-full max-w-md mx-auto flex items-center justify-between gap-2 z-10 pb-2">
         <Link
           href={`/hub/${code}`}
-          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111114] hover:bg-[#18181B] border border-[#27272A] text-xs font-semibold text-zinc-200 hover:text-white transition-colors active:scale-95"
+          className="inline-flex items-center gap-1.5 px-3.5 min-h-[48px] rounded-xl bg-[#111215] hover:bg-[#18191E] border border-[#22242A] text-xs font-semibold text-[#E4E4E7] hover:text-white transition-colors active:scale-95"
         >
           <ArrowLeft className="w-4 h-4 text-[#BFFF00]" />
           <span>Torna all&apos;Hub</span>
         </Link>
 
-        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400 truncate max-w-[170px]">
+        <span className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA] truncate max-w-[170px]">
           <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
           <span className="text-white font-semibold truncate">{device.name}</span>
         </span>
@@ -154,27 +154,27 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
           <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
             {org?.name || 'Wi-Fi Ospiti'}
           </h1>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-[#A1A1AA]">
             Connessione ultra-rapida gratuita riservata ai clienti
           </p>
         </div>
 
         {!wifiCreds ? (
           /* CONNECT FORM */
-          <div className="rounded-2xl border border-[#27272A] bg-[#111114] p-4 sm:p-5 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-[#27272A]">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
+          <div className="rounded-2xl border border-[#22242A] bg-[#111215] p-4 sm:p-5 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-[#22242A]">
+              <div className="w-10 h-10 rounded-xl bg-[#18191E] border border-[#22242A] text-[#BFFF00] flex items-center justify-center shrink-0">
                 <Wifi className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs sm:text-sm font-bold text-white">Accesso 1-Tap</h3>
-                <p className="text-[11px] text-zinc-400">Inserisci i tuoi dati per sbloccare la password</p>
+                <h3 className="text-xs sm:text-sm font-bold text-[#F4F4F6]">Accesso Wi-Fi Ospiti</h3>
+                <p className="text-[11px] text-[#A1A1AA]">Inserisci i tuoi dati per sbloccare la password</p>
               </div>
             </div>
 
             <form onSubmit={handleConnect} className="space-y-3">
               <div>
-                <label htmlFor="wifi-name" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                <label htmlFor="wifi-name" className="block text-[11px] font-medium text-[#D4D4D8] mb-1">
                   Nome (Opzionale)
                 </label>
                 <input
@@ -183,12 +183,12 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Es. Mario"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                  className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl px-3 text-xs text-white placeholder-[#71717A] focus:outline-none focus:border-[#BFFF00]"
                 />
               </div>
 
               <div>
-                <label htmlFor="wifi-contact" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                <label htmlFor="wifi-contact" className="block text-[11px] font-medium text-[#D4D4D8] mb-1">
                   Cellulare o Email <span className="text-[#BFFF00]">*</span>
                 </label>
                 <input
@@ -198,7 +198,7 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                   placeholder="Es. 333 1234567 oppure mario@email.it"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                  className="w-full min-h-[44px] bg-[#18191E] border border-[#22242A] rounded-xl px-3 text-xs text-white placeholder-[#71717A] focus:outline-none focus:border-[#BFFF00]"
                 />
               </div>
 
@@ -214,7 +214,7 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
           </div>
         ) : (
           /* CREDENTIALS UNLOCKED */
-          <div className="rounded-2xl border border-emerald-500/40 bg-[#111114] p-5 text-center space-y-4 shadow-2xl animate-fade-in">
+          <div className="rounded-2xl border border-emerald-500/40 bg-[#111215] p-5 text-center space-y-4 shadow-2xl animate-fade-in">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-6 h-6" />
             </div>
@@ -226,17 +226,17 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
               <h2 className="text-base sm:text-lg font-extrabold text-white mt-0.5">Credenziali Wi-Fi Ufficiali</h2>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-[#09090B] border border-[#27272A] space-y-3 text-left">
+            <div className="p-3.5 rounded-xl bg-[#09090B] border border-[#22242A] space-y-3 text-left">
               <div>
-                <span className="text-[10px] font-mono text-zinc-400 uppercase block font-semibold">
+                <span className="text-[10px] font-mono text-[#A1A1AA] uppercase block font-semibold">
                   NOME RETE (SSID)
                 </span>
                 <span className="text-sm font-bold font-mono text-white block mt-0.5">{wifiCreds.ssid}</span>
               </div>
 
-              <div className="pt-2.5 border-t border-[#27272A] flex items-center justify-between gap-2">
+              <div className="pt-2.5 border-t border-[#22242A] flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase block font-semibold">
+                  <span className="text-[10px] font-mono text-[#A1A1AA] uppercase block font-semibold">
                     PASSWORD
                   </span>
                   <span className="text-sm font-bold font-mono text-[#BFFF00] block mt-0.5 truncate tabular-nums">
@@ -247,7 +247,7 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
                 <button
                   type="button"
                   onClick={copyPassword}
-                  className="px-3.5 min-h-[48px] rounded-xl bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] text-zinc-100 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                  className="px-3.5 min-h-[48px] rounded-xl bg-[#18191E] hover:bg-[#22242A] border border-[#22242A] text-[#F4F4F6] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>{copied ? 'Copiata!' : 'Copia'}</span>
@@ -267,7 +267,7 @@ export default function WifiAccessPage({ params }: WifiPageProps) {
 
       {/* Hardware RIVO Footer Badge */}
       <footer className="w-full max-w-md mx-auto pt-4 pb-2 flex items-center justify-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111215] border border-[#22242A] text-[11px] font-mono text-[#A1A1AA]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
           <span>Connessione Wi-Fi Smart • Powered by</span>
           <strong className="text-white font-bold tracking-wide">RIVO</strong>
