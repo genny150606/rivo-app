@@ -624,6 +624,15 @@ function normalizeLegacyAccent(color?: string | null): string | undefined {
   return trimmed;
 }
 
+function sanitizeLegacySubtitle(subtitle?: string, fallback = ''): string {
+  const val = subtitle ?? fallback;
+  const lower = val.trim().toLowerCase();
+  if (lower === 'accesso rapido 1-tap') {
+    return 'Accesso Wi-Fi ospite';
+  }
+  return val;
+}
+
 export function mergeHubConfig(
   rawConfig: unknown,
   category: BusinessCategory = 'restaurant',
@@ -636,7 +645,7 @@ export function mergeHubConfig(
 ): HubConfig {
   const defaults = getDefaultHubConfig(category);
 
-  if (!rawConfig || typeof rawConfig !== 'object') {
+  if (!rawConfig || typeof rawConfig !== 'object' || Object.keys(rawConfig as object).length === 0) {
     // Fill from legacy fields if present
     const res = { ...defaults };
     const normalizedLegacy = normalizeLegacyAccent(legacyFields?.primaryColor);
@@ -663,16 +672,25 @@ export function mergeHubConfig(
   for (const saved of savedModules) {
     if (saved && saved.id) {
       const def = defaultList.find((m) => m.id === saved.id);
+      const isCustomModule = Boolean(saved.isCustom);
+      const preservedIconName =
+        saved.iconName && saved.iconName !== 'Sparkles'
+          ? saved.iconName
+          : isCustomModule
+          ? 'Wand2'
+          : def?.iconName;
+      const rawBadge = saved.badge ?? def?.badge ?? '';
+
       mergedModules.push({
         id: saved.id,
         enabled: saved.enabled ?? def?.enabled ?? true,
         order: typeof saved.order === 'number' ? saved.order : mergedModules.length + 1,
         title: saved.title || def?.title || saved.id,
-        subtitle: saved.subtitle ?? def?.subtitle ?? '',
-        badge: saved.badge ?? def?.badge ?? '',
+        subtitle: sanitizeLegacySubtitle(saved.subtitle, def?.subtitle ?? ''),
+        badge: rawBadge === '1-Tap' ? 'Rapido' : rawBadge,
         customUrl: saved.customUrl || def?.customUrl || '',
-        isCustom: saved.isCustom ?? false,
-        iconName: saved.iconName || 'Sparkles',
+        isCustom: isCustomModule,
+        iconName: preservedIconName,
         actionType: saved.actionType || 'link',
         modalTitle: saved.modalTitle || saved.title,
         modalContent: saved.modalContent || '',
@@ -746,7 +764,12 @@ export function mergeHubConfig(
     bgImageUrl: conf.bgImageUrl || '',
     bgBlur: typeof conf.bgBlur === 'number' ? conf.bgBlur : 8,
     bgOverlayOpacity: typeof conf.bgOverlayOpacity === 'number' ? conf.bgOverlayOpacity : 50,
-    bgGradientStops: conf.bgGradientStops || ['#09090B', '#111215'],
+    bgGradientStops: Array.isArray(conf.bgGradientStops)
+      ? ([
+          conf.bgGradientStops[0] === '#0c0f0d' ? '#09090B' : conf.bgGradientStops[0],
+          conf.bgGradientStops[1] === '#1a241b' ? '#111215' : conf.bgGradientStops[1],
+        ] as [string, string])
+      : ['#09090B', '#111215'],
     borderRadius: conf.borderRadius || '2xl',
     // Advanced Customization Controls
     cardDensity: conf.cardDensity || 'comfortable',

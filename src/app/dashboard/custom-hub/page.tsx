@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -58,6 +58,7 @@ import {
   Crown,
   Building,
   Printer,
+  BookOpen,
 } from 'lucide-react';
 import { HUB_FONT_CLASSES } from '@/lib/hub-fonts';
 import { cn } from '@/lib/cn';
@@ -108,6 +109,12 @@ interface DeviceOption {
   unique_code: string;
 }
 
+interface AdminOrgOption {
+  id: string;
+  name: string;
+  category: BusinessCategory;
+}
+
 type StudioTab = 'theme' | 'atmosphere' | 'modules' | 'hero' | 'services' | 'reviews' | 'contacts';
 
 export default function CustomHubStudioPage() {
@@ -117,7 +124,9 @@ export default function CustomHubStudioPage() {
   const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Business ID & Active Devices
+  // Business ID & Active Devices (with Admin multi-org support)
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [adminOrgs, setAdminOrgs] = useState<AdminOrgOption[]>([]);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [devices, setDevices] = useState<DeviceOption[]>([]);
   const [selectedDeviceCode, setSelectedDeviceCode] = useState<string>('');
@@ -256,8 +265,8 @@ export default function CustomHubStudioPage() {
   const [shimmerKey, setShimmerKey] = useState(0);
   const isInitialLoadDone = useRef(false);
 
-  // Mockup NFC Tap Simulator Animation
-  const [mockupNfcPhase, setMockupNfcPhase] = useState<'idle' | 'sensing' | 'synced' | 'assembling'>('idle');
+  // Mockup NFC Tap Simulator
+  const [mockupNfcPhase, setMockupNfcPhase] = useState<'idle' | 'sensing' | 'synced'>('idle');
   const triggerMockupNfcTap = () => {
     hapticNfcPulse();
     setMockupNfcPhase('sensing');
@@ -265,12 +274,9 @@ export default function CustomHubStudioPage() {
       setMockupNfcPhase('synced');
       hapticSuccess();
       setTimeout(() => {
-        setMockupNfcPhase('assembling');
-        setTimeout(() => {
-          setMockupNfcPhase('idle');
-        }, 850);
-      }, 450);
-    }, 400);
+        setMockupNfcPhase('idle');
+      }, 750);
+    }, 350);
   };
 
   // Reset Factory Settings to Original Hub with Direct Persistence
@@ -439,43 +445,23 @@ export default function CustomHubStudioPage() {
     return () => clearTimeout(timer);
   }, [hubConfig.primaryColor, hubConfig.themeMode, hubConfig.fontFamily, hubConfig.cardStyle, logoUrl, loading]);
 
-  // Load Organization & Devices
-  useEffect(() => {
-    async function loadData() {
+  // Reusable Organization & Devices Loader (supports multi-org admin switching)
+  const loadOrgById = useCallback(
+    async (targetOrgId: string) => {
       setLoading(true);
+      setErrorMsg(null);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('organization_id, role')
-          .eq('auth_user_id', user.id)
-          .single();
-
-        let targetOrgId = profile?.organization_id;
-        if (!targetOrgId && profile?.role === 'admin') {
-          const { data: firstOrg } = await supabase
-            .from('organizations')
-            .select('id')
-            .limit(1)
-            .single();
-          targetOrgId = firstOrg?.id;
-        }
-
-        if (!targetOrgId) {
-          setLoading(false);
-          return;
-        }
-
         setOrgId(targetOrgId);
 
-        // Fetch Organization data
-        const { data: org, error: orgErr } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', targetOrgId)
-          .single();
+        const [{ data: org, error: orgErr }, { data: devList }] = await Promise.all([
+          supabase.from('organizations').select('*').eq('id', targetOrgId).single(),
+          supabase
+            .from('devices')
+            .select('id, name, unique_code')
+            .eq('organization_id', targetOrgId)
+            .eq('status', 'active')
+            .order('created_at', { ascending: true }),
+        ]);
 
         if (orgErr) throw orgErr;
 
@@ -486,7 +472,6 @@ export default function CustomHubStudioPage() {
           const cat = (org.category || 'restaurant') as BusinessCategory;
           setCategory(cat);
 
-          // Populate complete HubConfig state using mergeHubConfig
           const merged = mergeHubConfig(org.hub_config, cat, {
             primaryColor: org.primary_color,
             customCtaLabel: org.custom_cta_label,
@@ -495,7 +480,6 @@ export default function CustomHubStudioPage() {
           });
           setHubConfig(merged);
 
-          // Services
           const loadedWifiSsid = merged.wifiBridge?.ssid || org.wifi_ssid || '';
           const loadedWifiPassword = merged.wifiBridge?.password || org.wifi_password || '';
           setWifiSsid(loadedWifiSsid);
@@ -503,35 +487,27 @@ export default function CustomHubStudioPage() {
           setAiMenuContext(org.ai_menu_context || '');
           setLoyaltyRewardText(org.loyalty_reward_text || '10% di sconto al 10° timbro');
 
-          // Telegram Staff Alerts
           setTelegramAlertsEnabled(org.telegram_alerts_enabled ?? false);
           setTelegramToken(org.telegram_bot_token || '');
           setTelegramChatId(org.telegram_chat_id || '');
 
-          // Review Shield & Promo
           setReviewShieldEnabled(org.review_shield_enabled ?? true);
           setGoogleReviewUrl(org.google_review_url || '');
           setCustomCtaLabel(org.custom_cta_label || '');
           setCustomCtaUrl(org.custom_cta_url || '');
 
-          // Contacts
           setPhone(org.phone || '');
           setWhatsappNumber(org.whatsapp_number || '');
           setWebsite(org.website || '');
           setInstagramUrl(org.instagram_url || '');
         }
 
-        // Fetch active devices for this org
-        const { data: devList } = await supabase
-          .from('devices')
-          .select('id, name, unique_code')
-          .eq('organization_id', targetOrgId)
-          .eq('status', 'active')
-          .order('created_at', { ascending: true });
-
         if (devList && devList.length > 0) {
           setDevices(devList);
           setSelectedDeviceCode(devList[0].unique_code);
+        } else {
+          setDevices([]);
+          setSelectedDeviceCode('');
         }
       } catch (err) {
         console.error('Error loading Custom Hub data:', err);
@@ -539,10 +515,69 @@ export default function CustomHubStudioPage() {
       } finally {
         setLoading(false);
       }
+    },
+    [supabase]
+  );
+
+  // Initial Load (checks URL ?orgId= for Admin inspection or falls back cleanly)
+  useEffect(() => {
+    async function initStudio() {
+      setLoading(true);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id, role')
+          .eq('auth_user_id', user.id)
+          .single();
+
+        const isAdmin = profile?.role === 'admin';
+        setIsAdminUser(isAdmin);
+
+        let targetOrgId = profile?.organization_id || '';
+        const queryOrgId =
+          typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('orgId') : null;
+
+        if (isAdmin) {
+          const { data: orgList } = await supabase
+            .from('organizations')
+            .select('id, name, category')
+            .order('name', { ascending: true });
+
+          if (orgList && orgList.length > 0) {
+            setAdminOrgs(orgList as AdminOrgOption[]);
+            if (queryOrgId && orgList.some((o) => o.id === queryOrgId)) {
+              targetOrgId = queryOrgId;
+            } else if (!targetOrgId) {
+              targetOrgId = orgList[0].id;
+            }
+          }
+        } else if (queryOrgId && queryOrgId === profile?.organization_id) {
+          targetOrgId = queryOrgId;
+        }
+
+        if (!targetOrgId) {
+          setLoading(false);
+          return;
+        }
+
+        await loadOrgById(targetOrgId);
+      } catch (err) {
+        console.error('Error initializing Custom Hub studio:', err);
+        setErrorMsg('Impossibile caricare le configurazioni del Custom Hub');
+        setLoading(false);
+      }
     }
 
-    loadData();
-  }, [supabase]);
+    initStudio();
+  }, [supabase, loadOrgById]);
 
   // Handle Logo Upload
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -760,53 +795,58 @@ export default function CustomHubStudioPage() {
   const contrastText = getContrastColor(hubConfig.primaryColor);
   const catDef = getCategoryDefinition(category);
   const CatIcon = catDef.icon;
+  const isRetailStudio = category === 'retail' || category === 'store' || (category as string) === 'shoe_store';
+  const isSalonStudio = category === 'salon' || category === 'barber' || category === 'beauty';
 
-  // Helper for Lucide module icon
-  const getModuleIcon = (id: HubModuleId, iconName?: string) => {
-    if (iconName) {
-      switch (iconName) {
-        case 'Wine': return Wine;
-        case 'Coffee': return Coffee;
-        case 'Music': return Music;
-        case 'Ticket': return Ticket;
-        case 'ShoppingBag': return ShoppingBag;
-        case 'Camera': return Camera;
-        case 'Heart': return Heart;
-        case 'HelpCircle': return HelpCircle;
-        case 'Globe': return Globe;
-        case 'CalendarCheck': return CalendarCheck;
-        case 'UtensilsCrossed': return UtensilsCrossed;
-        case 'WhatsApp': return WhatsAppIcon;
-        case 'Instagram': return InstagramIcon;
-        case 'Award': return Award;
-        case 'Wand2':
-        case 'Sparkles':
-        default:
-          return Wand2;
+  // Helper for Lucide module icon (prioritizes semantic built-in module IDs over saved legacy iconName)
+  const getModuleIcon = (id: HubModuleId, iconName?: string, isCustom?: boolean) => {
+    if (!isCustom) {
+      switch (id) {
+        case 'bookings':
+          return CalendarCheck;
+        case 'menu':
+          return isSalonStudio ? CalendarCheck : isRetailStudio ? ShoppingBag : UtensilsCrossed;
+        case 'service':
+          return isSalonStudio ? CalendarCheck : BellRing;
+        case 'sommelier':
+          return Wine;
+        case 'wifi':
+          return Wifi;
+        case 'wheel':
+          return Award;
+        case 'loyalty':
+          return CreditCard;
+        case 'reviews':
+          return Star;
+        case 'guide':
+          return BookOpen;
+        case 'instagram':
+          return InstagramIcon;
+        case 'whatsapp':
+          return WhatsAppIcon;
+        case 'custom_cta':
+          return ArrowUpRight;
       }
     }
-    switch (id) {
-      case 'menu':
-        return UtensilsCrossed;
-      case 'service':
-        return BellRing;
-      case 'sommelier':
-        return Wine;
-      case 'wifi':
-        return Wifi;
-      case 'wheel':
-        return Award;
-      case 'loyalty':
-        return CreditCard;
-      case 'reviews':
-        return Star;
-      case 'guide':
-        return Compass;
-      case 'instagram':
-        return InstagramIcon;
-      case 'whatsapp':
-        return WhatsAppIcon;
-      case 'custom_cta':
+
+    switch (iconName) {
+      case 'Wine': return Wine;
+      case 'Coffee': return Coffee;
+      case 'Music': return Music;
+      case 'Ticket': return Ticket;
+      case 'ShoppingBag': return ShoppingBag;
+      case 'Camera': return Camera;
+      case 'Heart': return Heart;
+      case 'HelpCircle': return HelpCircle;
+      case 'Globe': return Globe;
+      case 'CalendarCheck': return CalendarCheck;
+      case 'UtensilsCrossed': return UtensilsCrossed;
+      case 'WhatsApp': return WhatsAppIcon;
+      case 'Instagram': return InstagramIcon;
+      case 'Award': return Award;
+      case 'Wand2':
+      case 'Sparkles':
+        return Wand2;
       default:
         return ArrowUpRight;
     }
@@ -835,74 +875,47 @@ export default function CustomHubStudioPage() {
     }
   };
 
+  const enabledModulesCount = hubConfig.modules.filter((m) => m.enabled).length;
+
   return (
-    <div className={cn('space-y-6 max-w-7xl mx-auto pb-24 lg:pb-6 animate-fade-in', HUB_FONT_CLASSES)}>
-      {/* Header & Global Actions */}
+    <div className={cn('space-y-5 max-w-7xl mx-auto pb-24 lg:pb-8 animate-fade-in', HUB_FONT_CLASSES)}>
+      {/* Header & Clean Primary Studio Actions */}
       <PageHeader
         eyebrow="NFC & QR Experience"
         eyebrowTone="volt"
         title="Custom Hub Studio"
         badge={<StatusBadge tone="volt" shape="tag" mono>Live Editor</StatusBadge>}
-        description="Personalizza l'interfaccia mobile che i tuoi clienti vedono istantaneamente al tap del chip NFC o scansione QR al tavolo."
+        description="Configura l'interfaccia mobile servita dai chip NFC NTAG 424 e QR Code al tavolo o in cassa."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {/* Community Hub Catalog Trigger */}
-            <button
-              type="button"
-              onClick={() => setShowCatalogModal(true)}
-              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--accent-telemetry-bg)] hover:bg-[var(--bg-elevated)] text-[var(--accent-telemetry-text)] text-xs font-bold border border-[var(--accent-telemetry-border)] transition-all active:scale-95 touch-press cursor-pointer"
-              title="Sfoglia il catalogo di Hub d'autore pronti all'uso o condividi il tuo"
-            >
-              <Globe className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Catalogo Hub</span>
-            </button>
-
-            {/* Share to Catalog Trigger */}
-            <button
-              type="button"
-              onClick={() => {
-                setShareTplName(`${name || 'Locale'} Signature`);
-                setShareTplAuthor(name || 'Creatore RIVO');
-                setShowShareCatalogModal(true);
-              }}
-              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--accent-warning-bg)] hover:bg-[var(--bg-elevated)] text-[var(--accent-warning-text)] text-xs font-bold border border-[var(--accent-warning-border)] transition-all active:scale-95 touch-press cursor-pointer"
-              title="Condividi il design del tuo Hub nel catalogo pubblico"
-            >
-              <Share2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Condividi Hub</span>
-            </button>
-
-            {/* AI Brand Architect Trigger */}
             <button
               type="button"
               onClick={() => setShowAiModal(true)}
-              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--accent-telemetry-bg)] hover:bg-[var(--bg-elevated)] text-[var(--accent-telemetry-text)] text-xs font-bold border border-[var(--accent-telemetry-border)] transition-all active:scale-95 touch-press cursor-pointer"
-              title="Genera il tema e i testi ideali con un prompt libero con l'AI"
+              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] hover:border-[var(--rivo-volt-border)] transition-colors cursor-pointer"
+              title="Genera tema e moduli da un prompt testuale con AI"
             >
-              <Wand2 className="w-3.5 h-3.5 shrink-0" />
+              <Wand2 className="w-3.5 h-3.5 text-[var(--rivo-volt-text)] shrink-0" />
               <span className="hidden sm:inline">AI Architect</span>
             </button>
 
-            {/* Table Stand & NFC Print Trigger */}
+            <button
+              type="button"
+              onClick={() => setShowCatalogModal(true)}
+              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+              title="Sfoglia il catalogo di preset d'autore"
+            >
+              <Globe className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
+              <span className="hidden sm:inline">Catalogo</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setShowPrintModal(true)}
-              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--accent-operational-bg)] hover:bg-[var(--bg-elevated)] text-[var(--accent-operational-text)] text-xs font-bold border border-[var(--accent-operational-border)] transition-all active:scale-95 touch-press cursor-pointer"
-              title="Stampa stand da tavolo in plexiglass e adesivi NFC personalizzati"
+              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+              title="Stampa stand da tavolo in plexiglass e adesivi NFC"
             >
-              <Printer className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Stampa Stand NFC</span>
-            </button>
-
-            {/* Reset to Original Hub Trigger */}
-            <button
-              type="button"
-              onClick={() => setShowResetModal(true)}
-              className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--accent-critical-bg)] hover:bg-[var(--bg-elevated)] text-[var(--accent-critical-text)] text-xs font-bold border border-[var(--accent-critical-border)] transition-all active:scale-95 touch-press cursor-pointer"
-              title="Ripristina l'Hub originale di fabbrica con le dovute conferme"
-            >
-              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Ripristina Hub</span>
+              <Printer className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
+              <span className="hidden sm:inline">Stampa NFC</span>
             </button>
 
             {selectedDeviceCode && (
@@ -910,17 +923,17 @@ export default function CustomHubStudioPage() {
                 href={`/hub/${selectedDeviceCode}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-[40px] items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-all active:scale-95 touch-press cursor-pointer"
+                className="inline-flex min-h-[40px] items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
               >
-                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden md:inline">Apri Hub Reale</span>
+                <ExternalLink className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
+                <span className="hidden md:inline">Apri Live</span>
               </a>
             )}
 
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || loading}
               className="inline-flex min-h-[40px] items-center gap-2 px-5 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-extrabold text-xs transition-all active:scale-95 disabled:opacity-50 touch-press cursor-pointer disabled:cursor-not-allowed"
             >
               {saving ? (
@@ -943,6 +956,80 @@ export default function CustomHubStudioPage() {
           </div>
         }
       />
+
+      {/* Studio Control Bar: Admin Multi-Tenant Switcher + Active Spec Strip + Utility Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+          {isAdminUser && adminOrgs.length > 0 && (
+            <div className="flex items-center gap-2 pr-3 border-r border-[var(--border-subtle)] min-w-0">
+              <Building className="w-4 h-4 text-[var(--rivo-volt-text)] shrink-0" aria-hidden="true" />
+              <select
+                aria-label="Seleziona attività da personalizzare"
+                value={orgId || ''}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  if (nextId && nextId !== orgId) {
+                    loadOrgById(nextId);
+                  }
+                }}
+                className="min-h-[36px] bg-[var(--bg-subtle)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1 text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] cursor-pointer max-w-[220px] truncate"
+              >
+                {adminOrgs.map((o) => (
+                  <option key={o.id} value={o.id} className="bg-[var(--bg-surface)] text-[var(--text-primary)]">
+                    {o.name} ({o.category})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Live Spec Telemetry Chips */}
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono tabular-nums text-[var(--text-secondary)]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+              <span
+                className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0"
+                style={{ backgroundColor: hubConfig.primaryColor }}
+              />
+              <span className="text-[var(--text-primary)] font-semibold">{hubConfig.primaryColor}</span>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+              Tema: <strong className="text-[var(--text-primary)]">{activeTheme.name}</strong>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+              Font: <strong className="text-[var(--text-primary)]">{activeFont.name}</strong>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+              Moduli: <strong className="text-[var(--text-primary)]">{enabledModulesCount}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setShareTplName(`${name || 'Locale'} Signature`);
+              setShareTplAuthor(name || 'Creatore RIVO');
+              setShowShareCatalogModal(true);
+            }}
+            className="inline-flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] transition-colors cursor-pointer"
+            title="Pubblica il design corrente nel catalogo"
+          >
+            <Share2 className="w-3.5 h-3.5 shrink-0" />
+            <span>Condividi Template</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowResetModal(true)}
+            className="inline-flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-subtle)] hover:bg-[var(--accent-critical-bg)] text-[var(--text-secondary)] hover:text-[var(--accent-critical-text)] text-xs font-semibold border border-[var(--border-subtle)] hover:border-[var(--accent-critical-border)] transition-colors cursor-pointer"
+            title="Ripristina l'Hub originale di fabbrica"
+          >
+            <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+            <span>Ripristina Default</span>
+          </button>
+        </div>
+      </div>
 
       {catalogAppliedToast && (
         <div
@@ -1314,7 +1401,7 @@ export default function CustomHubStudioPage() {
                       aria-label="Codice HEX colore brand"
                       value={hubConfig.primaryColor}
                       onChange={(e) => setHubConfig((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                      placeholder="#10B981"
+                      placeholder="#BFFF00"
                       className="w-28 min-h-[38px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 text-xs text-[var(--text-primary)] font-mono uppercase tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                     />
                   </div>
@@ -1794,7 +1881,7 @@ export default function CustomHubStudioPage() {
               {/* Module List with Up/Down buttons, Visibility Toggle, and Inline Inputs */}
               <div className="space-y-3">
                 {hubConfig.modules.map((m, idx) => {
-                  const Icon = getModuleIcon(m.id, m.iconName);
+                  const Icon = getModuleIcon(m.id, m.iconName, m.isCustom);
                   const isFirst = idx === 0;
                   const isLast = idx === hubConfig.modules.length - 1;
 
@@ -2850,7 +2937,7 @@ export default function CustomHubStudioPage() {
           {/* Smartphone Frame applying the Selected Theme, Font, and Card Styles */}
           <div
             className={cn(
-              'w-full max-w-[340px] sm:max-w-[360px] border-[8px] border-[#222624] rounded-[48px] p-4 shadow-[0_25px_70px_rgba(0,0,0,0.9)] relative overflow-hidden flex flex-col justify-between select-none transition-colors duration-300',
+              'w-full max-w-[340px] sm:max-w-[360px] border-[8px] border-[#18191E] ring-1 ring-[#22242A] rounded-[48px] p-4 shadow-[0_24px_64px_rgba(0,0,0,0.75)] relative overflow-hidden flex flex-col justify-between select-none transition-colors duration-300',
               HUB_FONT_CLASSES
             )}
             style={{
@@ -2860,42 +2947,40 @@ export default function CustomHubStudioPage() {
               fontFamily: activeFont.cssFamily,
             }}
           >
+            {/* Background Atmosphere & Grid */}
+            {hubConfig.bgType !== 'image' && (
+              <div
+                className={`absolute inset-0 pointer-events-none z-0 bg-rivo-grid ${
+                  isLight ? 'opacity-[0.04]' : 'opacity-[0.18]'
+                }`}
+                aria-hidden="true"
+              />
+            )}
+
             {/* Simulated NFC Tap Portal Overlay */}
             {(mockupNfcPhase === 'sensing' || mockupNfcPhase === 'synced') && (
               <div
-                className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 backdrop-blur-xl transition-all duration-300"
+                className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 backdrop-blur-xl transition-opacity duration-200"
                 style={{ backgroundColor: activeTheme.bgHex }}
               >
-                <div className="relative flex items-center justify-center w-36 h-36 mb-4">
-                  <div
-                    className="absolute inset-0 rounded-full border border-dashed animate-nfc-sonar-1 pointer-events-none"
-                    style={{ borderColor: `${hubConfig.primaryColor}70` }}
-                  />
-                  <div
-                    className="absolute inset-0 rounded-full border animate-nfc-sonar-2 pointer-events-none"
-                    style={{ borderColor: `${hubConfig.primaryColor}50` }}
-                  />
-                  <div
-                    className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center shadow-xl ${
-                      mockupNfcPhase === 'synced' ? 'animate-nfc-contact-flash' : ''
-                    }`}
-                    style={{
-                      borderColor: hubConfig.primaryColor,
-                      backgroundColor: isLight ? '#FFFFFF' : '#111215',
-                    }}
-                  >
-                    {mockupNfcPhase === 'synced' ? (
-                      <CheckCircle2 className="w-9 h-9" style={{ color: hubConfig.primaryColor }} />
-                    ) : (
-                      <Radio className="w-8 h-8" style={{ color: hubConfig.primaryColor }} />
-                    )}
-                  </div>
+                <div
+                  className="w-20 h-20 rounded-2xl border-2 flex items-center justify-center mb-4"
+                  style={{
+                    borderColor: hubConfig.primaryColor,
+                    backgroundColor: isLight ? '#FFFFFF' : '#111215',
+                  }}
+                >
+                  {mockupNfcPhase === 'synced' ? (
+                    <CheckCircle2 className="w-9 h-9" style={{ color: isLight && contrastText === '#000000' ? '#15803D' : hubConfig.primaryColor }} />
+                  ) : (
+                    <Radio className="w-8 h-8" style={{ color: isLight && contrastText === '#000000' ? '#15803D' : hubConfig.primaryColor }} />
+                  )}
                 </div>
                 <p className="text-xs font-bold text-center">
-                  {mockupNfcPhase === 'synced' ? 'Tag Riconosciuto!' : 'Avvicinamento Tag NFC...'}
+                  {mockupNfcPhase === 'synced' ? 'Tag Riconosciuto!' : 'Lettura NTAG 424...'}
                 </p>
-                <span className={`text-[10px] mt-0.5 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
-                  {mockupNfcPhase === 'synced' ? `${devices[0]?.name || 'Tavolo 1'} Connesso` : 'Frequenza 13.56 MHz'}
+                <span className={`text-[10px] font-mono mt-0.5 ${isLight ? 'text-[#52525B]' : 'text-[#A1A1AA]'}`}>
+                  {mockupNfcPhase === 'synced' ? `${devices[0]?.name || 'Tavolo 1'} Connesso` : '13.56 MHz'}
                 </span>
               </div>
             )}
@@ -3080,42 +3165,47 @@ export default function CustomHubStudioPage() {
               </div>
             )}
 
-            {/* Dynamic Grid of Cards inside Mockup: Hero + Reordered Modules */}
+            {/* Dynamic Grid of Cards inside Mockup: Hero Full-Width + Bento Modules */}
             <div className="grid grid-cols-2 gap-2.5 relative z-10 mb-3 flex-1 content-start">
               {/* HERO HIGHLIGHT CARD */}
               {hubConfig.hero.enabled && (
                 <div
                   onClick={() => hapticTap()}
-                  className={`${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] shadow-sm transition-colors relative overflow-hidden cursor-pointer touch-press active:scale-95`}
+                  className={`col-span-2 ${getBorderRadiusClass(hubConfig.borderRadius)} p-3.5 flex items-center justify-between gap-2.5 shadow-sm transition-colors relative overflow-hidden cursor-pointer touch-press active:scale-[0.98]`}
                   style={{
                     backgroundColor: hubConfig.primaryColor,
                     color: contrastText,
                     ...getBorderRadiusStyle(hubConfig.borderRadius),
                   }}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <div
-                      className={`w-7 h-7 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-black/15 flex items-center justify-center`}
-                      style={getBorderRadiusStyle(hubConfig.borderRadius)}
-                    >
-                      <UtensilsCrossed className="w-3.5 h-3.5" style={{ color: contrastText }} />
-                    </div>
+                  <div className="min-w-0 flex-1">
                     {hubConfig.hero.badgeText && (
                       <span
-                        className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-black/20 tracking-wider`}
+                        className={`inline-flex items-center gap-1 text-[8px] font-extrabold uppercase px-1.5 py-0.5 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-black/15 tracking-wider mb-1`}
                         style={getBorderRadiusStyle(hubConfig.borderRadius)}
                       >
-                        {hubConfig.hero.badgeText}
+                        <Zap className="w-2 h-2" />
+                        <span>{hubConfig.hero.badgeText}</span>
                       </span>
                     )}
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-extrabold uppercase tracking-tight block leading-tight truncate">
+                    <span className="text-xs font-black uppercase tracking-tight block leading-tight truncate">
                       {hubConfig.hero.title || 'Menù Digitale'}
                     </span>
-                    <span className="text-[9px] font-semibold opacity-85 block truncate">
+                    <span className="text-[9px] font-semibold opacity-85 block truncate mt-0.5">
                       {hubConfig.hero.subtitle || 'Piatti, prezzi & vini'}
                     </span>
+                  </div>
+                  <div
+                    className={`w-9 h-9 ${getBorderRadiusClass(hubConfig.borderRadius)} bg-black/15 flex items-center justify-center shrink-0`}
+                    style={getBorderRadiusStyle(hubConfig.borderRadius)}
+                  >
+                    {isSalonStudio ? (
+                      <CalendarCheck className="w-4 h-4" style={{ color: contrastText }} />
+                    ) : isRetailStudio ? (
+                      <ShoppingBag className="w-4 h-4" style={{ color: contrastText }} />
+                    ) : (
+                      <UtensilsCrossed className="w-4 h-4" style={{ color: contrastText }} />
+                    )}
                   </div>
                 </div>
               )}
@@ -3124,7 +3214,7 @@ export default function CustomHubStudioPage() {
               {hubConfig.modules
                 .filter((m) => m.enabled)
                 .map((m) => {
-                  const Icon = getModuleIcon(m.id, m.iconName);
+                  const Icon = getModuleIcon(m.id, m.iconName, m.isCustom);
                   const isFullWidth = m.colSpan === 2;
                   const mockAccent = isLight && contrastText === '#000000' ? '#15803D' : hubConfig.primaryColor;
 
@@ -3132,7 +3222,7 @@ export default function CustomHubStudioPage() {
                     <div
                       key={m.id}
                       onClick={() => hapticTap()}
-                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} ${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[96px] transition-colors relative overflow-hidden cursor-pointer touch-press active:scale-95 ${getCardStyleClass()}`}
+                      className={`${isFullWidth ? 'col-span-2' : 'col-span-1'} ${getBorderRadiusClass(hubConfig.borderRadius)} p-3 flex flex-col justify-between min-h-[92px] transition-colors relative overflow-hidden cursor-pointer touch-press active:scale-95 ${getCardStyleClass()}`}
                       style={getBorderRadiusStyle(hubConfig.borderRadius)}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -3202,32 +3292,38 @@ export default function CustomHubStudioPage() {
             )}
 
             {/* Docked Bottom Bar inside Mockup */}
-            <div className="relative z-10 pt-1">
-              <div className={`rounded-full px-3 py-1.5 flex items-center justify-between shadow-lg border ${
-                isLight ? 'bg-white/95 border-[#E4E6EB] text-[#52525B]' : 'bg-[#111215]/95 border-[#22242A] text-[#A1A1AA]'
-              }`}>
-                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Home</button>
-                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Menù</button>
-                {/* Elevated Circle FAB */}
-                <button
-                  type="button"
-                  onClick={() => hapticWaiterCall()}
-                  className="w-8 h-8 -mt-4 rounded-full flex items-center justify-center shadow-md cursor-pointer touch-press active:scale-90"
-                  style={{
-                    backgroundColor: hubConfig.primaryColor,
-                    color: contrastText,
-                  }}
-                  aria-label="Simula Chiama Sala"
-                >
-                  <BellRing className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Info</button>
-                <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Share</button>
+            {hubConfig.showBottomDock !== false && (
+              <div className="relative z-10 pt-1">
+                <div className={`rounded-full px-3 py-1.5 flex items-center justify-between shadow-lg border ${
+                  isLight ? 'bg-white/95 border-[#E4E6EB] text-[#52525B]' : 'bg-[#111215]/95 border-[#22242A] text-[#A1A1AA]'
+                }`}>
+                  <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Home</button>
+                  <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">
+                    {isSalonStudio ? 'Prenota' : isRetailStudio ? 'Catalogo' : 'Menù'}
+                  </button>
+                  {/* Elevated Circle FAB */}
+                  <button
+                    type="button"
+                    onClick={() => hapticWaiterCall()}
+                    className={`w-8 h-8 -mt-4 rounded-full flex items-center justify-center shadow-md cursor-pointer touch-press active:scale-90 ring-4 ${
+                      isLight ? 'ring-[#F6F7F9]' : 'ring-[#09090B]'
+                    }`}
+                    style={{
+                      backgroundColor: hubConfig.primaryColor,
+                      color: contrastText,
+                    }}
+                    aria-label="Simula Chiama Sala"
+                  >
+                    <BellRing className="w-3.5 h-3.5" />
+                  </button>
+                  <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Info</button>
+                  <button type="button" onClick={() => hapticTap()} className="text-[8px] font-semibold hover:opacity-80 touch-press active:scale-95">Share</button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Home Indicator Bar */}
-            <div className={`w-24 h-1 rounded-full mx-auto mt-2 opacity-50 ${isLight ? 'bg-slate-400' : 'bg-zinc-600'}`} />
+            <div className={`w-24 h-1 rounded-full mx-auto mt-2 opacity-50 ${isLight ? 'bg-[#A1A1AA]' : 'bg-[#52525B]'}`} />
           </div>
 
           {/* Quick NFC Device Selector below Mockup */}
@@ -3893,7 +3989,7 @@ export default function CustomHubStudioPage() {
                                 .filter((m) => m.enabled)
                                 .map((m) => {
                                   const isFull = m.colSpan === 2;
-                                  const ModIcon = getModuleIcon(m.id, m.iconName);
+                                  const ModIcon = getModuleIcon(m.id, m.iconName, m.isCustom);
                                   const tplAccent = isTplLight && cText === '#000000' ? '#15803D' : pColor;
                                   return (
                                     <button
@@ -3984,7 +4080,7 @@ export default function CustomHubStudioPage() {
 
                           {/* Toast overlay inside phone */}
                           {previewModuleToast && (
-                            <div className="absolute top-10 inset-x-4 z-50 bg-black/90 border border-sky-400/50 text-white text-[10px] font-bold py-1.5 px-3 rounded-xl text-center shadow-lg animate-fade-in">
+                            <div className="absolute top-10 inset-x-4 z-50 bg-[#111215]/95 border border-[#BFFF00]/45 text-[#F4F4F6] text-[10px] font-bold py-1.5 px-3 rounded-xl text-center shadow-lg animate-fade-in">
                               {previewModuleToast}
                             </div>
                           )}

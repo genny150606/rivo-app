@@ -1786,83 +1786,85 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             const cardSpanClass = isFullWidth ? 'col-span-2' : 'col-span-1';
 
             const renderModuleIcon = () => {
-              if (mod.isCustom || mod.iconName) {
-                switch (mod.iconName) {
-                  case 'Wine':
-                    return <Wine className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'Coffee':
-                    return <Coffee className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'Music':
-                    return <Music className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'Ticket':
-                    return <Ticket className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'ShoppingBag':
-                    return <ShoppingBag className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'Camera':
-                    return <Camera className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'Heart':
-                    return <Heart className="w-5 h-5 text-rose-400" />;
-                  case 'HelpCircle':
-                    return <HelpCircle className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'Globe':
-                    return <Globe className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'CalendarCheck':
+              if (!mod.isCustom) {
+                switch (mod.id) {
+                  case 'bookings':
                     return <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'UtensilsCrossed':
-                    return <UtensilsCrossed className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                  case 'WhatsApp':
+                  case 'service':
+                    return isSalon ? (
+                      <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />
+                    ) : (
+                      <BellRing className="w-5 h-5" style={{ color: accessibleAccent }} />
+                    );
+                  case 'sommelier':
+                    return (
+                      <div className="relative">
+                        <Wine className="w-5 h-5" style={{ color: accessibleAccent }} />
+                        <span
+                          className={`w-2 h-2 rounded-full ring-2 ${isLight ? 'ring-white' : 'ring-[#18191E]'} absolute -top-0.5 -right-0.5`}
+                          style={{ backgroundColor: accessibleAccent }}
+                        />
+                      </div>
+                    );
+                  case 'wifi':
+                    return <Wifi className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                  case 'wheel':
+                    return <Award className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                  case 'loyalty':
+                    return <CreditCard className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                  case 'reviews':
+                    return <Star className="w-5 h-5 fill-amber-400 text-amber-400" />;
+                  case 'guide':
+                    return <BookOpen className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                  case 'whatsapp':
                     return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
-                  case 'Instagram':
+                  case 'menu':
+                    return isSalon ? (
+                      <Scissors className="w-5 h-5" style={{ color: accessibleAccent }} />
+                    ) : isRetail ? (
+                      <ShoppingBag className="w-5 h-5" style={{ color: accessibleAccent }} />
+                    ) : (
+                      <UtensilsCrossed className="w-5 h-5" style={{ color: accessibleAccent }} />
+                    );
+                  case 'instagram':
                     return <InstagramIcon className="w-5 h-5 text-pink-500" />;
-                  case 'Sparkles':
-                  default:
-                    return <Zap className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                  case 'custom_cta':
+                    return <ExternalLink className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 }
               }
 
-              switch (mod.id) {
-                case 'bookings':
+              switch (mod.iconName) {
+                case 'Wine':
+                  return <Wine className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Coffee':
+                  return <Coffee className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Music':
+                  return <Music className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Ticket':
+                  return <Ticket className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'ShoppingBag':
+                  return <ShoppingBag className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Camera':
+                  return <Camera className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Heart':
+                  return <Heart className="w-5 h-5 text-rose-400" />;
+                case 'HelpCircle':
+                  return <HelpCircle className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Globe':
+                  return <Globe className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'CalendarCheck':
                   return <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                case 'service':
-                  return isSalon ? (
-                    <CalendarCheck className="w-5 h-5" style={{ color: accessibleAccent }} />
-                  ) : (
-                    <BellRing className="w-5 h-5" style={{ color: accessibleAccent }} />
-                  );
-                case 'sommelier':
-                  return (
-                    <div className="relative">
-                      <Wine className="w-5 h-5" style={{ color: accessibleAccent }} />
-                      <span
-                        className={`w-2 h-2 rounded-full ring-2 ${isLight ? 'ring-white' : 'ring-[#18191E]'} absolute -top-0.5 -right-0.5`}
-                        style={{ backgroundColor: accessibleAccent }}
-                      />
-                    </div>
-                  );
-                case 'wifi':
-                  return <Wifi className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                case 'wheel':
+                case 'UtensilsCrossed':
+                  return <UtensilsCrossed className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Award':
                   return <Award className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                case 'loyalty':
-                  return <CreditCard className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                case 'reviews':
-                  return <Star className="w-5 h-5 fill-amber-400 text-amber-400" />;
-                case 'guide':
-                  return <BookOpen className="w-5 h-5" style={{ color: accessibleAccent }} />;
-                case 'whatsapp':
+                case 'WhatsApp':
                   return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
-                case 'menu':
-                  return isSalon ? (
-                    <Scissors className="w-5 h-5" style={{ color: accessibleAccent }} />
-                  ) : isRetail ? (
-                    <ShoppingBag className="w-5 h-5" style={{ color: accessibleAccent }} />
-                  ) : (
-                    <UtensilsCrossed className="w-5 h-5" style={{ color: accessibleAccent }} />
-                  );
-                case 'instagram':
+                case 'Instagram':
                   return <InstagramIcon className="w-5 h-5 text-pink-500" />;
-                case 'custom_cta':
-                  return <ExternalLink className="w-5 h-5" style={{ color: accessibleAccent }} />;
+                case 'Wand2':
+                case 'Sparkles':
+                  return <Zap className="w-5 h-5" style={{ color: accessibleAccent }} />;
                 default:
                   return <CatIcon className="w-5 h-5" style={{ color: accessibleAccent }} />;
               }

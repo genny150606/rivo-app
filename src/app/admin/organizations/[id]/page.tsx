@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import {
   ExternalLink,
@@ -99,18 +100,26 @@ export default async function AdminOrgDetailPage({
           </p>
         }
         actions={
-          sampleDevice ? (
-            <a
-              href={`/hub/${sampleDevice.unique_code}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--rivo-volt-border)] bg-[var(--rivo-volt-bg)] px-3.5 py-2 text-xs font-semibold text-[var(--rivo-volt-text)] hover:border-[var(--rivo-volt)] transition-colors"
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/dashboard/custom-hub?orgId=${org.id}`}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--rivo-volt-border)] bg-[var(--rivo-volt)] px-3.5 py-2 text-xs font-extrabold text-[#09090B] hover:bg-[var(--rivo-volt-hover)] transition-colors"
             >
-              <Smartphone className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-              <span>Visualizza Custom Hub</span>
-              <ExternalLink className="w-3.5 h-3.5 opacity-80 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-            </a>
-          ) : undefined
+              <Smartphone className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden="true" />
+              <span>Personalizza Custom Hub</span>
+            </Link>
+            {sampleDevice && (
+              <a
+                href={`/hub/${sampleDevice.unique_code}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+              >
+                <span>Apri Hub Live</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-80 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              </a>
+            )}
+          </div>
         }
       />
 

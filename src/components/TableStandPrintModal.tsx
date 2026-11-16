@@ -162,6 +162,7 @@ export default function TableStandPrintModal({
   // Accent Color & Category
   const primaryColor = hubConfig.primaryColor || '#BFFF00';
   const primaryContrastInk = getContrastColor(primaryColor);
+  const accessiblePrintAccent = printTheme === 'white' && primaryContrastInk === '#000000' ? '#15803D' : primaryColor;
   const categoryDef = getCategoryDefinition(category);
 
   // Handle Print Action
@@ -538,7 +539,7 @@ export default function TableStandPrintModal({
                   <label className="flex items-center justify-between min-h-[36px] text-xs text-[var(--text-primary)] cursor-pointer select-none gap-2">
                     <span className="flex items-center gap-2">
                       <HelpCircle className="w-3.5 h-3.5 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
-                      <span>Istruzioni 1-Tap (Menù, Wi-Fi, Servizio)</span>
+                      <span>Istruzioni Rapide (Menù, Wi-Fi, Servizio)</span>
                     </span>
                     <input
                       type="checkbox"
@@ -649,7 +650,7 @@ export default function TableStandPrintModal({
                   <div
                     className={`relative w-[340px] h-[510px] rounded-2xl p-5 flex flex-col justify-between items-center text-center overflow-hidden shadow-xl transition-colors ${
                       printTheme === 'dark'
-                        ? 'bg-[#0A0B0E] text-white border border-zinc-800'
+                        ? 'bg-[#09090B] text-[#F4F4F6] border border-[#22242A]'
                         : 'bg-white text-zinc-900 border border-zinc-200'
                     }`}
                     style={{
@@ -704,7 +705,7 @@ export default function TableStandPrintModal({
                           style={{
                             backgroundColor:
                               printTheme === 'dark' ? `${primaryColor}25` : `${primaryColor}20`,
-                            color: printTheme === 'dark' ? primaryColor : '#0f172a',
+                            color: accessiblePrintAccent,
                             border: `1px solid ${primaryColor}60`,
                           }}
                         >
@@ -724,7 +725,7 @@ export default function TableStandPrintModal({
                         <div
                           className="relative flex items-center justify-center w-14 h-14 rounded-2xl mb-1.5 shadow-sm"
                           style={{
-                            backgroundColor: printTheme === 'dark' ? '#14151B' : '#F1F3F5',
+                            backgroundColor: printTheme === 'dark' ? '#111215' : '#F6F7F9',
                             border: `1.5px solid ${primaryColor}40`,
                             color: primaryColor,
                           }}
@@ -838,8 +839,8 @@ export default function TableStandPrintModal({
                         <div
                           className={`p-2.5 rounded-xl border mb-2 ${
                             printTheme === 'dark'
-                              ? 'bg-zinc-900/80 border-zinc-800 text-zinc-300'
-                              : 'bg-zinc-50 border-zinc-200 text-zinc-700'
+                              ? 'bg-[#111215] border-[#22242A] text-[#D4D4D8]'
+                              : 'bg-[#F6F7F9] border-[#E4E6EB] text-[#52525B]'
                           }`}
                         >
                           <p
@@ -847,7 +848,7 @@ export default function TableStandPrintModal({
                               printTheme === 'dark' ? 'text-zinc-100' : 'text-zinc-900'
                             }`}
                           >
-                            Accedi al Menù Digitale, Wi-Fi e Assistenza Tavolo in 1-Tap
+                            Accedi al Menù Digitale, Wi-Fi e Assistenza Tavolo con 1 Tocco
                           </p>
 
                           <div className="flex items-center justify-center gap-3 text-[10px] font-medium">
@@ -888,7 +889,7 @@ export default function TableStandPrintModal({
                       stickerShape === 'round' ? 'rounded-full' : 'rounded-2xl'
                     } ${
                       printTheme === 'dark'
-                        ? 'bg-[#0A0B0E] text-white border border-zinc-800'
+                        ? 'bg-[#09090B] text-[#F4F4F6] border border-[#22242A]'
                         : 'bg-white text-zinc-900 border border-zinc-200'
                     }`}
                     style={{
@@ -932,7 +933,7 @@ export default function TableStandPrintModal({
                           className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mt-1"
                           style={{
                             backgroundColor: `${primaryColor}20`,
-                            color: printTheme === 'dark' ? primaryColor : '#09090b',
+                            color: accessiblePrintAccent,
                             border: `1px solid ${primaryColor}50`,
                           }}
                         >

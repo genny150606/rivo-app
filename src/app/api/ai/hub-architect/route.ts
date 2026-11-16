@@ -204,8 +204,8 @@ export function analyzePromptHeuristically(
         customModules: [
           { id: 'menu', title: 'Signature Drinks & Mixology', subtitle: 'Distillati rari e ricette esclusive del bartender', badge: 'Carta', colSpan: 1, iconName: 'Wine', enabled: true },
           { id: 'custom_cta', title: 'DJ Set & Serate Live', subtitle: 'Line-up artisti, performance e ospiti di questa sera', badge: 'EVENTI', colSpan: 1, iconName: 'Music', enabled: true },
-          { id: 'wheel', title: 'Shot Roulette', subtitle: 'Gira la ruota e sfida la fortuna per uno shot', badge: 'Bonus', colSpan: 1, iconName: 'Sparkles', enabled: true },
-          { id: 'service', title: 'Chiama al Tavolo', subtitle: 'Ordina un altro giro con 1 solo tap', badge: 'Fast', colSpan: 1, enabled: true },
+          { id: 'wheel', title: 'Shot Roulette', subtitle: 'Gira la ruota e sfida la fortuna per uno shot', badge: 'Bonus', colSpan: 1, iconName: 'Award', enabled: true },
+          { id: 'service', title: 'Chiama al Tavolo', subtitle: 'Ordina un altro giro istantaneamente', badge: 'Fast', colSpan: 1, enabled: true },
           { id: 'instagram', title: 'Segui le Nostre Serate', subtitle: 'Tagga le tue storie per apparire sui visual del locale', badge: '@Club', colSpan: 2, iconName: 'Camera', enabled: true },
         ],
       };
@@ -231,7 +231,7 @@ export function analyzePromptHeuristically(
         customModules: [
           { id: 'menu', title: 'Menù della Tradizione', subtitle: 'Primi tirati a mano, carni selezionate e dolci caserecci', badge: 'DOP', colSpan: 2, iconName: 'UtensilsCrossed', enabled: true },
           { id: 'sommelier', title: 'I Vini del Contadino', subtitle: 'Consigli sui migliori rossi e bianchi del territorio', badge: 'Cantina', colSpan: 1, iconName: 'Wine', enabled: true },
-          { id: 'service', title: 'Chiama la Sala', subtitle: 'Il cameriere al tuo tavolo con un tocco', badge: '1-Tap', colSpan: 1, enabled: true },
+          { id: 'service', title: 'Chiama la Sala', subtitle: 'Il cameriere al tuo tavolo con un tocco', badge: 'Rapido', colSpan: 1, enabled: true },
           { id: 'reviews', title: 'Ti sei sentito a casa?', subtitle: 'Lascia una recensione spontanea su Google', badge: '5 Stelle', colSpan: 2, enabled: true },
         ],
       };
@@ -257,7 +257,7 @@ export function analyzePromptHeuristically(
         customModules: [
           { id: 'menu', title: 'Menù Fish & Raw Bar', subtitle: 'Pescato fresco, tartare, fritture e primi di mare', badge: 'Fresco', colSpan: 1, iconName: 'UtensilsCrossed', enabled: true },
           { id: 'service', title: 'Ordina all\'Ombrellone', subtitle: 'Cameriere al lettino senza alzarti dalla spiaggia', badge: 'Servizio', colSpan: 1, enabled: true },
-          { id: 'wheel', title: 'Ruota della Spiaggia', subtitle: 'Tenta la sorte e vinci un drink al tramonto', badge: 'Premio', colSpan: 1, iconName: 'Sparkles', enabled: true },
+          { id: 'wheel', title: 'Ruota della Spiaggia', subtitle: 'Tenta la sorte e vinci un drink al tramonto', badge: 'Premio', colSpan: 1, iconName: 'Award', enabled: true },
           { id: 'wifi', title: 'Wi-Fi Lido Free', subtitle: 'Connessione ad alta velocità gratuita', badge: 'Gratis', colSpan: 1, enabled: true },
           { id: 'reviews', title: 'Valuta la tua Giornata', subtitle: 'Supporta il nostro lido con 5 stelle su Google', badge: 'Google', colSpan: 2, enabled: true },
         ],
@@ -284,7 +284,7 @@ export function analyzePromptHeuristically(
         customModules: [
           { id: 'menu', title: 'Tap List & Burger Gourmet', subtitle: 'Birre alla spina a rotazione continua e sfiziosità', badge: 'ON TAP', colSpan: 2, iconName: 'UtensilsCrossed', enabled: true },
           { id: 'service', title: 'Biro al Tavolo', subtitle: 'Ordina un\'altra pinta o chiedi il conto al volo', badge: 'Rapido', colSpan: 1, enabled: true },
-          { id: 'wheel', title: 'Gira la Pinta', subtitle: 'Gira la ruota e vinci una degustazione della casa', badge: 'Bonus', colSpan: 1, iconName: 'Sparkles', enabled: true },
+          { id: 'wheel', title: 'Gira la Pinta', subtitle: 'Gira la ruota e vinci una degustazione della casa', badge: 'Bonus', colSpan: 1, iconName: 'Award', enabled: true },
           { id: 'loyalty', title: 'Beer Club Pass', subtitle: 'Accumula pinte e sblocca birre speciali in omaggio', badge: 'Club', colSpan: 1, enabled: true },
           { id: 'reviews', title: 'Ti piace la nostra birra?', subtitle: 'Aiuta la nostra taproom lasciando 5 stelle', badge: 'Cheers', colSpan: 1, enabled: true },
         ],
@@ -363,7 +363,7 @@ export function analyzePromptHeuristically(
         customModules: [
           { id: 'menu', title: 'Caffetteria & Pasticceria', subtitle: 'Espressi pregiati, flat white, croissant e brunch del giorno', badge: 'Fresh', colSpan: 1, iconName: 'Coffee', enabled: true },
           { id: 'loyalty', title: 'Coffee Stamp Card', subtitle: 'Ogni 9 caffè gustati, il decimo è offerto dalla casa', badge: 'Timbri', colSpan: 1, enabled: true },
-          { id: 'service', title: 'Ordina al Banco', subtitle: 'Segnala il tuo ordine allo staff in un istante', badge: '1-Tap', colSpan: 1, enabled: true },
+          { id: 'service', title: 'Ordina al Banco', subtitle: 'Segnala il tuo ordine allo staff in un istante', badge: 'Rapido', colSpan: 1, enabled: true },
           { id: 'wifi', title: 'Wi-Fi Bar', subtitle: 'Naviga comodamente mentre gusti la colazione', badge: 'Free', colSpan: 1, enabled: true },
           { id: 'reviews', title: 'Ti è piaciuta la colazione?', subtitle: 'Lasciaci 5 stelle per sostenere la nostra pasticceria', badge: 'Google', colSpan: 2, enabled: true },
         ],
@@ -415,8 +415,8 @@ export function analyzePromptHeuristically(
         conceptExplanation: `Visual autentico e caldo dedicato all'arte della pizza: tonalità ambra dorata come la crosta croccante, sfondo caldo con riflessi di fiamma viva, layout bento chiaro con accesso immediato alle pizze speciali e alle birre artigianali.`,
         customModules: [
           { id: 'menu', title: 'Le Nostre Pizze & Fritti', subtitle: 'Classiche, contemporanee a canotto e sfizi napoletani', badge: 'Menù', colSpan: 2, iconName: 'UtensilsCrossed', enabled: true },
-          { id: 'service', title: 'Chiama il Cameriere', subtitle: 'Ordina un\'altra bibita o chiedi il conto al tavolo', badge: '1-Tap', colSpan: 1, enabled: true },
-          { id: 'wheel', title: 'Ruota della Pizza', subtitle: 'Gira e vinci un dolce artigianale o un caffè', badge: 'Premio', colSpan: 1, iconName: 'Sparkles', enabled: true },
+          { id: 'service', title: 'Chiama il Cameriere', subtitle: 'Ordina un\'altra bibita o chiedi il conto al tavolo', badge: 'Rapido', colSpan: 1, enabled: true },
+          { id: 'wheel', title: 'Ruota della Pizza', subtitle: 'Gira e vinci un dolce artigianale o un caffè', badge: 'Premio', colSpan: 1, iconName: 'Award', enabled: true },
           { id: 'loyalty', title: 'Pizza Fidelity Pass', subtitle: 'Raccogli timbri digitali e ricevi una pizza in omaggio', badge: 'Fidelity', colSpan: 1, enabled: true },
           { id: 'reviews', title: 'Ti è piaciuta la pizza?', subtitle: 'Sostienici con una recensione a 5 stelle su Google', badge: 'Google', colSpan: 1, enabled: true },
         ],
@@ -492,7 +492,7 @@ Devi restituire ESCLUSIVAMENTE un oggetto JSON valido (senza markdown o testo ex
       "subtitle": "Sottotitolo descrittivo",
       "badge": "Badge breve",
       "colSpan": 1 o 2,
-      "iconName": "UtensilsCrossed" | "Wine" | "Coffee" | "Music" | "Sparkles" | "Camera"
+      "iconName": "UtensilsCrossed" | "Wine" | "Coffee" | "Music" | "Award" | "Wand2" | "Camera"
     }
   ],
   "conceptExplanation": "Spiegazione professionale e affascinante in italiano della scelta di palette, atmosfera, tipografia e layout bento."
@@ -649,7 +649,7 @@ export async function POST(request: NextRequest) {
           subtitle: customMod.subtitle,
           badge: customMod.badge || '',
           colSpan: customMod.colSpan,
-          iconName: customMod.iconName || 'Sparkles',
+          iconName: customMod.iconName,
           isCustom: customMod.id === 'custom_cta',
         });
       }
