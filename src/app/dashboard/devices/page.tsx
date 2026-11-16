@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
-import { ExternalLink } from 'lucide-react';
+import { Cpu, ExternalLink, Radio } from 'lucide-react';
+import { EmptyState, PageHeader, StatusBadge, SurfaceCard } from '@/components/ui';
 import CopyTrackingButtons from '@/components/ui/CopyTrackingButtons';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,9 @@ interface DeviceItem {
 
 export default async function DevicesPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let devices: DeviceItem[] = [];
 
@@ -48,129 +51,162 @@ export default async function DevicesPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">Dispositivi</h1>
-          <p className="text-sm text-zinc-400">
-            Tutti i chip NFC e codici QR configurati per le tue sedi fisiche.
-          </p>
-        </div>
-      </div>
+  const activeCount = devices.filter((d) => d.status === 'active').length;
 
-      <div className="rounded-xl border border-[#27272A] bg-[#121214] overflow-hidden">
-        {devices.length === 0 ? (
-          <div className="p-6 sm:p-8 text-center text-sm text-zinc-500">
-            Nessun dispositivo associato. Contatta il supporto RIVO o l&apos;amministratore per aggiungere nuovi punti fisici.
-          </div>
-        ) : (
-          <>
-            {/* Desktop Table */}
-            <table className="hidden lg:table w-full text-left text-sm text-zinc-300">
-              <thead className="bg-[#18181B] text-xs uppercase text-zinc-400 border-b border-[#27272A]">
+  return (
+    <div className="space-y-6 min-w-0">
+      <PageHeader
+        eyebrow="Hardware & Touchpoint"
+        title="Dispositivi"
+        description="Tutti i chip NFC e codici QR configurati per le tue sedi fisiche."
+        badge={
+          devices.length > 0 ? (
+            <StatusBadge
+              tone={activeCount > 0 ? 'operational' : 'neutral'}
+              dot
+              pulse={activeCount > 0}
+              mono
+            >
+              {activeCount}/{devices.length} Attivi
+            </StatusBadge>
+          ) : undefined
+        }
+      />
+
+      {devices.length === 0 ? (
+        <EmptyState
+          icon={Cpu}
+          eyebrow="Infrastruttura Fisica"
+          title="Nessun dispositivo associato"
+          description="Nessun dispositivo associato. Contatta il supporto RIVO o l'amministratore per aggiungere nuovi punti fisici."
+        />
+      ) : (
+        <SurfaceCard
+          padding="none"
+          radius="xl"
+          header={{
+            eyebrow: 'Registro Nodi',
+            title: 'Chip NFC & Codici QR Configurati',
+            subtitle: `${devices.length} dispositivi registrati`,
+            icon: Radio,
+          }}
+        >
+          {/* Desktop Table */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[var(--bg-elevated)] font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)] border-b border-[var(--border-subtle)]">
                 <tr>
-                  <th className="px-6 py-3 font-medium">Nome Dispositivo</th>
-                  <th className="px-6 py-3 font-medium">Sede</th>
-                  <th className="px-6 py-3 font-medium">Codice Univoco</th>
-                  <th className="px-6 py-3 font-medium">Copia Link</th>
-                  <th className="px-6 py-3 font-medium">Destinazione</th>
-                  <th className="px-6 py-3 font-medium">Stato</th>
+                  <th className="px-6 py-3.5 font-medium">Nome Dispositivo</th>
+                  <th className="px-6 py-3.5 font-medium">Sede</th>
+                  <th className="px-6 py-3.5 font-medium">Codice Univoco</th>
+                  <th className="px-6 py-3.5 font-medium">Copia Link</th>
+                  <th className="px-6 py-3.5 font-medium">Destinazione</th>
+                  <th className="px-6 py-3.5 font-medium">Stato</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#27272A]">
+              <tbody className="divide-y divide-[var(--border-subtle)]">
                 {devices.map((device) => (
-                  <tr key={device.id} className="hover:bg-[#18181B]/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-white">{device.name}</td>
-                    <td className="px-6 py-4 text-zinc-400">{device.locations?.name || '—'}</td>
+                  <tr
+                    key={device.id}
+                    className="min-h-[48px] hover:bg-[var(--bg-elevated)]/60 transition-colors"
+                  >
+                    <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">
+                      {device.name}
+                    </td>
+                    <td className="px-6 py-4 text-[var(--text-secondary)]">
+                      {device.locations?.name || '—'}
+                    </td>
                     <td className="px-6 py-4">
-                      <span className="font-mono text-xs bg-zinc-800 text-zinc-200 px-2.5 py-1 rounded">
-                        {device.unique_code}
-                      </span>
+                      <StatusBadge variant="hardware" shape="tag" size="md" mono>
+                        <span translate="no">{device.unique_code}</span>
+                      </StatusBadge>
                     </td>
                     <td className="px-6 py-4">
                       <CopyTrackingButtons uniqueCode={device.unique_code} />
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 max-w-xs">
                       <a
                         href={device.destination_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white truncate max-w-xs transition-colors"
+                        className="inline-flex items-center gap-1.5 min-h-[44px] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] truncate max-w-full transition-colors"
                       >
                         <span className="truncate">{device.destination_url}</span>
-                        <ExternalLink className="w-3 h-3 shrink-0" />
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                       </a>
                     </td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          device.status === 'active'
-                            ? 'bg-emerald-500/10 text-emerald-400'
-                            : 'bg-zinc-800 text-zinc-500'
-                        }`}
+                      <StatusBadge
+                        tone={device.status === 'active' ? 'operational' : 'neutral'}
+                        dot
+                        mono
                       >
                         {device.status === 'active' ? 'Attivo' : 'Disattivato'}
-                      </span>
+                      </StatusBadge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
 
-            {/* Mobile Cards */}
-            <div className="lg:hidden divide-y divide-[#27272A]">
-              {devices.map((device) => (
-                <div key={device.id} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-white text-base">{device.name}</span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        device.status === 'active'
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-zinc-800 text-zinc-500'
-                      }`}
-                    >
-                      {device.status === 'active' ? 'Attivo' : 'Off'}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-                    <span className="uppercase tracking-wider font-medium">{device.type}</span>
-                    <span className="text-zinc-600">•</span>
-                    <span>{device.locations?.name || '—'}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs bg-zinc-800 text-zinc-200 px-2.5 py-1 rounded">
-                      {device.unique_code}
-                    </span>
-                  </div>
-
-                  {/* Copy buttons for mobile */}
-                  <div className="pt-1">
-                    <CopyTrackingButtons uniqueCode={device.unique_code} />
-                  </div>
-
-                  {device.destination_url && (
-                    <div className="pt-1">
-                      <a
-                        href={device.destination_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="min-h-[44px] px-3 py-2 -mx-1 rounded-lg bg-zinc-800/40 hover:bg-zinc-800 flex items-center justify-between text-xs text-zinc-400 hover:text-white transition-colors touch-press"
-                      >
-                        <span className="truncate mr-2">Destinazione: {device.destination_url}</span>
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      </a>
-                    </div>
-                  )}
+          {/* Mobile Cards */}
+          <div className="lg:hidden divide-y divide-[var(--border-subtle)]">
+            {devices.map((device) => (
+              <div key={device.id} className="p-4 space-y-3 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-display font-semibold text-[var(--text-primary)] text-base truncate min-w-0">
+                    {device.name}
+                  </span>
+                  <StatusBadge
+                    tone={device.status === 'active' ? 'operational' : 'neutral'}
+                    dot
+                    mono
+                  >
+                    {device.status === 'active' ? 'Attivo' : 'Off'}
+                  </StatusBadge>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <span className="font-mono uppercase tracking-wider font-medium">
+                    {device.type}
+                  </span>
+                  <span className="text-[var(--text-muted)]" aria-hidden="true">
+                    •
+                  </span>
+                  <span className="truncate">{device.locations?.name || '—'}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <StatusBadge variant="hardware" shape="tag" size="md" mono>
+                    <span translate="no">{device.unique_code}</span>
+                  </StatusBadge>
+                </div>
+
+                <div className="pt-1">
+                  <CopyTrackingButtons uniqueCode={device.unique_code} />
+                </div>
+
+                {device.destination_url && (
+                  <div className="pt-1">
+                    <a
+                      href={device.destination_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="min-h-[44px] px-3 py-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      <span className="truncate min-w-0">
+                        Destinazione: {device.destination_url}
+                      </span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      )}
     </div>
   );
 }

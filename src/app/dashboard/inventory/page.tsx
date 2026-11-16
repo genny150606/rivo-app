@@ -1,34 +1,37 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  Boxes, 
-  ArrowDownLeft, 
-  ArrowUpRight, 
+import {
+  Boxes,
+  ArrowDownLeft,
+  ArrowUpRight,
   RotateCcw,
-  SlidersHorizontal, 
-  AlertTriangle, 
-  Search, 
-  Plus, 
-  Loader2, 
+  AlertTriangle,
+  Search,
+  Plus,
+  Loader2,
   AlertCircle,
   X,
-  History,
   CheckCircle2,
-  Calendar,
   Download,
   ClipboardList,
   ShieldCheck,
-  Package,
-  Layers,
-  Sparkles,
-  ArrowUpDown,
   Barcode,
   TrendingDown,
-  Building2,
-  Check,
-  ChevronRight
+  ChevronRight,
+  Coins,
+  ArrowLeft,
 } from 'lucide-react';
+import {
+  PageHeader,
+  KpiCard,
+  SurfaceCard,
+  StatusBadge,
+  SegmentedControl,
+  EmptyState,
+} from '@/components/ui';
+import { formatItCurrency } from '@/lib/chart-theme';
+import { cn } from '@/lib/cn';
 
 interface Movement {
   id: string;
@@ -121,10 +124,17 @@ export default function InventoryPage() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [counts, setCounts] = useState<InventoryCountSession[]>([]);
-  const [activeCount, setActiveCount] = useState<{ session: InventoryCountSession; items: InventoryCountItem[] } | null>(null);
+  const [activeCount, setActiveCount] = useState<{
+    session: InventoryCountSession;
+    items: InventoryCountItem[];
+  } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'warning' | 'error';
+    message: string;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'balances' | 'movements' | 'counts'>('balances');
   const [balanceFilter, setBalanceFilter] = useState<'all' | 'low' | 'out' | 'in'>('all');
@@ -143,12 +153,14 @@ export default function InventoryPage() {
   const [reason, setReason] = useState('');
   const [reference, setReference] = useState('');
 
-  // Start Count Modal
+  // Start Count Modal & Apply Count Confirm Modal
   const [isStartCountModalOpen, setIsStartCountModalOpen] = useState(false);
+  const [startCountError, setStartCountError] = useState<string | null>(null);
   const [newCountName, setNewCountName] = useState('');
   const [newCountNotes, setNewCountNotes] = useState('');
   const [startingCount, setStartingCount] = useState(false);
   const [applyingCount, setApplyingCount] = useState(false);
+  const [isConfirmApplyOpen, setIsConfirmApplyOpen] = useState(false);
 
   // Load Inventory Data
   const fetchInventory = useCallback(async () => {
@@ -160,10 +172,7 @@ export default function InventoryPage() {
         fetch('/api/inventory/counts'),
       ]);
 
-      const [movData, countsData] = await Promise.all([
-        movRes.json(),
-        countsRes.json(),
-      ]);
+      const [movData, countsData] = await Promise.all([movRes.json(), countsRes.json()]);
 
       if (!movRes.ok) throw new Error(movData.error || 'Errore recupero inventario');
       if (!countsRes.ok) throw new Error(countsData.error || 'Errore recupero inventari');
@@ -182,6 +191,18 @@ export default function InventoryPage() {
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
+
+  // Escape closes open modals
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (isConfirmApplyOpen) setIsConfirmApplyOpen(false);
+      else if (isStartCountModalOpen) setIsStartCountModalOpen(false);
+      else if (isModalOpen) setIsModalOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isConfirmApplyOpen, isStartCountModalOpen, isModalOpen]);
 
   // Load Active Count Session
   const loadCountDetails = async (id: string) => {
@@ -209,7 +230,10 @@ export default function InventoryPage() {
     for (const b of balances) {
       const qty = b.quantity_on_hand || 0;
       totalPieces += qty;
-      const cost = b.variant?.cost_price || b.variant?.product?.cost_price || ((b.variant?.sale_price || b.variant?.product?.sale_price || 0) * 0.5);
+      const cost =
+        b.variant?.cost_price ||
+        b.variant?.product?.cost_price ||
+        (b.variant?.sale_price || b.variant?.product?.sale_price || 0) * 0.5;
       totalValue += qty * cost;
 
       const threshold = b.variant?.reorder_threshold ?? 2;
@@ -226,14 +250,12 @@ export default function InventoryPage() {
   // Filtered Balances
   const filteredBalances = useMemo(() => {
     return balances.filter((b) => {
-      // Stock level filter
       const qty = b.quantity_on_hand || 0;
       const threshold = b.variant?.reorder_threshold ?? 2;
       if (balanceFilter === 'low' && (qty <= 0 || qty > threshold)) return false;
       if (balanceFilter === 'out' && qty > 0) return false;
       if (balanceFilter === 'in' && qty <= threshold) return false;
 
-      // Text search
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase().trim();
       const pName = b.variant?.product?.name?.toLowerCase() || '';
@@ -266,7 +288,7 @@ export default function InventoryPage() {
       const brand = m.variant?.product?.brand?.name?.toLowerCase() || '';
       const sku = (m.variant?.sku || m.variant?.product?.sku || '').toLowerCase();
       const barcode = (m.variant?.barcode || '').toLowerCase();
-      const reason = (m.reason || '').toLowerCase();
+      const reasonText = (m.reason || '').toLowerCase();
       const ref = (m.reference || '').toLowerCase();
 
       return (
@@ -274,7 +296,7 @@ export default function InventoryPage() {
         brand.includes(q) ||
         sku.includes(q) ||
         barcode.includes(q) ||
-        reason.includes(q) ||
+        reasonText.includes(q) ||
         ref.includes(q)
       );
     });
@@ -323,6 +345,7 @@ export default function InventoryPage() {
       setUnitCost('');
       setReason('');
       setReference('');
+      setFeedback({ type: 'success', message: 'Movimento di magazzino registrato con successo.' });
       await fetchInventory();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Errore registrazione';
@@ -339,11 +362,25 @@ export default function InventoryPage() {
     );
 
     if (lowStockItems.length === 0) {
-      alert('Nessun articolo attualmente sotto scorta.');
+      setFeedback({
+        type: 'warning',
+        message: 'Nessun articolo attualmente sotto scorta da esportare.',
+      });
       return;
     }
 
-    const headers = ['Prodotto', 'Brand', 'Taglia', 'Colore', 'SKU', 'Barcode', 'Giacenza Attuale', 'Soglia Minima', 'Qta Consigliata Riordino', 'Prezzo Costo Stimato'];
+    const headers = [
+      'Prodotto',
+      'Brand',
+      'Taglia',
+      'Colore',
+      'SKU',
+      'Barcode',
+      'Giacenza Attuale',
+      'Soglia Minima',
+      'Qta Consigliata Riordino',
+      'Prezzo Costo Stimato',
+    ];
     const rows = lowStockItems.map((b) => {
       const p = b.variant?.product;
       const v = b.variant;
@@ -381,6 +418,7 @@ export default function InventoryPage() {
     e.preventDefault();
     try {
       setStartingCount(true);
+      setStartCountError(null);
       const res = await fetch('/api/inventory/counts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -403,7 +441,7 @@ export default function InventoryPage() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Errore avvio inventario';
-      alert(msg);
+      setStartCountError(msg);
     } finally {
       setStartingCount(false);
     }
@@ -413,12 +451,15 @@ export default function InventoryPage() {
   const handleUpdateCountItem = async (itemId: string, newCountedQty: number) => {
     if (!activeCount) return;
     try {
-      // Optimistic update
       setActiveCount({
         ...activeCount,
         items: activeCount.items.map((it) =>
           it.id === itemId
-            ? { ...it, counted_quantity: newCountedQty, discrepancy: newCountedQty - it.expected_quantity }
+            ? {
+                ...it,
+                counted_quantity: newCountedQty,
+                discrepancy: newCountedQty - it.expected_quantity,
+              }
             : it
         ),
       });
@@ -437,12 +478,9 @@ export default function InventoryPage() {
     }
   };
 
-  // Apply Inventory Count
-  const handleApplyCount = async () => {
+  // Apply Inventory Count (inline confirmation modal instead of window.confirm/alert)
+  const executeApplyCount = async () => {
     if (!activeCount) return;
-    const discrepanciesCount = activeCount.items.filter((it) => it.discrepancy !== 0).length;
-    const confirmMsg = `Confermi la riconciliazione dell'inventario?\n\nVerranno applicate ${discrepanciesCount} rettifiche automatiche di magazzino in modo atomico.`;
-    if (!window.confirm(confirmMsg)) return;
 
     try {
       setApplyingCount(true);
@@ -458,234 +496,242 @@ export default function InventoryPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore riconciliazione');
 
-      alert(`Inventario riconciliato con successo! Rettifiche applicate: ${data.result?.adjustments_applied || 0}`);
+      setIsConfirmApplyOpen(false);
       setActiveCount(null);
+      setFeedback({
+        type: 'success',
+        message: `Inventario riconciliato con successo! Rettifiche applicate: ${
+          data.result?.adjustments_applied || 0
+        }`,
+      });
       await fetchInventory();
     } catch (err: unknown) {
+      setIsConfirmApplyOpen(false);
       const msg = err instanceof Error ? err.message : 'Errore applicazione inventario';
-      alert(msg);
+      setFeedback({ type: 'error', message: msg });
     } finally {
       setApplyingCount(false);
     }
   };
 
+  const activeDiscrepanciesCount = activeCount
+    ? activeCount.items.filter((it) => it.discrepancy !== 0).length
+    : 0;
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800/80 pb-6">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-            <Boxes className="w-3.5 h-3.5 text-lime-500 dark:text-[#bfff00]" />
-            <span>Retail Inventory & Stock Logistics</span>
+    <div className="space-y-6 min-w-0">
+      <PageHeader
+        eyebrow="02 // RETAIL INVENTORY & LOGISTICS"
+        title="Magazzino & Scorte"
+        description="Controllo giacenze in tempo reale per variante, storico movimenti atomico e procedura di inventario periodico."
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={exportReorderCSV}
+              title="Esporta lista prodotti sotto scorta in formato CSV per riordino fornitori"
+              className="inline-flex items-center justify-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] px-3.5 min-h-[40px] max-sm:min-h-[44px] rounded-lg text-xs font-semibold hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-[var(--text-secondary)]" strokeWidth={1.75} aria-hidden="true" />
+              <span className="hidden md:inline">Lista Riordino CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setModalError(null);
+                setIsModalOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-4 min-h-[40px] max-sm:min-h-[44px] rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+              <span>Registra Movimento</span>
+            </button>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            Magazzino & Scorte
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 max-w-2xl">
-            Controllo giacenze in tempo reale per variante, storico movimenti atomico e procedura di inventario periodico.
-          </p>
-        </div>
+        }
+      />
 
-        <div className="flex items-center gap-2.5">
+      {/* Feedback Banner */}
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'p-3.5 rounded-xl border text-xs flex items-center justify-between gap-3',
+            feedback.type === 'success'
+              ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational-border)] text-[var(--accent-operational-text)]'
+              : feedback.type === 'warning'
+              ? 'bg-[var(--accent-warning-bg)] border-[var(--accent-warning-border)] text-[var(--accent-warning-text)]'
+              : 'bg-[var(--accent-critical-bg)] border-[var(--accent-critical-border)] text-[var(--accent-critical-text)]'
+          )}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {feedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            ) : feedback.type === 'warning' ? (
+              <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            )}
+            <span className="font-medium truncate">{feedback.message}</span>
+          </div>
           <button
-            onClick={exportReorderCSV}
-            title="Esporta lista prodotti sotto scorta in formato CSV per riordino fornitori"
-            className="inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
+            type="button"
+            onClick={() => setFeedback(null)}
+            aria-label="Chiudi notifica"
+            className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 shrink-0 cursor-pointer"
           >
-            <Download className="w-4 h-4 text-zinc-500" />
-            <span className="hidden md:inline">Lista Riordino CSV</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setModalError(null);
-              setIsModalOpen(true);
-            }}
-            className="inline-flex items-center justify-center gap-2 bg-[#bfff00] text-black px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#a8e600] transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Registra Movimento</span>
+            <X className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
-      </div>
+      )}
 
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <span className="text-xs text-zinc-500 font-medium">Valore Magazzino (Costo)</span>
-          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
-            € {stats.totalValue.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            Stima costo d&apos;acquisto totale
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <span className="text-xs text-zinc-500 font-medium">Pezzi Totali in Stock</span>
-          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
-            {stats.totalPieces.toLocaleString('it-IT')} pz
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            Distribuite su {balances.length} varianti
-          </span>
-        </div>
-
-        <div 
-          onClick={() => { setActiveTab('balances'); setBalanceFilter('low'); }}
-          className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs cursor-pointer hover:border-amber-500/40 transition-colors"
-        >
-          <span className="text-xs text-zinc-500 font-medium flex items-center justify-between">
-            <span>Sotto Scorta Riordino</span>
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-          </span>
-          <div className={`text-2xl font-bold font-mono mt-1 ${stats.lowStockCount > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
-            {stats.lowStockCount} varianti
-          </div>
-          <span className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-1 block">
-            {stats.lowStockCount > 0 ? 'Clicca per filtrare e riordinare' : 'Tutte le scorte sono ottimali'}
-          </span>
-        </div>
-
-        <div 
-          onClick={() => { setActiveTab('balances'); setBalanceFilter('out'); }}
-          className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs cursor-pointer hover:border-rose-500/40 transition-colors"
-        >
-          <span className="text-xs text-zinc-500 font-medium flex items-center justify-between">
-            <span>Giacenze a Zero (Esauriti)</span>
-            <TrendingDown className="w-3.5 h-3.5 text-rose-500" />
-          </span>
-          <div className={`text-2xl font-bold font-mono mt-1 ${stats.outOfStockCount > 0 ? 'text-rose-500' : 'text-zinc-500'}`}>
-            {stats.outOfStockCount} varianti
-          </div>
-          <span className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-1 block">
-            {stats.outOfStockCount > 0 ? 'Articoli con stock terminato' : 'Nessun articolo a zero'}
-          </span>
-        </div>
+        <KpiCard
+          label="Valore Magazzino (Costo)"
+          value={formatItCurrency(stats.totalValue)}
+          icon={Coins}
+          context="Stima costo d'acquisto totale"
+          loading={loading}
+        />
+        <KpiCard
+          label="Pezzi Totali in Stock"
+          value={`${stats.totalPieces.toLocaleString('it-IT')} pz`}
+          icon={Boxes}
+          context={`Distribuite su ${balances.length} varianti`}
+          loading={loading}
+        />
+        <KpiCard
+          label="Sotto Scorta Riordino"
+          value={`${stats.lowStockCount} varianti`}
+          icon={AlertTriangle}
+          tone={stats.lowStockCount > 0 ? 'warning' : 'operational'}
+          context={
+            stats.lowStockCount > 0
+              ? 'Clicca per filtrare e riordinare'
+              : 'Tutte le scorte sono ottimali'
+          }
+          onClick={() => {
+            setActiveTab('balances');
+            setBalanceFilter('low');
+          }}
+          loading={loading}
+        />
+        <KpiCard
+          label="Giacenze a Zero (Esauriti)"
+          value={`${stats.outOfStockCount} varianti`}
+          icon={TrendingDown}
+          tone={stats.outOfStockCount > 0 ? 'critical' : 'neutral'}
+          context={
+            stats.outOfStockCount > 0 ? 'Articoli con stock terminato' : 'Nessun articolo a zero'
+          }
+          onClick={() => {
+            setActiveTab('balances');
+            setBalanceFilter('out');
+          }}
+          loading={loading}
+        />
       </div>
 
-      {/* Main Tabs Navigation */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl">
-          <button
-            onClick={() => { setActiveTab('balances'); setActiveCount(null); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'balances'
-                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            Giacenze per Variante ({balances.length})
-          </button>
-          <button
-            onClick={() => { setActiveTab('movements'); setActiveCount(null); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'movements'
-                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            Storico Movimenti ({movements.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('counts')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'counts'
-                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            <ClipboardList className="w-3.5 h-3.5" />
-            <span>Inventario Fisico ({counts.length})</span>
-          </button>
+      {/* Main Tabs Navigation + Search */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="overflow-x-auto pb-1 lg:pb-0">
+          <SegmentedControl
+            ariaLabel="Sezioni magazzino"
+            value={activeTab}
+            onChange={(next) => {
+              setActiveTab(next);
+              if (next !== 'counts') setActiveCount(null);
+            }}
+            options={[
+              { value: 'balances', label: 'Giacenze per Variante', badge: balances.length },
+              { value: 'movements', label: 'Storico Movimenti', badge: movements.length },
+              {
+                value: 'counts',
+                label: 'Inventario Fisico',
+                icon: ClipboardList,
+                badge: counts.length,
+              },
+            ]}
+          />
         </div>
 
         {/* Global Search within active tab */}
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+        <div className="relative w-full lg:w-80">
+          <label htmlFor="inventory-search" className="sr-only">
+            Cerca in magazzino
+          </label>
+          <Search
+            className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           <input
-            type="text"
+            id="inventory-search"
+            type="search"
             placeholder={
-              activeTab === 'balances' 
-                ? "Cerca articolo, SKU, barcode, taglia..." 
+              activeTab === 'balances'
+                ? 'Cerca articolo, SKU, barcode, taglia…'
                 : activeTab === 'movements'
-                ? "Cerca per documento, articolo o causale..."
-                : "Filtra sessioni inventario..."
+                ? 'Cerca per documento, articolo o causale…'
+                : 'Filtra sessioni inventario…'
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+            className="w-full min-h-[40px] max-sm:min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl pl-9 pr-3 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors"
           />
         </div>
       </div>
 
       {/* Error state banner */}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div
+          role="alert"
+          className="p-4 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center gap-2"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Tab 1: Giacenze Attuali (Stock Balances) */}
+      {/* Main Content Area */}
       {loading ? (
-        <div className="p-16 text-center text-zinc-400 flex flex-col items-center justify-center gap-2">
-          <Loader2 className="w-6 h-6 animate-spin text-[#bfff00]" />
-          <span className="text-xs">Sincronizzazione scorte di magazzino in corso...</span>
+        <div className="p-16 text-center text-[var(--text-muted)] flex flex-col items-center justify-center gap-2" aria-busy="true">
+          <Loader2 className="w-6 h-6 animate-spin text-[var(--rivo-volt-text)]" aria-hidden="true" />
+          <span className="text-xs font-mono uppercase tracking-wider">
+            Sincronizzazione scorte di magazzino in corso…
+          </span>
         </div>
       ) : activeTab === 'balances' ? (
         <div className="space-y-3">
           {/* Sub-filters for balances */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-zinc-500 font-medium">Stato Giacenza:</span>
-            <div className="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 bg-zinc-50 dark:bg-zinc-900">
-              <button
-                onClick={() => setBalanceFilter('all')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  balanceFilter === 'all'
-                    ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white font-semibold shadow-2xs'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-                }`}
-              >
-                Tutti ({balances.length})
-              </button>
-              <button
-                onClick={() => setBalanceFilter('low')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  balanceFilter === 'low'
-                    ? 'bg-amber-500/20 text-amber-500 font-semibold'
-                    : 'text-zinc-500 hover:text-amber-500'
-                }`}
-              >
-                Sotto Scorta ({stats.lowStockCount})
-              </button>
-              <button
-                onClick={() => setBalanceFilter('out')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  balanceFilter === 'out'
-                    ? 'bg-rose-500/20 text-rose-500 font-semibold'
-                    : 'text-zinc-500 hover:text-rose-500'
-                }`}
-              >
-                Esauriti ({stats.outOfStockCount})
-              </button>
-              <button
-                onClick={() => setBalanceFilter('in')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  balanceFilter === 'in'
-                    ? 'bg-emerald-500/20 text-emerald-500 font-semibold'
-                    : 'text-zinc-500 hover:text-emerald-500'
-                }`}
-              >
-                Disponibili ({balances.length - stats.lowStockCount - stats.outOfStockCount})
-              </button>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-[var(--text-muted)] font-medium">Stato Giacenza:</span>
+            <div className="overflow-x-auto max-w-full">
+              <SegmentedControl
+                size="sm"
+                ariaLabel="Filtra stato giacenza"
+                value={balanceFilter}
+                onChange={setBalanceFilter}
+                options={[
+                  { value: 'all', label: 'Tutti', badge: balances.length },
+                  { value: 'low', label: 'Sotto Scorta', badge: stats.lowStockCount },
+                  { value: 'out', label: 'Esauriti', badge: stats.outOfStockCount },
+                  {
+                    value: 'in',
+                    label: 'Disponibili',
+                    badge: Math.max(0, balances.length - stats.lowStockCount - stats.outOfStockCount),
+                  },
+                ]}
+              />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
+          <SurfaceCard padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
+              <table className="w-full text-left text-xs min-w-[860px]">
+                <thead className="bg-[var(--bg-elevated)]/70 border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[11px] font-semibold uppercase tracking-wider">
                   <tr>
                     <th className="px-4 py-3">Articolo & Brand</th>
                     <th className="px-4 py-3">Categoria</th>
@@ -698,11 +744,16 @@ export default function InventoryPage() {
                     <th className="px-4 py-3 text-right">Azioni Rapide</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
+                <tbody className="divide-y divide-[var(--border-subtle)]">
                   {filteredBalances.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-12 text-center text-zinc-400">
-                        Nessuna giacenza trovata con i filtri correnti.
+                      <td colSpan={9} className="p-6">
+                        <EmptyState
+                          icon={Boxes}
+                          title="Nessuna giacenza trovata"
+                          description="Nessuna giacenza trovata con i filtri correnti."
+                          compact
+                        />
                       </td>
                     </tr>
                   ) : (
@@ -715,68 +766,74 @@ export default function InventoryPage() {
                       const itemVal = onHand * cost;
 
                       return (
-                        <tr key={b.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-zinc-950 dark:text-white">
+                        <tr
+                          key={b.id}
+                          className="hover:bg-[var(--bg-elevated)]/50 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
                             <div>{b.variant?.product?.name || 'N/D'}</div>
                             {b.variant?.product?.brand?.name && (
-                              <span className="text-[10px] text-zinc-400 block font-normal uppercase">
+                              <span className="font-mono text-[10px] text-[var(--text-muted)] block font-normal uppercase">
                                 {b.variant.product.brand.name}
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-zinc-500">
-                            {b.variant?.product?.category?.name || '-'}
+                          <td className="px-4 py-3 text-[var(--text-secondary)]">
+                            {b.variant?.product?.category?.name || '—'}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                            <span className="font-mono font-semibold text-[var(--text-primary)]">
                               {b.variant?.size || 'U'}
                             </span>
                             {b.variant?.color && (
-                              <span className="text-zinc-500 ml-1.5">• {b.variant.color}</span>
+                              <span className="text-[var(--text-secondary)] ml-1.5">
+                                • {b.variant.color}
+                              </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 font-mono text-[11px] text-zinc-400">
-                            <div>{b.variant?.sku || b.variant?.product?.sku || '-'}</div>
+                          <td className="px-4 py-3 font-mono tabular-nums text-[11px] text-[var(--text-muted)]">
+                            <div>{b.variant?.sku || b.variant?.product?.sku || '—'}</div>
                             {b.variant?.barcode && (
-                              <div className="text-[10px] text-zinc-500 flex items-center gap-1">
-                                <Barcode className="w-3 h-3 text-zinc-400" />
+                              <div className="text-[10px] flex items-center gap-1">
+                                <Barcode className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
                                 <span>{b.variant.barcode}</span>
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono font-bold text-sm text-zinc-950 dark:text-white">
+                          <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-sm text-[var(--text-primary)]">
                             {onHand}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-zinc-500">
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                             {threshold}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-zinc-600 dark:text-zinc-400">
-                            € {itemVal.toFixed(2)}
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                            {formatItCurrency(itemVal)}
                           </td>
                           <td className="px-4 py-3 text-center">
                             {isOut ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                              <StatusBadge tone="critical" size="sm">
                                 Esaurito
-                              </span>
+                              </StatusBadge>
                             ) : isLow ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                <AlertTriangle className="w-3 h-3" /> Sotto scorta
-                              </span>
+                              <StatusBadge tone="warning" icon={AlertTriangle} size="sm">
+                                Sotto scorta
+                              </StatusBadge>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                                <CheckCircle2 className="w-3 h-3" /> In stock
-                              </span>
+                              <StatusBadge tone="operational" icon={CheckCircle2} size="sm">
+                                In stock
+                              </StatusBadge>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <button
+                              type="button"
                               onClick={() => {
                                 setSelectedVariantId(b.variant_id);
                                 setMovementType('purchase');
                                 setQuantity('10');
                                 setIsModalOpen(true);
                               }}
-                              className="text-[11px] font-medium text-lime-600 dark:text-[#bfff00] hover:underline"
+                              className="text-[11px] font-semibold text-[var(--rivo-volt-text)] hover:underline cursor-pointer"
                             >
                               Carica Merce
                             </button>
@@ -788,18 +845,20 @@ export default function InventoryPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </SurfaceCard>
         </div>
       ) : activeTab === 'movements' ? (
         /* Tab 2: Storico Movimenti (Full Audit Trail) */
         <div className="space-y-3">
-          {/* Sub-filter by movement type */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-zinc-500 font-medium">Filtra per Tipo:</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <label htmlFor="movement-type-filter" className="text-[var(--text-muted)] font-medium">
+              Filtra per Tipo:
+            </label>
             <select
+              id="movement-type-filter"
               value={movementTypeFilter}
               onChange={(e) => setMovementTypeFilter(e.target.value)}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-900 dark:text-white focus:outline-none"
+              className="min-h-[38px] max-sm:min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
             >
               <option value="all">Tutti i tipi</option>
               <option value="purchase">Carico Acquisto / Fornitore</option>
@@ -812,10 +871,10 @@ export default function InventoryPage() {
             </select>
           </div>
 
-          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
+          <SurfaceCard padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
+              <table className="w-full text-left text-xs min-w-[820px]">
+                <thead className="bg-[var(--bg-elevated)]/70 border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[11px] font-semibold uppercase tracking-wider">
                   <tr>
                     <th className="px-4 py-3">Data & Ora</th>
                     <th className="px-4 py-3">Tipo Movimento</th>
@@ -826,82 +885,98 @@ export default function InventoryPage() {
                     <th className="px-4 py-3">Causale & Documento Rif.</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
+                <tbody className="divide-y divide-[var(--border-subtle)]">
                   {filteredMovements.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
-                        Nessun movimento registrato.
+                      <td colSpan={7} className="p-6">
+                        <EmptyState
+                          icon={Boxes}
+                          title="Nessun movimento registrato"
+                          description="I carichi, scarichi e rettifiche appariranno qui in ordine cronologico."
+                          compact
+                        />
                       </td>
                     </tr>
                   ) : (
                     filteredMovements.map((m) => {
                       const delta = m.quantity_delta;
                       return (
-                        <tr key={m.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                          <td className="px-4 py-3 text-zinc-400 whitespace-nowrap font-mono text-[11px]">
+                        <tr
+                          key={m.id}
+                          className="hover:bg-[var(--bg-elevated)]/50 transition-colors"
+                        >
+                          <td className="px-4 py-3 text-[var(--text-muted)] whitespace-nowrap font-mono tabular-nums text-[11px]">
                             {new Date(m.created_at).toLocaleDateString('it-IT', {
                               day: '2-digit',
                               month: '2-digit',
                               year: 'numeric',
                               hour: '2-digit',
-                              minute: '2-digit'
+                              minute: '2-digit',
                             })}
                           </td>
                           <td className="px-4 py-3">
                             {m.type === 'purchase' || m.type === 'in' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                <ArrowDownLeft className="w-3.5 h-3.5" /> Carico Acquisto
-                              </span>
+                              <StatusBadge tone="operational" icon={ArrowDownLeft} size="sm">
+                                Carico Acquisto
+                              </StatusBadge>
                             ) : m.type === 'sale' || m.type === 'out' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                                <ArrowUpRight className="w-3.5 h-3.5" /> Vendita Cassa
-                              </span>
+                              <StatusBadge tone="critical" icon={ArrowUpRight} size="sm">
+                                Vendita Cassa
+                              </StatusBadge>
                             ) : m.type === 'return' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-500">
-                                <RotateCcw className="w-3.5 h-3.5" /> Reso Merce
-                              </span>
+                              <StatusBadge tone="telemetry" icon={RotateCcw} size="sm">
+                                Reso Merce
+                              </StatusBadge>
                             ) : m.type === 'inventory_count' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-500">
-                                <ClipboardList className="w-3.5 h-3.5" /> Inventario Fisico
-                              </span>
+                              <StatusBadge tone="volt" icon={ClipboardList} size="sm">
+                                Inventario Fisico
+                              </StatusBadge>
                             ) : m.type === 'damaged' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-500">
+                              <StatusBadge tone="warning" size="sm">
                                 Danneggiato / Difetto
-                              </span>
+                              </StatusBadge>
                             ) : m.type === 'initial' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-500">
+                              <StatusBadge tone="telemetry" size="sm">
                                 Iniziale
-                              </span>
+                              </StatusBadge>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-400">
+                              <StatusBadge tone="neutral" size="sm">
                                 Rettifica Manuale
-                              </span>
+                              </StatusBadge>
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="font-semibold text-zinc-950 dark:text-white">
+                            <span className="font-semibold text-[var(--text-primary)]">
                               {m.variant?.product?.name || 'Articolo'}
                             </span>
-                            <span className="text-zinc-500 block text-[11px]">
-                              {m.variant?.product?.brand?.name ? `${m.variant.product.brand.name} • ` : ''}
-                              Taglia {m.variant?.size || 'U'} {m.variant?.color ? `• ${m.variant.color}` : ''}
+                            <span className="text-[var(--text-secondary)] block text-[11px]">
+                              {m.variant?.product?.brand?.name
+                                ? `${m.variant.product.brand.name} • `
+                                : ''}
+                              Taglia {m.variant?.size || 'U'}{' '}
+                              {m.variant?.color ? `• ${m.variant.color}` : ''}
                             </span>
                           </td>
-                          <td className={`px-4 py-3 text-right font-mono font-bold ${
-                            delta > 0 ? 'text-emerald-500' : 'text-rose-500'
-                          }`}>
+                          <td
+                            className={cn(
+                              'px-4 py-3 text-right font-mono tabular-nums font-bold',
+                              delta > 0
+                                ? 'text-[var(--accent-operational-text)]'
+                                : 'text-[var(--accent-critical-text)]'
+                            )}
+                          >
                             {delta > 0 ? `+${delta}` : delta}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-zinc-950 dark:text-white">
-                            {m.quantity_after !== null ? m.quantity_after : '-'}
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-primary)]">
+                            {m.quantity_after !== null ? m.quantity_after : '—'}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-zinc-500">
-                            {m.unit_cost !== null ? `€ ${Number(m.unit_cost).toFixed(2)}` : '-'}
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                            {m.unit_cost !== null ? formatItCurrency(Number(m.unit_cost)) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-zinc-500">
-                            <div>{m.reason || '-'}</div>
+                          <td className="px-4 py-3 text-[var(--text-secondary)]">
+                            <div>{m.reason || '—'}</div>
                             {m.reference && (
-                              <span className="font-mono text-[10px] text-zinc-400 block">
+                              <span className="font-mono text-[10px] text-[var(--text-muted)] block">
                                 Rif: {m.reference}
                               </span>
                             )}
@@ -913,201 +988,248 @@ export default function InventoryPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </SurfaceCard>
         </div>
       ) : (
-        /* Tab 3: Inventario Fisico Periodico (PRD §21) */
+        /* Tab 3: Inventario Fisico Periodico */
         <div className="space-y-4">
           {!activeCount ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Sessioni di Inventario Periodico</h3>
-                  <p className="text-xs text-zinc-500">
+                  <h2 className="font-display text-sm font-bold text-[var(--text-primary)]">
+                    Sessioni di Inventario Periodico
+                  </h2>
+                  <p className="text-xs text-[var(--text-secondary)]">
                     Esegui la conta fisica dei prodotti nel punto vendita, calcola le discrepanze teoriche e riconcilia il magazzino.
                   </p>
                 </div>
                 <button
-                  onClick={() => setIsStartCountModalOpen(true)}
-                  className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-3.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#a8e600] transition-colors"
+                  type="button"
+                  onClick={() => {
+                    setStartCountError(null);
+                    setIsStartCountModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-3.5 min-h-[40px] max-sm:min-h-[44px] rounded-lg text-xs font-bold transition-colors shrink-0 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
                   <span>Nuovo Inventario Fisico</span>
                 </button>
               </div>
 
-              <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3">Data Creazione</th>
-                      <th className="px-4 py-3">Nome Sessione</th>
-                      <th className="px-4 py-3">Stato</th>
-                      <th className="px-4 py-3">Note</th>
-                      <th className="px-4 py-3 text-right">Azione</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
-                    {counts.length === 0 ? (
+              <SurfaceCard padding="none" className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[640px]">
+                    <thead className="bg-[var(--bg-elevated)]/70 border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[11px] font-semibold uppercase tracking-wider">
                       <tr>
-                        <td colSpan={5} className="px-4 py-12 text-center text-zinc-400">
-                          Nessuna sessione di inventario registrata finora.
-                        </td>
+                        <th className="px-4 py-3">Data Creazione</th>
+                        <th className="px-4 py-3">Nome Sessione</th>
+                        <th className="px-4 py-3">Stato</th>
+                        <th className="px-4 py-3">Note</th>
+                        <th className="px-4 py-3 text-right">Azione</th>
                       </tr>
-                    ) : (
-                      counts.map((c) => (
-                        <tr key={c.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                          <td className="px-4 py-3 font-mono text-zinc-500">
-                            {new Date(c.created_at).toLocaleDateString('it-IT', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-zinc-950 dark:text-white">
-                            {c.name}
-                          </td>
-                          <td className="px-4 py-3">
-                            {c.status === 'completed' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                                <CheckCircle2 className="w-3 h-3" /> Completato & Riconciliato
-                              </span>
-                            ) : c.status === 'in_progress' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                In Corso (Bozza)
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-                                Annullato
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-zinc-500">
-                            {c.notes || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => loadCountDetails(c.id)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-lime-600 dark:text-[#bfff00] hover:underline"
-                            >
-                              <span>{c.status === 'in_progress' ? 'Continua Conta' : 'Visualizza Report'}</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-subtle)]">
+                      {counts.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-6">
+                            <EmptyState
+                              icon={ClipboardList}
+                              title="Nessuna sessione di inventario"
+                              description="Avvia una nuova sessione di inventario fisico per verificare le giacenze."
+                              compact
+                            />
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ) : (
+                        counts.map((c) => (
+                          <tr
+                            key={c.id}
+                            className="hover:bg-[var(--bg-elevated)]/50 transition-colors"
+                          >
+                            <td className="px-4 py-3 font-mono tabular-nums text-[var(--text-secondary)]">
+                              {new Date(c.created_at).toLocaleDateString('it-IT', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
+                              {c.name}
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.status === 'completed' ? (
+                                <StatusBadge tone="operational" icon={CheckCircle2} size="sm">
+                                  Completato & Riconciliato
+                                </StatusBadge>
+                              ) : c.status === 'in_progress' ? (
+                                <StatusBadge tone="warning" size="sm">
+                                  In Corso (Bozza)
+                                </StatusBadge>
+                              ) : (
+                                <StatusBadge tone="neutral" size="sm">
+                                  Annullato
+                                </StatusBadge>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--text-secondary)]">
+                              {c.notes || '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => loadCountDetails(c.id)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline cursor-pointer"
+                              >
+                                <span>
+                                  {c.status === 'in_progress'
+                                    ? 'Continua Conta'
+                                    : 'Visualizza Report'}
+                                </span>
+                                <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </SurfaceCard>
             </div>
           ) : (
             /* Active Count Detail View */
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
                 <div>
                   <button
+                    type="button"
                     onClick={() => setActiveCount(null)}
-                    className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white mb-1 inline-flex items-center gap-1"
+                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] mb-1.5 inline-flex items-center gap-1 cursor-pointer"
                   >
-                    ← Torna all&apos;elenco sessioni
+                    <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                    <span>Torna all&apos;elenco sessioni</span>
                   </button>
-                  <h3 className="text-lg font-bold text-zinc-950 dark:text-white flex items-center gap-2">
-                    <span>{activeCount.session.name}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      activeCount.session.status === 'completed'
-                        ? 'bg-emerald-500/10 text-emerald-500'
-                        : 'bg-amber-500/10 text-amber-500'
-                    }`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-display text-lg font-bold text-[var(--text-primary)]">
+                      {activeCount.session.name}
+                    </h2>
+                    <StatusBadge
+                      tone={activeCount.session.status === 'completed' ? 'operational' : 'warning'}
+                      size="sm"
+                    >
                       {activeCount.session.status === 'completed' ? 'Riconciliato' : 'In Corso'}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-zinc-400">
+                    </StatusBadge>
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] font-mono tabular-nums mt-1">
                     Righe totali: {activeCount.items.length} | Discrepanze:{' '}
-                    <span className="font-semibold text-amber-500">
-                      {activeCount.items.filter((it) => it.discrepancy !== 0).length}
+                    <span className="font-semibold text-[var(--accent-warning-text)]">
+                      {activeDiscrepanciesCount}
                     </span>
                   </p>
                 </div>
 
                 {activeCount.session.status === 'in_progress' && (
                   <button
-                    onClick={handleApplyCount}
+                    type="button"
+                    onClick={() => setIsConfirmApplyOpen(true)}
                     disabled={applyingCount}
-                    className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-4 py-2 rounded-xl text-xs font-semibold hover:bg-[#a8e600] disabled:opacity-50"
+                    className="inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-4 min-h-[40px] max-sm:min-h-[44px] rounded-lg text-xs font-bold disabled:opacity-50 cursor-pointer"
                   >
-                    {applyingCount ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                    {applyingCount ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                    )}
                     <span>Conferma & Riconcilia Magazzino</span>
                   </button>
                 )}
               </div>
 
-              <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3">Articolo / Brand</th>
-                      <th className="px-4 py-3">Taglia / Colore</th>
-                      <th className="px-4 py-3">SKU & Barcode</th>
-                      <th className="px-4 py-3 text-right">Giacenza Teorica</th>
-                      <th className="px-4 py-3 text-right">Quantità Contata</th>
-                      <th className="px-4 py-3 text-right">Discrepanza</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
-                    {activeCount.items.map((it) => {
-                      const isDiff = it.discrepancy !== 0;
-                      return (
-                        <tr key={it.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-zinc-950 dark:text-white">
+              <SurfaceCard padding="none" className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[680px]">
+                    <thead className="bg-[var(--bg-elevated)]/70 border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[11px] font-semibold uppercase tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3">Articolo / Brand</th>
+                        <th className="px-4 py-3">Taglia / Colore</th>
+                        <th className="px-4 py-3">SKU & Barcode</th>
+                        <th className="px-4 py-3 text-right">Giacenza Teorica</th>
+                        <th className="px-4 py-3 text-right">Quantità Contata</th>
+                        <th className="px-4 py-3 text-right">Discrepanza</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-subtle)]">
+                      {activeCount.items.map((it) => (
+                        <tr
+                          key={it.id}
+                          className="hover:bg-[var(--bg-elevated)]/50 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
                             <div>{it.variant?.product?.name || 'Articolo'}</div>
                             {it.variant?.product?.brand?.name && (
-                              <span className="text-[10px] text-zinc-400 font-normal uppercase">
+                              <span className="font-mono text-[10px] text-[var(--text-muted)] font-normal uppercase">
                                 {it.variant.product.brand.name}
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="font-mono font-semibold">{it.variant?.size || 'U'}</span>
-                            {it.variant?.color && <span className="text-zinc-500 ml-1">• {it.variant.color}</span>}
+                            <span className="font-mono font-semibold text-[var(--text-primary)]">
+                              {it.variant?.size || 'U'}
+                            </span>
+                            {it.variant?.color && (
+                              <span className="text-[var(--text-secondary)] ml-1">
+                                • {it.variant.color}
+                              </span>
+                            )}
                           </td>
-                          <td className="px-4 py-3 font-mono text-[11px] text-zinc-400">
-                            <div>{it.variant?.sku || '-'}</div>
-                            {it.variant?.barcode && <div className="text-[10px] text-zinc-500">{it.variant.barcode}</div>}
+                          <td className="px-4 py-3 font-mono tabular-nums text-[11px] text-[var(--text-muted)]">
+                            <div>{it.variant?.sku || '—'}</div>
+                            {it.variant?.barcode && (
+                              <div className="text-[10px]">{it.variant.barcode}</div>
+                            )}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                          <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-[var(--text-primary)]">
                             {it.expected_quantity}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono">
+                          <td className="px-4 py-3 text-right font-mono tabular-nums">
                             {activeCount.session.status === 'in_progress' ? (
                               <input
                                 type="number"
                                 min="0"
+                                aria-label={`Quantità contata per ${it.variant?.product?.name || 'Articolo'} ${it.variant?.size || ''}`}
                                 value={it.counted_quantity}
-                                onChange={(e) => handleUpdateCountItem(it.id, parseInt(e.target.value, 10) || 0)}
-                                className="w-16 text-right font-bold bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                                onChange={(e) =>
+                                  handleUpdateCountItem(it.id, parseInt(e.target.value, 10) || 0)
+                                }
+                                className="w-20 text-right font-mono tabular-nums font-bold bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                               />
                             ) : (
-                              <span className="font-bold text-zinc-900 dark:text-zinc-100">{it.counted_quantity}</span>
+                              <span className="font-bold text-[var(--text-primary)]">
+                                {it.counted_quantity}
+                              </span>
                             )}
                           </td>
-                          <td className={`px-4 py-3 text-right font-mono font-bold ${
-                            it.discrepancy === 0
-                              ? 'text-emerald-500'
-                              : it.discrepancy < 0
-                              ? 'text-rose-500'
-                              : 'text-blue-500'
-                          }`}>
+                          <td
+                            className={cn(
+                              'px-4 py-3 text-right font-mono tabular-nums font-bold',
+                              it.discrepancy === 0
+                                ? 'text-[var(--accent-operational-text)]'
+                                : it.discrepancy < 0
+                                ? 'text-[var(--accent-critical-text)]'
+                                : 'text-[var(--accent-telemetry-text)]'
+                            )}
+                          >
                             {it.discrepancy > 0 ? `+${it.discrepancy}` : it.discrepancy}
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </SurfaceCard>
             </div>
           )}
         </div>
@@ -1115,57 +1237,82 @@ export default function InventoryPage() {
 
       {/* Record Movement Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overflow-y-auto overscroll-contain"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="record-movement-title"
+        >
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-[#bfff00]" />
-                <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Registra Movimento Magazzino</h2>
+                <Boxes className="w-5 h-5 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                <h2
+                  id="record-movement-title"
+                  className="font-display text-lg font-bold text-[var(--text-primary)]"
+                >
+                  Registra Movimento Magazzino
+                </h2>
               </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                aria-label="Chiudi finestra"
+                className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
               </button>
             </div>
 
             {modalError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
                 <span>{modalError}</span>
               </div>
             )}
 
             <form onSubmit={handleRecordMovement} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="mov-variant"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Articolo / Variante *
                 </label>
                 <select
+                  id="mov-variant"
                   required
                   value={selectedVariantId}
                   onChange={(e) => setSelectedVariantId(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  className="w-full min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                 >
-                  <option value="">Seleziona variante dal catalogo...</option>
+                  <option value="">Seleziona variante dal catalogo…</option>
                   {balances.map((b) => (
                     <option key={b.variant_id} value={b.variant_id}>
-                      {b.variant?.product?.name} ({b.variant?.product?.brand?.name || 'No brand'}) - Taglia {b.variant?.size || 'U'} {b.variant?.color || ''} [Giacenza: {b.quantity_on_hand}]
+                      {b.variant?.product?.name} ({b.variant?.product?.brand?.name || 'No brand'}) -
+                      Taglia {b.variant?.size || 'U'} {b.variant?.color || ''} [Giacenza:{' '}
+                      {b.quantity_on_hand}]
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="mov-type"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Tipo Operazione
                   </label>
                   <select
+                    id="mov-type"
                     value={movementType}
                     onChange={(e) => setMovementType(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                   >
                     <option value="purchase">Carico Merce / Acquisto (+)</option>
                     <option value="sale">Scarico Vendita (-)</option>
@@ -1176,78 +1323,94 @@ export default function InventoryPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="mov-qty"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Quantità *
                   </label>
                   <input
+                    id="mov-qty"
                     type="number"
                     min="1"
                     required
                     placeholder="1"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] font-mono tabular-nums focus:outline-none focus:border-[var(--focus-ring)]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="mov-unit-cost"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Costo Unitario € (Opzionale)
                   </label>
                   <input
+                    id="mov-unit-cost"
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="0.00"
                     value={unitCost}
                     onChange={(e) => setUnitCost(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] font-mono tabular-nums focus:outline-none focus:border-[var(--focus-ring)]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="mov-reference"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Riferimento DDT / Fattura
                   </label>
                   <input
+                    id="mov-reference"
                     type="text"
-                    placeholder="es. DDT-2026-99"
+                    placeholder="es. DDT-2026-99…"
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--focus-ring)]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="mov-reason"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Causale Movimento
                 </label>
                 <input
+                  id="mov-reason"
                   type="text"
-                  placeholder="es. Arrivo merce fornitore Borrelli, reso cliente scontrino #104..."
+                  placeholder="es. Arrivo merce fornitore Borrelli, reso cliente scontrino #104…"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  className="w-full min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-4 min-h-[40px] text-xs font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-5 py-2 rounded-xl text-xs font-semibold hover:bg-[#a8e600] disabled:opacity-50"
+                  className="inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-5 min-h-[40px] rounded-lg text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
                   <span>Registra Movimento Atomico</span>
                 </button>
               </div>
@@ -1258,67 +1421,150 @@ export default function InventoryPage() {
 
       {/* Start Count Modal */}
       {isStartCountModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="start-count-title"
+        >
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-[#bfff00]" />
-                <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Nuova Sessione di Inventario</h2>
+                <ClipboardList className="w-5 h-5 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                <h2
+                  id="start-count-title"
+                  className="font-display text-lg font-bold text-[var(--text-primary)]"
+                >
+                  Nuova Sessione di Inventario
+                </h2>
               </div>
               <button
+                type="button"
                 onClick={() => setIsStartCountModalOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                aria-label="Chiudi finestra"
+                className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
               </button>
             </div>
 
+            {startCountError && (
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <span>{startCountError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleStartCount} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="count-session-name"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Nome Sessione *
                 </label>
                 <input
+                  id="count-session-name"
                   type="text"
                   required
                   placeholder={`Inventario del ${new Date().toLocaleDateString('it-IT')}`}
                   value={newCountName}
                   onChange={(e) => setNewCountName(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  className="w-full min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="count-session-notes"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Note Operative (Opzionale)
                 </label>
                 <textarea
+                  id="count-session-notes"
                   rows={3}
-                  placeholder="es. Inventario semestrale calzature e accessori..."
+                  placeholder="es. Inventario semestrale calzature e accessori…"
                   value={newCountNotes}
                   onChange={(e) => setNewCountNotes(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  className="w-full bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setIsStartCountModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-4 min-h-[40px] text-xs font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={startingCount}
-                  className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-5 py-2 rounded-xl text-xs font-semibold hover:bg-[#a8e600] disabled:opacity-50"
+                  className="inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-5 min-h-[40px] rounded-lg text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
-                  {startingCount && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {startingCount && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
                   <span>Avvia Sessione</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Inventory Reconciliation Modal */}
+      {isConfirmApplyOpen && activeCount && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-reconcile-title"
+        >
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h2
+                  id="confirm-reconcile-title"
+                  className="font-display text-base font-bold text-[var(--text-primary)]"
+                >
+                  Conferma Riconciliazione Inventario
+                </h2>
+                <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  Confermi la riconciliazione dell&apos;inventario? Verranno applicate{' '}
+                  <strong className="font-mono tabular-nums text-[var(--text-primary)]">
+                    {activeDiscrepanciesCount}
+                  </strong>{' '}
+                  rettifiche automatiche di magazzino in modo atomico.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setIsConfirmApplyOpen(false)}
+                disabled={applyingCount}
+                className="px-4 min-h-[40px] text-xs font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={executeApplyCount}
+                disabled={applyingCount}
+                className="inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-5 min-h-[40px] rounded-lg text-xs font-bold disabled:opacity-50 cursor-pointer"
+              >
+                {applyingCount && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+                <span>Conferma & Riconcilia</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

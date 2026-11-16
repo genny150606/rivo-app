@@ -5,23 +5,23 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { 
-  ArrowRight, 
-  ArrowLeft, 
-  Loader2, 
-  ShieldAlert, 
-  ShieldCheck, 
-  Sparkles, 
-  Lock, 
+import {
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  ShieldAlert,
   CheckCircle2,
-  Radio,
-  Activity
+  Activity,
+  Eye,
+  EyeOff,
+  Lock,
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -43,7 +43,6 @@ export default function LoginPage() {
     }
 
     if (data.user) {
-      // Check user role and status from profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('role, status')
@@ -76,67 +75,94 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#050507] text-white">
-      {/* Left Pane (Desktop Showcase): High-Craft Brand & Trust */}
-      <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between p-12 bg-[#08090D] border-r border-white/[0.08] relative overflow-hidden">
-        {/* Ambient radial glow */}
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none" />
-
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#09090B] text-[#F4F4F6] font-sans">
+      {/* Left Pane (Desktop Architecture Showcase): Industrial Blueprint & Hardware Telemetry */}
+      <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between p-12 bg-[#09090B] bg-rivo-grid border-r border-[#22242A] relative overflow-hidden">
         {/* Top Header */}
         <div className="relative z-10 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center p-1.5 transition-transform group-hover:scale-105">
+            <div className="w-9 h-9 rounded-lg bg-[#111215] border border-[#32353E] flex items-center justify-center p-1.5 transition-colors group-hover:border-[#BFFF00]/60">
               <Image
                 src="/brand/rivo-icon.png"
                 alt="RIVO"
-                width={24}
-                height={24}
+                width={22}
+                height={22}
                 priority
                 className="rounded-xs"
               />
             </div>
-            <div>
-              <span className="font-bold text-base tracking-tight text-white">RIVO</span>
-              <span className="ml-2 badge-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px]">
-                OS 2.0
+            <div className="flex items-center gap-2">
+              <span className="font-display font-bold text-base tracking-tight text-white">
+                RIVO
+              </span>
+              <span className="rounded bg-[#111215] border border-[#22242A] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#BFFF00]">
+                CONTROL OS
               </span>
             </div>
           </Link>
 
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-[#22242A] bg-[#111215] px-3 text-xs font-medium text-[#A1A1AA] hover:border-[#32353E] hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
             <span>Torna al sito</span>
           </Link>
         </div>
 
         {/* Central Commanding Value Prop */}
-        <div className="relative z-10 max-w-lg space-y-6 my-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.1] text-xs font-mono text-slate-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>CONTROL ROOM MERCANTILE</span>
+        <div className="relative z-10 max-w-xl space-y-6 my-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#111215] border border-[#22242A] font-mono text-[11px] uppercase tracking-[0.12em] text-[#A1A1AA]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
+            <span>CONTROL ROOM MERCANTILE // TLS 1.3</span>
           </div>
 
-          <h1 className="text-4xl xl:text-5xl font-semibold tracking-tight text-white leading-[1.08] headline-tight">
+          <h1 className="font-display text-4xl xl:text-5xl font-bold tracking-[-0.035em] text-white leading-[1.06]">
             Il Sistema Operativo Fisico-Digitale per la Tua Attività.
           </h1>
 
-          <p className="text-slate-400 text-sm xl:text-base leading-relaxed">
-            Monitora telemetria dei tavoli, chiamate di servizio in sala, recensioni Google con AI e sincronizzazione cassa/magazzino in tempo reale.
+          <p className="text-[#A1A1AA] text-sm xl:text-base leading-relaxed max-w-lg">
+            Gestisci nodi NFC NTAG 424, telemetria tavoli e sala, Review Shield Google e
+            sincronizzazione POS/ERP in un unico terminale ad alta precisione.
           </p>
 
-          {/* Pillars List */}
-          <div className="space-y-3 pt-2">
+          {/* Architectural Specs Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div className="rounded-xl border border-[#22242A] bg-[#111215] p-4">
+              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#71717A]">
+                EDGE SYNC LATENCY
+              </div>
+              <div className="mt-1 font-mono text-xl font-bold tabular-nums text-[#BFFF00]">
+                &lt; 0.4s
+              </div>
+              <div className="mt-1 text-xs text-[#A1A1AA]">
+                Tap NFC diretto al gestionale
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-[#22242A] bg-[#111215] p-4">
+              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#71717A]">
+                OFFLINE RESILIENCE
+              </div>
+              <div className="mt-1 font-mono text-xl font-bold tabular-nums text-white">
+                IndexedDB + RLS
+              </div>
+              <div className="mt-1 text-xs text-[#A1A1AA]">
+                Protezione multi-sede profilata
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 pt-1">
             {[
-              'Sincronizzazione Edge con latenza <0.4 secondi',
-              'Protezione Offline-Outbox con persistenza locale IndexedDB',
-              'Accesso multi-sede profilato con Supabase Row-Level Security',
+              'Routing hardware crittografato su chip NTAG 424 & QR dinamici',
+              'Interfaccia adattiva Dark Control & Light ERP senza perdita di dati',
             ].map((text, i) => (
-              <div key={i} className="flex items-center gap-2.5 text-xs text-slate-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div key={i} className="flex items-center gap-2.5 text-xs text-[#A1A1AA]">
+                <CheckCircle2
+                  className="w-4 h-4 text-[#10B981] shrink-0"
+                  strokeWidth={1.75}
+                />
                 <span>{text}</span>
               </div>
             ))}
@@ -144,111 +170,148 @@ export default function LoginPage() {
         </div>
 
         {/* Bottom System Status Bar */}
-        <div className="relative z-10 pt-6 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-500 font-mono">
-          <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-slate-400">CDN Cloud: 100% Operativo</span>
+        <div className="relative z-10 pt-6 border-t border-[#22242A] flex items-center justify-between text-xs font-mono">
+          <div className="flex items-center gap-2 text-[#A1A1AA]">
+            <Activity className="w-3.5 h-3.5 text-[#10B981]" strokeWidth={1.75} />
+            <span>CDN CLOUD: 100% OPERATIVO</span>
           </div>
-          <span>B2B Merchant Portal</span>
+          <span className="text-[#71717A]">B2B MERCHANT PORTAL</span>
         </div>
       </div>
 
-      {/* Right Pane: Login Form Card */}
-      <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-center items-center p-6 sm:p-10 relative">
-        {/* Mobile Header Link */}
-        <div className="lg:hidden w-full max-w-md mb-8 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/brand/rivo-icon.png"
-              alt="RIVO"
-              width={26}
-              height={26}
-              className="rounded-xs"
-            />
-            <span className="font-bold text-white text-base">RIVO</span>
+      {/* Right Pane: Crisp Enterprise Login Card */}
+      <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-center items-center p-5 sm:p-10 bg-[#09090B]">
+        {/* Mobile Header */}
+        <div className="lg:hidden w-full max-w-md mb-6 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#111215] border border-[#22242A] p-1">
+              <Image
+                src="/brand/rivo-icon.png"
+                alt="RIVO"
+                width={20}
+                height={20}
+                className="rounded-xs"
+              />
+            </div>
+            <span className="font-display font-bold text-white text-base">RIVO</span>
           </Link>
-          <Link href="/" className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+          <Link
+            href="/"
+            className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg border border-[#22242A] bg-[#111215] px-3 text-xs text-[#A1A1AA] hover:text-white"
+          >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Home</span>
           </Link>
         </div>
 
-        <div className="w-full max-w-md p-8 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]">
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="badge-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded text-[10px]">
+        <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl bg-[#111215] border border-[#22242A]">
+          <div className="mb-7">
+            <div className="inline-flex items-center gap-1.5 rounded-md border border-[#32353E] bg-[#18191E] px-2.5 py-1 mb-3">
+              <Lock className="w-3 h-3 text-[#BFFF00]" strokeWidth={1.75} />
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#F4F4F6]">
                 ACCESSO RISERVATO
               </span>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-white">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-white">
               Accedi alla Control Room
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Inserisci le credenziali fornite dal tuo amministratore o titolare.
+            <p className="text-sm text-[#A1A1AA] mt-1.5 leading-relaxed">
+              Inserisci le credenziali aziendali fornite dal responsabile della sede.
             </p>
           </div>
 
           {errorMsg && (
-            <div className="mb-6 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2.5 text-xs text-red-400 animate-fade-in">
-              <ShieldAlert className="w-4 h-4 shrink-0" />
+            <div
+              role="alert"
+              className="mb-6 p-3.5 bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl flex items-start gap-2.5 text-xs text-[#F87171]"
+            >
+              <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.75} />
               <span>{errorMsg}</span>
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label
+                htmlFor="login-email"
+                className="block text-xs font-semibold text-[#F4F4F6] mb-1.5"
+              >
                 Email Aziendale
               </label>
               <input
+                id="login-email"
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="amministrazione@locale.it"
-                className="w-full min-h-[44px] bg-[#12141C] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                placeholder="nome@azienda.it"
+                className="w-full min-h-[44px] bg-[#18191E] border border-[#32353E] rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-[#A1A1AA]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00] transition-colors"
               />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-medium text-slate-300">
-                  Password
-                </label>
+              <label
+                htmlFor="login-password"
+                className="block text-xs font-semibold text-[#F4F4F6] mb-1.5"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Inserisci la tua password"
+                  className="w-full min-h-[44px] bg-[#18191E] border border-[#32353E] rounded-lg pl-3.5 pr-11 py-2.5 text-sm text-white placeholder:text-[#A1A1AA]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-[#BFFF00] transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#A1A1AA] hover:text-white cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" strokeWidth={1.75} />
+                  ) : (
+                    <Eye className="w-4 h-4" strokeWidth={1.75} />
+                  )}
+                </button>
               </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full min-h-[44px] bg-[#12141C] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-colors"
-              />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 bg-white hover:bg-slate-200 text-zinc-950 font-bold text-sm min-h-[44px] py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_25px_rgba(255,255,255,0.15)] touch-press disabled:opacity-50"
+              className="w-full mt-2 bg-[#BFFF00] hover:bg-[#CEFF33] text-[#09090B] font-bold text-sm min-h-[44px] py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
-                  <span>Autenticazione in corso...</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#09090B]" />
+                  <span>Autenticazione in corso…</span>
                 </>
               ) : (
                 <>
                   <span>Accedi alla Piattaforma</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" strokeWidth={2} />
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/[0.06] text-center">
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              Non hai ancora un account? Richiedi una demo dalla home page per attivare il kit RIVO per la tua sede.
+          <div className="mt-7 pt-5 border-t border-[#22242A] flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+            <p className="text-xs text-[#A1A1AA] leading-relaxed">
+              Non hai ancora un kit hardware?
             </p>
+            <Link
+              href="/demo/retail"
+              className="font-mono text-xs font-semibold text-[#BFFF00] hover:underline shrink-0"
+            >
+              Esplora Demo Live
+            </Link>
           </div>
         </div>
       </div>

@@ -10,7 +10,7 @@ import {
   Wifi,
   UtensilsCrossed,
   BellRing,
-  Sparkles,
+  Palette,
   Layers,
   HelpCircle,
   Copy,
@@ -20,6 +20,8 @@ import QRCode from 'qrcode';
 import { HubConfig, HUB_FONT_OPTIONS } from '@/lib/hub-config';
 import { BusinessCategory } from '@/lib/types';
 import { getCategoryDefinition } from '@/lib/categories';
+import { getContrastColor } from '@/lib/palettes';
+import { StatusBadge } from '@/components/ui';
 
 export interface DeviceOption {
   id: string;
@@ -52,37 +54,44 @@ export default function TableStandPrintModal({
   devices,
   selectedDeviceCode: initialDeviceCode,
 }: TableStandPrintModalProps) {
-  // Device / Table Selection
-  const [selectedCode, setSelectedCode] = useState<string>(() => {
-    if (initialDeviceCode) return initialDeviceCode;
-    if (devices.length > 0) return devices[0].unique_code;
-    return 'generic';
-  });
+  // Device / Table Selection (override resets automatically if initialDeviceCode prop changes)
+  const [overrideCode, setOverrideCode] = useState<{
+    base: string | undefined;
+    value: string;
+  } | null>(null);
 
-  // Keep in sync with initialDeviceCode if passed
+  const selectedCode =
+    (overrideCode && overrideCode.base === initialDeviceCode ? overrideCode.value : undefined) ||
+    initialDeviceCode ||
+    (devices.length > 0 ? devices[0].unique_code : 'generic');
+
+  // Escape key close handler
   useEffect(() => {
-    if (initialDeviceCode) {
-      setSelectedCode(initialDeviceCode);
-    } else if (devices.length > 0 && selectedCode === 'generic') {
-      setSelectedCode(devices[0].unique_code);
-    }
-  }, [initialDeviceCode, devices, selectedCode]);
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   // Selected device object
   const selectedDevice = useMemo(() => {
     return devices.find((d) => d.unique_code === selectedCode) || null;
   }, [devices, selectedCode]);
 
-  // Table Label Override (defaults to device name e.g. "Tavolo 1", or "Tavolo" / "Stand")
-  const [customTableLabel, setCustomTableLabel] = useState<string>('');
+  // Table Label Override (defaults to device name e.g. "Tavolo 1", or "Postazione Tavolo")
+  const [customLabelOverride, setCustomLabelOverride] = useState<{
+    deviceCode: string;
+    value: string;
+  } | null>(null);
 
-  useEffect(() => {
-    if (selectedDevice) {
-      setCustomTableLabel(selectedDevice.name);
-    } else {
-      setCustomTableLabel('Postazione Tavolo');
-    }
-  }, [selectedDevice]);
+  const customTableLabel =
+    customLabelOverride && customLabelOverride.deviceCode === selectedCode
+      ? customLabelOverride.value
+      : selectedDevice?.name || 'Postazione Tavolo';
 
   // Format & Styles
   const [format, setFormat] = useState<PrintFormat>('stand');
@@ -93,9 +102,8 @@ export default function TableStandPrintModal({
   const [showInstructions, setShowInstructions] = useState<boolean>(true);
   const [copiedUrl, setCopiedUrl] = useState(false);
 
-  // QR Code SVG state
-  const [qrSvg, setQrSvg] = useState<string>('');
-  const [qrLoading, setQrLoading] = useState<boolean>(true);
+  // QR Code SVG state keyed by targetUrl (avoids synchronous setLoading in effect)
+  const [qrResult, setQrResult] = useState<{ url: string; svg: string } | null>(null);
 
   // Target URL computation: https://.../t/[code]?source=stand
   const targetUrl = useMemo(() => {
@@ -112,10 +120,12 @@ export default function TableStandPrintModal({
     return `${origin}/t/${fallbackCode}?source=stand`;
   }, [selectedCode, devices]);
 
+  const qrSvg = qrResult?.url === targetUrl ? qrResult.svg : '';
+  const qrLoading = qrResult === null || qrResult.url !== targetUrl;
+
   // Generate high-resolution vector QR code SVG whenever targetUrl changes
   useEffect(() => {
     let isMounted = true;
-    setQrLoading(true);
 
     QRCode.toString(targetUrl, {
       type: 'svg',
@@ -128,13 +138,14 @@ export default function TableStandPrintModal({
     })
       .then((svg) => {
         if (isMounted) {
-          setQrSvg(svg);
-          setQrLoading(false);
+          setQrResult({ url: targetUrl, svg });
         }
       })
       .catch((err) => {
         console.error('Error generating QR SVG:', err);
-        if (isMounted) setQrLoading(false);
+        if (isMounted) {
+          setQrResult({ url: targetUrl, svg: '' });
+        }
       });
 
     return () => {
@@ -150,6 +161,7 @@ export default function TableStandPrintModal({
 
   // Accent Color & Category
   const primaryColor = hubConfig.primaryColor || '#BFFF00';
+  const primaryContrastInk = getContrastColor(primaryColor);
   const categoryDef = getCategoryDefinition(category);
 
   // Handle Print Action
@@ -168,7 +180,13 @@ export default function TableStandPrintModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="table-stand-modal-title"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto overscroll-contain bg-[var(--bg-backdrop)] backdrop-blur-sm"
+    >
       {/* Dedicated @media print styles */}
       <style>{`
         @media print {
@@ -220,30 +238,31 @@ export default function TableStandPrintModal({
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="relative w-full max-w-5xl bg-[#0E0F12] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] no-print">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-5xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] no-print"
+      >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/80 bg-zinc-900/50 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md"
-              style={{ backgroundColor: `${primaryColor}20`, border: `1px solid ${primaryColor}40` }}
-            >
-              <Printer className="w-5 h-5" style={{ color: primaryColor }} />
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)] shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex items-center justify-center text-[var(--rivo-volt-text)] shrink-0">
+              <Printer className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2
+                  id="table-stand-modal-title"
+                  className="font-display text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight truncate"
+                >
                   Stampa Stand Tavolo & Cavaliere NFC
                 </h2>
-                <span
-                  className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full tracking-wider"
-                  style={{ backgroundColor: `${primaryColor}25`, color: primaryColor }}
-                >
+                <StatusBadge tone="volt" mono>
                   HD Print Ready
-                </span>
+                </StatusBadge>
               </div>
-              <p className="text-xs text-zinc-400">
-                Genera cavalieri in plexiglass (10×15 cm) e adesivi NFC ad alta definizione con il brand del tuo locale.
+              <p className="text-xs text-[var(--text-secondary)] truncate">
+                Genera cavalieri in plexiglass (10×15 cm) e adesivi NFC ad alta definizione con il
+                brand del tuo locale.
               </p>
             </div>
           </div>
@@ -251,30 +270,36 @@ export default function TableStandPrintModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800/80 transition-colors cursor-pointer"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer shrink-0"
             aria-label="Chiudi modale"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Modal Body: Two Columns (Settings Left, Live HD Preview Right) */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Controls Column (Left - 5 Cols) */}
-          <div className="lg:col-span-5 space-y-5">
+          <div className="lg:col-span-5 space-y-5 min-w-0">
             {/* 1. Device / Table Selection */}
-            <div className="bg-zinc-900/60 border border-zinc-800/90 rounded-xl p-4 space-y-3">
-              <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4 space-y-3">
+              <label
+                htmlFor="print-device-select"
+                className="text-xs font-mono font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5"
+              >
+                <Layers className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
                 <span>Seleziona Postazione / Tavolo</span>
               </label>
 
               {devices.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <select
+                    id="print-device-select"
                     value={selectedCode}
-                    onChange={(e) => setSelectedCode(e.target.value)}
-                    className="w-full bg-zinc-800/90 border border-zinc-700 text-white rounded-xl px-3 py-2.5 text-xs font-medium focus:ring-2 focus:outline-none transition-all"
+                    onChange={(e) =>
+                      setOverrideCode({ base: initialDeviceCode, value: e.target.value })
+                    }
+                    className="w-full min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-strong)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus-visible:border-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] transition-colors"
                   >
                     <option value="generic">Modalità Generica (Hub Principale Locale)</option>
                     {devices.map((device) => (
@@ -285,65 +310,94 @@ export default function TableStandPrintModal({
                   </select>
 
                   <div className="flex items-center gap-2">
+                    <label htmlFor="print-table-label" className="sr-only">
+                      Etichetta Stand
+                    </label>
                     <input
+                      id="print-table-label"
                       type="text"
                       value={customTableLabel}
-                      onChange={(e) => setCustomTableLabel(e.target.value)}
-                      placeholder="Etichetta Stand (es. Tavolo 04, Bancone)"
-                      className="flex-1 bg-zinc-800/70 border border-zinc-700/80 text-white text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-zinc-500"
+                      onChange={(e) =>
+                        setCustomLabelOverride({ deviceCode: selectedCode, value: e.target.value })
+                      }
+                      placeholder="Etichetta Stand (es. Tavolo 04, Bancone)…"
+                      className="flex-1 min-w-0 min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-strong)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-xs px-3 py-2 rounded-lg focus:outline-none focus-visible:border-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     />
                     <button
                       type="button"
                       onClick={handleCopyUrl}
-                      className="px-2.5 py-2 text-xs rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="min-h-[44px] px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-primary)] border border-[var(--border-strong)] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
                       title="Copia URL di destinazione"
+                      aria-label="Copia URL di destinazione"
                     >
-                      {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span className="hidden sm:inline">{copiedUrl ? 'Copiato' : 'Copia URL'}</span>
+                      {copiedUrl ? (
+                        <Check
+                          className="w-3.5 h-3.5 text-[var(--accent-operational-text)]"
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                      )}
+                      <span className="hidden sm:inline font-semibold">
+                        {copiedUrl ? 'Copiato' : 'Copia URL'}
+                      </span>
                     </button>
                   </div>
-                  <p className="text-[11px] text-zinc-500 truncate">
-                    Destinazione: <span className="text-zinc-400 font-mono">{targetUrl}</span>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate">
+                    Destinazione:{' '}
+                    <span className="text-[var(--text-secondary)] font-mono">{targetUrl}</span>
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-zinc-400">
-                    Nessun dispositivo specifico registrato. Verrà generato uno Stand Generico per il tuo Hub.
+                <div className="space-y-2.5">
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Nessun dispositivo specifico registrato. Verrà generato uno Stand Generico per
+                    il tuo Hub.
                   </p>
+                  <label htmlFor="print-generic-label" className="sr-only">
+                    Etichetta Stand
+                  </label>
                   <input
+                    id="print-generic-label"
                     type="text"
                     value={customTableLabel}
-                    onChange={(e) => setCustomTableLabel(e.target.value)}
-                    placeholder="Etichetta Stand (es. Tavolo 01, Bancone)"
-                    className="w-full bg-zinc-800/70 border border-zinc-700/80 text-white text-xs px-3 py-2 rounded-xl focus:outline-none"
+                    onChange={(e) =>
+                      setCustomLabelOverride({ deviceCode: selectedCode, value: e.target.value })
+                    }
+                    placeholder="Etichetta Stand (es. Tavolo 01, Bancone)…"
+                    className="w-full min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-strong)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-xs px-3 py-2 rounded-lg focus:outline-none focus-visible:border-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   />
                 </div>
               )}
             </div>
 
             {/* 2. Format Selection (Stand vs Sticker) */}
-            <div className="bg-zinc-900/60 border border-zinc-800/90 rounded-xl p-4 space-y-3">
-              <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Printer className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4 space-y-3">
+              <span className="text-xs font-mono font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
+                <Printer className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
                 <span>Formato Supporto di Stampa</span>
-              </label>
+              </span>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setFormat('stand')}
-                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-[background-color,border-color] duration-[180ms] cursor-pointer ${
                     format === 'stand'
-                      ? 'bg-zinc-800/90 border-zinc-600 shadow-md ring-1 ring-white/10'
-                      : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60 text-zinc-400'
+                      ? 'bg-[var(--bg-surface)] border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]'
+                      : 'bg-[var(--bg-surface)]/50 border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)]'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">Cavaliere Stand</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700/80 text-zinc-300 font-mono">10×15 cm</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Cavaliere Stand
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-mono tabular-nums shrink-0">
+                      10×15 cm
+                    </span>
                   </div>
-                  <p className="text-[11px] text-zinc-400 leading-tight">
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
                     Verticale per stand da tavolo e plexiglass bifacciale.
                   </p>
                 </button>
@@ -351,17 +405,21 @@ export default function TableStandPrintModal({
                 <button
                   type="button"
                   onClick={() => setFormat('sticker')}
-                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-[background-color,border-color] duration-[180ms] cursor-pointer ${
                     format === 'sticker'
-                      ? 'bg-zinc-800/90 border-zinc-600 shadow-md ring-1 ring-white/10'
-                      : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60 text-zinc-400'
+                      ? 'bg-[var(--bg-surface)] border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]'
+                      : 'bg-[var(--bg-surface)]/50 border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)]'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">Adesivo NFC</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700/80 text-zinc-300 font-mono">8×8 cm</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Adesivo NFC
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-mono tabular-nums shrink-0">
+                      8×8 cm
+                    </span>
                   </div>
-                  <p className="text-[11px] text-zinc-400 leading-tight">
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
                     Compatto per centro tavola, bancone o cover menu.
                   </p>
                 </button>
@@ -369,16 +427,16 @@ export default function TableStandPrintModal({
 
               {/* Sticker Shape options if sticker is selected */}
               {format === 'sticker' && (
-                <div className="pt-2 border-t border-zinc-800/60 flex items-center gap-2">
-                  <span className="text-xs text-zinc-400">Forma adesivo:</span>
+                <div className="pt-2.5 border-t border-[var(--border-subtle)] flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-[var(--text-secondary)]">Forma adesivo:</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setStickerShape('round')}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                      className={`min-h-[36px] px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
                         stickerShape === 'round'
-                          ? 'bg-zinc-700 text-white border-zinc-500'
-                          : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/50 hover:text-zinc-200'
+                          ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--text-primary)]'
+                          : 'bg-[var(--bg-surface)]/50 text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       Rotondo (Ø 8 cm)
@@ -386,10 +444,10 @@ export default function TableStandPrintModal({
                     <button
                       type="button"
                       onClick={() => setStickerShape('square')}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                      className={`min-h-[36px] px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
                         stickerShape === 'square'
-                          ? 'bg-zinc-700 text-white border-zinc-500'
-                          : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/50 hover:text-zinc-200'
+                          ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--text-primary)]'
+                          : 'bg-[var(--bg-surface)]/50 text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       Quadrato (8×8 cm)
@@ -400,27 +458,29 @@ export default function TableStandPrintModal({
             </div>
 
             {/* 3. Theme & Style (Dark Luxury vs Pure White) */}
-            <div className="bg-zinc-900/60 border border-zinc-800/90 rounded-xl p-4 space-y-3">
-              <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4 space-y-3">
+              <span className="text-xs font-mono font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
                 <span>Tema Grafico di Stampa</span>
-              </label>
+              </span>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setPrintTheme('dark')}
-                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-[background-color,border-color] duration-[180ms] cursor-pointer ${
                     printTheme === 'dark'
-                      ? 'bg-zinc-800/90 border-zinc-600 shadow-md ring-1 ring-white/10'
-                      : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60 text-zinc-400'
+                      ? 'bg-[var(--bg-surface)] border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]'
+                      : 'bg-[var(--bg-surface)]/50 border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)]'
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-black border border-zinc-600" />
-                    <span className="text-xs font-bold text-white">Dark Luxury</span>
+                    <span className="w-3 h-3 rounded-full bg-[#09090B] border border-[var(--border-strong)] shrink-0" />
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Dark Luxury
+                    </span>
                   </div>
-                  <p className="text-[11px] text-zinc-400 leading-tight">
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
                     Sfondo scuro satinato e accenti luminosi. Effetto premium.
                   </p>
                 </button>
@@ -428,61 +488,63 @@ export default function TableStandPrintModal({
                 <button
                   type="button"
                   onClick={() => setPrintTheme('white')}
-                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-[background-color,border-color] duration-[180ms] cursor-pointer ${
                     printTheme === 'white'
-                      ? 'bg-zinc-800/90 border-zinc-600 shadow-md ring-1 ring-white/10'
-                      : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60 text-zinc-400'
+                      ? 'bg-[var(--bg-surface)] border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]'
+                      : 'bg-[var(--bg-surface)]/50 border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)]'
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-white border border-zinc-300" />
-                    <span className="text-xs font-bold text-white">Pure White (Eco)</span>
+                    <span className="w-3 h-3 rounded-full bg-white border border-[var(--border-strong)] shrink-0" />
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Pure White (Eco)
+                    </span>
                   </div>
-                  <p className="text-[11px] text-zinc-400 leading-tight">
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
                     Sfondo bianco ottico ad alto contrasto. Risparmia inchiostro.
                   </p>
                 </button>
               </div>
 
               {/* Toggles */}
-              <div className="pt-3 border-t border-zinc-800/60 space-y-2">
-                <label className="flex items-center justify-between text-xs text-zinc-300 cursor-pointer select-none">
+              <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
+                <label className="flex items-center justify-between min-h-[36px] text-xs text-[var(--text-primary)] cursor-pointer select-none gap-2">
                   <span className="flex items-center gap-2">
-                    <Scissors className="w-3.5 h-3.5 text-zinc-400" />
+                    <Scissors className="w-3.5 h-3.5 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
                     <span>Guide di ritaglio e crocette di taglio</span>
                   </span>
                   <input
                     type="checkbox"
                     checked={showCropMarks}
                     onChange={(e) => setShowCropMarks(e.target.checked)}
-                    className="w-4 h-4 rounded bg-zinc-800 border-zinc-700 accent-emerald-400 cursor-pointer"
+                    className="w-4 h-4 rounded accent-[var(--rivo-volt-text)] cursor-pointer"
                   />
                 </label>
 
-                <label className="flex items-center justify-between text-xs text-zinc-300 cursor-pointer select-none">
+                <label className="flex items-center justify-between min-h-[36px] text-xs text-[var(--text-primary)] cursor-pointer select-none gap-2">
                   <span className="flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5 text-zinc-400" />
+                    <Layers className="w-3.5 h-3.5 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
                     <span>Badge nome postazione / tavolo</span>
                   </span>
                   <input
                     type="checkbox"
                     checked={showTableBadge}
                     onChange={(e) => setShowTableBadge(e.target.checked)}
-                    className="w-4 h-4 rounded bg-zinc-800 border-zinc-700 accent-emerald-400 cursor-pointer"
+                    className="w-4 h-4 rounded accent-[var(--rivo-volt-text)] cursor-pointer"
                   />
                 </label>
 
                 {format === 'stand' && (
-                  <label className="flex items-center justify-between text-xs text-zinc-300 cursor-pointer select-none">
+                  <label className="flex items-center justify-between min-h-[36px] text-xs text-[var(--text-primary)] cursor-pointer select-none gap-2">
                     <span className="flex items-center gap-2">
-                      <HelpCircle className="w-3.5 h-3.5 text-zinc-400" />
+                      <HelpCircle className="w-3.5 h-3.5 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
                       <span>Istruzioni 1-Tap (Menù, Wi-Fi, Servizio)</span>
                     </span>
                     <input
                       type="checkbox"
                       checked={showInstructions}
                       onChange={(e) => setShowInstructions(e.target.checked)}
-                      className="w-4 h-4 rounded bg-zinc-800 border-zinc-700 accent-emerald-400 cursor-pointer"
+                      className="w-4 h-4 rounded accent-[var(--rivo-volt-text)] cursor-pointer"
                     />
                   </label>
                 )}
@@ -490,49 +552,57 @@ export default function TableStandPrintModal({
             </div>
 
             {/* Print Action Trigger Button */}
-            <div className="pt-2">
+            <div className="pt-1">
               <button
                 type="button"
                 onClick={handlePrint}
-                className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-extrabold text-sm shadow-xl transition-all active:scale-95 cursor-pointer text-black"
-                style={{
-                  backgroundColor: primaryColor,
-                  boxShadow: `0 8px 25px -4px ${primaryColor}40`,
-                }}
+                className="w-full min-h-[48px] flex items-center justify-center gap-2.5 px-6 py-3 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-sm transition-[background-color,transform] duration-[180ms] active:scale-[0.98] cursor-pointer"
               >
-                <Printer className="w-4 h-4 stroke-[2.5]" />
+                <Printer className="w-4 h-4" strokeWidth={2.25} aria-hidden="true" />
                 <span>Stampa / Salva in PDF</span>
               </button>
 
-              <p className="text-[11px] text-zinc-500 text-center mt-2.5 leading-relaxed">
-                Suggerimento: nella finestra di stampa, seleziona <strong className="text-zinc-400">Salva come PDF</strong> o la tua stampante, e assicurati di spuntare <strong className="text-zinc-400">&quot;Grafica di sfondo&quot;</strong> per i colori corretti.
+              <p className="text-[11px] text-[var(--text-muted)] text-center mt-2.5 leading-relaxed">
+                Suggerimento: nella finestra di stampa, seleziona{' '}
+                <strong className="text-[var(--text-secondary)]">Salva come PDF</strong> o la tua
+                stampante, e assicurati di spuntare{' '}
+                <strong className="text-[var(--text-secondary)]">
+                  &quot;Grafica di sfondo&quot;
+                </strong>{' '}
+                per i colori corretti.
               </p>
             </div>
           </div>
 
           {/* Live Preview Column (Right - 7 Cols) */}
-          <div className="lg:col-span-7 flex flex-col items-center justify-center p-3 sm:p-5 bg-zinc-950/70 border border-zinc-800/80 rounded-2xl min-h-[560px] relative overflow-hidden">
+          <div className="lg:col-span-7 flex flex-col items-center justify-center p-3 sm:p-5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-2xl min-h-[560px] relative overflow-hidden min-w-0">
             {/* Live Indicator Header */}
-            <div className="w-full flex items-center justify-between mb-4 pb-2 border-b border-zinc-800/60 px-2 text-xs text-zinc-400">
-              <div className="flex items-center gap-2">
-                <Eye className="w-3.5 h-3.5 text-zinc-400" />
-                <span className="font-semibold text-zinc-300">Anteprima Vettoriale HD</span>
-                <span className="text-zinc-600">•</span>
-                <span className="font-mono text-[11px] text-zinc-500">
+            <div className="w-full flex flex-wrap items-center justify-between gap-2 mb-4 pb-2.5 border-b border-[var(--border-subtle)] px-1 text-xs text-[var(--text-secondary)]">
+              <div className="flex items-center gap-2 min-w-0">
+                <Eye className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <span className="font-semibold text-[var(--text-primary)]">
+                  Anteprima Vettoriale HD
+                </span>
+                <span className="text-[var(--text-muted)]" aria-hidden="true">
+                  •
+                </span>
+                <span className="font-mono tabular-nums text-[11px] text-[var(--text-muted)]">
                   {format === 'stand' ? '100 × 150 mm (10×15 cm)' : '80 × 80 mm'}
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-400">Risoluzione: 600 DPI Vettoriale</span>
+                <span className="font-mono tabular-nums text-[11px] text-[var(--text-muted)]">
+                  Risoluzione: 600 DPI Vettoriale
+                </span>
               </div>
             </div>
 
             {/* The Print Sheet / Canvas - This exact element is isolated during window.print() */}
-            <div className="flex items-center justify-center w-full py-2">
+            <div className="flex items-center justify-center w-full py-2 overflow-x-auto">
               <div
                 id="rivo-stand-print-target"
-                className={`transition-all duration-300 select-none relative ${
+                className={`transition-[transform,opacity] duration-300 select-none relative ${
                   format === 'stand' ? 'format-stand' : 'format-sticker'
                 }`}
                 style={{
@@ -551,12 +621,20 @@ export default function TableStandPrintModal({
                     {/* Corner registration marks for Stand or Square Sticker */}
                     {!(format === 'sticker' && stickerShape === 'round') && (
                       <>
-                        <span className="absolute -top-3 -left-3 text-zinc-400 text-xs font-mono select-none">+</span>
-                        <span className="absolute -top-3 -right-3 text-zinc-400 text-xs font-mono select-none">+</span>
-                        <span className="absolute -bottom-3 -left-3 text-zinc-400 text-xs font-mono select-none">+</span>
-                        <span className="absolute -bottom-3 -right-3 text-zinc-400 text-xs font-mono select-none">+</span>
+                        <span className="absolute -top-3 -left-3 text-zinc-400 text-xs font-mono select-none">
+                          +
+                        </span>
+                        <span className="absolute -top-3 -right-3 text-zinc-400 text-xs font-mono select-none">
+                          +
+                        </span>
+                        <span className="absolute -bottom-3 -left-3 text-zinc-400 text-xs font-mono select-none">
+                          +
+                        </span>
+                        <span className="absolute -bottom-3 -right-3 text-zinc-400 text-xs font-mono select-none">
+                          +
+                        </span>
                         <div className="absolute top-1 left-2 flex items-center gap-1 text-[8px] text-zinc-400 tracking-wider uppercase font-mono opacity-60">
-                          <Scissors className="w-2.5 h-2.5" />
+                          <Scissors className="w-2.5 h-2.5" aria-hidden="true" />
                           <span>Guida taglio</span>
                         </div>
                       </>
@@ -569,7 +647,7 @@ export default function TableStandPrintModal({
                    ========================================================================= */}
                 {format === 'stand' && (
                   <div
-                    className={`relative w-[340px] h-[510px] rounded-2xl p-5 flex flex-col justify-between items-center text-center overflow-hidden shadow-2xl transition-colors ${
+                    className={`relative w-[340px] h-[510px] rounded-2xl p-5 flex flex-col justify-between items-center text-center overflow-hidden shadow-xl transition-colors ${
                       printTheme === 'dark'
                         ? 'bg-[#0A0B0E] text-white border border-zinc-800'
                         : 'bg-white text-zinc-900 border border-zinc-200'
@@ -578,14 +656,6 @@ export default function TableStandPrintModal({
                       aspectRatio: '10 / 15',
                     }}
                   >
-                    {/* Ambient Radial Accent Glow (Dark theme only) */}
-                    {printTheme === 'dark' && (
-                      <div
-                        className="absolute -top-20 -left-20 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
-                        style={{ backgroundColor: primaryColor }}
-                      />
-                    )}
-
                     {/* TOP SECTION: Brand Logo & Title */}
                     <div className="w-full flex flex-col items-center relative z-10 pt-1">
                       {/* Logo or Brand Monogram */}
@@ -595,6 +665,8 @@ export default function TableStandPrintModal({
                           <img
                             src={logoUrl}
                             alt={name || 'Logo'}
+                            width={52}
+                            height={52}
                             className="w-full h-full object-contain rounded-lg"
                           />
                         </div>
@@ -630,7 +702,8 @@ export default function TableStandPrintModal({
                         <div
                           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider mt-2 shadow-xs"
                           style={{
-                            backgroundColor: printTheme === 'dark' ? `${primaryColor}25` : `${primaryColor}20`,
+                            backgroundColor:
+                              printTheme === 'dark' ? `${primaryColor}25` : `${primaryColor}20`,
                             color: printTheme === 'dark' ? primaryColor : '#0f172a',
                             border: `1px solid ${primaryColor}60`,
                           }}
@@ -657,7 +730,7 @@ export default function TableStandPrintModal({
                           }}
                         >
                           {/* Authentic Contactless / NFC Wave SVG */}
-                          <svg viewBox="0 0 100 100" className="w-9 h-9" fill="none">
+                          <svg viewBox="0 0 100 100" className="w-9 h-9" fill="none" aria-hidden="true">
                             <circle
                               cx="50"
                               cy="50"
@@ -730,13 +803,17 @@ export default function TableStandPrintModal({
                       {/* Divider Or Scan QR */}
                       <div className="w-full flex items-center gap-3 my-2 px-4 opacity-70">
                         <div
-                          className={`flex-1 h-px ${printTheme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-200'}`}
+                          className={`flex-1 h-px ${
+                            printTheme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-200'
+                          }`}
                         />
                         <span className="text-[9px] uppercase font-bold tracking-wider text-zinc-500">
                           oppure inquadra il QR Code
                         </span>
                         <div
-                          className={`flex-1 h-px ${printTheme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-200'}`}
+                          className={`flex-1 h-px ${
+                            printTheme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-200'
+                          }`}
                         />
                       </div>
 
@@ -744,7 +821,7 @@ export default function TableStandPrintModal({
                       <div className="bg-white p-2.5 rounded-xl shadow-lg border border-zinc-200/80 flex items-center justify-center">
                         {qrLoading ? (
                           <div className="w-28 h-28 flex items-center justify-center text-zinc-400 text-xs">
-                            Generazione QR...
+                            Generazione QR…
                           </div>
                         ) : (
                           <div
@@ -775,17 +852,17 @@ export default function TableStandPrintModal({
 
                           <div className="flex items-center justify-center gap-3 text-[10px] font-medium">
                             <span className="flex items-center gap-1">
-                              <UtensilsCrossed className="w-3 h-3 text-emerald-500" />
+                              <UtensilsCrossed className="w-3 h-3 text-emerald-500" aria-hidden="true" />
                               <span>Menù</span>
                             </span>
                             <span className="opacity-40">•</span>
                             <span className="flex items-center gap-1">
-                              <Wifi className="w-3 h-3 text-sky-500" />
+                              <Wifi className="w-3 h-3 text-sky-500" aria-hidden="true" />
                               <span>Wi-Fi</span>
                             </span>
                             <span className="opacity-40">•</span>
                             <span className="flex items-center gap-1">
-                              <BellRing className="w-3 h-3 text-amber-500" />
+                              <BellRing className="w-3 h-3 text-amber-500" aria-hidden="true" />
                               <span>Assistenza</span>
                             </span>
                           </div>
@@ -807,8 +884,8 @@ export default function TableStandPrintModal({
                    ========================================================================= */}
                 {format === 'sticker' && (
                   <div
-                    className={`relative w-[340px] h-[340px] p-5 flex flex-col justify-between items-center text-center overflow-hidden shadow-2xl transition-colors ${
-                      stickerShape === 'round' ? 'rounded-full' : 'rounded-3xl'
+                    className={`relative w-[340px] h-[340px] p-5 flex flex-col justify-between items-center text-center overflow-hidden shadow-xl transition-colors ${
+                      stickerShape === 'round' ? 'rounded-full' : 'rounded-2xl'
                     } ${
                       printTheme === 'dark'
                         ? 'bg-[#0A0B0E] text-white border border-zinc-800'
@@ -826,21 +903,19 @@ export default function TableStandPrintModal({
                       />
                     )}
 
-                    {/* Ambient Glow */}
-                    {printTheme === 'dark' && (
-                      <div
-                        className="absolute -top-10 -right-10 w-36 h-36 rounded-full blur-2xl opacity-20 pointer-events-none"
-                        style={{ backgroundColor: primaryColor }}
-                      />
-                    )}
-
                     {/* TOP: Brand & Table */}
                     <div className="w-full flex flex-col items-center relative z-10 pt-1">
                       <div className="flex items-center gap-2">
                         {logoUrl && (
                           <div className="w-6 h-6 rounded-md overflow-hidden bg-white/10 flex items-center justify-center">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                            <img
+                              src={logoUrl}
+                              alt="Logo"
+                              width={24}
+                              height={24}
+                              className="w-full h-full object-contain"
+                            />
                           </div>
                         )}
                         <h4
@@ -868,19 +943,19 @@ export default function TableStandPrintModal({
 
                     {/* CENTER: High-contrast QR with NFC Accent */}
                     <div className="relative z-10 flex flex-col items-center my-auto">
-                      <div className="relative bg-white p-2.5 rounded-2xl shadow-xl border border-zinc-200 flex items-center justify-center">
+                      <div className="relative bg-white p-2.5 rounded-2xl shadow-lg border border-zinc-200 flex items-center justify-center">
                         {/* NFC Badge Pill Floating on top of QR */}
                         <div
-                          className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase text-black flex items-center gap-1 shadow-md"
-                          style={{ backgroundColor: primaryColor }}
+                          className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase flex items-center gap-1 shadow-md"
+                          style={{ backgroundColor: primaryColor, color: primaryContrastInk }}
                         >
-                          <Smartphone className="w-2.5 h-2.5 text-black" />
+                          <Smartphone className="w-2.5 h-2.5" aria-hidden="true" />
                           <span>NFC + QR</span>
                         </div>
 
                         {qrLoading ? (
                           <div className="w-28 h-28 flex items-center justify-center text-zinc-400 text-xs">
-                            Generazione...
+                            Generazione…
                           </div>
                         ) : (
                           <div
@@ -913,32 +988,38 @@ export default function TableStandPrintModal({
             </div>
 
             {/* Print Dimensions & Info Callout */}
-            <div className="w-full mt-3 pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500 px-2">
+            <div className="w-full mt-3 pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--text-muted)] px-1">
               <span className="flex items-center gap-1.5">
-                <Scissors className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Ritaglia lungo il bordo o inserisci direttamente nel porta-stand plexiglass</span>
+                <Scissors className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <span>
+                  Ritaglia lungo il bordo o inserisci direttamente nel porta-stand plexiglass
+                </span>
               </span>
-              <span className="font-mono text-zinc-400">RIVO Print Engine</span>
+              <span className="font-mono text-[var(--text-secondary)]">RIVO Print Engine</span>
             </div>
           </div>
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-zinc-800/80 bg-zinc-900/50 shrink-0">
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-t border-[var(--border-subtle)] bg-[var(--bg-elevated)] shrink-0">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
             <span className="hidden sm:inline">Formato attuale:</span>
-            <span className="font-bold text-white uppercase">
+            <span className="font-bold font-mono tabular-nums text-[var(--text-primary)] uppercase">
               {format === 'stand' ? 'Stand Tavolo 10×15 cm' : `Adesivo ${stickerShape} 8×8 cm`}
             </span>
-            <span className="text-zinc-600">•</span>
-            <span className="text-zinc-300">{selectedDevice ? selectedDevice.name : 'Modalità Generica'}</span>
+            <span className="text-[var(--text-muted)]" aria-hidden="true">
+              •
+            </span>
+            <span className="text-[var(--text-secondary)]">
+              {selectedDevice ? selectedDevice.name : 'Modalità Generica'}
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="min-h-[44px] px-4 py-2 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
             >
               Chiudi
             </button>
@@ -946,12 +1027,9 @@ export default function TableStandPrintModal({
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-extrabold text-xs text-black shadow-lg transition-all active:scale-95 cursor-pointer"
-              style={{
-                backgroundColor: primaryColor,
-              }}
+              className="min-h-[44px] inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-[background-color,transform] duration-[180ms] active:scale-[0.98] cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5 stroke-[2.5]" />
+              <Printer className="w-3.5 h-3.5" strokeWidth={2.25} aria-hidden="true" />
               <span>Stampa / Salva PDF</span>
             </button>
           </div>

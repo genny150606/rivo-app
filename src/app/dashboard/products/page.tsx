@@ -1,32 +1,31 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  ShoppingBag, 
-  Plus, 
-  Search, 
-  Filter, 
-  ChevronDown, 
-  ChevronRight, 
-  Barcode, 
-  Tag, 
-  Edit3, 
-  Trash2, 
-  Boxes, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Loader2, 
-  X, 
-  Building2, 
-  Layers, 
-  PlusCircle, 
-  ArrowUpDown,
-  Sparkles,
+import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  ShoppingBag,
+  Plus,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Barcode,
+  Edit3,
+  Trash2,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  X,
+  Cpu,
   ScanLine,
-  Info
+  Boxes,
+  Package,
+  Coins,
 } from 'lucide-react';
 import Link from 'next/link';
-import { Product, ProductCategory, Brand, ProductVariant } from '@/platform/retail/types';
+import { Product, ProductCategory, Brand } from '@/platform/retail/types';
+import { PageHeader, KpiCard, SurfaceCard, StatusBadge, EmptyState } from '@/components/ui';
+import { formatItCurrency } from '@/lib/chart-theme';
+import { cn } from '@/lib/cn';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -34,6 +33,7 @@ export default function ProductsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,6 +45,8 @@ export default function ProductsPage() {
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -111,6 +113,19 @@ export default function ProductsPage() {
     loadData();
   }, [loadData]);
 
+  // Escape closes active modal
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (confirmDeleteProduct) setConfirmDeleteProduct(null);
+      else if (isBrandModalOpen) setIsBrandModalOpen(false);
+      else if (isCategoryModalOpen) setIsCategoryModalOpen(false);
+      else if (isCreateOpen) setIsCreateOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [confirmDeleteProduct, isBrandModalOpen, isCategoryModalOpen, isCreateOpen]);
+
   // Toggle Row Expansion
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => {
@@ -129,9 +144,9 @@ export default function ProductsPage() {
     let lowStockCount = 0;
 
     for (const p of products) {
-      const cost = p.cost_price || (p.sale_price * 0.5); // fallback estimate
+      const cost = p.cost_price || p.sale_price * 0.5;
       for (const v of p.variants || []) {
-        const qty = v.quantity_on_hand || (v as any).stock || 0;
+        const qty = v.quantity_on_hand || (v as unknown as { stock?: number }).stock || 0;
         totalPieces += qty;
         totalStockValue += qty * cost;
         if (qty > 0 && qty <= (v.reorder_threshold || 3)) {
@@ -146,7 +161,6 @@ export default function ProductsPage() {
   // Filtered Products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      // Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = p.name.toLowerCase().includes(q);
@@ -165,20 +179,19 @@ export default function ProductsPage() {
         }
       }
 
-      // Category filter
       if (selectedCategory && p.category_id !== selectedCategory) {
         return false;
       }
 
-      // Brand filter
       if (selectedBrand && p.brand_id !== selectedBrand) {
         return false;
       }
 
-      // Stock status filter
-      if (stockFilter === 'out' && (p.total_stock || (p as any).totalStock || 0) > 0) return false;
-      if (stockFilter === 'in' && (p.total_stock || (p as any).totalStock || 0) <= 0) return false;
-      if (stockFilter === 'low' && !(p as any).hasLowStockVariant) return false;
+      const totalStock = p.total_stock || (p as unknown as { totalStock?: number }).totalStock || 0;
+      const hasLow = (p as unknown as { hasLowStockVariant?: boolean }).hasLowStockVariant;
+      if (stockFilter === 'out' && totalStock > 0) return false;
+      if (stockFilter === 'in' && totalStock <= 0) return false;
+      if (stockFilter === 'low' && !hasLow) return false;
 
       return true;
     });
@@ -186,7 +199,10 @@ export default function ProductsPage() {
 
   // Preset Shoe Sizes Generator
   const applyShoeSizePreset = (type: 'men' | 'women') => {
-    const sizes = type === 'men' ? ['39', '40', '41', '42', '43', '44', '45', '46'] : ['35', '36', '37', '38', '39', '40', '41'];
+    const sizes =
+      type === 'men'
+        ? ['39', '40', '41', '42', '43', '44', '45', '46']
+        : ['35', '36', '37', '38', '39', '40', '41'];
     setFormVariants(
       sizes.map((s) => ({
         size: s,
@@ -298,6 +314,12 @@ export default function ProductsPage() {
       }
 
       setIsCreateOpen(false);
+      setFeedback({
+        type: 'success',
+        message: editingProduct
+          ? `Articolo "${formName.trim()}" aggiornato.`
+          : `Articolo "${formName.trim()}" aggiunto al catalogo.`,
+      });
       loadData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Errore salvataggio';
@@ -307,17 +329,29 @@ export default function ProductsPage() {
     }
   };
 
-  // Delete Product
-  const handleDeleteProduct = async (id: string, name: string) => {
-    if (!window.confirm(`Sei sicuro di voler rimuovere "${name}" dal catalogo?`)) return;
+  // Delete Product (inline confirmation modal instead of window.confirm/alert)
+  const executeDeleteProduct = async () => {
+    if (!confirmDeleteProduct) return;
+    setDeleting(true);
 
     try {
-      const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/products?id=${confirmDeleteProduct.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore durante l’eliminazione');
+      setFeedback({
+        type: 'success',
+        message: `Articolo "${confirmDeleteProduct.name}" rimosso dal catalogo.`,
+      });
+      setConfirmDeleteProduct(null);
       loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Errore');
+      setFeedback({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Errore durante l’eliminazione',
+      });
+      setConfirmDeleteProduct(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -337,9 +371,10 @@ export default function ProductsPage() {
         setFormCategoryId(data.category.id);
         setNewCatName('');
         setIsCategoryModalOpen(false);
+        setFeedback({ type: 'success', message: `Categoria "${data.category.name}" aggiunta.` });
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -359,9 +394,10 @@ export default function ProductsPage() {
         setFormBrandId(data.brand.id);
         setNewBrandName('');
         setIsBrandModalOpen(false);
+        setFeedback({ type: 'success', message: `Brand "${data.brand.name}" aggiunto.` });
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -376,206 +412,255 @@ export default function ProductsPage() {
   }, [formSalePrice, formCostPrice]);
 
   return (
-    <div className="space-y-6">
-      {/* Top Header & Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-white/[0.06] pb-5">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            Catalogo Prodotti & Articoli
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-            Gestione articoli, numerazioni scarpe, prezzi e scorte di magazzino in tempo reale.
-          </p>
-        </div>
+    <div className="space-y-6 min-w-0">
+      <PageHeader
+        eyebrow="01 // CATALOGO ERP"
+        title="Catalogo Prodotti & Articoli"
+        description="Gestione articoli, numerazioni scarpe, prezzi e scorte di magazzino in tempo reale."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="px-3 min-h-[40px] max-sm:min-h-[44px] text-xs font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              + Categoria
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBrandModalOpen(true)}
+              className="px-3 min-h-[40px] max-sm:min-h-[44px] text-xs font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              + Brand
+            </button>
+            <Link
+              href="/dashboard/scanner"
+              className="inline-flex items-center gap-1.5 px-3.5 min-h-[40px] max-sm:min-h-[44px] text-xs font-bold rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] transition-colors"
+            >
+              <ScanLine className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+              <span className="hidden sm:inline">Scanner Mobile</span>
+            </Link>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-1.5 px-4 min-h-[40px] max-sm:min-h-[44px] text-xs font-semibold rounded-lg bg-[var(--text-primary)] hover:opacity-90 text-[var(--bg-canvas)] transition-opacity cursor-pointer"
+            >
+              <Plus className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+              <span>Nuovo Articolo</span>
+            </button>
+          </div>
+        }
+      />
 
-        <div className="flex items-center gap-2">
+      {/* Feedback Banner */}
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'p-3.5 rounded-xl border text-xs flex items-center justify-between gap-3',
+            feedback.type === 'success'
+              ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational-border)] text-[var(--accent-operational-text)]'
+              : 'bg-[var(--accent-critical-bg)] border-[var(--accent-critical-border)] text-[var(--accent-critical-text)]'
+          )}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {feedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            )}
+            <span className="font-medium truncate">{feedback.message}</span>
+          </div>
           <button
-            onClick={() => setIsCategoryModalOpen(true)}
-            className="px-3 py-2 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors"
+            type="button"
+            onClick={() => setFeedback(null)}
+            aria-label="Chiudi notifica"
+            className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 shrink-0 cursor-pointer"
           >
-            + Categoria
-          </button>
-          <button
-            onClick={() => setIsBrandModalOpen(true)}
-            className="px-3 py-2 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors"
-          >
-            + Brand
-          </button>
-          <Link
-            href="/dashboard/scanner"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-lime-400 hover:bg-lime-300 text-black transition-colors shadow-xs"
-          >
-            <ScanLine className="w-4 h-4" />
-            <span className="hidden sm:inline">Scanner Mobile</span>
-          </Link>
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-950 transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuovo Articolo</span>
+            <X className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
-      </div>
+      )}
+
+      {error && (
+        <div
+          role="alert"
+          className="p-3.5 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center gap-2"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* KPI Stats Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl bg-white dark:bg-[#0D0D10] border border-zinc-200/80 dark:border-white/[0.06] shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-            Articoli a Catalogo
-          </span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white mt-1">
-            {stats.totalArticles}
-          </div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-white dark:bg-[#0D0D10] border border-zinc-200/80 dark:border-white/[0.06] shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-            Pezzi a Magazzino
-          </span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white mt-1">
-            {stats.totalPieces}
-          </div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-white dark:bg-[#0D0D10] border border-zinc-200/80 dark:border-white/[0.06] shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-            Valore Stimato Carico
-          </span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white mt-1">
-            € {stats.totalStockValue.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-        </div>
-
-        <div className={`p-4 rounded-xl border shadow-xs ${
-          stats.lowStockCount > 0 
-            ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60' 
-            : 'bg-white dark:bg-[#0D0D10] border-zinc-200/80 dark:border-white/[0.06]'
-        }`}>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-1.5">
-            {stats.lowStockCount > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
-            Varianti Sottoscorta
-          </span>
-          <div className={`text-2xl font-bold tracking-tight mt-1 ${
-            stats.lowStockCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-950 dark:text-white'
-          }`}>
-            {stats.lowStockCount}
-          </div>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <KpiCard
+          label="Articoli a Catalogo"
+          value={stats.totalArticles}
+          icon={Package}
+          loading={loading}
+        />
+        <KpiCard
+          label="Pezzi a Magazzino"
+          value={stats.totalPieces.toLocaleString('it-IT')}
+          icon={Boxes}
+          loading={loading}
+        />
+        <KpiCard
+          label="Valore Stimato Carico"
+          value={formatItCurrency(stats.totalStockValue)}
+          icon={Coins}
+          loading={loading}
+        />
+        <KpiCard
+          label="Varianti Sottoscorta"
+          value={stats.lowStockCount}
+          icon={AlertTriangle}
+          tone={stats.lowStockCount > 0 ? 'warning' : 'operational'}
+          context={stats.lowStockCount > 0 ? 'Sotto soglia riordino' : 'Scorte regolari'}
+          loading={loading}
+        />
       </div>
 
-      {/* AI Quick Copilot Banner */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-lime-500/10 via-emerald-500/10 to-teal-500/10 border border-lime-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-lime-400/20 border border-lime-400/40 flex items-center justify-center shrink-0">
-            <Sparkles className="w-5 h-5 text-lime-600 dark:text-lime-400" />
+      {/* AI Quick Copilot Banner (Crisp operational strip, zero rainbow glow) */}
+      <SurfaceCard variant="elevated" padding="sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 text-[var(--rivo-volt-text)]">
+              <Cpu className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-display text-xs sm:text-sm font-bold text-[var(--text-primary)]">
+                Carico Veloce con l&apos;Assistente AI
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Non vuoi inserire i dati a mano? Usa l&apos;Assistente AI in basso a destra (es.{' '}
+                <em>&quot;inserisci 15 Air Max 95 di taglia 43&quot;</em>) oppure inquadra il codice a barre da smartphone.
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="text-xs sm:text-sm font-bold text-zinc-950 dark:text-white">
-              Carico Veloce con l&apos;Assistente AI
-            </h4>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              Non vuoi inserire i dati a mano? Usa l&apos;Assistente AI in basso a destra (es. <em>&quot;inserisci 15 Air Max 95 di taglia 43&quot;</em>) oppure inquadra il codice a barre da smartphone.
-            </p>
-          </div>
+          <Link
+            href="/dashboard/scanner"
+            className="inline-flex items-center justify-center gap-1.5 px-4 min-h-[40px] max-sm:min-h-[44px] text-xs font-bold rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] shrink-0 transition-colors"
+          >
+            <ScanLine className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            <span>Scanner Fotocamera</span>
+          </Link>
         </div>
-        <Link
-          href="/dashboard/scanner"
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-lime-400 hover:bg-lime-300 text-black shrink-0 transition-colors shadow-sm"
-        >
-          <ScanLine className="w-4 h-4" />
-          <span>Scanner Fotocamera</span>
-        </Link>
-      </div>
+      </SurfaceCard>
 
       {/* Search & Filter Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-[#0D0D10] border border-zinc-200/80 dark:border-white/[0.06] shadow-xs">
-        <div className="relative flex-1 min-w-[260px]">
-          <Search className="w-4 h-4 text-zinc-600 dark:text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cerca per modello, codice SKU, barcode, colore o taglia..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white focus:outline-hidden focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white transition-all"
-          />
+      <SurfaceCard padding="sm">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-0">
+            <label htmlFor="products-search" className="sr-only">
+              Cerca per modello, codice SKU, barcode, colore o taglia
+            </label>
+            <Search
+              className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2"
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+            <input
+              id="products-search"
+              name="products-search"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cerca per modello, codice SKU, barcode, colore o taglia…"
+              className="w-full min-h-[40px] max-sm:min-h-[44px] pl-9 pr-3 py-1.5 text-xs bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="filter-category" className="sr-only">
+              Filtra per categoria
+            </label>
+            <select
+              id="filter-category"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="min-h-[40px] max-sm:min-h-[44px] px-2.5 py-1.5 text-xs bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+            >
+              <option value="">Tutte le Categorie</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            <label htmlFor="filter-brand" className="sr-only">
+              Filtra per brand
+            </label>
+            <select
+              id="filter-brand"
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="min-h-[40px] max-sm:min-h-[44px] px-2.5 py-1.5 text-xs bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+            >
+              <option value="">Tutti i Brand</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+
+            <label htmlFor="filter-stock" className="sr-only">
+              Filtra per stato stock
+            </label>
+            <select
+              id="filter-stock"
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              className="min-h-[40px] max-sm:min-h-[44px] px-2.5 py-1.5 text-xs bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+            >
+              <option value="all">Tutti gli stati stock</option>
+              <option value="in">Disponibili in magazzino</option>
+              <option value="low">Sotto scorta / Riordino</option>
+              <option value="out">Esauriti (0 pezzi)</option>
+            </select>
+          </div>
         </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-hidden"
-          >
-            <option value="">Tutte le Categorie</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-
-          {/* Brand Filter */}
-          <select
-            value={selectedBrand}
-            onChange={(e) => setSelectedBrand(e.target.value)}
-            className="px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-hidden"
-          >
-            <option value="">Tutti i Brand</option>
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-
-          {/* Stock Filter */}
-          <select
-            value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value)}
-            className="px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-hidden"
-          >
-            <option value="all">Tutti gli stati stock</option>
-            <option value="in">Disponibili in magazzino</option>
-            <option value="low">Sotto scorta / Riordino</option>
-            <option value="out">Esauriti (0 pezzi)</option>
-          </select>
-        </div>
-      </div>
+      </SurfaceCard>
 
       {/* Main Catalog Data Table */}
-      <div className="rounded-xl border border-zinc-200/80 dark:border-white/[0.06] bg-white dark:bg-[#0D0D10] overflow-hidden shadow-xs">
+      <SurfaceCard padding="none" className="overflow-hidden">
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-            <span className="text-xs text-zinc-500 font-mono uppercase tracking-wider">Caricamento catalogo...</span>
+          <div className="p-12 flex flex-col items-center justify-center gap-3" aria-busy="true">
+            <Loader2 className="w-6 h-6 animate-spin text-[var(--rivo-volt-text)]" aria-hidden="true" />
+            <span className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider">
+              Caricamento catalogo…
+            </span>
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="p-12 text-center">
-            <ShoppingBag className="w-10 h-10 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nessun articolo trovato</h3>
-            <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-              {searchQuery || selectedCategory || selectedBrand
-                ? 'Nessun prodotto corrisponde ai filtri di ricerca applicati.'
-                : 'Inizia creando il tuo primo articolo con le relative taglie e scorte iniziali.'}
-            </p>
-            {!searchQuery && (
-              <button
-                onClick={openCreateModal}
-                className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Crea Articolo
-              </button>
-            )}
+          <div className="p-4">
+            <EmptyState
+              icon={ShoppingBag}
+              title="Nessun articolo trovato"
+              description={
+                searchQuery || selectedCategory || selectedBrand
+                  ? 'Nessun prodotto corrisponde ai filtri di ricerca applicati.'
+                  : 'Inizia creando il tuo primo articolo con le relative taglie e scorte iniziali.'
+              }
+              primaryAction={
+                !searchQuery
+                  ? { label: 'Crea Articolo', onClick: openCreateModal, icon: Plus }
+                  : undefined
+              }
+              compact
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs min-w-[780px]">
               <thead>
-                <tr className="border-b border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/40 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  <th className="py-3 px-3 w-8"></th>
+                <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)]/60 font-mono text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                  <th className="py-3 px-3 w-10">
+                    <span className="sr-only">Espandi varianti</span>
+                  </th>
                   <th className="py-3 px-4">Articolo / Modello</th>
                   <th className="py-3 px-3">Brand</th>
                   <th className="py-3 px-3">Categoria</th>
@@ -585,53 +670,64 @@ export default function ProductsPage() {
                   <th className="py-3 px-4 text-right">Azioni</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200/60 dark:divide-zinc-800/60">
+              <tbody className="divide-y divide-[var(--border-subtle)]">
                 {filteredProducts.map((p) => {
                   const isExpanded = expandedRows.has(p.id);
-                  const totalStock = p.total_stock || (p as any).totalStock || 0;
-                  const hasLow = (p as any).hasLowStockVariant;
+                  const totalStock =
+                    p.total_stock || (p as unknown as { totalStock?: number }).totalStock || 0;
+                  const hasLow = (p as unknown as { hasLowStockVariant?: boolean }).hasLowStockVariant;
 
                   return (
-                    <tbody key={p.id}>
-                      <tr className="hover:bg-zinc-50/60 dark:hover:bg-zinc-900/30 transition-colors group">
+                    <Fragment key={p.id}>
+                      <tr className="hover:bg-[var(--bg-elevated)]/50 transition-colors group">
                         <td className="py-3 px-3 text-center">
                           <button
+                            type="button"
                             onClick={() => toggleRow(p.id)}
-                            className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                            aria-expanded={isExpanded}
+                            aria-label={isExpanded ? `Comprimi varianti per ${p.name}` : `Espandi varianti per ${p.name}`}
+                            className="p-1.5 rounded-lg hover:bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
                           >
-                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                            )}
                           </button>
                         </td>
                         <td className="py-3 px-4">
-                          <div className="font-semibold text-zinc-950 dark:text-white flex items-center gap-2">
+                          <div className="font-semibold text-[var(--text-primary)] flex flex-wrap items-center gap-2">
                             <span>{p.name}</span>
                             {p.barcode && (
-                              <span className="font-mono text-[10px] text-zinc-400 flex items-center gap-0.5">
-                                <Barcode className="w-3 h-3" />
+                              <span
+                                className="font-mono tabular-nums text-[10px] text-[var(--text-muted)] flex items-center gap-0.5"
+                                translate="no"
+                              >
+                                <Barcode className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
                                 {p.barcode}
                               </span>
                             )}
                           </div>
                           {p.sku && (
-                            <div className="text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
+                            <div className="text-[11px] font-mono tabular-nums text-[var(--text-muted)]" translate="no">
                               SKU: {p.sku}
                             </div>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-zinc-700 dark:text-zinc-300 font-medium">
+                        <td className="py-3 px-3 text-[var(--text-secondary)] font-medium">
                           {p.brand || '—'}
                         </td>
-                        <td className="py-3 px-3 text-zinc-600 dark:text-zinc-400">
+                        <td className="py-3 px-3 text-[var(--text-secondary)]">
                           {p.category_name || '—'}
                         </td>
-                        <td className="py-3 px-3 text-right font-bold text-zinc-950 dark:text-white">
-                          € {Number(p.sale_price).toFixed(2)}
+                        <td className="py-3 px-3 text-right font-mono tabular-nums font-bold text-[var(--text-primary)]">
+                          {formatItCurrency(Number(p.sale_price))}
                         </td>
-                        <td className="py-3 px-3 text-right text-zinc-600 dark:text-zinc-400">
+                        <td className="py-3 px-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {p.cost_price ? (
                             <div>
-                              <span>€ {Number(p.cost_price).toFixed(2)}</span>
-                              <span className="ml-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                              <span>{formatItCurrency(Number(p.cost_price))}</span>
+                              <span className="ml-1 text-[10px] font-semibold text-[var(--accent-operational-text)]">
                                 ({(((p.sale_price - p.cost_price) / p.sale_price) * 100).toFixed(0)}%)
                               </span>
                             </div>
@@ -640,118 +736,146 @@ export default function ProductsPage() {
                           )}
                         </td>
                         <td className="py-3 px-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                            totalStock === 0
-                              ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                              : hasLow
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
-                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400'
-                          }`}>
+                          <StatusBadge
+                            tone={totalStock === 0 ? 'critical' : hasLow ? 'warning' : 'operational'}
+                            size="sm"
+                          >
                             {totalStock} pz
-                          </span>
+                          </StatusBadge>
                         </td>
-                        <td className="py-3 px-4 text-right space-x-1">
+                        <td className="py-3 px-4 text-right whitespace-nowrap space-x-1">
                           <button
+                            type="button"
                             onClick={() => openEditModal(p)}
                             title="Modifica articolo"
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors"
+                            aria-label={`Modifica articolo ${p.name}`}
+                            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
                           </button>
                           <button
-                            onClick={() => handleDeleteProduct(p.id, p.name)}
+                            type="button"
+                            onClick={() => setConfirmDeleteProduct({ id: p.id, name: p.name })}
                             title="Rimuovi dal catalogo"
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                            aria-label={`Rimuovi ${p.name} dal catalogo`}
+                            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent-critical-text)] hover:bg-[var(--accent-critical-bg)] transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
                           </button>
                         </td>
                       </tr>
 
                       {/* Nested Variant Breakdown Table */}
                       {isExpanded && (
-                        <tr className="bg-zinc-50/50 dark:bg-zinc-900/20">
-                          <td colSpan={8} className="py-3 px-8">
-                            <div className="border border-zinc-200/80 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-[#0B0B0E]">
-                              <table className="w-full text-left text-xs">
-                                <thead>
-                                  <tr className="bg-zinc-100/60 dark:bg-zinc-900/60 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-800">
-                                    <th className="py-2 px-3">Taglia / Misura</th>
-                                    <th className="py-2 px-3">Colore / Variante</th>
-                                    <th className="py-2 px-3">Codice Barcode</th>
-                                    <th className="py-2 px-3">SKU Univoco</th>
-                                    <th className="py-2 px-3 text-center">Giacenza Attuale</th>
-                                    <th className="py-2 px-3 text-center">Soglia Riordino</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
-                                  {(p.variants || []).map((v) => {
-                                    const stock = v.quantity_on_hand || (v as any).stock || 0;
-                                    const isLow = stock > 0 && stock <= (v.reorder_threshold || 2);
-                                    const isOut = stock <= 0;
+                        <tr className="bg-[var(--bg-elevated)]/30">
+                          <td colSpan={8} className="py-3 px-4 sm:px-8">
+                            <div className="border border-[var(--border-subtle)] rounded-lg overflow-hidden bg-[var(--bg-surface)]">
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                  <thead>
+                                    <tr className="bg-[var(--bg-elevated)]/70 font-mono text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider border-b border-[var(--border-subtle)]">
+                                      <th className="py-2 px-3">Taglia / Misura</th>
+                                      <th className="py-2 px-3">Colore / Variante</th>
+                                      <th className="py-2 px-3">Codice Barcode</th>
+                                      <th className="py-2 px-3">SKU Univoco</th>
+                                      <th className="py-2 px-3 text-center">Giacenza Attuale</th>
+                                      <th className="py-2 px-3 text-center">Soglia Riordino</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--border-subtle)]">
+                                    {(p.variants || []).map((v) => {
+                                      const stock =
+                                        v.quantity_on_hand ||
+                                        (v as unknown as { stock?: number }).stock ||
+                                        0;
+                                      const isLow = stock > 0 && stock <= (v.reorder_threshold || 2);
+                                      const isOut = stock <= 0;
 
-                                    return (
-                                      <tr key={v.id || v.size} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30">
-                                        <td className="py-2 px-3 font-bold text-zinc-900 dark:text-zinc-100">
-                                          {v.size || 'Unica'}
-                                        </td>
-                                        <td className="py-2 px-3 text-zinc-600 dark:text-zinc-400">
-                                          {v.color || 'Standard'}
-                                        </td>
-                                        <td className="py-2 px-3 font-mono text-[11px] text-zinc-500">
-                                          {v.barcode || '—'}
-                                        </td>
-                                        <td className="py-2 px-3 font-mono text-[11px] text-zinc-500">
-                                          {v.sku || '—'}
-                                        </td>
-                                        <td className="py-2 px-3 text-center font-bold">
-                                          <span className={`${
-                                            isOut ? 'text-rose-600 dark:text-rose-400' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-900 dark:text-white'
-                                          }`}>
-                                            {stock}
-                                          </span>
-                                        </td>
-                                        <td className="py-2 px-3 text-center text-zinc-400">
-                                          {v.reorder_threshold || 2} pz
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
+                                      return (
+                                        <tr
+                                          key={v.id || v.size}
+                                          className="hover:bg-[var(--bg-elevated)]/40 transition-colors"
+                                        >
+                                          <td className="py-2 px-3 font-mono font-bold text-[var(--text-primary)]">
+                                            {v.size || 'Unica'}
+                                          </td>
+                                          <td className="py-2 px-3 text-[var(--text-secondary)]">
+                                            {v.color || 'Standard'}
+                                          </td>
+                                          <td className="py-2 px-3 font-mono tabular-nums text-[11px] text-[var(--text-muted)]">
+                                            {v.barcode || '—'}
+                                          </td>
+                                          <td className="py-2 px-3 font-mono tabular-nums text-[11px] text-[var(--text-muted)]">
+                                            {v.sku || '—'}
+                                          </td>
+                                          <td className="py-2 px-3 text-center font-mono tabular-nums font-bold">
+                                            <span
+                                              className={cn(
+                                                isOut
+                                                  ? 'text-[var(--accent-critical-text)]'
+                                                  : isLow
+                                                  ? 'text-[var(--accent-warning-text)]'
+                                                  : 'text-[var(--text-primary)]'
+                                              )}
+                                            >
+                                              {stock}
+                                            </span>
+                                          </td>
+                                          <td className="py-2 px-3 text-center font-mono tabular-nums text-[var(--text-muted)]">
+                                            {v.reorder_threshold || 2} pz
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           </td>
                         </tr>
                       )}
-                    </tbody>
+                    </Fragment>
                   );
                 })}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </SurfaceCard>
 
       {/* Modal: Create or Edit Product */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-2xl bg-white dark:bg-[#0E0E12] border border-zinc-200 dark:border-white/[0.08] rounded-2xl shadow-2xl p-6 my-8">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overflow-y-auto overscroll-contain"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="product-modal-title"
+        >
+          <div className="relative w-full max-w-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl p-5 sm:p-6 my-8">
             <button
+              type="button"
               onClick={() => setIsCreateOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors"
+              aria-label="Chiudi finestra"
+              className="absolute top-4 right-4 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
             </button>
 
-            <h2 className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
+            <h2
+              id="product-modal-title"
+              className="font-display text-lg font-bold tracking-tight text-[var(--text-primary)] pr-10"
+            >
               {editingProduct ? 'Modifica Articolo' : 'Nuovo Articolo a Catalogo'}
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Inserisci informazioni prodotto, prezzi, e matrice taglie con giacenze.
             </p>
 
             {modalError && (
-              <div className="mt-4 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-400">
+              <div
+                role="alert"
+                className="mt-4 p-3 rounded-lg bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-xs text-[var(--accent-critical-text)]"
+              >
                 {modalError}
               </div>
             )}
@@ -760,28 +884,38 @@ export default function ProductsPage() {
               {/* Row 1: Name & SKU */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="prod-form-name"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Nome Modello / Articolo *
                   </label>
                   <input
+                    id="prod-form-name"
+                    name="prod-form-name"
                     type="text"
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Es. Nike Air Max 95, Mocassino Pelle"
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white focus:outline-hidden focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white"
+                    placeholder="Es. Nike Air Max 95, Mocassino Pelle…"
+                    className="w-full min-h-[40px] px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="prod-form-sku"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Codice SKU Principale
                   </label>
                   <input
+                    id="prod-form-sku"
+                    name="prod-form-sku"
                     type="text"
                     value={formSku}
                     onChange={(e) => setFormSku(e.target.value)}
-                    placeholder="Es. NK-AM95-BLK"
-                    className="w-full px-3 py-2 font-mono bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white"
+                    placeholder="Es. NK-AM95-BLK…"
+                    className="w-full min-h-[40px] px-3 py-2 font-mono bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   />
                 </div>
               </div>
@@ -789,95 +923,121 @@ export default function ProductsPage() {
               {/* Row 2: Category & Brand */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="prod-form-cat"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Categoria
                   </label>
                   <select
+                    id="prod-form-cat"
                     value={formCategoryId}
                     onChange={(e) => setFormCategoryId(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white"
+                    className="w-full min-h-[40px] px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   >
                     <option value="">Seleziona Categoria</option>
                     {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="prod-form-brand"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Brand / Marchio
                   </label>
                   <select
+                    id="prod-form-brand"
                     value={formBrandId}
                     onChange={(e) => setFormBrandId(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white"
+                    className="w-full min-h-[40px] px-3 py-2 bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   >
                     <option value="">Seleziona Brand</option>
                     {brands.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
 
               {/* Row 3: Pricing & Margin */}
-              <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="prod-form-sale-price"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Prezzo Vendita (€) *
                   </label>
                   <input
+                    id="prod-form-sale-price"
                     type="number"
                     step="0.01"
                     required
                     value={formSalePrice}
                     onChange={(e) => setFormSalePrice(e.target.value)}
                     placeholder="Es. 189.00"
-                    className="w-full px-3 py-1.5 font-bold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white"
+                    className="w-full min-h-[38px] px-3 py-1.5 font-mono tabular-nums font-bold bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="prod-form-cost-price"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Costo Acquisto (€)
                   </label>
                   <input
+                    id="prod-form-cost-price"
                     type="number"
                     step="0.01"
                     value={formCostPrice}
                     onChange={(e) => setFormCostPrice(e.target.value)}
                     placeholder="Es. 90.00"
-                    className="w-full px-3 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white"
+                    className="w-full min-h-[38px] px-3 py-1.5 font-mono tabular-nums bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-zinc-500 mb-1">
+                  <span className="block font-semibold text-[var(--text-muted)] mb-1">
                     Margine Stimato
-                  </label>
-                  <div className="px-3 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-lg font-bold text-emerald-600 dark:text-emerald-400">
-                    {estimatedMargin ? `€ ${estimatedMargin.marginEuro} (${estimatedMargin.marginPercent}%)` : '—'}
+                  </span>
+                  <div className="min-h-[38px] flex items-center px-3 py-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg font-mono tabular-nums font-bold text-[var(--accent-operational-text)]">
+                    {estimatedMargin
+                      ? `€ ${estimatedMargin.marginEuro} (${estimatedMargin.marginPercent}%)`
+                      : '—'}
                   </div>
                 </div>
               </div>
 
               {/* Variant Matrix Section */}
-              <div className="border border-zinc-200/80 dark:border-zinc-800 rounded-xl p-4 bg-zinc-50/40 dark:bg-zinc-900/30 space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="border border-[var(--border-subtle)] rounded-xl p-4 bg-[var(--bg-elevated)]/60 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h4 className="font-bold text-zinc-950 dark:text-white">Taglie & Numerazioni</h4>
-                    <p className="text-[11px] text-zinc-500">Definisci le varianti con quantità iniziale in magazzino.</p>
+                    <h3 className="font-display font-bold text-[var(--text-primary)]">
+                      Taglie & Numerazioni
+                    </h3>
+                    <p className="text-[11px] text-[var(--text-secondary)]">
+                      Definisci le varianti con quantità iniziale in magazzino.
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => applyShoeSizePreset('men')}
-                      className="px-2 py-1 text-[10px] font-semibold rounded bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                      className="px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                     >
                       Preset Uomo (39-46)
                     </button>
                     <button
                       type="button"
                       onClick={() => applyShoeSizePreset('women')}
-                      className="px-2 py-1 text-[10px] font-semibold rounded bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                      className="px-2.5 py-1.5 text-[10px] font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                     >
                       Preset Donna (35-41)
                     </button>
@@ -886,10 +1046,19 @@ export default function ProductsPage() {
 
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {formVariants.map((v, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-white dark:bg-[#0E0E12] p-2 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                      <div className="w-16">
-                        <label className="text-[10px] text-zinc-400 block">Taglia</label>
+                    <div
+                      key={idx}
+                      className="grid grid-cols-2 sm:grid-cols-12 items-end gap-2 bg-[var(--bg-surface)] p-2.5 rounded-lg border border-[var(--border-subtle)]"
+                    >
+                      <div className="sm:col-span-2">
+                        <label
+                          htmlFor={`variant-size-${idx}`}
+                          className="text-[10px] font-mono text-[var(--text-muted)] block mb-0.5"
+                        >
+                          Taglia
+                        </label>
                         <input
+                          id={`variant-size-${idx}`}
                           type="text"
                           required
                           value={v.size}
@@ -898,12 +1067,18 @@ export default function ProductsPage() {
                             updated[idx].size = e.target.value;
                             setFormVariants(updated);
                           }}
-                          className="w-full px-2 py-1 font-bold text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded"
+                          className="w-full px-2 py-1.5 font-mono font-bold text-center bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                         />
                       </div>
-                      <div className="w-24">
-                        <label className="text-[10px] text-zinc-400 block">Colore</label>
+                      <div className="sm:col-span-2">
+                        <label
+                          htmlFor={`variant-color-${idx}`}
+                          className="text-[10px] font-mono text-[var(--text-muted)] block mb-0.5"
+                        >
+                          Colore
+                        </label>
                         <input
+                          id={`variant-color-${idx}`}
                           type="text"
                           value={v.color}
                           onChange={(e) => {
@@ -911,27 +1086,39 @@ export default function ProductsPage() {
                             updated[idx].color = e.target.value;
                             setFormVariants(updated);
                           }}
-                          className="w-full px-2 py-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded"
+                          className="w-full px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                         />
                       </div>
-                      <div className="flex-1">
-                        <label className="text-[10px] text-zinc-400 block">Barcode Univoco</label>
+                      <div className={cn(editingProduct ? 'col-span-2 sm:col-span-5' : 'col-span-2 sm:col-span-3')}>
+                        <label
+                          htmlFor={`variant-barcode-${idx}`}
+                          className="text-[10px] font-mono text-[var(--text-muted)] block mb-0.5"
+                        >
+                          Barcode Univoco
+                        </label>
                         <input
+                          id={`variant-barcode-${idx}`}
                           type="text"
                           value={v.barcode}
-                          placeholder="805..."
+                          placeholder="805…"
                           onChange={(e) => {
                             const updated = [...formVariants];
                             updated[idx].barcode = e.target.value;
                             setFormVariants(updated);
                           }}
-                          className="w-full px-2 py-1 font-mono text-[11px] bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded"
+                          className="w-full px-2 py-1.5 font-mono text-[11px] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                         />
                       </div>
                       {!editingProduct && (
-                        <div className="w-20">
-                          <label className="text-[10px] text-zinc-400 block">Scorta Iniziale</label>
+                        <div className="sm:col-span-2">
+                          <label
+                            htmlFor={`variant-stock-${idx}`}
+                            className="text-[10px] font-mono text-[var(--text-muted)] block mb-0.5"
+                          >
+                            Scorta Iniziale
+                          </label>
                           <input
+                            id={`variant-stock-${idx}`}
                             type="number"
                             min="0"
                             value={v.initial_stock}
@@ -940,13 +1127,19 @@ export default function ProductsPage() {
                               updated[idx].initial_stock = parseInt(e.target.value, 10) || 0;
                               setFormVariants(updated);
                             }}
-                            className="w-full px-2 py-1 text-center font-bold bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded text-emerald-600 dark:text-emerald-400"
+                            className="w-full px-2 py-1.5 text-center font-mono tabular-nums font-bold bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-[var(--accent-operational-text)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                           />
                         </div>
                       )}
-                      <div className="w-20">
-                        <label className="text-[10px] text-zinc-400 block">Soglia Alert</label>
+                      <div className="sm:col-span-2">
+                        <label
+                          htmlFor={`variant-threshold-${idx}`}
+                          className="text-[10px] font-mono text-[var(--text-muted)] block mb-0.5"
+                        >
+                          Soglia Alert
+                        </label>
                         <input
+                          id={`variant-threshold-${idx}`}
                           type="number"
                           min="1"
                           value={v.reorder_threshold}
@@ -955,16 +1148,19 @@ export default function ProductsPage() {
                             updated[idx].reorder_threshold = parseInt(e.target.value, 10) || 2;
                             setFormVariants(updated);
                           }}
-                          className="w-full px-2 py-1 text-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded text-zinc-500"
+                          className="w-full px-2 py-1.5 text-center font-mono tabular-nums bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setFormVariants(formVariants.filter((_, i) => i !== idx))}
-                        className="p-1.5 mt-3 text-zinc-400 hover:text-rose-600 rounded"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="col-span-2 sm:col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setFormVariants(formVariants.filter((_, i) => i !== idx))}
+                          aria-label={`Rimuovi variante ${v.size || idx + 1}`}
+                          className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-critical-text)] rounded-lg hover:bg-[var(--accent-critical-bg)] cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -974,30 +1170,37 @@ export default function ProductsPage() {
                   onClick={() =>
                     setFormVariants([
                       ...formVariants,
-                      { size: '', color: formVariants[0]?.color || '', barcode: '', sku: '', initial_stock: 0, reorder_threshold: 2 },
+                      {
+                        size: '',
+                        color: formVariants[0]?.color || '',
+                        barcode: '',
+                        sku: '',
+                        initial_stock: 0,
+                        reorder_threshold: 2,
+                      },
                     ])
                   }
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:underline pt-1"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline pt-1 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Aggiungi altra taglia
+                  <Plus className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" /> Aggiungi altra taglia
                 </button>
               </div>
 
               {/* Modal Actions */}
-              <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                  className="px-4 min-h-[40px] text-xs font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-950 flex items-center gap-1.5 shadow-xs"
+                  className="px-5 min-h-[40px] text-xs font-bold rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
                   <span>{editingProduct ? 'Salva Modifiche' : 'Crea Articolo'}</span>
                 </button>
               </div>
@@ -1006,31 +1209,95 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* Delete Product Confirmation Modal */}
+      {confirmDeleteProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-product-title"
+        >
+          <div className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3
+                  id="delete-product-title"
+                  className="font-display text-base font-bold text-[var(--text-primary)]"
+                >
+                  Rimozione Articolo
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-1">
+                  Sei sicuro di voler rimuovere{' '}
+                  <strong className="text-[var(--text-primary)]">{confirmDeleteProduct.name}</strong> dal
+                  catalogo?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteProduct(null)}
+                disabled={deleting}
+                className="px-4 min-h-[40px] text-xs font-semibold rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={executeDeleteProduct}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 px-4 min-h-[40px] text-xs font-bold rounded-lg bg-[#B91C1C] text-white hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              >
+                {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+                <span>Rimuovi Articolo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Category Modal */}
       {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-sm bg-white dark:bg-[#0E0E12] border border-zinc-200 dark:border-white/[0.08] rounded-xl p-5 shadow-xl">
-            <h3 className="text-sm font-bold text-zinc-950 dark:text-white">Nuova Categoria</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="quick-cat-title"
+        >
+          <div className="w-full max-w-sm bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-xl">
+            <h3 id="quick-cat-title" className="font-display text-sm font-bold text-[var(--text-primary)]">
+              Nuova Categoria
+            </h3>
             <form onSubmit={handleCreateCategory} className="mt-3 space-y-3">
-              <input
-                type="text"
-                required
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                placeholder="Es. Sneakers, Stivali, Borse..."
-                className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white"
-              />
+              <div>
+                <label htmlFor="new-cat-name" className="sr-only">
+                  Nome categoria
+                </label>
+                <input
+                  id="new-cat-name"
+                  type="text"
+                  required
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="Es. Sneakers, Stivali, Borse…"
+                  className="w-full min-h-[40px] px-3 py-2 text-xs bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                />
+              </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCategoryModalOpen(false)}
-                  className="px-3 py-1.5 text-xs rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="px-3 min-h-[38px] text-xs rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
+                  className="px-3.5 min-h-[38px] text-xs font-bold rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] cursor-pointer"
                 >
                   Aggiungi
                 </button>
@@ -1042,29 +1309,42 @@ export default function ProductsPage() {
 
       {/* Quick Brand Modal */}
       {isBrandModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-sm bg-white dark:bg-[#0E0E12] border border-zinc-200 dark:border-white/[0.08] rounded-xl p-5 shadow-xl">
-            <h3 className="text-sm font-bold text-zinc-950 dark:text-white">Nuovo Brand</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="quick-brand-title"
+        >
+          <div className="w-full max-w-sm bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-xl">
+            <h3 id="quick-brand-title" className="font-display text-sm font-bold text-[var(--text-primary)]">
+              Nuovo Brand
+            </h3>
             <form onSubmit={handleCreateBrand} className="mt-3 space-y-3">
-              <input
-                type="text"
-                required
-                value={newBrandName}
-                onChange={(e) => setNewBrandName(e.target.value)}
-                placeholder="Es. Nike, Adidas, Tod's..."
-                className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-950 dark:text-white"
-              />
+              <div>
+                <label htmlFor="new-brand-name" className="sr-only">
+                  Nome brand
+                </label>
+                <input
+                  id="new-brand-name"
+                  type="text"
+                  required
+                  value={newBrandName}
+                  onChange={(e) => setNewBrandName(e.target.value)}
+                  placeholder="Es. Nike, Adidas, Tod's…"
+                  className="w-full min-h-[40px] px-3 py-2 text-xs bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                />
+              </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsBrandModalOpen(false)}
-                  className="px-3 py-1.5 text-xs rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="px-3 min-h-[38px] text-xs rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
+                  className="px-3.5 min-h-[38px] text-xs font-bold rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] cursor-pointer"
                 >
                   Aggiungi
                 </button>

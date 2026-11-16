@@ -1,62 +1,46 @@
 'use client';
 
 import { useState } from 'react';
-import confetti from 'canvas-confetti';
-import { 
-  Star, 
-  ShieldCheck, 
-  Sparkles, 
-  Copy, 
-  Check, 
-  CreditCard, 
-  Gift, 
-  WifiOff, 
-  Wifi, 
-  RefreshCw, 
-  Users, 
-  Lock, 
-  Smartphone, 
-  Bell, 
-  Send,
-  AlertCircle
+import {
+  Star,
+  ShieldCheck,
+  Copy,
+  Check,
+  CreditCard,
+  Gift,
+  WifiOff,
+  Wifi,
+  RefreshCw,
+  Lock,
+  Smartphone,
+  Bell,
+  AlertCircle,
+  Wand2,
 } from 'lucide-react';
 
 export default function LandingBentoGrid() {
-  // Card 1: Review Shield State
   const [shieldRating, setShieldRating] = useState<number>(5);
   const [aiReviewCopied, setAiReviewCopied] = useState<boolean>(false);
   const [privateFeedback, setPrivateFeedback] = useState<string>('');
   const [feedbackSent, setFeedbackSent] = useState<boolean>(false);
 
-  // Card 3: Wheel Spin State
   const [spinning, setSpinning] = useState<boolean>(false);
   const [wheelRotation, setWheelRotation] = useState<number>(0);
   const [prizeWon, setPrizeWon] = useState<string | null>(null);
 
-  // Card 4: Offline Outbox State
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [outboxCount, setOutboxCount] = useState<number>(0);
 
-  // Card 5: RBAC Role State
   const [selectedRole, setSelectedRole] = useState<'owner' | 'manager' | 'staff'>('owner');
 
   const handleRatingClick = (stars: number) => {
     setShieldRating(stars);
     setFeedbackSent(false);
-
-    if (stars >= 4 && typeof window !== 'undefined') {
-      confetti({
-        particleCount: 40,
-        spread: 55,
-        origin: { y: 0.7 },
-        colors: ['#F59E0B', '#FBBF24', '#FCD34D', '#10B981'],
-      });
-    }
   };
 
   const handleCopyAiReview = () => {
     setAiReviewCopied(true);
-    setTimeout(() => setAiReviewCopied(false), 2000);
+    setTimeout(() => setAiReviewCopied(false), 1800);
   };
 
   const handleSpinWheel = () => {
@@ -73,19 +57,9 @@ export default function LandingBentoGrid() {
         'Sconto 15% sul Prossimo Acquisto',
         'Dessert Artigianale Offerto',
       ];
-      const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
-      setPrizeWon(randomPrize);
+      setPrizeWon(prizes[Math.floor(Math.random() * prizes.length)]);
       setSpinning(false);
-
-      if (typeof window !== 'undefined') {
-        confetti({
-          particleCount: 60,
-          spread: 70,
-          origin: { y: 0.75 },
-          colors: ['#A855F7', '#EC4899', '#38BDF8', '#F59E0B'],
-        });
-      }
-    }, 1800);
+    }, 1400);
   };
 
   const handleToggleOffline = () => {
@@ -94,363 +68,331 @@ export default function LandingBentoGrid() {
       setOutboxCount(3);
     } else {
       setIsOffline(false);
-      // Auto-drain simulation with completion confetti
       setTimeout(() => {
         setOutboxCount(0);
-        if (typeof window !== 'undefined') {
-          confetti({
-            particleCount: 25,
-            spread: 40,
-            origin: { y: 0.8 },
-            colors: ['#10B981', '#34D399'],
-          });
-        }
-      }, 500);
+      }, 450);
     }
   };
 
   return (
-    <section id="review-shield" className="py-20 px-4 sm:px-6 relative">
+    <section id="review-shield" className="py-20 px-4 sm:px-6 relative z-10 overflow-x-clip">
       <div className="max-w-6xl mx-auto">
-        {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-mono text-slate-300 mb-4 animate-float-gentle">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#111215] border border-white/[0.08] text-[11px] font-mono uppercase tracking-wider text-[#A1A1AA] mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
             <span>ECOSISTEMA INTEGRATO A 360°</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-white headline-tight">
-            Reputazione Blindata, Wallet Nativo <br className="hidden sm:inline" />
-            e Resilienza Offline.
+          <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-[#F4F4F6]">
+            Reputazione Blindata, Wallet Nativo
+            <br className="hidden sm:inline" /> e Resilienza Offline.
           </h2>
-          <p className="text-slate-400 text-sm sm:text-base mt-3 max-w-xl mx-auto">
-            Ogni componente di RIVO lavora in sinergia per trasformare avventori anonimi in clienti fidelizzati, difendendo la tua reputazione su Google in tempo reale.
+          <p className="text-[#A1A1AA] text-sm sm:text-base mt-3 max-w-xl mx-auto">
+            Ogni modulo lavora in sinergia per convertire visite occasionali in clienti fidelizzati e proteggere la tua scheda Google.
           </p>
         </div>
 
-        {/* =========================================================
-            BENTO GRID (12-COLUMNS ASYMMETRIC)
-            ========================================================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* =========================================================
-              CARD 1 (SPAN 7): Review Shield™ & AI Review Generator
-              ========================================================= */}
-          <div className="lg:col-span-7 p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between relative overflow-hidden group">
-            {/* Ambient card aura */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700" />
-
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="badge-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded flex items-center gap-1.5">
+        {/* 12-Col Asymmetric Bento */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* CARD 1 (Span 7): Review Shield */}
+          <div className="lg:col-span-7 p-6 rounded-2xl bg-[#111215] border border-white/[0.08] flex flex-col justify-between min-w-0">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30 px-2 py-0.5 rounded inline-flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   REVIEW SHIELD™ ALGORITMICO
                 </span>
-                <span className="text-xs font-mono text-slate-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  Interattivo: Clicca le stelle
-                </span>
+                <span className="text-xs font-mono text-[#71717A]">Clicca le stelle</span>
               </div>
 
-              <h3 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
+              <h3 className="font-display text-xl sm:text-2xl font-semibold text-[#F4F4F6] tracking-tight">
                 Filtro Intelligente 5★ &amp; Generatore AI
               </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
-                Se il cliente seleziona 4 o 5 stelle viene guidato su Google con un testo ottimizzato dall&apos;AI. Se seleziona 1–3 stelle, RIVO attiva lo Scudo: il feedback resta privato per la direzione.
+              <p className="text-xs sm:text-sm text-[#A1A1AA] mt-1.5 max-w-xl">
+                Con 4 o 5 stelle l&apos;ospite viene indirizzato su Google Maps con testo precompilato. Con 1–3 stelle il feedback resta riservato alla direzione.
               </p>
 
-              {/* Interactive Star Selector */}
-              <div className="my-6 p-4 rounded-2xl bg-black/40 border border-white/[0.06] text-center shadow-inner">
-                <div className="text-xs text-slate-400 mb-2 font-medium">
-                  Seleziona la valutazione da testare:
-                </div>
-                <div className="flex items-center justify-center gap-2">
+              <div className="my-5 p-4 rounded-xl bg-[#09090B] border border-white/[0.08] text-center">
+                <div className="text-xs text-[#A1A1AA] mb-2">Seleziona valutazione:</div>
+                <div className="flex items-center justify-center gap-1.5">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
+                      type="button"
                       onClick={() => handleRatingClick(star)}
-                      className={`p-2 rounded-xl transition-all duration-200 transform active:scale-90 touch-press ${
+                      className={`p-2 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer ${
                         shieldRating >= star
-                          ? 'text-amber-400 scale-110 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]'
-                          : 'text-zinc-700 hover:text-zinc-500'
+                          ? 'text-[#F59E0B]'
+                          : 'text-[#71717A] hover:text-[#A1A1AA]'
                       }`}
                       aria-label={`${star} stelle`}
                     >
-                      <Star className="w-7 h-7 sm:w-8 sm:h-8 fill-current" />
+                      <Star className="w-6 h-6 sm:w-7 sm:h-7 fill-current" />
                     </button>
                   ))}
                 </div>
                 <div className="text-xs font-mono font-bold mt-2">
                   {shieldRating >= 4 ? (
-                    <span className="text-emerald-400 flex items-center justify-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                    <span className="text-[#10B981]">
                       Valutazione Positiva ({shieldRating}★): Redirect Pubblico Google
                     </span>
                   ) : (
-                    <span className="text-amber-400">Valutazione Critica ({shieldRating}★): Scudo Attivo (Privato)</span>
+                    <span className="text-[#F59E0B]">
+                      Valutazione Critica ({shieldRating}★): Scudo Attivo (Privato)
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Dynamic Shield Response View */}
               {shieldRating >= 4 ? (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 space-y-3 animate-fade-in shadow-md shadow-emerald-500/10">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Testo Recensione AI Generato Pronto all&apos;Uso:
+                <div className="p-4 rounded-xl bg-[#09090B] border border-[#10B981]/30 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="font-semibold text-[#10B981] flex items-center gap-1.5">
+                      <Wand2 className="w-3.5 h-3.5" />
+                      Testo Recensione AI Pronto
                     </span>
                     <button
+                      type="button"
                       onClick={handleCopyAiReview}
-                      className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition-all active:scale-95"
+                      className="px-2.5 py-1.5 rounded-md bg-[#18191D] hover:bg-white/[0.08] text-[#F4F4F6] text-[11px] font-semibold flex items-center gap-1.5 border border-white/[0.1] cursor-pointer"
                     >
-                      {aiReviewCopied ? <Check className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3" />}
-                      <span>{aiReviewCopied ? 'Copiato!' : 'Copia'}</span>
+                      {aiReviewCopied ? <Check className="w-3 h-3 text-[#BFFF00]" /> : <Copy className="w-3 h-3" />}
+                      <span>{aiReviewCopied ? 'Copiato' : 'Copia'}</span>
                     </button>
                   </div>
-                  <p className="text-xs text-slate-200 italic leading-relaxed">
-                    &quot;Cena impeccabile! Personale accogliente, piatti della tradizione reinterpretati con maestria e servizio al tavolo digitale comodissimo. Ritorneremo sicuramente!&quot;
+                  <p className="text-xs text-[#A1A1AA] italic leading-relaxed">
+                    &quot;Cena impeccabile! Personale accogliente, servizio al tavolo digitale istantaneo e qualità eccellente.&quot;
                   </p>
-                  <div className="text-[10px] text-emerald-400/90 font-mono">
-                    ✓ Il cliente atterra direttamente nella scheda Google My Business con le 5 stelle già preimpostate.
-                  </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-3 animate-fade-in shadow-md shadow-amber-500/10">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
-                    <AlertCircle className="w-4 h-4 text-amber-400" />
-                    <span>Scudo Attivo: Reindirizzamento Google Bloccato</span>
+                <div className="p-4 rounded-xl bg-[#09090B] border border-[#F59E0B]/30 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-[#F59E0B]">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Scudo Attivo: Redirect Google Bloccato</span>
                   </div>
-                  <p className="text-xs text-slate-300">
-                    Il messaggio non va su Google ma viene recapitato in via riservata al General Manager con possibilità di contatto diretto per risolvere l&apos;insoddisfazione.
+                  <p className="text-xs text-[#A1A1AA]">
+                    Il feedback viene recapitato in forma privata al titolare per gestire il recupero cliente.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
+                      aria-label="Testo simulato del feedback privato"
                       value={privateFeedback}
                       onChange={(e) => setPrivateFeedback(e.target.value)}
-                      placeholder="Simula feedback del cliente (es: tempi attesa lunghi)..."
-                      className="flex-1 bg-black/50 border border-amber-500/30 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      placeholder="Es: tempi di attesa..."
+                      className="flex-1 min-h-[40px] bg-[#111215] border border-white/[0.12] rounded-lg px-3 py-1.5 text-xs text-[#F4F4F6] placeholder-[#71717A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] focus:border-[#F59E0B]"
                     />
                     <button
+                      type="button"
                       onClick={() => setFeedbackSent(true)}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500 text-zinc-950 font-bold text-xs shrink-0 active:scale-95 transition-all"
+                      className="px-4 py-2 rounded-lg bg-[#F59E0B] text-[#09090B] font-bold text-xs shrink-0 min-h-[40px] cursor-pointer"
                     >
                       Invia a Titolare
                     </button>
                   </div>
                   {feedbackSent && (
-                    <div className="text-[11px] text-emerald-400 font-mono flex items-center gap-1 animate-fade-in">
+                    <div className="text-[11px] text-[#10B981] font-mono flex items-center gap-1.5">
                       <Check className="w-3.5 h-3.5" />
-                      Intercettato con successo! Notifica privata inviata al titolare.
+                      Intercettato con successo: notifica privata inviata.
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="mt-6 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400 relative z-10">
-              <span>Aumento medio del rating Google: +0.4 stelle in 45 giorni.</span>
-              <span className="badge-mono text-amber-400">100% PROTEZIONE BRAND</span>
+            <div className="mt-5 pt-3 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-2 text-xs text-[#A1A1AA]">
+              <span>Aumento medio rating Google: +0.4★ in 45 giorni.</span>
+              <span className="font-mono text-[#F59E0B]">100% PROTEZIONE BRAND</span>
             </div>
           </div>
 
-          {/* =========================================================
-              CARD 2 (SPAN 5): Apple & Google Wallet Nativo (Zero App)
-              ========================================================= */}
-          <div className="lg:col-span-5 p-6 sm:p-7 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between relative overflow-hidden group">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="badge-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded flex items-center gap-1.5">
+          {/* CARD 2 (Span 5): Apple & Google Wallet */}
+          <div className="lg:col-span-5 p-6 rounded-2xl bg-[#111215] border border-white/[0.08] flex flex-col justify-between min-w-0">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/30 px-2 py-0.5 rounded inline-flex items-center gap-1.5">
                   <CreditCard className="w-3.5 h-3.5" />
                   APPLE &amp; GOOGLE WALLET
                 </span>
-                <span className="text-xs font-mono text-slate-400">Zero App da Scaricare</span>
+                <span className="text-xs font-mono text-[#71717A]">Zero App</span>
               </div>
 
-              <h3 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
+              <h3 className="font-display text-xl sm:text-2xl font-semibold text-[#F4F4F6] tracking-tight">
                 La Carta Fedeltà sul Lock-Screen
               </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Nessuna app da scaricare dall&apos;App Store. Un tap NFC installa la carta punti nativa in Apple Wallet, abilitando notifiche push geolocalizzate quando il cliente è nei paraggi.
+              <p className="text-xs sm:text-sm text-[#A1A1AA] mt-1.5">
+                Un tap NFC installa la carta punti nativa nel Wallet del cliente con notifiche push geolocalizzate.
               </p>
 
-              {/* Realistic Apple Wallet Pass UI with Specular Light Travel */}
-              <div className="my-5 p-4 rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-950 to-black border border-white/10 shadow-2xl relative overflow-hidden group-hover:scale-[1.01] transition-transform duration-300">
-                {/* Diagonal light sheen travel */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent animate-shine-travel pointer-events-none" />
-
-                <div className="flex justify-between items-start relative z-10">
+              <div className="my-5 p-4 rounded-xl bg-[#09090B] border border-white/[0.1] space-y-4">
+                <div className="flex justify-between items-start gap-2">
                   <div>
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717A]">
                       Ristorante &amp; Lounge
                     </span>
-                    <div className="text-base font-bold text-white mt-0.5">Borgo Antico Club</div>
+                    <div className="text-base font-bold text-[#F4F4F6] mt-0.5">Borgo Antico Club</div>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                    <Smartphone className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 rounded-lg bg-[#18191D] border border-white/[0.1] flex items-center justify-center">
+                    <Smartphone className="w-4 h-4 text-[#BFFF00]" />
                   </div>
                 </div>
 
-                <div className="my-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between relative z-10">
+                <div className="p-3 rounded-lg bg-[#111215] border border-white/[0.06] flex items-center justify-between">
                   <div>
-                    <div className="text-[10px] text-slate-400">Timbri Raccolti</div>
-                    <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">7 / 10</div>
+                    <div className="text-[10px] text-[#71717A]">Timbri Raccolti</div>
+                    <div className="text-xl font-bold font-mono text-[#BFFF00] tabular-nums">7 / 10</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] text-slate-400">Premio Sbloccato</div>
-                    <div className="text-xs font-bold text-white font-mono">Calice Riserva</div>
+                    <div className="text-[10px] text-[#71717A]">Premio Sbloccato</div>
+                    <div className="text-xs font-bold text-[#F4F4F6] font-mono">Calice Riserva</div>
                   </div>
                 </div>
 
-                {/* Simulated Lock-Screen Push Notification Banner with breathing glow */}
-                <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-white space-y-1 relative z-10">
-                  <div className="flex items-center justify-between text-[10px] text-indigo-300">
+                <div className="p-3 rounded-lg bg-[#18191D] border border-white/[0.08] text-xs space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-[#38BDF8] font-mono">
                     <span className="flex items-center gap-1 font-semibold">
-                      <Bell className="w-3 h-3 animate-bell-swing" /> Apple Wallet • Notifica Prossimità
+                      <Bell className="w-3 h-3" /> Apple Wallet • Prossimità
                     </span>
                     <span>Adesso</span>
                   </div>
-                  <div className="text-[11px] text-slate-200">
-                    &quot;Sei vicino a Borgo Antico: ti mancano solo 3 timbri per il calice di riserva omaggio!&quot;
+                  <div className="text-[11px] text-[#A1A1AA]">
+                    &quot;Sei vicino a Borgo Antico: ti mancano 3 timbri per il calice omaggio.&quot;
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400 relative z-10">
-              <span>Tasso di ritorno del cliente: +38%</span>
-              <span className="badge-mono text-indigo-400">PUSH GEOLOCALIZZATE</span>
+            <div className="pt-3 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-2 text-xs text-[#A1A1AA]">
+              <span>Tasso di ritorno cliente: +38%</span>
+              <span className="font-mono text-[#38BDF8]">PUSH GEOLOCALIZZATE</span>
             </div>
           </div>
 
-          {/* =========================================================
-              CARD 3 (SPAN 4): Ruota della Fortuna & Lead Capture (/wheel)
-              ========================================================= */}
-          <div className="lg:col-span-4 p-6 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between">
+          {/* CARD 3 (Span 4): Wheel */}
+          <div className="lg:col-span-4 p-6 rounded-2xl bg-[#111215] border border-white/[0.08] flex flex-col justify-between min-w-0">
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="badge-mono bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider bg-[#BFFF00]/15 text-[#BFFF00] border border-[#BFFF00]/30 px-2 py-0.5 rounded inline-flex items-center gap-1.5">
                   <Gift className="w-3.5 h-3.5" />
                   GAMIFICATION CRM
                 </span>
-                <span className="text-xs font-mono text-slate-400">/wheel</span>
+                <span className="text-xs font-mono text-[#71717A]">/wheel</span>
               </div>
 
-              <h3 className="text-lg font-semibold text-white tracking-tight">
+              <h3 className="font-display text-lg font-semibold text-[#F4F4F6] tracking-tight">
                 Ruota della Fortuna al Tavolo
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Trasforma il momento del conto in un gioco a premi istantaneo: l&apos;ospite lascia email e telefono per girare la ruota.
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Trasforma il dopo-cena in acquisizione lead consensuale: gira la ruota con premio immediato.
               </p>
 
-              {/* Interactive Wheel Disc with Realistic CSS Transition */}
-              <div className="my-4 p-4 rounded-2xl bg-black/40 border border-white/[0.06] text-center flex flex-col items-center">
-                {/* Visual Wheel Disc */}
-                <div className="relative w-28 h-28 my-1 flex items-center justify-center">
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[10px] border-t-purple-400 drop-shadow-[0_0_6px_#A855F7]" />
+              <div className="my-4 p-4 rounded-xl bg-[#09090B] border border-white/[0.08] text-center flex flex-col items-center">
+                <div className="relative w-24 h-24 my-1 flex items-center justify-center">
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[10px] border-t-[#BFFF00]" />
                   <div
-                    className="w-full h-full rounded-full border-2 border-white/20 shadow-lg relative overflow-hidden transition-transform ease-out"
+                    className="w-full h-full rounded-full border-2 border-white/20 relative overflow-hidden transition-transform ease-out"
                     style={{
                       transform: `rotate(${wheelRotation}deg)`,
-                      transitionDuration: spinning ? '1800ms' : '0ms',
-                      background: 'conic-gradient(#18181B 0deg 60deg, #3B0764 60deg 120deg, #18181B 120deg 180deg, #3B0764 180deg 240deg, #18181B 240deg 300deg, #3B0764 300deg 360deg)',
+                      transitionDuration: spinning ? '1400ms' : '0ms',
+                      background:
+                        'conic-gradient(#18191D 0deg 60deg, #27272A 60deg 120deg, #18191D 120deg 180deg, #27272A 180deg 240deg, #18191D 240deg 300deg, #27272A 300deg 360deg)',
                     }}
                   />
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleSpinWheel}
                   disabled={spinning}
-                  className="w-full mt-3 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-600/30 active:scale-[0.96] touch-press disabled:opacity-50 cursor-pointer"
+                  className="w-full mt-3 py-2.5 rounded-lg bg-[#BFFF00] hover:bg-[#D4FF33] text-[#09090B] font-bold text-xs flex items-center justify-center gap-2 transition-colors min-h-[40px] disabled:opacity-50 cursor-pointer"
                 >
-                  <RefreshCw className={`w-4 h-4 ${spinning ? 'animate-spin' : ''}`} />
-                  <span>{spinning ? 'Estrazione Premio in Corso...' : 'Simula: Gira la Ruota'}</span>
+                  <RefreshCw className={`w-3.5 h-3.5 ${spinning ? 'animate-spin' : ''}`} />
+                  <span>{spinning ? 'Estrazione in corso...' : 'Simula: Gira la Ruota'}</span>
                 </button>
 
                 {prizeWon && (
-                  <div className="mt-2.5 p-2 rounded-lg bg-purple-500/20 border border-purple-500/40 text-xs font-bold text-purple-200 animate-fade-in">
-                    🎉 Hai Vinto: {prizeWon}
+                  <div className="mt-2.5 px-3 py-2 rounded-lg bg-[#18191D] border border-[#BFFF00]/35 text-xs font-mono font-bold text-[#BFFF00] w-full">
+                    PREMIO: {prizeWon}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="pt-3 border-t border-white/[0.06] text-xs text-slate-400 flex justify-between">
+            <div className="pt-3 border-t border-white/[0.08] text-xs text-[#A1A1AA] flex justify-between">
               <span>Lead Profilati GDPR</span>
-              <span className="font-mono text-white font-bold tabular-nums">120+ / mese</span>
+              <span className="font-mono text-[#F4F4F6] font-bold tabular-nums">120+ / mese</span>
             </div>
           </div>
 
-          {/* =========================================================
-              CARD 4 (SPAN 4): Architettura Offline-First
-              ========================================================= */}
-          <div className="lg:col-span-4 p-6 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between">
+          {/* CARD 4 (Span 4): Offline Outbox */}
+          <div className="lg:col-span-4 p-6 rounded-2xl bg-[#111215] border border-white/[0.08] flex flex-col justify-between min-w-0">
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="badge-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30 px-2 py-0.5 rounded inline-flex items-center gap-1.5">
                   <Wifi className="w-3.5 h-3.5" />
                   OFFLINE-OUTBOX
                 </span>
-                <span className="text-xs font-mono text-slate-400">offline-outbox.ts</span>
+                <span className="text-xs font-mono text-[#71717A]">IndexedDB</span>
               </div>
 
-              <h3 className="text-lg font-semibold text-white tracking-tight">
+              <h3 className="font-display text-lg font-semibold text-[#F4F4F6] tracking-tight">
                 Funziona Anche Senza Wi-Fi
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Se la connessione del locale cade, RIVO non si blocca mai. Le comande restano in coda sicura IndexedDB e si sincronizzano al ripristino.
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Se cade la linea in negozio, vendite e comande restano in coda locale sicura e si sincronizzano automaticamente al ripristino.
               </p>
 
-              {/* Interactive Offline Simulation with Pulse Indicator */}
-              <div className="my-5 p-4 rounded-2xl bg-black/40 border border-white/[0.06] space-y-3">
+              <div className="my-5 p-4 rounded-xl bg-[#09090B] border border-white/[0.08] space-y-3">
                 <button
+                  type="button"
                   onClick={handleToggleOffline}
-                  className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.96] cursor-pointer ${
+                  className={`w-full py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-colors min-h-[40px] cursor-pointer ${
                     isOffline
-                      ? 'bg-red-500/20 border border-red-500/40 text-red-300 shadow-md shadow-red-500/20'
-                      : 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20'
+                      ? 'bg-[#EF4444]/15 border border-[#EF4444]/35 text-[#EF4444]'
+                      : 'bg-[#10B981] text-[#09090B]'
                   }`}
                 >
-                  {isOffline ? <WifiOff className="w-4 h-4 animate-bounce" /> : <Wifi className="w-4 h-4" />}
+                  {isOffline ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
                   <span>{isOffline ? 'Ripristina Rete (Auto-Drain)' : 'Simula Caduta Wi-Fi'}</span>
                 </button>
 
-                <div className="text-xs text-slate-300 flex justify-between items-center px-1">
-                  <span>Coda Outbox Locale:</span>
-                  <span className={`font-mono font-bold tabular-nums ${outboxCount > 0 ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`}>
+                <div className="text-xs text-[#A1A1AA] flex justify-between items-center px-1">
+                  <span>Coda Locale:</span>
+                  <span
+                    className={`font-mono font-bold tabular-nums ${
+                      outboxCount > 0 ? 'text-[#F59E0B]' : 'text-[#10B981]'
+                    }`}
+                  >
                     {outboxCount} operazioni in attesa
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-white/[0.06] text-xs text-slate-400 flex justify-between">
+            <div className="pt-3 border-t border-white/[0.08] text-xs text-[#A1A1AA] flex justify-between">
               <span>Perdita Dati</span>
-              <span className="font-mono text-emerald-400 font-bold tabular-nums">0.00%</span>
+              <span className="font-mono text-[#10B981] font-bold tabular-nums">0.00%</span>
             </div>
           </div>
 
-          {/* =========================================================
-              CARD 5 (SPAN 4): Multi-Sede & Permessi Staff (RBAC)
-              ========================================================= */}
-          <div className="lg:col-span-4 p-6 rounded-3xl bg-[#0B0C10] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] flex flex-col justify-between">
+          {/* CARD 5 (Span 4): Multi-Sede & RBAC */}
+          <div className="lg:col-span-4 p-6 rounded-2xl bg-[#111215] border border-white/[0.08] flex flex-col justify-between min-w-0">
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="badge-mono bg-slate-500/10 text-slate-300 border border-slate-500/20 px-2 py-0.5 rounded flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider bg-white/[0.06] text-[#F4F4F6] border border-white/[0.12] px-2 py-0.5 rounded inline-flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5" />
                   SICUREZZA RBAC
                 </span>
-                <span className="text-xs font-mono text-slate-400">Ruoli &amp; Sedi</span>
+                <span className="text-xs font-mono text-[#71717A]">Ruoli &amp; Sedi</span>
               </div>
 
-              <h3 className="text-lg font-semibold text-white tracking-tight">
+              <h3 className="font-display text-lg font-semibold text-[#F4F4F6] tracking-tight">
                 Multi-Sede &amp; Permessi Staff
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Isolamento rigido dei dati con Supabase Row-Level Security: il titolare controlla il gruppo, lo staff vede solo la sala.
+              <p className="text-xs text-[#A1A1AA] mt-1">
+                Isolamento rigoroso dei dati con Row-Level Security: il titolare controlla i margini, lo staff gestisce la sala.
               </p>
 
-              {/* Interactive Role Selector */}
-              <div className="my-5 p-3 rounded-2xl bg-black/40 border border-white/[0.06] space-y-2">
+              <div className="my-5 p-3 rounded-xl bg-[#09090B] border border-white/[0.08] space-y-2.5">
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
                     { id: 'owner', label: 'Titolare' },
@@ -459,11 +401,12 @@ export default function LandingBentoGrid() {
                   ].map((role) => (
                     <button
                       key={role.id}
+                      type="button"
                       onClick={() => setSelectedRole(role.id as 'owner' | 'manager' | 'staff')}
-                      className={`py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.96] cursor-pointer ${
+                      className={`py-2 rounded-lg text-xs font-semibold transition-colors min-h-[38px] cursor-pointer ${
                         selectedRole === role.id
-                          ? 'bg-white text-zinc-950 font-bold shadow-sm'
-                          : 'bg-white/[0.03] text-slate-400 hover:text-white'
+                          ? 'bg-[#BFFF00] text-[#09090B] font-bold'
+                          : 'bg-[#18191D] text-[#A1A1AA] hover:text-[#F4F4F6]'
                       }`}
                     >
                       {role.label}
@@ -471,17 +414,17 @@ export default function LandingBentoGrid() {
                   ))}
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-white/[0.02] text-[11px] text-slate-300 min-h-[50px] flex items-center">
+                <div className="p-3 rounded-lg bg-[#111215] text-[11px] text-[#A1A1AA] min-h-[54px] flex items-center">
                   {selectedRole === 'owner' && 'Accesso P&L globale, margini, multi-sede e fatturazione.'}
-                  {selectedRole === 'manager' && 'Controllo giacenze magazzino, resi, chiusura cassa giornaliera.'}
-                  {selectedRole === 'staff' && 'Mappa tavoli, chiamate di servizio e scontrini senza dati sensibili.'}
+                  {selectedRole === 'manager' && 'Controllo giacenze magazzino, resi e chiusura cassa giornaliera.'}
+                  {selectedRole === 'staff' && 'Mappa tavoli, chiamate di servizio e scontrini senza margini.'}
                 </div>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-white/[0.06] text-xs text-slate-400 flex justify-between">
+            <div className="pt-3 border-t border-white/[0.08] text-xs text-[#A1A1AA] flex justify-between">
               <span>Conformità</span>
-              <span className="font-mono text-white font-bold">RLS &amp; GDPR Compliant</span>
+              <span className="font-mono text-[#F4F4F6] font-bold">RLS &amp; GDPR</span>
             </div>
           </div>
         </div>

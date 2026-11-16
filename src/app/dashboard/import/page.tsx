@@ -2,26 +2,26 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { 
-  Upload, 
-  FileSpreadsheet, 
-  CheckCircle2, 
-  AlertCircle, 
-  ArrowRight, 
-  ArrowLeft, 
-  Loader2, 
-  Download, 
-  ShoppingBag, 
-  Boxes, 
-  Store, 
-  Sparkles,
-  Layers,
-  Table,
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  Download,
+  ShoppingBag,
+  Boxes,
+  Store,
   Check,
-  X
+  X,
 } from 'lucide-react';
 import { ColumnMapping } from '@/platform/import/parser';
 import { ValidatedImportItem } from '@/platform/import/validator';
+import { PageHeader, SurfaceCard, StatusBadge, KpiCard } from '@/components/ui';
+import { formatItCurrency } from '@/lib/chart-theme';
+import { cn } from '@/lib/cn';
 
 export default function CatalogImportPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -35,7 +35,7 @@ export default function CatalogImportPage() {
     name: '',
     sale_price: '',
   });
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<unknown[]>([]);
   const [previewItems, setPreviewItems] = useState<ValidatedImportItem[]>([]);
   const [validRowsCount, setValidRowsCount] = useState(0);
   const [errorRowsCount, setErrorRowsCount] = useState(0);
@@ -155,33 +155,25 @@ export default function CatalogImportPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-16 animate-in fade-in duration-200">
-      {/* Header */}
-      <div className="border-b border-zinc-200/80 dark:border-zinc-800/80 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-            <Upload className="w-3.5 h-3.5 text-lime-500 dark:text-[#bfff00]" />
-            <span>Catalog Migration Engine</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            Importazione Catalogo & Scorte
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-            Migra i prodotti, varianti taglia/colore e giacenze dal tuo gestionale precedente in pochi clic.
-          </p>
-        </div>
-
-        <button
-          onClick={handleDownloadSampleCSV}
-          className="inline-flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 px-3.5 py-2 rounded-xl text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
-        >
-          <Download className="w-4 h-4 text-zinc-500" />
-          <span>Scarica File Esempio CSV</span>
-        </button>
-      </div>
+    <div className="space-y-6 max-w-4xl mx-auto pb-16 min-w-0">
+      <PageHeader
+        eyebrow="03 // CATALOG MIGRATION ENGINE"
+        title="Importazione Catalogo & Scorte"
+        description="Migra i prodotti, varianti taglia/colore e giacenze dal tuo gestionale precedente in pochi clic."
+        actions={
+          <button
+            type="button"
+            onClick={handleDownloadSampleCSV}
+            className="inline-flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] px-3.5 min-h-[40px] max-sm:min-h-[44px] rounded-lg text-xs font-semibold hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-[var(--text-secondary)]" strokeWidth={1.75} aria-hidden="true" />
+            <span>Scarica File Esempio CSV</span>
+          </button>
+        }
+      />
 
       {/* Stepper Indicator */}
-      <div className="grid grid-cols-4 gap-2 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
         {[
           { num: 1, label: 'Carica File' },
           { num: 2, label: 'Mappa Colonne' },
@@ -190,17 +182,25 @@ export default function CatalogImportPage() {
         ].map((s) => (
           <div
             key={s.num}
-            className={`p-3 rounded-xl border flex items-center gap-2.5 transition-all ${
+            className={cn(
+              'p-3 rounded-xl border flex items-center gap-2.5 transition-colors',
               step === s.num
-                ? 'bg-zinc-950 dark:bg-white text-white dark:text-black border-transparent shadow-xs font-bold'
+                ? 'bg-[var(--text-primary)] text-[var(--bg-canvas)] border-transparent font-bold'
                 : step > s.num
-                ? 'bg-lime-500/10 text-lime-600 dark:text-[#bfff00] border-lime-500/20 font-semibold'
-                : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800'
-            }`}
+                ? 'bg-[var(--rivo-volt-bg)] text-[var(--rivo-volt-text)] border-[var(--rivo-volt-border)] font-semibold'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+            )}
           >
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-              step > s.num ? 'bg-[#bfff00] text-black' : 'bg-current text-white dark:text-black opacity-30'
-            }`}>
+            <span
+              className={cn(
+                'w-5 h-5 rounded-full flex items-center justify-center font-mono tabular-nums text-[10px] font-bold shrink-0',
+                step > s.num
+                  ? 'bg-[var(--rivo-volt)] text-[#09090B]'
+                  : step === s.num
+                  ? 'bg-[var(--bg-canvas)] text-[var(--text-primary)]'
+                  : 'bg-[var(--bg-elevated)] text-[var(--text-muted)]'
+              )}
+            >
               {step > s.num ? '✓' : s.num}
             </span>
             <span className="truncate">{s.label}</span>
@@ -210,28 +210,36 @@ export default function CatalogImportPage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div
+          role="alert"
+          className="p-4 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center gap-2"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}
 
       {/* STEP 1: UPLOAD FILE */}
       {step === 1 && (
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 shadow-2xs space-y-6 text-center">
+        <SurfaceCard padding="lg" className="space-y-6 text-center">
           <div className="max-w-md mx-auto space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-lime-500/10 text-lime-600 dark:text-[#bfff00] flex items-center justify-center mx-auto">
-              <FileSpreadsheet className="w-7 h-7" />
+            <div className="w-12 h-12 rounded-xl bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] flex items-center justify-center mx-auto">
+              <FileSpreadsheet className="w-6 h-6" strokeWidth={1.75} aria-hidden="true" />
             </div>
-            <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+            <h2 className="font-display text-lg font-bold text-[var(--text-primary)]">
               Carica il tuo catalogo prodotti
             </h2>
-            <p className="text-xs text-zinc-500">
-              Formati supportati: Excel (<span className="font-mono font-bold">.xlsx</span>, <span className="font-mono font-bold">.xls</span>) oppure file di testo <span className="font-mono font-bold">.csv</span> esportato da Zucchetti, Danea, TeamSystem o fogli di calcolo.
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Formati supportati: Excel (
+              <span className="font-mono font-semibold text-[var(--text-primary)]">.xlsx</span>,{' '}
+              <span className="font-mono font-semibold text-[var(--text-primary)]">.xls</span>)
+              oppure file di testo{' '}
+              <span className="font-mono font-semibold text-[var(--text-primary)]">.csv</span>{' '}
+              esportato da Zucchetti, Danea, TeamSystem o fogli di calcolo.
             </p>
           </div>
 
-          <label className="block border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-[#bfff00] dark:hover:border-[#bfff00] rounded-2xl p-8 cursor-pointer transition-colors max-w-lg mx-auto">
+          <label className="block border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--rivo-volt-text)] rounded-2xl p-8 cursor-pointer transition-colors max-w-lg mx-auto bg-[var(--bg-elevated)]/40">
             <input
               type="file"
               accept=".csv, .xlsx, .xls"
@@ -243,147 +251,186 @@ export default function CatalogImportPage() {
             />
             {loading ? (
               <div className="flex flex-col items-center gap-2">
-                <Loader2 className="w-6 h-6 animate-spin text-[#bfff00]" />
-                <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                  Analisi del file in corso...
+                <Loader2 className="w-6 h-6 animate-spin text-[var(--rivo-volt-text)]" aria-hidden="true" />
+                <span className="text-xs font-semibold text-[var(--text-primary)]">
+                  Analisi del file in corso…
                 </span>
               </div>
             ) : (
               <div className="space-y-2">
-                <Upload className="w-6 h-6 text-zinc-400 mx-auto" />
-                <div className="text-xs font-semibold text-zinc-900 dark:text-white">
+                <Upload className="w-6 h-6 text-[var(--text-muted)] mx-auto" strokeWidth={1.75} aria-hidden="true" />
+                <div className="text-xs font-semibold text-[var(--text-primary)]">
                   Trascina qui il file oppure clicca per selezionarlo
                 </div>
-                <div className="text-[11px] text-zinc-400">
+                <div className="text-[11px] text-[var(--text-muted)]">
                   Verranno analizzate automaticamente le intestazioni delle colonne
                 </div>
               </div>
             )}
           </label>
-        </div>
+        </SurfaceCard>
       )}
 
       {/* STEP 2: COLUMN MAPPING */}
       {step === 2 && (
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xs space-y-6">
+        <SurfaceCard padding="lg" className="space-y-6">
           <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white">
+            <h2 className="font-display text-base font-bold text-[var(--text-primary)]">
               Mappatura delle Colonne del File
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Abbiamo rilevato automaticamente i campi. Verifica o modifica l&apos;associazione con le colonne del tuo file caricato (<span className="font-mono text-zinc-300">{file?.name}</span>, {rawRows.length} righe trovate).
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              Abbiamo rilevato automaticamente i campi. Verifica o modifica l&apos;associazione con
+              le colonne del tuo file caricato (
+              <span className="font-mono text-[var(--text-primary)]">{file?.name}</span>,{' '}
+              <span className="font-mono tabular-nums">{rawRows.length}</span> righe trovate).
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             {/* Mandatory Fields */}
-            <div className="space-y-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-lime-600 dark:text-[#bfff00] block">
+            <div className="space-y-3 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--rivo-volt-text)] block">
                 Campi Obbligatori
               </span>
 
               <div>
-                <label className="block font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                <label
+                  htmlFor="map-name"
+                  className="block font-semibold text-[var(--text-primary)] mb-1"
+                >
                   Nome / Descrizione Prodotto *
                 </label>
                 <select
+                  id="map-name"
                   value={mapping.name}
                   onChange={(e) => setMapping({ ...mapping, name: e.target.value })}
-                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white"
+                  className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)]"
                 >
-                  <option value="">Seleziona colonna...</option>
+                  <option value="">Seleziona colonna…</option>
                   {headers.map((h) => (
-                    <option key={h} value={h}>{h}</option>
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                <label
+                  htmlFor="map-sale-price"
+                  className="block font-semibold text-[var(--text-primary)] mb-1"
+                >
                   Prezzo di Vendita (€) *
                 </label>
                 <select
+                  id="map-sale-price"
                   value={mapping.sale_price}
                   onChange={(e) => setMapping({ ...mapping, sale_price: e.target.value })}
-                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white"
+                  className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)]"
                 >
-                  <option value="">Seleziona colonna...</option>
+                  <option value="">Seleziona colonna…</option>
                   {headers.map((h) => (
-                    <option key={h} value={h}>{h}</option>
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
 
             {/* Optional Fashion & Footwear Fields */}
-            <div className="space-y-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
+            <div className="space-y-3 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
                 Varianti Retail & Magazzino
               </span>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="map-size"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Taglia / Misura
                   </label>
                   <select
+                    id="map-size"
                     value={mapping.size || ''}
                     onChange={(e) => setMapping({ ...mapping, size: e.target.value })}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                    className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                   >
                     <option value="">Non presente</option>
                     {headers.map((h) => (
-                      <option key={h} value={h}>{h}</option>
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="map-color"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Colore
                   </label>
                   <select
+                    id="map-color"
                     value={mapping.color || ''}
                     onChange={(e) => setMapping({ ...mapping, color: e.target.value })}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                    className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                   >
                     <option value="">Non presente</option>
                     {headers.map((h) => (
-                      <option key={h} value={h}>{h}</option>
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="map-stock"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Giacenza Iniziale (Stock)
                   </label>
                   <select
+                    id="map-stock"
                     value={mapping.stock || ''}
                     onChange={(e) => setMapping({ ...mapping, stock: e.target.value })}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                    className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                   >
                     <option value="">Nessuno (Stock a 0)</option>
                     {headers.map((h) => (
-                      <option key={h} value={h}>{h}</option>
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="map-cost"
+                    className="block font-semibold text-[var(--text-secondary)] mb-1"
+                  >
                     Prezzo di Costo (€)
                   </label>
                   <select
+                    id="map-cost"
                     value={mapping.cost_price || ''}
                     onChange={(e) => setMapping({ ...mapping, cost_price: e.target.value })}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                    className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                   >
                     <option value="">Non specificato</option>
                     {headers.map((h) => (
-                      <option key={h} value={h}>{h}</option>
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -391,252 +438,280 @@ export default function CatalogImportPage() {
             </div>
 
             {/* Categorization & Identifiers */}
-            <div className="col-span-1 md:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
+            <div className="col-span-1 md:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
               <div>
-                <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="map-brand"
+                  className="block font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Marca / Brand
                 </label>
                 <select
+                  id="map-brand"
                   value={mapping.brand || ''}
                   onChange={(e) => setMapping({ ...mapping, brand: e.target.value })}
-                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                  className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                 >
                   <option value="">Non presente</option>
                   {headers.map((h) => (
-                    <option key={h} value={h}>{h}</option>
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="map-category"
+                  className="block font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Categoria
                 </label>
                 <select
+                  id="map-category"
                   value={mapping.category || ''}
                   onChange={(e) => setMapping({ ...mapping, category: e.target.value })}
-                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                  className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                 >
                   <option value="">Non presente</option>
                   {headers.map((h) => (
-                    <option key={h} value={h}>{h}</option>
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="map-sku"
+                  className="block font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Codice SKU
                 </label>
                 <select
+                  id="map-sku"
                   value={mapping.sku || ''}
                   onChange={(e) => setMapping({ ...mapping, sku: e.target.value })}
-                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                  className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                 >
                   <option value="">Non presente</option>
                   {headers.map((h) => (
-                    <option key={h} value={h}>{h}</option>
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="map-barcode"
+                  className="block font-semibold text-[var(--text-secondary)] mb-1"
+                >
                   Barcode EAN
                 </label>
                 <select
+                  id="map-barcode"
                   value={mapping.barcode || ''}
                   onChange={(e) => setMapping({ ...mapping, barcode: e.target.value })}
-                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white"
+                  className="w-full min-h-[40px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                 >
                   <option value="">Non presente</option>
                   {headers.map((h) => (
-                    <option key={h} value={h}>{h}</option>
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-subtle)]">
             <button
+              type="button"
               onClick={() => setStep(1)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+              className="inline-flex items-center gap-1.5 min-h-[40px] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
               <span>Scegli un altro file</span>
             </button>
 
             <button
+              type="button"
               onClick={handleProceedToPreview}
-              className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-5 py-2 rounded-xl text-xs font-bold hover:bg-[#a8e600] transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-5 min-h-[40px] rounded-lg text-xs font-bold transition-colors cursor-pointer"
             >
               <span>Continua all&apos;Anteprima</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </SurfaceCard>
       )}
 
       {/* STEP 3: PREVIEW & VERIFICATION */}
       {step === 3 && (
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xs space-y-6">
+        <SurfaceCard padding="lg" className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-zinc-950 dark:text-white">
+              <h2 className="font-display text-base font-bold text-[var(--text-primary)]">
                 Anteprima e Validazione Righe
               </h2>
-              <p className="text-xs text-zinc-500">
-                Verifica come verranno creati i prodotti e le varianti prima di eseguire l&apos;importazione definitiva.
+              <p className="text-xs text-[var(--text-secondary)]">
+                Verifica come verranno creati i prodotti e le varianti prima di eseguire
+                l&apos;importazione definitiva.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 text-xs">
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <StatusBadge tone="operational" size="md">
                 {validRowsCount} righe pronte
-              </span>
+              </StatusBadge>
               {errorRowsCount > 0 && (
-                <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-500 font-bold border border-rose-500/20">
+                <StatusBadge tone="critical" size="md">
                   {errorRowsCount} errori da correggere
-                </span>
+                </StatusBadge>
               )}
             </div>
           </div>
 
           {/* Preview Table */}
-          <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden max-h-80 overflow-y-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider sticky top-0">
-                <tr>
-                  <th className="px-3 py-2">Stato</th>
-                  <th className="px-3 py-2">Prodotto</th>
-                  <th className="px-3 py-2">Brand</th>
-                  <th className="px-3 py-2">Taglia/Colore</th>
-                  <th className="px-3 py-2 text-right">Prezzo Vendita</th>
-                  <th className="px-3 py-2 text-right">Giacenza</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
-                {previewItems.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40">
-                    <td className="px-3 py-2">
-                      {item.status === 'valid' ? (
-                        <span className="inline-flex items-center text-emerald-500 font-semibold gap-1 text-[11px]">
-                          <Check className="w-3.5 h-3.5" /> OK
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-rose-500 font-semibold gap-1 text-[11px]" title={item.errors.join(', ')}>
-                          <X className="w-3.5 h-3.5" /> Errore
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 font-semibold text-zinc-950 dark:text-white">
-                      {item.product_name || '<Nome mancante>'}
-                    </td>
-                    <td className="px-3 py-2 text-zinc-500">
-                      {item.brand_name || '-'}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-zinc-400">
-                      {item.size ? `Tg. ${item.size}` : ''} {item.color ? `• ${item.color}` : ''}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono font-bold text-zinc-950 dark:text-white">
-                      € {item.sale_price.toFixed(2)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-lime-600 dark:text-[#bfff00] font-bold">
-                      {item.stock} pz
-                    </td>
+          <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden">
+            <div className="overflow-x-auto max-h-80">
+              <table className="w-full text-left text-xs min-w-[600px]">
+                <thead className="bg-[var(--bg-elevated)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[11px] font-semibold uppercase tracking-wider sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2.5">Stato</th>
+                    <th className="px-3 py-2.5">Prodotto</th>
+                    <th className="px-3 py-2.5">Brand</th>
+                    <th className="px-3 py-2.5">Taglia/Colore</th>
+                    <th className="px-3 py-2.5 text-right">Prezzo Vendita</th>
+                    <th className="px-3 py-2.5 text-right">Giacenza</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)]">
+                  {previewItems.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-[var(--bg-elevated)]/50 transition-colors">
+                      <td className="px-3 py-2.5">
+                        {item.status === 'valid' ? (
+                          <StatusBadge tone="operational" icon={Check} size="sm">
+                            OK
+                          </StatusBadge>
+                        ) : (
+                          <span title={item.errors.join(', ')}>
+                            <StatusBadge tone="critical" icon={X} size="sm">
+                              Errore
+                            </StatusBadge>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 font-semibold text-[var(--text-primary)]">
+                        {item.product_name || '<Nome mancante>'}
+                      </td>
+                      <td className="px-3 py-2.5 text-[var(--text-secondary)]">
+                        {item.brand_name || '—'}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-[var(--text-secondary)]">
+                        {item.size ? `Tg. ${item.size}` : ''}{' '}
+                        {item.color ? `• ${item.color}` : ''}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums font-bold text-[var(--text-primary)]">
+                        {formatItCurrency(item.sale_price)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--rivo-volt-text)] font-bold">
+                        {item.stock} pz
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-subtle)]">
             <button
+              type="button"
               onClick={() => setStep(2)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+              className="inline-flex items-center gap-1.5 min-h-[40px] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
               <span>Modifica mappatura</span>
             </button>
 
             <button
+              type="button"
               onClick={handleExecuteImport}
               disabled={loading || validRowsCount === 0}
-              className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-[#a8e600] disabled:opacity-50 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-6 min-h-[44px] rounded-lg text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+              )}
               <span>Conferma & Importa {validRowsCount} Articoli</span>
             </button>
           </div>
-        </div>
+        </SurfaceCard>
       )}
 
       {/* STEP 4: IMPORT COMPLETED REPORT */}
       {step === 4 && importSummary && (
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 shadow-2xs space-y-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-9 h-9" />
+        <SurfaceCard padding="lg" className="space-y-6 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" strokeWidth={1.75} aria-hidden="true" />
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-xl font-bold text-zinc-950 dark:text-white">
+            <h2 className="font-display text-xl font-bold text-[var(--text-primary)]">
               Importazione Completata con Successo!
             </h2>
-            <p className="text-xs text-zinc-500">
-              Il catalogo prodotti, le varianti e le giacenze iniziali di magazzino sono ora attivi sul tuo tenant.
+            <p className="text-xs text-[var(--text-secondary)]">
+              Il catalogo prodotti, le varianti e le giacenze iniziali di magazzino sono ora attivi
+              sul tuo tenant.
             </p>
           </div>
 
           {/* Stat Pills */}
-          <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto">
-            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-              <span className="text-[10px] text-zinc-400 font-semibold uppercase block">Prodotti Creati</span>
-              <span className="text-xl font-bold font-mono text-zinc-950 dark:text-white">
-                {importSummary.imported_products}
-              </span>
-            </div>
-            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-              <span className="text-[10px] text-zinc-400 font-semibold uppercase block">Varianti Taglia/Colore</span>
-              <span className="text-xl font-bold font-mono text-zinc-950 dark:text-white">
-                {importSummary.imported_variants}
-              </span>
-            </div>
-            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-              <span className="text-[10px] text-zinc-400 font-semibold uppercase block">Pezzi Caricati</span>
-              <span className="text-xl font-bold font-mono text-lime-600 dark:text-[#bfff00]">
-                {importSummary.initial_stock_units} pz
-              </span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto text-left">
+            <KpiCard label="Prodotti Creati" value={importSummary.imported_products} />
+            <KpiCard label="Varianti Taglia/Colore" value={importSummary.imported_variants} />
+            <KpiCard
+              label="Pezzi Caricati"
+              value={`${importSummary.initial_stock_units} pz`}
+              tone="volt"
+            />
           </div>
 
           {/* Quick Action Links */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-[var(--border-subtle)]">
             <Link
               href="/dashboard/products"
-              className="inline-flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-2 bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] px-4 min-h-[44px] rounded-lg text-xs font-semibold transition-colors"
             >
-              <ShoppingBag className="w-4 h-4" />
+              <ShoppingBag className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
               <span>Vai al Catalogo Prodotti</span>
             </Link>
 
             <Link
               href="/dashboard/inventory"
-              className="inline-flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-2 bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] px-4 min-h-[44px] rounded-lg text-xs font-semibold transition-colors"
             >
-              <Boxes className="w-4 h-4" />
+              <Boxes className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
               <span>Verifica Scorte di Magazzino</span>
             </Link>
 
             <Link
               href="/dashboard/sales"
-              className="inline-flex items-center gap-2 bg-[#bfff00] hover:bg-[#a8e600] text-black px-5 py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-5 min-h-[44px] rounded-lg text-xs font-bold transition-colors"
             >
-              <Store className="w-4 h-4" />
+              <Store className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
               <span>Apri Punto Cassa POS</span>
             </Link>
           </div>
-        </div>
+        </SurfaceCard>
       )}
     </div>
   );

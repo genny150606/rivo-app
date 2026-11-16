@@ -66,6 +66,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   MapPin,
   Building,
   Upload,
+  ScanLine,
   Scissors,
   CalendarCheck,
 };
@@ -141,6 +142,12 @@ export function resolveSidebarNavigation(
           label,
           href: '/dashboard/products',
           icon: ShoppingBag,
+        },
+        {
+          id: 'catalog_import',
+          label: 'Importazione & Export',
+          href: '/dashboard/import',
+          icon: Upload,
         },
       ],
     });
@@ -395,4 +402,123 @@ export function resolveSidebarNavigation(
   });
 
   return groups;
+}
+
+/**
+ * Projects raw legacy NavGroup[] from resolveSidebarNavigation into RIVO's streamlined 5-pillar UI hierarchy
+ * while keeping resolveSidebarNavigation() 100% backward-compatible with platform tests.
+ */
+export function projectNavigationPillars(groups: NavGroup[]): NavGroup[] {
+  if (groups.length === 1 && groups[0]?.id === 'waiter_core') {
+    return [
+      {
+        id: 'waiter_core',
+        label: 'Servizio Cameriere',
+        items: groups[0].items,
+      },
+    ];
+  }
+
+  const allItems = groups.flatMap((g) => g.items);
+  const byId = new Map(allItems.map((item) => [item.id, item]));
+
+  const overviewItems = allItems.filter((i) => i.id === 'overview_item');
+
+  const touchpointIds = [
+    'tech_devices',
+    'eng_hub',
+    'hosp_menu',
+    'hosp_tables',
+    'hosp_waiter',
+  ];
+  const touchpointItems = touchpointIds
+    .map((id) => byId.get(id))
+    .filter((i): i is NavLinkItem => Boolean(i));
+
+  const operationIds = [
+    'sales_register',
+    'catalog_products',
+    'inventory_main',
+    'inventory_check',
+    'inventory_scanner',
+    'catalog_import',
+    'suppliers_main',
+    'hosp_service',
+    'salon_bookings',
+  ];
+  const operationItems = operationIds
+    .map((id) => byId.get(id))
+    .filter((i): i is NavLinkItem => Boolean(i));
+
+  const growthIds = [
+    'eng_reviews',
+    'crm_leads',
+    'eng_loyalty',
+    'eng_coupons',
+    'tech_analytics',
+  ];
+  const growthItems = growthIds
+    .map((id) => byId.get(id))
+    .filter((i): i is NavLinkItem => Boolean(i));
+
+  const workspaceIds = [
+    'tech_staff',
+    'set_locations',
+    'set_profile',
+    'set_settings',
+  ];
+  const workspaceItems = workspaceIds
+    .map((id) => byId.get(id))
+    .filter((i): i is NavLinkItem => Boolean(i));
+
+  const assignedIds = new Set([
+    ...overviewItems.map((i) => i.id),
+    ...touchpointItems.map((i) => i.id),
+    ...operationItems.map((i) => i.id),
+    ...growthItems.map((i) => i.id),
+    ...workspaceItems.map((i) => i.id),
+  ]);
+  const extraItems = allItems.filter((i) => !assignedIds.has(i.id));
+
+  const pillars: NavGroup[] = [];
+  if (overviewItems.length > 0) {
+    pillars.push({ id: 'pillar_overview', items: overviewItems });
+  }
+  if (touchpointItems.length > 0) {
+    pillars.push({
+      id: 'pillar_touchpoints',
+      label: 'Touchpoints & Hardware',
+      items: touchpointItems,
+    });
+  }
+  if (operationItems.length > 0) {
+    pillars.push({
+      id: 'pillar_operations',
+      label: 'Operazioni',
+      items: operationItems,
+    });
+  }
+  if (growthItems.length > 0) {
+    pillars.push({
+      id: 'pillar_growth',
+      label: 'Crescita & Clienti',
+      items: growthItems,
+    });
+  }
+  if (extraItems.length > 0) {
+    pillars.push({
+      id: 'pillar_extra',
+      label: 'Moduli',
+      items: extraItems,
+    });
+  }
+  if (workspaceItems.length > 0) {
+    pillars.push({
+      id: 'pillar_workspace',
+      label: 'Workspace & Sistema',
+      items: workspaceItems,
+    });
+  }
+
+  return pillars;
 }

@@ -12,32 +12,48 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function syncDocumentTheme(newTheme: Theme) {
+  const root = document.documentElement;
+  if (newTheme === 'dark') {
+    root.classList.add('dark');
+    root.classList.remove('light');
+    root.setAttribute('data-theme', 'dark');
+    root.style.colorScheme = 'dark';
+  } else {
+    root.classList.add('light');
+    root.classList.remove('dark');
+    root.setAttribute('data-theme', 'light');
+    root.style.colorScheme = 'light';
+  }
+
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute('content', newTheme === 'dark' ? '#09090B' : '#F6F7F9');
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark');
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // 1. Read stored preference or system preference
     const stored = localStorage.getItem('rivo-theme') as Theme | null;
     if (stored === 'light' || stored === 'dark') {
       setThemeState(stored);
-      applyTheme(stored);
+      syncDocumentTheme(stored);
     } else {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const initial = prefersDark ? 'dark' : 'light';
       setThemeState(initial);
-      applyTheme(initial);
+      syncDocumentTheme(initial);
     }
-    setMounted(true);
 
-    // 2. Listen to system preference changes if user hasn't set an explicit preference
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent) => {
       const saved = localStorage.getItem('rivo-theme');
       if (!saved) {
         const newTheme = e.matches ? 'dark' : 'light';
         setThemeState(newTheme);
-        applyTheme(newTheme);
+        syncDocumentTheme(newTheme);
       }
     };
 
@@ -45,30 +61,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  const applyTheme = (newTheme: Theme) => {
-    const root = document.documentElement;
-    if (newTheme === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-      root.setAttribute('data-theme', 'dark');
-      root.style.colorScheme = 'dark';
-    } else {
-      root.classList.add('light');
-      root.classList.remove('dark');
-      root.setAttribute('data-theme', 'light');
-      root.style.colorScheme = 'light';
-    }
-  };
-
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     localStorage.setItem('rivo-theme', newTheme);
-    applyTheme(newTheme);
+    syncDocumentTheme(newTheme);
   };
 
   const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (

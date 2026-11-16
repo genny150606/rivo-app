@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Scissors,
-  Sparkles,
+  Zap,
   Calendar,
   Clock,
   Check,
@@ -96,7 +96,19 @@ export default function SalonBookingModal({
 
   // Active saved booking pass
   const [savedPass, setSavedPass] = useState<SavedBookingPass | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !submitting && !cancelling) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, submitting, cancelling, onClose]);
 
   const loadBookingData = useCallback(async () => {
     if (!organizationId) return;
@@ -310,10 +322,8 @@ export default function SalonBookingModal({
 
   const handleCancelSavedPass = async () => {
     if (!savedPass) return;
-    if (!confirm('Confermi di voler disdire questo appuntamento? Lo slot tornerà subito libero.')) {
-      return;
-    }
     setCancelling(true);
+    setErrorMsg(null);
     try {
       const res = await fetch('/api/hub/bookings', {
         method: 'POST',
@@ -330,8 +340,11 @@ export default function SalonBookingModal({
           localStorage.removeItem(PASS_STORAGE_KEY(organizationId));
         }
         setSavedPass(null);
+        setConfirmCancelId(null);
         setStep(1);
         loadBookingData();
+      } else {
+        setErrorMsg('Impossibile disdire l’appuntamento. Riprova.');
       }
     } finally {
       setCancelling(false);
@@ -355,32 +368,38 @@ export default function SalonBookingModal({
       : services.filter((s) => s.category === categoryFilter);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-lg bg-[#111413] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden space-y-3.5">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={savedPass ? 'Appuntamento confermato' : 'Prenota appuntamento'}
+        className="w-full max-w-lg bg-[#111215] text-[#F4F4F6] border-t sm:border border-white/[0.12] rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden space-y-3.5"
+      >
         {/* Top Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
             {!savedPass && step > 1 ? (
               <button
                 type="button"
+                aria-label="Torna allo step precedente"
                 onClick={() => {
                   hapticTap();
                   setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : 1));
                 }}
-                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center cursor-pointer"
+                className="min-h-[44px] min-w-[44px] w-11 h-11 rounded-xl bg-white/10 hover:bg-white/15 text-[#F4F4F6] flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             ) : (
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
+                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
                 style={{ backgroundColor: `${accentColor}25`, color: accentColor }}
               >
                 <Scissors className="w-4 h-4" />
               </div>
             )}
             <div>
-              <h3 className="text-sm sm:text-base font-extrabold text-white">
+              <h3 className="text-sm sm:text-base font-extrabold text-[#F4F4F6]">
                 {savedPass ? 'Il Tuo Appuntamento Confermato' : 'Prenota il tuo Appuntamento'}
               </h3>
               <p className="text-[11px] text-zinc-400">
@@ -399,8 +418,9 @@ export default function SalonBookingModal({
 
           <button
             type="button"
+            aria-label="Chiudi prenotazione"
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-xl min-h-[40px] min-w-[40px] flex items-center justify-center"
+            className="p-2 text-zinc-400 hover:text-white rounded-xl min-h-[48px] min-w-[48px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -418,7 +438,7 @@ export default function SalonBookingModal({
         {/* ACTIVE BOOKING PASS VIEW */}
         {/* ================================================================= */}
         {savedPass ? (
-          <div className="overflow-y-auto flex-1 space-y-4 pr-1 py-1">
+          <div className="overflow-y-auto overscroll-contain flex-1 space-y-4 pr-1 py-1">
             <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-7 h-7" />
@@ -429,7 +449,7 @@ export default function SalonBookingModal({
               <h4 className="text-base font-extrabold text-white">
                 Ti aspettiamo, {savedPass.customer_name}!
               </h4>
-              <p className="text-xs text-zinc-300">
+              <p className="text-xs text-zinc-300 tabular-nums">
                 {new Date(savedPass.booking_date + 'T12:00:00').toLocaleDateString('it-IT', {
                   weekday: 'long',
                   day: 'numeric',
@@ -452,18 +472,22 @@ export default function SalonBookingModal({
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-zinc-400 block">Trattamenti ({savedPass.total_duration_minutes} min):</span>
+                <span className="text-zinc-400 block tabular-nums">
+                  Trattamenti ({savedPass.total_duration_minutes} min):
+                </span>
                 {savedPass.services.map((srv) => (
                   <div key={srv.id} className="flex items-center justify-between text-white font-semibold">
                     <span>• {srv.name}</span>
-                    <span className="font-mono text-zinc-300">{formatEuroPrice(srv.price)}</span>
+                    <span className="font-mono tabular-nums text-zinc-300">
+                      {formatEuroPrice(srv.price)}
+                    </span>
                   </div>
                 ))}
               </div>
 
               <div className="flex items-center justify-between border-t border-white/10 pt-2.5">
                 <span className="text-zinc-400 font-semibold">Totale in salone:</span>
-                <span className="text-sm font-mono font-extrabold" style={{ color: accentColor }}>
+                <span className="text-sm font-mono tabular-nums font-extrabold" style={{ color: accentColor }}>
                   {formatEuroPrice(savedPass.total_price)}
                 </span>
               </div>
@@ -474,7 +498,7 @@ export default function SalonBookingModal({
                 href={buildGoogleCalendarUrl(savedPass)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-lg"
+                className="w-full min-h-[48px] py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
                 style={{ backgroundColor: accentColor, color: contrastText }}
               >
                 <CalendarPlus className="w-4 h-4" />
@@ -488,41 +512,81 @@ export default function SalonBookingModal({
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2"
+                  className="w-full min-h-[48px] py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2"
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>Scrivici su WhatsApp</span>
                 </a>
               )}
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    hapticTap();
-                    setSavedPass(null);
-                    setStep(1);
-                  }}
-                  className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold cursor-pointer"
-                >
-                  Nuova Prenotazione
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelSavedPass}
-                  disabled={cancelling}
-                  className="py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{cancelling ? 'Disdetta...' : 'Disdici Orario'}</span>
-                </button>
+              <div className="space-y-2 pt-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setSavedPass(null);
+                      setConfirmCancelId(null);
+                      setStep(1);
+                    }}
+                    className="min-h-[48px] py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+                  >
+                    Nuova Prenotazione
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setConfirmCancelId(savedPass.id);
+                    }}
+                    disabled={cancelling}
+                    className="min-h-[48px] py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{cancelling ? 'Disdetta…' : 'Disdici Orario'}</span>
+                  </button>
+                </div>
+
+                {confirmCancelId === savedPass.id && (
+                  <div
+                    role="alertdialog"
+                    aria-label="Conferma disdetta appuntamento"
+                    className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 space-y-2.5 animate-fade-in"
+                  >
+                    <p className="text-xs text-red-200 font-semibold leading-snug">
+                      Confermi di voler disdire questo appuntamento? Lo slot tornerà subito libero.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          hapticTap();
+                          setConfirmCancelId(null);
+                        }}
+                        disabled={cancelling}
+                        className="min-h-[44px] px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-[#F4F4F6] text-xs font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelSavedPass}
+                        disabled={cancelling}
+                        className="min-h-[44px] px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>{cancelling ? 'Disdetta…' : 'Conferma disdetta'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         ) : loading ? (
           <div className="py-16 text-center space-y-3">
             <Loader2 className="w-7 h-7 animate-spin mx-auto" style={{ color: accentColor }} />
-            <p className="text-xs text-zinc-400">Caricamento disponibilità salone...</p>
+            <p className="text-xs text-zinc-400">Caricamento disponibilità salone…</p>
           </div>
         ) : (
           <>
@@ -534,8 +598,9 @@ export default function SalonBookingModal({
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar shrink-0">
                   <button
                     type="button"
+                    aria-pressed={categoryFilter === 'all'}
                     onClick={() => setCategoryFilter('all')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-all ${
+                    className={`min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                       categoryFilter === 'all'
                         ? 'shadow'
                         : 'bg-white/5 text-zinc-400 hover:text-white border border-white/10'
@@ -551,12 +616,23 @@ export default function SalonBookingModal({
                   {SERVICE_CATEGORIES.filter((c) => services.some((s) => s.category === c.id)).map(
                     (cat) => {
                       const active = categoryFilter === cat.id;
+                      const CatIcon =
+                        cat.id === 'taglio'
+                          ? Scissors
+                          : cat.id === 'barba'
+                          ? User
+                          : cat.id === 'piega'
+                          ? Sun
+                          : cat.id === 'colore'
+                          ? CheckCircle2
+                          : Zap;
                       return (
                         <button
                           key={cat.id}
                           type="button"
+                          aria-pressed={active}
                           onClick={() => setCategoryFilter(cat.id)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-all ${
+                          className={`min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-colors inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                             active
                               ? 'shadow'
                               : 'bg-white/5 text-zinc-400 hover:text-white border border-white/10'
@@ -565,14 +641,15 @@ export default function SalonBookingModal({
                             active ? { backgroundColor: accentColor, color: contrastText } : undefined
                           }
                         >
-                          {cat.emoji} {cat.label}
+                          <CatIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                          <span>{cat.label}</span>
                         </button>
                       );
                     }
                   )}
                 </div>
 
-                <div className="overflow-y-auto flex-1 space-y-2.5 pr-1">
+                <div className="overflow-y-auto overscroll-contain flex-1 space-y-2.5 pr-1">
                   {visibleServices.map((srv) => {
                     const isSelected = selectedServiceIds.includes(srv.id);
                     return (
@@ -580,7 +657,7 @@ export default function SalonBookingModal({
                         key={srv.id}
                         type="button"
                         onClick={() => toggleService(srv.id)}
-                        className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-start justify-between gap-3 cursor-pointer ${
+                        className={`w-full p-3.5 rounded-2xl border text-left transition-colors flex items-start justify-between gap-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                           isSelected
                             ? 'bg-white/[0.08] border-emerald-400/60 shadow-md'
                             : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.05]'
@@ -597,7 +674,7 @@ export default function SalonBookingModal({
                             {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                           </div>
                           <div className="min-w-0 space-y-1">
-                            <h4 className="text-xs sm:text-sm font-extrabold text-white">
+                            <h4 className="text-xs sm:text-sm font-extrabold text-[#F4F4F6]">
                               {srv.name}
                             </h4>
                             {srv.description && (
@@ -605,15 +682,15 @@ export default function SalonBookingModal({
                                 {srv.description}
                               </p>
                             )}
-                            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-300 bg-white/5 px-2 py-0.5 rounded-md">
-                              <Clock className="w-3 h-3 text-emerald-400" />
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono tabular-nums text-zinc-300 bg-white/5 px-2 py-0.5 rounded-md">
+                              <Clock className="w-3 h-3 text-emerald-400" aria-hidden="true" />
                               {srv.duration_minutes} min
                             </span>
                           </div>
                         </div>
 
                         <span
-                          className="text-xs sm:text-sm font-mono font-extrabold shrink-0"
+                          className="text-xs sm:text-sm font-mono tabular-nums font-extrabold shrink-0"
                           style={{ color: accentColor }}
                         >
                           {formatEuroPrice(srv.price)}
@@ -625,11 +702,16 @@ export default function SalonBookingModal({
 
                 {/* Step 1 Sticky Footer */}
                 <div className="pt-3 border-t border-white/10 space-y-2.5 shrink-0">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-400">
-                      {selectedServices.length}{' '}
-                      {selectedServices.length === 1 ? 'trattamento' : 'trattamenti'} •{' '}
-                      <strong className="text-white">🕒 {totalDuration} min</strong>
+                  <div className="flex items-center justify-between text-xs tabular-nums">
+                    <span className="text-zinc-400 inline-flex items-center gap-1.5 flex-wrap">
+                      <span>
+                        {selectedServices.length}{' '}
+                        {selectedServices.length === 1 ? 'trattamento' : 'trattamenti'} •
+                      </span>
+                      <strong className="text-[#F4F4F6] inline-flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
+                        <span>{totalDuration} min</span>
+                      </strong>
                     </span>
                     <span className="font-mono font-extrabold text-sm" style={{ color: accentColor }}>
                       {formatEuroPrice(totalPrice)}
@@ -642,7 +724,7 @@ export default function SalonBookingModal({
                       hapticTap();
                       setStep(2);
                     }}
-                    className="w-full min-h-[46px] rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                    className="w-full min-h-[48px] rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                     style={{ backgroundColor: accentColor, color: contrastText }}
                   >
                     <span>Scegli il Parrucchiere / Barber</span>
@@ -656,7 +738,7 @@ export default function SalonBookingModal({
             {/* STEP 2: CHOOSE BARBER / HAIR STYLIST */}
             {/* ============================================================= */}
             {step === 2 && (
-              <div className="overflow-y-auto flex-1 space-y-3 pr-1">
+              <div className="overflow-y-auto overscroll-contain flex-1 space-y-3 pr-1">
                 {/* Option: Any / First Available */}
                 <button
                   type="button"
@@ -666,7 +748,7 @@ export default function SalonBookingModal({
                     setSelectedTime(null);
                     setStep(3);
                   }}
-                  className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                  className={`w-full p-4 rounded-2xl border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                     selectedStaffId === 'any'
                       ? 'bg-emerald-500/15 border-emerald-400/50'
                       : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.07]'
@@ -674,10 +756,10 @@ export default function SalonBookingModal({
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center font-bold shrink-0"
+                      className="w-11 h-11 rounded-xl flex items-center justify-center font-bold shrink-0"
                       style={{ backgroundColor: `${accentColor}25`, color: accentColor }}
                     >
-                      <Sparkles className="w-5 h-5" />
+                      <Zap className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -717,7 +799,7 @@ export default function SalonBookingModal({
                           setSelectedTime(null);
                           setStep(3);
                         }}
-                        className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer disabled:opacity-45 ${
+                        className={`p-3.5 rounded-2xl border text-left transition-colors flex flex-col justify-between gap-2.5 cursor-pointer disabled:opacity-45 ${
                           selectedStaffId === member.id
                             ? 'bg-white/10 border-white/40'
                             : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'
@@ -740,11 +822,14 @@ export default function SalonBookingModal({
 
                         {nextSlot ? (
                           <div className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300 flex items-center justify-between">
-                            <span>⚡ Libero {nextSlot.dayLabel}</span>
-                            <span className="font-mono">{nextSlot.start_time}</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Zap className="w-3 h-3 shrink-0" aria-hidden="true" />
+                              <span>Libero {nextSlot.dayLabel}</span>
+                            </span>
+                            <span className="font-mono tabular-nums">{nextSlot.start_time}</span>
                           </div>
                         ) : (
-                          <div className="px-2.5 py-1 rounded-xl bg-white/5 text-[11px] text-zinc-500">
+                          <div className="px-2.5 py-1 rounded-xl bg-white/5 text-[11px] text-zinc-400">
                             Nessuno slot nei prossimi 7gg
                           </div>
                         )}
@@ -774,7 +859,7 @@ export default function SalonBookingModal({
                           setSelectedDate(d.dateStr);
                           setSelectedTime(null);
                         }}
-                        className={`min-w-[64px] py-2 px-2.5 rounded-2xl border text-center transition-all shrink-0 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${
+                        className={`min-w-[64px] min-h-[60px] py-2 px-2.5 rounded-2xl border text-center transition-colors shrink-0 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                           isSelected
                             ? 'shadow-lg font-extrabold'
                             : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/[0.07]'
@@ -788,7 +873,7 @@ export default function SalonBookingModal({
                         <span className="text-[9px] font-mono uppercase block opacity-80">
                           {d.dayShort}
                         </span>
-                        <span className="text-base font-extrabold block leading-tight my-0.5">
+                        <span className="text-base font-extrabold tabular-nums block leading-tight my-0.5">
                           {d.dayNum}
                         </span>
                         <span className="text-[9px] uppercase block opacity-75">
@@ -800,14 +885,14 @@ export default function SalonBookingModal({
                 </div>
 
                 {/* Available Time Slots */}
-                <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+                <div className="overflow-y-auto overscroll-contain flex-1 space-y-4 pr-1">
                   {availableSlots.length === 0 ? (
                     <div className="py-10 text-center space-y-2">
-                      <Calendar className="w-8 h-8 text-zinc-600 mx-auto" />
+                      <Calendar className="w-8 h-8 text-zinc-500 mx-auto" />
                       <p className="text-xs font-bold text-zinc-300">
                         Nessun orario libero per questa giornata
                       </p>
-                      <p className="text-[11px] text-zinc-500">
+                      <p className="text-[11px] text-zinc-400">
                         Prova a selezionare un altro giorno qui sopra o scegli &ldquo;Primo Disponibile&rdquo;.
                       </p>
                     </div>
@@ -830,10 +915,10 @@ export default function SalonBookingModal({
                                     hapticTap();
                                     setSelectedTime(slot.start_time);
                                   }}
-                                  className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                                  className={`min-h-[48px] p-2.5 rounded-xl border text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                                     active
                                       ? 'font-extrabold shadow-md'
-                                      : 'bg-white/[0.04] border-white/10 text-white hover:bg-white/10'
+                                      : 'bg-white/[0.04] border-white/10 text-[#F4F4F6] hover:bg-white/10'
                                   }`}
                                   style={
                                     active
@@ -841,7 +926,7 @@ export default function SalonBookingModal({
                                       : undefined
                                   }
                                 >
-                                  <span className="text-xs font-mono font-bold block">
+                                  <span className="text-xs font-mono tabular-nums font-bold block">
                                     {slot.start_time}
                                   </span>
                                   {selectedStaffId === 'any' && (
@@ -858,7 +943,7 @@ export default function SalonBookingModal({
 
                       {afternoonSlots.length > 0 && (
                         <div className="space-y-2">
-                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-300 flex items-center gap-1.5">
                             <Sunset className="w-3.5 h-3.5" />
                             Pomeriggio ({afternoonSlots.length} orari liberi)
                           </span>
@@ -873,10 +958,10 @@ export default function SalonBookingModal({
                                     hapticTap();
                                     setSelectedTime(slot.start_time);
                                   }}
-                                  className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                                  className={`min-h-[48px] p-2.5 rounded-xl border text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                                     active
                                       ? 'font-extrabold shadow-md'
-                                      : 'bg-white/[0.04] border-white/10 text-white hover:bg-white/10'
+                                      : 'bg-white/[0.04] border-white/10 text-[#F4F4F6] hover:bg-white/10'
                                   }`}
                                   style={
                                     active
@@ -884,7 +969,7 @@ export default function SalonBookingModal({
                                       : undefined
                                   }
                                 >
-                                  <span className="text-xs font-mono font-bold block">
+                                  <span className="text-xs font-mono tabular-nums font-bold block">
                                     {slot.start_time}
                                   </span>
                                   {selectedStaffId === 'any' && (
@@ -906,8 +991,8 @@ export default function SalonBookingModal({
                 <div className="pt-3 border-t border-white/10 space-y-2.5 shrink-0">
                   {selectedSlotObj && (
                     <div className="flex items-center justify-between text-xs bg-white/5 rounded-xl px-3 py-2">
-                      <span className="text-zinc-300">
-                        Orario: <strong className="text-white">{selectedSlotObj.start_time} - {selectedSlotObj.end_time}</strong>
+                      <span className="text-zinc-300 tabular-nums">
+                        Orario: <strong className="text-[#F4F4F6]">{selectedSlotObj.start_time} - {selectedSlotObj.end_time}</strong>
                       </span>
                       <span className="text-emerald-300 font-bold">
                         con {selectedSlotObj.staff_name}
@@ -921,7 +1006,7 @@ export default function SalonBookingModal({
                       hapticTap();
                       setStep(4);
                     }}
-                    className="w-full min-h-[46px] rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                    className="w-full min-h-[48px] rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                     style={{ backgroundColor: accentColor, color: contrastText }}
                   >
                     <span>Continua e Conferma</span>
@@ -935,28 +1020,33 @@ export default function SalonBookingModal({
             {/* STEP 4: CUSTOMER DETAILS & CONFIRM */}
             {/* ============================================================= */}
             {step === 4 && (
-              <form onSubmit={handleConfirmBooking} className="overflow-y-auto flex-1 space-y-3.5 pr-1">
+              <form
+                onSubmit={handleConfirmBooking}
+                className="overflow-y-auto overscroll-contain flex-1 space-y-3.5 pr-1"
+              >
                 <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-1.5 text-xs">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 block">
                     Riepilogo Appuntamento
                   </span>
-                  <p className="text-white font-bold">
+                  <p className="text-[#F4F4F6] font-bold">
                     {selectedServices.map((s) => s.name).join(' + ')} ({totalDuration} min)
                   </p>
-                  <p className="text-zinc-300">
-                    📅{' '}
-                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('it-IT', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                    })}{' '}
-                    • ore <strong>{selectedSlotObj?.start_time} - {selectedSlotObj?.end_time}</strong>
+                  <p className="text-zinc-300 tabular-nums flex items-center gap-1.5 flex-wrap">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
+                    <span>
+                      {new Date(selectedDate + 'T12:00:00').toLocaleDateString('it-IT', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                      })}{' '}
+                      • ore <strong>{selectedSlotObj?.start_time} - {selectedSlotObj?.end_time}</strong>
+                    </span>
                   </p>
                   <div className="flex items-center justify-between pt-1 border-t border-white/10">
                     <span className="text-zinc-400">
-                      Operatore: <strong className="text-white">{selectedSlotObj?.staff_name}</strong>
+                      Operatore: <strong className="text-[#F4F4F6]">{selectedSlotObj?.staff_name}</strong>
                     </span>
-                    <span className="font-mono font-extrabold text-sm" style={{ color: accentColor }}>
+                    <span className="font-mono tabular-nums font-extrabold text-sm" style={{ color: accentColor }}>
                       {formatEuroPrice(totalPrice)}
                     </span>
                   </div>
@@ -964,48 +1054,60 @@ export default function SalonBookingModal({
 
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5 mb-1">
+                    <label
+                      htmlFor="salon-customer-name"
+                      className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5 mb-1"
+                    >
                       <User className="w-3.5 h-3.5 text-zinc-400" />
                       Il tuo Nome e Cognome *
                     </label>
                     <input
+                      id="salon-customer-name"
                       type="text"
                       required
                       maxLength={70}
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Es. Alessandro Rossi"
-                      className="w-full min-h-[42px] bg-black/50 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/40"
+                      className="w-full min-h-[48px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5 mb-1">
+                    <label
+                      htmlFor="salon-customer-phone"
+                      className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5 mb-1"
+                    >
                       <Phone className="w-3.5 h-3.5 text-zinc-400" />
                       Cellulare / WhatsApp *
                     </label>
                     <input
+                      id="salon-customer-phone"
                       type="tel"
                       required
                       maxLength={30}
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="Es. +39 333 1234567"
-                      className="w-full min-h-[42px] bg-black/50 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/40"
+                      className="w-full min-h-[48px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-zinc-300 block mb-1">
+                    <label
+                      htmlFor="salon-customer-notes"
+                      className="text-[11px] font-bold text-zinc-300 block mb-1"
+                    >
                       Note per il parrucchiere / barbiere (opzionale)
                     </label>
                     <input
+                      id="salon-customer-notes"
                       type="text"
                       maxLength={200}
                       value={customerNotes}
                       onChange={(e) => setCustomerNotes(e.target.value)}
-                      placeholder="Es. Sfumatura media, allergie particolari..."
-                      className="w-full min-h-[42px] bg-black/50 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/40"
+                      placeholder="Es. Sfumatura media, allergie particolari…"
+                      className="w-full min-h-[48px] bg-[#18191E] border border-white/[0.12] rounded-xl px-3.5 py-2 text-xs text-[#F4F4F6] placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus:border-white/40"
                     />
                   </div>
                 </div>
@@ -1013,13 +1115,13 @@ export default function SalonBookingModal({
                 <button
                   type="submit"
                   disabled={submitting || !customerName.trim() || !customerPhone.trim()}
-                  className="w-full min-h-[46px] rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="w-full min-h-[48px] rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                   style={{ backgroundColor: accentColor, color: contrastText }}
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Registrazione appuntamento...</span>
+                      <span>Registrazione appuntamento…</span>
                     </>
                   ) : (
                     <>

@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import {
   UtensilsCrossed,
-  Sparkles,
   Save,
   RotateCcw,
   Plus,
@@ -19,7 +18,6 @@ import {
   Smartphone,
   Sliders,
   Image as ImageIcon,
-  Tag,
   Euro,
   ArrowRight,
   Flame,
@@ -28,9 +26,6 @@ import {
   Layers,
   ChefHat,
   ShoppingBag,
-  ExternalLink,
-  ChevronRight,
-  ShieldCheck,
   Info,
   CheckCheck,
   Upload,
@@ -39,22 +34,30 @@ import {
   Camera,
   FileText,
   Wand2,
+  Cpu,
 } from 'lucide-react';
 import {
   CanvaMenuConfig,
   CanvaMenuCategory,
   CanvaMenuItem,
   CanvaMenuPreset,
-  CanvaFontFamily,
   CANVA_PRESETS,
   CANVA_FONT_OPTIONS,
   ACCENT_COLOR_PALETTES,
   MENU_TAGS_PRESETS,
   FOOD_PHOTOS_CATALOG,
-  FoodPhotoItem,
   getDefaultCanvaMenuConfig,
 } from '@/lib/canva-menu';
 import { hapticTap, hapticSuccess, hapticWarning } from '@/lib/haptics';
+import { HUB_FONT_CLASSES } from '@/lib/hub-fonts';
+import { cn } from '@/lib/cn';
+import {
+  PageHeader,
+  SurfaceCard,
+  StatusBadge,
+  SegmentedControl,
+  EmptyState,
+} from '@/components/ui';
 
 export default function CanvaMenuStudioPage() {
   const [supabase] = useState(() => createClient());
@@ -62,6 +65,7 @@ export default function CanvaMenuStudioPage() {
   const [saving, setSaving] = useState(false);
   const [saveToast, setSaveToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastTone, setToastTone] = useState<'success' | 'warning' | 'error'>('success');
 
   // Organization & Profile info
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -79,6 +83,9 @@ export default function CanvaMenuStudioPage() {
 
   // Modals state
   const [showDishModal, setShowDishModal] = useState(false);
+  const [confirmResetModal, setConfirmResetModal] = useState(false);
+  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CanvaMenuCategory | null>(null);
+  const [pendingDeleteDishId, setPendingDeleteDishId] = useState<string | null>(null);
   const [editingDishTarget, setEditingDishTarget] = useState<{ categoryId: string; dish?: CanvaMenuItem } | null>(null);
   const [dishForm, setDishForm] = useState<{
     id?: string;
@@ -116,6 +123,7 @@ export default function CanvaMenuStudioPage() {
   // AI Menu Scanner State
   const [showAiScannerModal, setShowAiScannerModal] = useState(false);
   const [aiScanning, setAiScanning] = useState(false);
+  const [aiScanError, setAiScanError] = useState<string | null>(null);
   const [aiScanInputMode, setAiScanInputMode] = useState<'photo' | 'text'>('photo');
   const [aiScanPhotoBase64, setAiScanPhotoBase64] = useState<string | null>(null);
   const [aiScanText, setAiScanText] = useState('');
@@ -126,11 +134,11 @@ export default function CanvaMenuStudioPage() {
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Seleziona un file immagine valido (PNG, JPG, WEBP).');
+      setUploadError('Seleziona un file immagine valido (PNG, JPG, WEBP).');
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      alert("L'immagine supera la dimensione massima di 8MB.");
+      setUploadError("L'immagine supera la dimensione massima di 8MB.");
       return;
     }
 
@@ -231,8 +239,9 @@ export default function CanvaMenuStudioPage() {
   };
 
   const handleStartAiScan = async () => {
+    setAiScanError(null);
     if (!aiScanPhotoBase64 && !aiScanText.trim()) {
-      alert('Inserisci una foto del menù o incolla il testo prima di avviare la scansione.');
+      setAiScanError('Inserisci una foto del menù o incolla il testo prima di avviare la scansione.');
       return;
     }
     setAiScanning(true);
@@ -252,18 +261,25 @@ export default function CanvaMenuStudioPage() {
           setAiScanResults(data.categories);
           hapticSuccess();
         } else {
-          alert('Nessun piatto identificato. Prova con una foto più nitida o incolla il testo del menù.');
+          setAiScanError('Nessun piatto identificato. Prova con una foto più nitida o incolla il testo del menù.');
         }
       } else {
         const err = await res.json();
-        alert(`Errore scansione: ${err.error || 'Impossibile elaborare il menù'}`);
+        setAiScanError(`Errore scansione: ${err.error || 'Impossibile elaborare il menù'}`);
       }
     } catch (err) {
       console.error('Scan error:', err);
-      alert('Si è verificato un errore durante la scansione AI.');
+      setAiScanError('Si è verificato un errore durante la scansione AI.');
     } finally {
       setAiScanning(false);
     }
+  };
+
+  const showNotice = (message: string, tone: 'success' | 'warning' | 'error' = 'success', duration = 3500) => {
+    setToastTone(tone);
+    setToastMessage(message);
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), duration);
   };
 
   const handleApplyAiScanResults = () => {
@@ -287,15 +303,35 @@ export default function CanvaMenuStudioPage() {
     setAiScanResults(null);
     setAiScanPhotoBase64(null);
     setAiScanText('');
-    setToastMessage('Menù digitalizzato con AI e importato!');
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 4000);
+    setAiScanError(null);
+    showNotice('Menù digitalizzato con AI e importato!', 'success', 4000);
   };
 
   // Category Add Modal
   const [showAddCatModal, setShowAddCatModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatSubtitle, setNewCatSubtitle] = useState('');
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (confirmDeleteCategory) {
+        setConfirmDeleteCategory(null);
+      } else if (confirmResetModal) {
+        setConfirmResetModal(false);
+      } else if (showPhotoPicker) {
+        setShowPhotoPicker(false);
+      } else if (showAiScannerModal) {
+        setShowAiScannerModal(false);
+      } else if (showAddCatModal) {
+        setShowAddCatModal(false);
+      } else if (showDishModal) {
+        setShowDishModal(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [confirmDeleteCategory, confirmResetModal, showPhotoPicker, showAiScannerModal, showAddCatModal, showDishModal]);
 
   // Load organization and menu configuration
   useEffect(() => {
@@ -401,15 +437,11 @@ export default function CanvaMenuStudioPage() {
 
       setRawHubConfig(updatedHubConfig);
       hapticSuccess();
-      setToastMessage('Menù Canvas salvato con successo!');
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 3500);
+      showNotice('Menù Canvas salvato con successo!', 'success', 3500);
     } catch (err) {
       console.error('Error saving Canva menu:', err);
       hapticWarning();
-      setToastMessage('Errore durante il salvataggio. Riprova.');
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 3500);
+      showNotice('Errore durante il salvataggio. Riprova.', 'error', 3500);
     } finally {
       setSaving(false);
     }
@@ -418,17 +450,18 @@ export default function CanvaMenuStudioPage() {
   // Reset to default example menu
   const handleResetDefault = () => {
     hapticTap();
-    if (confirm('Sei sicuro di voler ripristinare il Menù d\'esempio con tutti i piatti consigliati?')) {
-      const def = getDefaultCanvaMenuConfig();
-      setMenuConfig(def);
-      if (def.categories.length > 0) {
-        setActiveCategoryTab(def.categories[0].id);
-      }
-      hapticSuccess();
-      setToastMessage('Menù d\'esempio ripristinato! Clicca Salva per confermare.');
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 3500);
+    setConfirmResetModal(true);
+  };
+
+  const executeResetDefault = () => {
+    const def = getDefaultCanvaMenuConfig();
+    setMenuConfig(def);
+    if (def.categories.length > 0) {
+      setActiveCategoryTab(def.categories[0].id);
     }
+    setConfirmResetModal(false);
+    hapticSuccess();
+    showNotice("Menù d'esempio ripristinato! Clicca Salva per confermare.", 'success', 3500);
   };
 
   // Preset Selector
@@ -446,6 +479,7 @@ export default function CanvaMenuStudioPage() {
   // Open Add/Edit Dish Modal
   const openDishModal = (categoryId: string, dish?: CanvaMenuItem) => {
     hapticTap();
+    setUploadError(null);
     setEditingDishTarget({ categoryId, dish });
     if (dish) {
       setDishForm({
@@ -531,8 +565,14 @@ export default function CanvaMenuStudioPage() {
     setShowDishModal(false);
   };
 
-  // Delete Dish
+  // Delete Dish (two-step confirmation)
   const handleDeleteDish = (categoryId: string, dishId: string) => {
+    if (pendingDeleteDishId !== dishId) {
+      hapticTap();
+      setPendingDeleteDishId(dishId);
+      return;
+    }
+    setPendingDeleteDishId(null);
     hapticWarning();
     setMenuConfig((prev) => ({
       ...prev,
@@ -595,19 +635,27 @@ export default function CanvaMenuStudioPage() {
   const handleDeleteCategory = (categoryId: string) => {
     hapticWarning();
     if (menuConfig.categories.length <= 1) {
-      alert('Devi mantenere almeno una categoria nel menù.');
+      showNotice('Devi mantenere almeno una categoria nel menù.', 'warning', 3500);
       return;
     }
-    if (confirm('Sei sicuro di voler eliminare questa categoria e tutti i suoi piatti?')) {
-      setMenuConfig((prev) => {
-        const filtered = prev.categories.filter((c) => c.id !== categoryId);
-        setActiveCategoryTab(filtered[0]?.id || '');
-        return {
-          ...prev,
-          categories: filtered,
-        };
-      });
+    const targetCat = menuConfig.categories.find((c) => c.id === categoryId);
+    if (targetCat) {
+      setConfirmDeleteCategory(targetCat);
     }
+  };
+
+  const executeDeleteCategory = (categoryId: string) => {
+    setMenuConfig((prev) => {
+      const filtered = prev.categories.filter((c) => c.id !== categoryId);
+      setActiveCategoryTab(filtered[0]?.id || '');
+      return {
+        ...prev,
+        categories: filtered,
+      };
+    });
+    setConfirmDeleteCategory(null);
+    hapticSuccess();
+    showNotice('Categoria rimossa. Ricorda di salvare la configurazione.', 'success', 3000);
   };
 
   // Tag Toggle in dish form
@@ -633,12 +681,12 @@ export default function CanvaMenuStudioPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center animate-pulse">
-          <UtensilsCrossed className="w-6 h-6 text-amber-500 animate-spin" />
+        <div className="w-12 h-12 rounded-2xl bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex items-center justify-center animate-pulse">
+          <UtensilsCrossed className="w-6 h-6 text-[var(--rivo-volt-text)] animate-spin" />
         </div>
         <div className="text-center">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Caricamento Menù Canvas Studio</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Sincronizzazione catalogo gastronomico in corso...</p>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Caricamento Menù Canvas Studio</h3>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">Sincronizzazione catalogo gastronomico in corso...</p>
         </div>
       </div>
     );
@@ -648,88 +696,91 @@ export default function CanvaMenuStudioPage() {
   if (orgCategory !== 'restaurant') {
     return (
       <div className="max-w-3xl mx-auto py-8 sm:py-14 px-4">
-        <div className="rounded-3xl border border-amber-500/20 bg-gradient-to-b from-amber-500/10 via-zinc-900/60 to-zinc-900/90 dark:from-amber-500/15 dark:via-[#121415] dark:to-[#0d0f10] p-6 sm:p-10 shadow-2xl relative overflow-hidden backdrop-blur-md">
-          <div className="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="flex items-center gap-3.5 mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-inner">
+        <SurfaceCard padding="lg" radius="2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--accent-warning-bg)] border border-[var(--accent-warning-border)] flex items-center justify-center text-[var(--accent-warning-text)] shrink-0">
               <UtensilsCrossed className="w-7 h-7" />
             </div>
-            <div>
-              <span className="text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+            <div className="space-y-1.5">
+              <StatusBadge tone="warning" shape="tag" mono>
                 Settore Ristorazione Esclusivo
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white mt-1">
+              </StatusBadge>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 Funzionalità Esclusiva per Ristorazione
               </h1>
             </div>
           </div>
 
-          <div className="space-y-4 text-zinc-600 dark:text-zinc-300 text-sm leading-relaxed">
+          <div className="space-y-4 text-[var(--text-secondary)] text-sm leading-relaxed">
             <p>
-              Il <strong>Menù Canvas avanzato</strong> è riservato esclusivamente a <strong>Ristoranti, Bistrot, Pizzerie, Trattorie e Wine Bar</strong>.
+              Il <strong className="text-[var(--text-primary)]">Menù Canvas avanzato</strong> è riservato esclusivamente a{' '}
+              <strong className="text-[var(--text-primary)]">Ristoranti, Bistrot, Pizzerie, Trattorie e Wine Bar</strong>.
             </p>
-            <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-black/40 border border-zinc-200 dark:border-white/10 flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-              <div className="text-xs">
+            <div className="p-4 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-[var(--accent-warning-text)] shrink-0" />
+              <div className="text-xs text-[var(--text-secondary)]">
                 <span>Il tuo settore attuale è impostato su: </span>
-                <span className="font-bold text-amber-500 uppercase tracking-wider">{orgCategory || 'Non specificato'}</span>.
+                <span className="font-bold text-[var(--accent-warning-text)] uppercase tracking-wider">
+                  {orgCategory || 'Non specificato'}
+                </span>
+                .
               </div>
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Gestisci un locale gastronomico? Puoi modificare il settore di appartenenza nella sezione <strong>Profilo &amp; Routing</strong> per sbloccare all&apos;istante il designer visivo per il menù.
+            <p className="text-xs text-[var(--text-muted)]">
+              Gestisci un locale gastronomico? Puoi modificare il settore di appartenenza nella sezione{' '}
+              <strong className="text-[var(--text-primary)]">Profilo &amp; Routing</strong> per sbloccare all&apos;istante il designer visivo per il menù.
             </p>
           </div>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
             <Link
               href="/dashboard/profile"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-sm transition-all active:scale-95"
             >
               <span>Vai a Profilo &amp; Routing</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/dashboard"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-sm transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-semibold text-sm transition-all"
             >
               <span>Torna alla Dashboard</span>
             </Link>
           </div>
 
           {/* Feature highlights */}
-          <div className="mt-10 pt-8 border-t border-zinc-200 dark:border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-3.5 rounded-xl bg-white/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5">
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                <ChefHat className="w-3.5 h-3.5 text-amber-500" />
+          <div className="mt-10 pt-8 border-t border-[var(--border-subtle)] grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-3.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+              <h4 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                <ChefHat className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
                 <span>5 Template Preset Canva</span>
               </h4>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+              <p className="text-[11px] text-[var(--text-secondary)] mt-1">
                 Lavagna Bistrot, Fine Dining Oro, Trattoria Tradizione, Modern Editorial e Botanical.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5">
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
+            <div className="p-3.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+              <h4 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-[var(--accent-telemetry-text)]" />
                 <span>Foto HD Gastronomia</span>
               </h4>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+              <p className="text-[11px] text-[var(--text-secondary)] mt-1">
                 Catalogo fotografico ad altissima risoluzione per antipasti, primi, carni e dessert.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5">
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />
+            <div className="p-3.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+              <h4 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                <ShoppingBag className="w-3.5 h-3.5 text-[var(--accent-operational-text)]" />
                 <span>Ordini &amp; Comande al Tavolo</span>
               </h4>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+              <p className="text-[11px] text-[var(--text-secondary)] mt-1">
                 I clienti ordinano direttamente dal tavolo con sincronizzazione immediata alla cassa.
               </p>
             </div>
           </div>
-        </div>
+        </SurfaceCard>
       </div>
     );
   }
@@ -738,113 +789,95 @@ export default function CanvaMenuStudioPage() {
   const currentPresetMeta = CANVA_PRESETS[menuConfig.preset] || CANVA_PRESETS['fine-dining'];
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className={cn('space-y-6 pb-24 animate-fade-in', HUB_FONT_CLASSES)}>
       {/* Toast Notification */}
       {saveToast && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-emerald-500 text-white font-semibold text-xs shadow-2xl animate-fade-in border border-emerald-400/50">
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl font-semibold text-xs border shadow-lg animate-fade-in',
+            toastTone === 'success'
+              ? 'bg-[var(--bg-elevated)] border-[var(--accent-operational-border)] text-[var(--accent-operational-text)]'
+              : toastTone === 'warning'
+              ? 'bg-[var(--bg-elevated)] border-[var(--accent-warning-border)] text-[var(--accent-warning-text)]'
+              : 'bg-[var(--bg-elevated)] border-[var(--accent-critical-border)] text-[var(--accent-critical-text)]'
+          )}
+        >
           <CheckCheck className="w-4 h-4 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Top Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200 dark:border-zinc-800">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-xs">
-              <UtensilsCrossed className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                  Menù Canvas Studio
-                </h1>
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                  Ristoranti
-                </span>
-              </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Progetta il menù digitale stile Canva per {orgName}. Stili visivi, catalogo foto HD e simulatore smartphone.
-              </p>
-            </div>
+      <PageHeader
+        eyebrow="Menu Studio"
+        eyebrowTone="volt"
+        title="Menù Canvas Studio"
+        badge={<StatusBadge tone="volt" shape="tag" mono>Ristoranti</StatusBadge>}
+        description={`Progetta il menù digitale stile Canva per ${orgName}. Stili visivi, catalogo foto HD e simulatore smartphone.`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                hapticTap();
+                setAiScanError(null);
+                setShowAiScannerModal(true);
+              }}
+              className="inline-flex min-h-[40px] items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--accent-telemetry-bg)] hover:bg-[var(--bg-elevated)] border border-[var(--accent-telemetry-border)] text-[var(--accent-telemetry-text)] font-bold text-xs transition-all active:scale-95 touch-press cursor-pointer"
+              title="Digitalizza menù cartaceo da foto o testo con AI"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Scansiona Cartaceo con AI</span>
+              <span className="sm:hidden">Scanner AI</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResetDefault}
+              className="inline-flex min-h-[40px] items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold text-xs transition-all active:scale-95 touch-press cursor-pointer"
+              title="Ripristina piatti ed impostazioni d'esempio"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Ripristina Menù d&apos;Esempio</span>
+              <span className="sm:hidden">Ripristina</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveMenu}
+              disabled={saving}
+              className="inline-flex min-h-[40px] items-center gap-2 px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-all active:scale-95 touch-press cursor-pointer disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Salvataggio...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Salva Configurazione Menù</span>
+                </>
+              )}
+            </button>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => {
-              hapticTap();
-              setShowAiScannerModal(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-600 dark:text-purple-400 font-bold text-xs transition-all active:scale-95 touch-press cursor-pointer shadow-xs"
-            title="Digitalizza menù cartaceo da foto o testo con AI"
-          >
-            <Camera className="w-3.5 h-3.5 text-purple-500" />
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden sm:inline">Scansiona Cartaceo con AI</span>
-            <span className="sm:hidden">Scanner AI</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleResetDefault}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-xs transition-all active:scale-95 touch-press cursor-pointer"
-            title="Ripristina piatti ed impostazioni d'esempio"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Ripristina Menù d&apos;Esempio</span>
-            <span className="sm:hidden">Ripristina</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSaveMenu}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition-all active:scale-95 touch-press cursor-pointer disabled:opacity-50"
-          >
-            {saving ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
-                <span>Salvataggio...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Salva Configurazione Menù</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Mobile Switcher (Editor vs Simulator) */}
-      <div className="flex lg:hidden rounded-2xl bg-zinc-200 dark:bg-zinc-900 p-1 border border-zinc-300/60 dark:border-zinc-800">
-        <button
-          type="button"
-          onClick={() => setMobileView('editor')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            mobileView === 'editor'
-              ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          <span>Editor &amp; Piatti</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileView('preview')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            mobileView === 'preview'
-              ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Smartphone className="w-3.5 h-3.5" />
-          <span>Simulatore Live</span>
-        </button>
+      <div className="lg:hidden">
+        <SegmentedControl<'editor' | 'preview'>
+          ariaLabel="Vista studio mobile"
+          fullWidth
+          value={mobileView}
+          onChange={setMobileView}
+          options={[
+            { value: 'editor', label: 'Editor & Piatti', icon: Sliders },
+            { value: 'preview', label: 'Simulatore Live', icon: Smartphone },
+          ]}
+        />
       </div>
 
       {/* Main Studio Grid: 2 Columns (Controls on Left / Smartphone on Right) */}
@@ -854,56 +887,31 @@ export default function CanvaMenuStudioPage() {
         {/* ======================================================================= */}
         <div className={`lg:col-span-7 space-y-6 ${mobileView === 'preview' ? 'hidden lg:block' : 'block'}`}>
           {/* Studio Sub-Navigation Tabs */}
-          <div className="flex items-center gap-2 p-1 rounded-2xl bg-zinc-200/80 dark:bg-[#121415] border border-zinc-300/70 dark:border-white/5">
-            <button
-              type="button"
-              onClick={() => setActiveStudioTab('design')}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeStudioTab === 'design'
-                  ? 'bg-white dark:bg-[#1a1d1f] text-zinc-950 dark:text-[#BFFF00] shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Stile &amp; Template</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveStudioTab('categories')}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeStudioTab === 'categories'
-                  ? 'bg-white dark:bg-[#1a1d1f] text-zinc-950 dark:text-[#BFFF00] shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Categorie &amp; Piatti</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveStudioTab('options')}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeStudioTab === 'options'
-                  ? 'bg-white dark:bg-[#1a1d1f] text-zinc-950 dark:text-[#BFFF00] shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
-              }`}
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Ordini al Tavolo &amp; Info</span>
-            </button>
+          <div className="overflow-x-auto scrollbar-none">
+            <SegmentedControl<'design' | 'categories' | 'options'>
+              ariaLabel="Sezioni Canvas Studio"
+              fullWidth
+              value={activeStudioTab}
+              onChange={setActiveStudioTab}
+              options={[
+                { value: 'design', label: 'Stile & Template', icon: Wand2 },
+                { value: 'categories', label: 'Categorie & Piatti', icon: Layers, badge: menuConfig.categories.length },
+                { value: 'options', label: 'Ordini al Tavolo & Info', icon: ShoppingBag },
+              ]}
+            />
           </div>
 
           {/* TAB 1: DESIGN, TEMPLATES, TYPOGRAPHY, PALETTES */}
           {activeStudioTab === 'design' && (
             <div className="space-y-6 animate-fade-in">
               {/* Preset Visuale Stile Canva */}
-              <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#121415] p-5 sm:p-6 space-y-4 shadow-sm">
+              <SurfaceCard padding="md" radius="2xl" className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <Wand2 className="w-4 h-4 text-[var(--rivo-volt-text)]" />
                     <span>Template Grafico Canva Preset</span>
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                     Scegli l&apos;identità visiva ideale per la tua atmosfera culinaria.
                   </p>
                 </div>
@@ -913,45 +921,47 @@ export default function CanvaMenuStudioPage() {
                     const preset = CANVA_PRESETS[pKey];
                     const isSelected = menuConfig.preset === pKey;
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={pKey}
                         onClick={() => handleSelectPreset(pKey)}
-                        className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all duration-200 text-left relative group ${
+                        className={cn(
+                          'p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-200 text-left relative group',
                           isSelected
-                            ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-md'
-                            : 'border-zinc-200 dark:border-white/10 hover:border-zinc-400 dark:hover:border-white/25 bg-zinc-50/50 dark:bg-black/20'
-                        }`}
+                            ? 'border-[var(--rivo-volt)] bg-[var(--rivo-volt-bg)]'
+                            : 'border-[var(--border-subtle)] hover:border-[var(--border-strong)] bg-[var(--bg-subtle)]'
+                        )}
                       >
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-white/10 text-zinc-800 dark:text-zinc-200">
+                          <StatusBadge tone={isSelected ? 'volt' : 'neutral'} size="sm" shape="tag" mono>
                             {preset.badge}
-                          </span>
+                          </StatusBadge>
                           {isSelected && (
-                            <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-zinc-950 shadow-xs">
+                            <div className="w-5 h-5 rounded-full bg-[var(--rivo-volt)] flex items-center justify-center text-[#09090B]">
                               <Check className="w-3 h-3 stroke-[3]" />
                             </div>
                           )}
                         </div>
-                        <h4 className="text-xs font-bold text-zinc-900 dark:text-white group-hover:text-amber-500 transition-colors">
+                        <h4 className="text-xs font-bold text-[var(--text-primary)] group-hover:text-[var(--rivo-volt-text)] transition-colors">
                           {preset.name}
                         </h4>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">
+                        <p className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-2">
                           {preset.description}
                         </p>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-              </div>
+              </SurfaceCard>
 
               {/* Tipografia & Font */}
-              <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#121415] p-5 sm:p-6 space-y-4 shadow-sm">
+              <SurfaceCard padding="md" radius="2xl" className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                    <ChefHat className="w-4 h-4 text-sky-400" />
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <ChefHat className="w-4 h-4 text-[var(--accent-telemetry-text)]" />
                     <span>Tipografia &amp; Carattere Tipografico</span>
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                     Definisce il tono editoriale dei titoli dei piatti e delle sezioni.
                   </p>
                 </div>
@@ -967,17 +977,18 @@ export default function CanvaMenuStudioPage() {
                           hapticTap();
                           setMenuConfig((prev) => ({ ...prev, fontFamily: f.id }));
                         }}
-                        className={`p-3 rounded-xl border text-left transition-all ${
+                        className={cn(
+                          'p-3 rounded-xl border text-left transition-all cursor-pointer',
                           isSelected
-                            ? 'border-sky-500 bg-sky-500/10 dark:bg-sky-500/15 ring-1 ring-sky-500/30'
-                            : 'border-zinc-200 dark:border-white/10 hover:border-zinc-400 dark:hover:border-white/20 bg-zinc-50/50 dark:bg-black/20'
-                        }`}
+                            ? 'border-[var(--accent-telemetry)] bg-[var(--accent-telemetry-bg)] ring-1 ring-[var(--accent-telemetry-border)]'
+                            : 'border-[var(--border-subtle)] hover:border-[var(--border-strong)] bg-[var(--bg-subtle)]'
+                        )}
                       >
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-200">
+                        <div className="text-xs font-semibold text-[var(--text-primary)]">
                           {f.name}
                         </div>
                         <div
-                          className="text-sm mt-1 truncate text-zinc-600 dark:text-zinc-300 font-medium"
+                          className="text-sm mt-1 truncate text-[var(--text-secondary)] font-medium"
                           style={{ fontFamily: f.style }}
                         >
                           Sapori &amp; Tradizione
@@ -986,16 +997,16 @@ export default function CanvaMenuStudioPage() {
                     );
                   })}
                 </div>
-              </div>
+              </SurfaceCard>
 
               {/* Colore Accento Prezzi & Badge */}
-              <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#121415] p-5 sm:p-6 space-y-4 shadow-sm">
+              <SurfaceCard padding="md" radius="2xl" className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                    <Euro className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <Euro className="w-4 h-4 text-[var(--accent-operational-text)]" />
                     <span>Colore Accento Prezzi &amp; Badge</span>
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                     Evidenzia i prezzi in €, i tag speciali e i pulsanti d&apos;ordine.
                   </p>
                 </div>
@@ -1012,41 +1023,44 @@ export default function CanvaMenuStudioPage() {
                           hapticTap();
                           setMenuConfig((prev) => ({ ...prev, accentColor: pal.color }));
                         }}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all cursor-pointer',
                           isSelected
-                            ? 'border-white bg-zinc-200 dark:bg-white/15 ring-2 ring-white/40'
-                            : 'border-zinc-300 dark:border-white/10 hover:border-zinc-400 dark:hover:border-white/30 bg-zinc-50 dark:bg-black/20'
-                        }`}
+                            ? 'border-[var(--text-primary)] bg-[var(--bg-elevated)] ring-1 ring-[var(--border-strong)]'
+                            : 'border-[var(--border-subtle)] hover:border-[var(--border-strong)] bg-[var(--bg-subtle)]'
+                        )}
                       >
                         <span
-                          className="w-3.5 h-3.5 rounded-full shadow-inner shrink-0"
+                          className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
                           style={{ backgroundColor: pal.color }}
                         />
-                        <span className="text-zinc-800 dark:text-zinc-200">{pal.name}</span>
+                        <span className="text-[var(--text-primary)]">{pal.name}</span>
                       </button>
                     );
                   })}
                 </div>
 
                 {/* Color Picker & Custom Hex */}
-                <div className="pt-2 flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-300 dark:border-white/15 bg-zinc-50 dark:bg-black/40">
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)]">
                     <input
                       type="color"
+                      aria-label="Seleziona colore accento"
                       value={menuConfig.accentColor}
                       onChange={(e) => setMenuConfig((prev) => ({ ...prev, accentColor: e.target.value }))}
                       className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-none"
                     />
                     <input
                       type="text"
+                      aria-label="Codice esadecimale accento"
                       value={menuConfig.accentColor}
                       onChange={(e) => setMenuConfig((prev) => ({ ...prev, accentColor: e.target.value }))}
-                      className="w-24 text-xs font-mono font-bold uppercase bg-transparent text-zinc-900 dark:text-white focus:outline-none"
+                      className="w-24 text-xs font-mono font-bold uppercase bg-transparent text-[var(--text-primary)] focus:outline-none tabular-nums"
                     />
                   </div>
-                  <span className="text-xs text-zinc-500">Colore personalizzato</span>
+                  <span className="text-xs text-[var(--text-muted)]">Colore personalizzato</span>
                 </div>
-              </div>
+              </SurfaceCard>
             </div>
           )}
 
@@ -1054,21 +1068,23 @@ export default function CanvaMenuStudioPage() {
           {activeStudioTab === 'categories' && (
             <div className="space-y-6 animate-fade-in">
               {/* Category selector pills & Add Category Button */}
-              <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#121415] p-5 sm:p-6 space-y-4 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-200 dark:border-white/5">
+              <SurfaceCard padding="md" radius="2xl" className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
                   <div>
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-amber-500" />
-                      <span>Sezioni del Menù ({menuConfig.categories.length})</span>
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-[var(--rivo-volt-text)]" />
+                      <span>
+                        Sezioni del Menù (<span className="font-mono tabular-nums">{menuConfig.categories.length}</span>)
+                      </span>
                     </h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                       Seleziona una portata per visualizzare, ordinare e modificare i singoli piatti.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowAddCatModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
+                    className="inline-flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-all active:scale-95 cursor-pointer shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" />
                     <span>Nuova Categoria</span>
@@ -1087,14 +1103,20 @@ export default function CanvaMenuStudioPage() {
                           hapticTap();
                           setActiveCategoryTab(cat.id);
                         }}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
+                        className={cn(
+                          'px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer border',
                           isActive
-                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 shadow-md scale-[1.02]'
-                            : 'bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-white/10'
-                        }`}
+                            ? 'bg-[var(--rivo-volt)] text-[#09090B] border-transparent'
+                            : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                        )}
                       >
                         <span>{cat.name}</span>
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${isActive ? 'bg-white/20 dark:bg-black/20' : 'bg-black/10 dark:bg-white/10'}`}>
+                        <span
+                          className={cn(
+                            'text-[10px] px-1.5 py-0.5 rounded-md font-mono tabular-nums',
+                            isActive ? 'bg-black/15 text-[#09090B]' : 'bg-[var(--bg-elevated)] text-[var(--text-muted)]'
+                          )}
+                        >
                           {cat.items.length}
                         </span>
                       </button>
@@ -1104,26 +1126,26 @@ export default function CanvaMenuStudioPage() {
 
                 {/* Current Category Info & Actions */}
                 {currentCategory && (
-                  <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-black/30 border border-zinc-200 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <div className="p-4 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-2 flex-wrap">
                         <span>{currentCategory.name}</span>
                         {currentCategory.subtitle && (
-                          <span className="text-[11px] font-normal text-zinc-500 dark:text-zinc-400 italic">
+                          <span className="text-[11px] font-normal text-[var(--text-secondary)] italic">
                             — {currentCategory.subtitle}
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 font-mono tabular-nums">
                         {currentCategory.items.length} piatti registrati in questa sezione
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => openDishModal(currentCategory.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
+                        className="inline-flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-all active:scale-95 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5 stroke-[3]" />
                         <span>Aggiungi Piatto</span>
@@ -1132,49 +1154,48 @@ export default function CanvaMenuStudioPage() {
                       <button
                         type="button"
                         onClick={() => handleDeleteCategory(currentCategory.id)}
-                        className="p-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-[var(--accent-critical-text)] hover:bg-[var(--accent-critical-bg)] transition-colors cursor-pointer"
                         title="Elimina questa categoria"
+                        aria-label={`Elimina categoria ${currentCategory.name}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 )}
-              </div>
+              </SurfaceCard>
 
               {/* Dish List inside current category */}
               {currentCategory && (
                 <div className="space-y-3">
                   {currentCategory.items.length === 0 ? (
-                    <div className="p-8 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-800 text-center space-y-3">
-                      <ChefHat className="w-8 h-8 mx-auto text-zinc-400" />
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Nessun piatto presente in <strong>{currentCategory.name}</strong>.
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openDishModal(currentCategory.id)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-sm hover:bg-amber-400 transition-all cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                        <span>Crea Primo Piatto</span>
-                      </button>
-                    </div>
+                    <EmptyState
+                      icon={ChefHat}
+                      title={`Nessun piatto presente in ${currentCategory.name}`}
+                      description="Aggiungi il primo piatto della portata oppure digitalizza il tuo menù cartaceo con lo Scanner AI."
+                      primaryAction={{
+                        label: 'Crea Primo Piatto',
+                        icon: Plus,
+                        onClick: () => openDishModal(currentCategory.id),
+                      }}
+                      compact
+                    />
                   ) : (
                     currentCategory.items.map((dish) => (
                       <div
                         key={dish.id}
-                        className={`p-4 rounded-2xl border transition-all ${
+                        className={cn(
+                          'p-4 rounded-xl border transition-all',
                           dish.isAvailable
-                            ? 'bg-white dark:bg-[#121415] border-zinc-200 dark:border-white/10 shadow-sm'
-                            : 'bg-zinc-100/60 dark:bg-zinc-900/40 border-dashed border-zinc-300 dark:border-zinc-800 opacity-65'
-                        }`}
+                            ? 'bg-[var(--bg-surface)] border-[var(--border-subtle)]'
+                            : 'bg-[var(--bg-subtle)] border-dashed border-[var(--border-strong)] opacity-70'
+                        )}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                           {/* Dish Image & Info */}
                           <div className="flex items-start gap-3.5 min-w-0">
                             {dish.photoUrl ? (
-                              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 border border-zinc-200 dark:border-white/10">
+                              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 border border-[var(--border-subtle)]">
                                 <Image
                                   src={dish.photoUrl}
                                   alt={dish.name}
@@ -1183,39 +1204,37 @@ export default function CanvaMenuStudioPage() {
                                   className="object-cover"
                                 />
                                 {dish.isPopular && (
-                                  <div className="absolute top-1 left-1 bg-amber-500 text-zinc-950 p-0.5 rounded-md shadow-xs">
+                                  <div className="absolute top-1 left-1 bg-[var(--rivo-volt)] text-[#09090B] p-0.5 rounded-md">
                                     <Flame className="w-3 h-3 fill-current" />
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-zinc-400">
+                              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 text-[var(--text-muted)]">
                                 <UtensilsCrossed className="w-6 h-6" />
                               </div>
                             )}
 
                             <div className="space-y-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="text-sm font-bold text-zinc-900 dark:text-white truncate">
+                                <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
                                   {dish.name}
                                 </h4>
-                                <span
-                                  className="text-xs font-extrabold px-2 py-0.5 rounded-md"
-                                  style={{
-                                    backgroundColor: `${menuConfig.accentColor}20`,
-                                    color: menuConfig.accentColor,
-                                  }}
-                                >
+                                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-2 py-0.5 rounded-md bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-mono tabular-nums">
+                                  <span
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: menuConfig.accentColor }}
+                                  />
                                   €{typeof dish.price === 'number' ? dish.price.toFixed(2) : dish.price}
                                 </span>
                                 {!dish.isAvailable && (
-                                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.2 rounded bg-red-500/20 text-red-500">
+                                  <StatusBadge tone="critical" size="sm" shape="tag">
                                     Esaurito
-                                  </span>
+                                  </StatusBadge>
                                 )}
                               </div>
 
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                              <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
                                 {dish.description || 'Nessuna descrizione specificata.'}
                               </p>
 
@@ -1225,7 +1244,7 @@ export default function CanvaMenuStudioPage() {
                                   {dish.tags.map((t) => (
                                     <span
                                       key={t}
-                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300"
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
                                     >
                                       {t}
                                     </span>
@@ -1240,11 +1259,12 @@ export default function CanvaMenuStudioPage() {
                             <button
                               type="button"
                               onClick={() => handleToggleAvailability(currentCategory.id, dish.id)}
-                              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                              className={cn(
+                                'px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer border',
                                 dish.isAvailable
-                                  ? 'bg-zinc-100 dark:bg-white/10 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200'
-                                  : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                              }`}
+                                  ? 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                                  : 'bg-[var(--accent-critical-bg)] border-[var(--accent-critical-border)] text-[var(--accent-critical-text)]'
+                              )}
                               title="Cambia disponibilità del piatto"
                             >
                               {dish.isAvailable ? 'Disponibile' : 'Esaurito'}
@@ -1253,20 +1273,41 @@ export default function CanvaMenuStudioPage() {
                             <button
                               type="button"
                               onClick={() => openDishModal(currentCategory.id, dish)}
-                              className="p-2 rounded-xl bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-700 dark:text-zinc-200 transition-all cursor-pointer"
+                              className="p-2 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] transition-all cursor-pointer"
                               title="Modifica piatto"
+                              aria-label={`Modifica ${dish.name}`}
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteDish(currentCategory.id, dish.id)}
-                              className="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
-                              title="Elimina piatto"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {pendingDeleteDishId === dish.id ? (
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDish(currentCategory.id, dish.id)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-[#B91C1C] text-white text-[11px] font-bold cursor-pointer"
+                                >
+                                  Conferma
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingDeleteDishId(null)}
+                                  className="px-2 py-1.5 rounded-lg bg-[var(--bg-subtle)] text-[var(--text-secondary)] text-[11px] font-semibold cursor-pointer"
+                                >
+                                  Annulla
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDish(currentCategory.id, dish.id)}
+                                className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--accent-critical-text)] hover:bg-[var(--accent-critical-bg)] transition-all cursor-pointer"
+                                title="Elimina piatto"
+                                aria-label={`Elimina ${dish.name}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1281,25 +1322,25 @@ export default function CanvaMenuStudioPage() {
           {activeStudioTab === 'options' && (
             <div className="space-y-6 animate-fade-in">
               {/* Switch Ordini al Tavolo */}
-              <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#121415] p-5 sm:p-6 space-y-4 shadow-sm">
+              <SurfaceCard padding="md" radius="2xl" className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <ShoppingBag className="w-4 h-4 text-emerald-500" />
-                      <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <ShoppingBag className="w-4 h-4 text-[var(--accent-operational-text)]" />
+                      <h3 className="text-sm font-bold text-[var(--text-primary)]">
                         Ordini al Tavolo Diretti
                       </h3>
                       {menuConfig.tableOrdersEnabled ? (
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
+                        <StatusBadge tone="operational" dot pulse>
                           Attivi
-                        </span>
+                        </StatusBadge>
                       ) : (
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400">
+                        <StatusBadge tone="neutral">
                           Solo Consultazione
-                        </span>
+                        </StatusBadge>
                       )}
                     </div>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-[var(--text-secondary)]">
                       Consente ai clienti di aggiungere portate al carrello e inoltrare l&apos;ordine direttamente alla cassa o al gestionale RIVO.
                     </p>
                   </div>
@@ -1307,6 +1348,9 @@ export default function CanvaMenuStudioPage() {
                   {/* Switch Toggle */}
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={!!menuConfig.tableOrdersEnabled}
+                    aria-label="Attiva ordini al tavolo diretti"
                     onClick={() => {
                       hapticTap();
                       setMenuConfig((prev) => ({
@@ -1314,27 +1358,29 @@ export default function CanvaMenuStudioPage() {
                         tableOrdersEnabled: !prev.tableOrdersEnabled,
                       }));
                     }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      menuConfig.tableOrdersEnabled ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-700'
-                    }`}
+                    className={cn(
+                      'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+                      menuConfig.tableOrdersEnabled ? 'bg-[var(--accent-operational)]' : 'bg-[var(--border-strong)]'
+                    )}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      className={cn(
+                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
                         menuConfig.tableOrdersEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      )}
                     />
                   </button>
                 </div>
-              </div>
+              </SurfaceCard>
 
               {/* Avvisi & Notifiche per la clientela */}
-              <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#121415] p-5 sm:p-6 space-y-4 shadow-sm">
+              <SurfaceCard padding="md" radius="2xl" className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                    <Info className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <Info className="w-4 h-4 text-[var(--rivo-volt-text)]" />
                     <span>Nota / Informativa sul Menù</span>
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                     Testo mostrato sotto il titolo (es. informazioni su allergeni, coperto, provenienza materie prime).
                   </p>
                 </div>
@@ -1345,13 +1391,13 @@ export default function CanvaMenuStudioPage() {
                     value={menuConfig.restaurantNotice || ''}
                     onChange={(e) => setMenuConfig((prev) => ({ ...prev, restaurantNotice: e.target.value }))}
                     placeholder="Es. Il coperto include il cestino di pane fatto in casa. Comunicare eventuali intolleranze al nostro staff."
-                    className="w-full text-xs p-3 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                   />
                 </div>
 
                 {/* Immagine di Copertina Testata */}
                 <div className="pt-2 space-y-2">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                  <label className="text-xs font-semibold text-[var(--text-primary)] block">
                     URL Immagine di Copertina Testata (opzionale)
                   </label>
                   <input
@@ -1359,10 +1405,10 @@ export default function CanvaMenuStudioPage() {
                     value={menuConfig.coverImageUrl || ''}
                     onChange={(e) => setMenuConfig((prev) => ({ ...prev, coverImageUrl: e.target.value }))}
                     placeholder="https://images.unsplash.com/..."
-                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                   />
                 </div>
-              </div>
+              </SurfaceCard>
             </div>
           )}
         </div>
@@ -1371,18 +1417,18 @@ export default function CanvaMenuStudioPage() {
         {/* RIGHT COLUMN: REALISTIC LIVE SMARTPHONE SIMULATOR (5 COLS on lg) */}
         {/* ======================================================================= */}
         <div className={`lg:col-span-5 ${mobileView === 'editor' ? 'hidden lg:block' : 'block'} sticky top-20`}>
-          <div className="flex items-center justify-between px-2 mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300">
-              <Eye className="w-4 h-4 text-emerald-500" />
+          <div className="flex items-center justify-between px-2 mb-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">
+              <Eye className="w-4 h-4 text-[var(--accent-operational-text)]" />
               <span>Anteprima Live Ospiti (Mockup)</span>
             </div>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-white/10 font-mono text-zinc-600 dark:text-zinc-400">
+            <StatusBadge tone="neutral" size="sm" shape="tag" mono>
               {menuConfig.preset}
-            </span>
+            </StatusBadge>
           </div>
 
           {/* Smartphone Hardware Frame */}
-          <div className="relative mx-auto w-full max-w-[340px] sm:max-w-[360px] rounded-[48px] p-3 bg-zinc-900 dark:bg-black border-4 border-zinc-700/80 dark:border-zinc-800 shadow-2xl shadow-black/80">
+          <div className="relative mx-auto w-full max-w-[340px] sm:max-w-[360px] rounded-[48px] p-3 bg-[#09090B] border-4 border-[var(--border-strong)] shadow-2xl">
             {/* Dynamic Island / Notch */}
             <div className="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-4 bg-black rounded-full z-30 flex items-center justify-end px-3">
               <div className="w-2.5 h-2.5 rounded-full bg-zinc-900 border border-zinc-800" />
@@ -1390,7 +1436,12 @@ export default function CanvaMenuStudioPage() {
 
             {/* Screen Inner Viewport */}
             <div
-              className={`w-full h-[620px] rounded-[38px] overflow-y-auto overflow-x-hidden relative scrollbar-none transition-colors duration-300 ${currentPresetMeta.bgClass} ${currentPresetMeta.textClass}`}
+              className={cn(
+                'w-full h-[620px] rounded-[38px] overflow-y-auto overflow-x-hidden relative scrollbar-none transition-colors duration-300',
+                HUB_FONT_CLASSES,
+                currentPresetMeta.bgClass,
+                currentPresetMeta.textClass
+              )}
               style={{
                 fontFamily: CANVA_FONT_OPTIONS.find((f) => f.id === menuConfig.fontFamily)?.style,
               }}
@@ -1508,7 +1559,7 @@ export default function CanvaMenuStudioPage() {
                                   {item.name}
                                 </h4>
                                 <span
-                                  className="text-xs font-black shrink-0 font-sans"
+                                  className="text-xs font-black shrink-0 font-mono tabular-nums"
                                   style={{ color: menuConfig.accentColor }}
                                 >
                                   €{typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
@@ -1589,19 +1640,25 @@ export default function CanvaMenuStudioPage() {
       {/* MODAL: ADD / EDIT DISH */}
       {/* ======================================================================= */}
       {showDishModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#151719] border border-zinc-200 dark:border-white/10 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={dishForm.id ? 'Modifica Piatto' : 'Aggiungi Nuovo Piatto'}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain animate-fade-in"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto overscroll-contain">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-2">
-                <ChefHat className="w-5 h-5 text-amber-500" />
-                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                <ChefHat className="w-5 h-5 text-[var(--rivo-volt-text)]" />
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
                   {dishForm.id ? 'Modifica Piatto' : 'Aggiungi Nuovo Piatto'}
                 </h3>
               </div>
               <button
                 type="button"
+                aria-label="Chiudi finestra piatto"
                 onClick={() => setShowDishModal(false)}
-                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white"
+                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1609,7 +1666,7 @@ export default function CanvaMenuStudioPage() {
 
             <form onSubmit={handleSaveDish} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
+                <label className="text-xs font-semibold text-[var(--text-primary)] block mb-1">
                   Nome del Piatto *
                 </label>
                 <input
@@ -1618,13 +1675,13 @@ export default function CanvaMenuStudioPage() {
                   value={dishForm.name}
                   onChange={(e) => setDishForm((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Es. Spaghettoni alla Carbonara d'Autore"
-                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
+                  <label className="text-xs font-semibold text-[var(--text-primary)] block mb-1">
                     Prezzo in € *
                   </label>
                   <input
@@ -1634,17 +1691,17 @@ export default function CanvaMenuStudioPage() {
                     required
                     value={dishForm.price}
                     onChange={(e) => setDishForm((prev) => ({ ...prev, price: e.target.value }))}
-                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                   />
                 </div>
 
-                <div className="flex items-center gap-3 pt-5">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                <div className="flex items-center gap-3 sm:pt-5">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={dishForm.isPopular}
                       onChange={(e) => setDishForm((prev) => ({ ...prev, isPopular: e.target.checked }))}
-                      className="rounded border-zinc-400 text-amber-500 focus:ring-amber-400"
+                      className="rounded border-[var(--border-strong)] accent-[var(--rivo-volt)]"
                     />
                     <span>Piatto Top / Popolare</span>
                   </label>
@@ -1652,26 +1709,26 @@ export default function CanvaMenuStudioPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="text-xs font-semibold text-[var(--text-primary)]">
                     Descrizione &amp; Ingredienti
                   </label>
                   <button
                     type="button"
                     disabled={aiEnhancing || !dishForm.name.trim()}
                     onClick={handleAiEnhanceDish}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500 hover:text-amber-400 disabled:opacity-40 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--rivo-volt-text)] hover:underline disabled:opacity-40 transition-opacity cursor-pointer"
                     title="Genera testo gourmet ed estrai allergeni in automatico con l'AI"
                   >
                     {aiEnhancing ? (
                       <>
-                        <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
+                        <Loader2 className="w-3 h-3 animate-spin" />
                         <span>Generazione AI...</span>
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-3 h-3" />
-                        <span>✨ Perfeziona con AI</span>
+                        <Wand2 className="w-3 h-3" />
+                        <span>Perfeziona con AI</span>
                       </>
                     )}
                   </button>
@@ -1681,13 +1738,13 @@ export default function CanvaMenuStudioPage() {
                   value={dishForm.description}
                   onChange={(e) => setDishForm((prev) => ({ ...prev, description: e.target.value }))}
                   placeholder="Es. Pasta trafilata al bronzo, guanciale croccante, pecorino DOP e pepe nero tostato."
-                  className="w-full text-xs p-3 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full text-xs p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                 />
               </div>
 
               {/* Tag Allergene & Specialità */}
               <div>
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">
+                <label className="text-xs font-semibold text-[var(--text-primary)] block mb-1.5">
                   Tag, Allergeni &amp; Note
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -1698,11 +1755,12 @@ export default function CanvaMenuStudioPage() {
                         key={tag}
                         type="button"
                         onClick={() => toggleDishTag(tag)}
-                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                        className={cn(
+                          'text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer',
                           selected
-                            ? 'bg-amber-500 text-black border-amber-400 font-bold'
-                            : 'bg-zinc-100 dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'
-                        }`}
+                            ? 'bg-[var(--rivo-volt)] text-[#09090B] border-transparent font-bold'
+                            : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'
+                        )}
                       >
                         {tag}
                       </button>
@@ -1714,11 +1772,21 @@ export default function CanvaMenuStudioPage() {
               {/* Foto Piatto (Upload da Dispositivo, Catalog o URL) */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                  <label className="text-xs font-semibold text-[var(--text-primary)] block">
                     Fotografia del Piatto
                   </label>
-                  <span className="text-[10px] text-zinc-400">JPG, PNG, WEBP fino a 8MB</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-mono">JPG, PNG, WEBP fino a 8MB</span>
                 </div>
+
+                {uploadError && (
+                  <div
+                    role="alert"
+                    className="p-2.5 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs font-medium flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
 
                 {/* Hidden File Input */}
                 <input
@@ -1747,16 +1815,17 @@ export default function CanvaMenuStudioPage() {
                       handleFileUpload(e.dataTransfer.files[0]);
                     }
                   }}
-                  className={`relative p-3.5 rounded-2xl border-2 border-dashed transition-all ${
+                  className={cn(
+                    'relative p-3.5 rounded-xl border-2 border-dashed transition-all',
                     isDragOver
-                      ? 'border-amber-500 bg-amber-500/10 scale-[1.01]'
-                      : 'border-zinc-300 dark:border-white/15 bg-zinc-50/50 dark:bg-white/[0.02] hover:border-zinc-400 dark:hover:border-white/25'
-                  }`}
+                      ? 'border-[var(--rivo-volt)] bg-[var(--rivo-volt-bg)] scale-[1.01]'
+                      : 'border-[var(--border-strong)] bg-[var(--bg-subtle)] hover:border-[var(--text-secondary)]'
+                  )}
                 >
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     {/* Thumbnail preview if photo exists */}
                     {dishForm.photoUrl ? (
-                      <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-zinc-200 dark:border-white/20 shadow-md group">
+                      <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-[var(--border-subtle)] group">
                         <Image
                           src={dishForm.photoUrl}
                           alt="Anteprima piatto"
@@ -1766,23 +1835,24 @@ export default function CanvaMenuStudioPage() {
                         />
                         <button
                           type="button"
+                          aria-label="Rimuovi foto"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDishForm((prev) => ({ ...prev, photoUrl: '' }));
                             hapticTap();
                           }}
-                          className="absolute top-1 right-1 p-1 rounded-full bg-black/75 hover:bg-red-600 text-white transition-colors"
+                          className="absolute top-1 right-1 p-1 rounded-full bg-black/75 hover:bg-red-600 text-white transition-colors cursor-pointer"
                           title="Rimuovi foto"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ) : (
-                      <div className="w-16 h-16 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 flex flex-col items-center justify-center text-zinc-400 shrink-0">
+                      <div className="w-16 h-16 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col items-center justify-center text-[var(--text-muted)] shrink-0">
                         {uploadingDishPhoto ? (
-                          <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                          <Loader2 className="w-6 h-6 animate-spin text-[var(--rivo-volt-text)]" />
                         ) : (
-                          <Upload className="w-6 h-6 text-zinc-400" />
+                          <Upload className="w-6 h-6 text-[var(--text-muted)]" />
                         )}
                       </div>
                     )}
@@ -1798,7 +1868,7 @@ export default function CanvaMenuStudioPage() {
                             hapticTap();
                             fileInputRef.current?.click();
                           }}
-                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           {uploadingDishPhoto ? (
                             <>
@@ -1820,14 +1890,14 @@ export default function CanvaMenuStudioPage() {
                             hapticTap();
                             setShowPhotoPicker(true);
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-semibold transition-colors cursor-pointer"
                         >
-                          <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
+                          <ImageIcon className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
                           <span>Catalogo Cibo HD</span>
                         </button>
                       </div>
 
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <p className="text-[11px] text-[var(--text-secondary)]">
                         Trascina qui la foto oppure scatta dal telefono o seleziona dalla galleria.
                       </p>
 
@@ -1838,7 +1908,7 @@ export default function CanvaMenuStudioPage() {
                           value={dishForm.photoUrl}
                           onChange={(e) => setDishForm((prev) => ({ ...prev, photoUrl: e.target.value }))}
                           placeholder="Oppure incolla un URL immagine web..."
-                          className="w-full text-[11px] px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          className="w-full text-[11px] px-2.5 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                         />
                       </div>
                     </div>
@@ -1847,17 +1917,17 @@ export default function CanvaMenuStudioPage() {
               </div>
 
               {/* Form Buttons */}
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-white/10">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setShowDishModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md transition-all active:scale-95"
+                  className="px-5 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-all active:scale-95 cursor-pointer"
                 >
                   {dishForm.id ? 'Aggiorna Piatto' : 'Inserisci Piatto'}
                 </button>
@@ -1871,22 +1941,28 @@ export default function CanvaMenuStudioPage() {
       {/* MODAL: FOOD PHOTO CATALOG PICKER */}
       {/* ======================================================================= */}
       {showPhotoPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#151719] border border-zinc-200 dark:border-white/10 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10 shrink-0">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Catalogo Foto Gastronomiche HD"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain animate-fade-in"
+        >
+          <div className="w-full max-w-2xl rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] shrink-0">
               <div>
-                <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-amber-500" />
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-[var(--rivo-volt-text)]" />
                   <span>Catalogo Foto Gastronomiche HD</span>
                 </h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                   Seleziona uno scatto professionale ottimizzato per la visualizzazione menù.
                 </p>
               </div>
               <button
                 type="button"
+                aria-label="Chiudi catalogo foto"
                 onClick={() => setShowPhotoPicker(false)}
-                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white"
+                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1900,11 +1976,12 @@ export default function CanvaMenuStudioPage() {
                     key={cat}
                     type="button"
                     onClick={() => setPhotoFilterCategory(cat)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors border cursor-pointer',
                       photoFilterCategory === cat
-                        ? 'bg-amber-500 text-black'
-                        : 'bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200'
-                    }`}
+                        ? 'bg-[var(--rivo-volt)] text-[#09090B] border-transparent'
+                        : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
+                    )}
                   >
                     {cat}
                   </button>
@@ -1912,28 +1989,28 @@ export default function CanvaMenuStudioPage() {
               </div>
 
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   type="text"
                   value={photoSearchQuery}
                   onChange={(e) => setPhotoSearchQuery(e.target.value)}
                   placeholder="Cerca piatto (es. tartare, carbonara, tiramisù)..."
-                  className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none"
+                  className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                 />
               </div>
             </div>
 
             {/* Direct Device Upload Banner */}
-            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 shrink-0">
+            <div className="p-3 rounded-xl bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-[var(--rivo-volt)] text-[#09090B] flex items-center justify-center shrink-0">
                   <Upload className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">
+                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                     Hai già la foto reale del tuo piatto?
                   </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                  <p className="text-[11px] text-[var(--text-secondary)] truncate">
                     Caricala subito dalla fotocamera o dai file del tuo dispositivo.
                   </p>
                 </div>
@@ -1944,19 +2021,20 @@ export default function CanvaMenuStudioPage() {
                   fileInputRef.current?.click();
                   setShowPhotoPicker(false);
                 }}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shrink-0 cursor-pointer shadow-sm transition-all active:scale-95"
+                className="px-3.5 py-1.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs shrink-0 cursor-pointer transition-all active:scale-95"
               >
                 Carica dal File
               </button>
             </div>
 
             {/* Photo Grid */}
-            <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 p-1">
+            <div className="flex-1 overflow-y-auto overscroll-contain grid grid-cols-2 sm:grid-cols-3 gap-3 p-1">
               {filteredPhotos.map((photo) => (
-                <div
+                <button
+                  type="button"
                   key={photo.id}
                   onClick={() => handleSelectPhoto(photo.url)}
-                  className="group relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-white/10 aspect-video cursor-pointer hover:border-amber-500 transition-all shadow-xs"
+                  className="group relative rounded-xl overflow-hidden border border-[var(--border-subtle)] aspect-video cursor-pointer hover:border-[var(--rivo-volt)] transition-all text-left"
                 >
                   <Image
                     src={photo.url}
@@ -1965,15 +2043,15 @@ export default function CanvaMenuStudioPage() {
                     sizes="(max-width: 640px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-2.5">
-                    <span className="text-[11px] font-bold text-white line-clamp-1 drop-shadow-sm">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-2.5">
+                    <span className="text-[11px] font-bold text-white line-clamp-1">
                       {photo.name}
                     </span>
-                    <span className="text-[9px] text-amber-400 font-semibold">
+                    <span className="text-[9px] text-amber-300 font-semibold">
                       {photo.category}
                     </span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -1984,19 +2062,25 @@ export default function CanvaMenuStudioPage() {
       {/* MODAL: ADD CATEGORY */}
       {/* ======================================================================= */}
       {showAddCatModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#151719] border border-zinc-200 dark:border-white/10 p-5 sm:p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nuova Categoria Menù"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain animate-fade-in"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-amber-500" />
-                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                <Layers className="w-5 h-5 text-[var(--rivo-volt-text)]" />
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
                   Nuova Categoria Menù
                 </h3>
               </div>
               <button
                 type="button"
+                aria-label="Chiudi finestra categoria"
                 onClick={() => setShowAddCatModal(false)}
-                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white"
+                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2004,7 +2088,7 @@ export default function CanvaMenuStudioPage() {
 
             <form onSubmit={handleAddCategory} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
+                <label className="text-xs font-semibold text-[var(--text-primary)] block mb-1">
                   Nome Categoria *
                 </label>
                 <input
@@ -2013,12 +2097,12 @@ export default function CanvaMenuStudioPage() {
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   placeholder="Es. Primi Piatti d'Autore, Pizze Gourmet, Dolci..."
-                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
+                <label className="text-xs font-semibold text-[var(--text-primary)] block mb-1">
                   Sottotitolo / Didascalia (opzionale)
                 </label>
                 <input
@@ -2026,7 +2110,7 @@ export default function CanvaMenuStudioPage() {
                   value={newCatSubtitle}
                   onChange={(e) => setNewCatSubtitle(e.target.value)}
                   placeholder="Es. Pasta fresca fatta in casa e risotti mantecati"
-                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
                 />
               </div>
 
@@ -2034,13 +2118,13 @@ export default function CanvaMenuStudioPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddCatModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md transition-all active:scale-95"
+                  className="px-5 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-all active:scale-95 cursor-pointer"
                 >
                   Crea Categoria
                 </button>
@@ -2054,68 +2138,88 @@ export default function CanvaMenuStudioPage() {
       {/* MODAL: AI MENU SCANNER */}
       {/* ======================================================================= */}
       {showAiScannerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl bg-white dark:bg-[#151719] border border-zinc-200 dark:border-white/10 p-5 sm:p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10 shrink-0">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Scanner Menù Cartaceo con AI"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain animate-fade-in"
+        >
+          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                <div className="w-9 h-9 rounded-xl bg-[var(--accent-telemetry-bg)] border border-[var(--accent-telemetry-border)] flex items-center justify-center text-[var(--accent-telemetry-text)]">
                   <Camera className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                  <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-1.5">
                     <span>Scanner Menù Cartaceo con AI</span>
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <Cpu className="w-3.5 h-3.5 text-[var(--accent-telemetry-text)]" />
                   </h3>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[11px] text-[var(--text-secondary)]">
                     Trasforma una foto del tuo menù cartaceo o un testo in categorie e piatti interattivi.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
+                aria-label="Chiudi scanner AI"
                 onClick={() => {
                   setShowAiScannerModal(false);
                   setAiScanResults(null);
+                  setAiScanError(null);
                 }}
-                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer"
+                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {aiScanError && (
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs font-medium flex items-center gap-2 shrink-0"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{aiScanError}</span>
+              </div>
+            )}
+
             {/* If Results are ready, show preview and import */}
             {aiScanResults ? (
-              <div className="flex-1 overflow-y-auto space-y-4 py-2">
-                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+              <div className="flex-1 overflow-y-auto overscroll-contain space-y-4 py-2">
+                <div className="p-3.5 rounded-xl bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[var(--accent-operational-text)] font-bold text-xs">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>Scansione completata: rilevate {aiScanResults.length} categorie e {aiScanResults.reduce((acc, c) => acc + c.dishes.length, 0)} piatti!</span>
+                    <span className="tabular-nums">
+                      Scansione completata: rilevate {aiScanResults.length} categorie e{' '}
+                      {aiScanResults.reduce((acc, c) => acc + c.dishes.length, 0)} piatti!
+                    </span>
                   </div>
                 </div>
 
                 {/* Import Mode Options */}
-                <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-2">
-                  <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] space-y-2">
+                  <span className="text-xs font-semibold text-[var(--text-primary)] block">
                     Modalità di importazione:
                   </span>
                   <div className="flex flex-col sm:flex-row gap-3 text-xs">
-                    <label className="flex items-center gap-2 cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-[var(--text-primary)]">
                       <input
                         type="radio"
                         name="mergeMode"
                         checked={aiScanMergeMode === 'replace'}
                         onChange={() => setAiScanMergeMode('replace')}
-                        className="text-amber-500"
+                        className="accent-[var(--rivo-volt)]"
                       />
                       <span>Sostituisci il menù attuale</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-[var(--text-primary)]">
                       <input
                         type="radio"
                         name="mergeMode"
                         checked={aiScanMergeMode === 'append'}
                         onChange={() => setAiScanMergeMode('append')}
-                        className="text-amber-500"
+                        className="accent-[var(--rivo-volt)]"
                       />
                       <span>Aggiungi alle categorie esistenti</span>
                     </label>
@@ -2124,24 +2228,24 @@ export default function CanvaMenuStudioPage() {
 
                 {/* Extracted Categories Preview */}
                 <div className="space-y-3">
-                  <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                  <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
                     Anteprima categorie estratte:
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {aiScanResults.map((cat, idx) => (
                       <div
                         key={idx}
-                        className="p-3 rounded-2xl bg-zinc-50 dark:bg-black/30 border border-zinc-200 dark:border-white/10 space-y-1.5"
+                        className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] space-y-1.5"
                       >
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-zinc-900 dark:text-white">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-bold text-[var(--text-primary)] truncate">
                             {cat.name}
                           </h4>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 font-mono font-bold">
+                          <StatusBadge tone="volt" size="sm" mono>
                             {cat.dishes.length} piatti
-                          </span>
+                          </StatusBadge>
                         </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                        <div className="text-[11px] text-[var(--text-secondary)] truncate">
                           {cat.dishes.map((d) => d.name).slice(0, 3).join(', ')}
                           {cat.dishes.length > 3 && '...'}
                         </div>
@@ -2150,18 +2254,21 @@ export default function CanvaMenuStudioPage() {
                   </div>
                 </div>
 
-                <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-white/10">
+                <div className="pt-3 flex items-center justify-end gap-2 border-t border-[var(--border-subtle)]">
                   <button
                     type="button"
-                    onClick={() => setAiScanResults(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 cursor-pointer"
+                    onClick={() => {
+                      setAiScanResults(null);
+                      setAiScanError(null);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                   >
                     Rifai scansione
                   </button>
                   <button
                     type="button"
                     onClick={handleApplyAiScanResults}
-                    className="px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
                   >
                     <Check className="w-4 h-4 stroke-[3]" />
                     <span>Conferma e Importa nel Menù</span>
@@ -2169,34 +2276,21 @@ export default function CanvaMenuStudioPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 py-1 flex-1 overflow-y-auto">
+              <div className="space-y-4 py-1 flex-1 overflow-y-auto overscroll-contain">
                 {/* Input mode switcher */}
-                <div className="flex rounded-2xl bg-zinc-100 dark:bg-white/5 p-1 border border-zinc-200 dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setAiScanInputMode('photo')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      aiScanInputMode === 'photo'
-                        ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs'
-                        : 'text-zinc-500 dark:text-zinc-400'
-                    }`}
-                  >
-                    <Camera className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Foto Menù Cartaceo</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAiScanInputMode('text')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      aiScanInputMode === 'text'
-                        ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs'
-                        : 'text-zinc-500 dark:text-zinc-400'
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Incolla Testo Menù</span>
-                  </button>
-                </div>
+                <SegmentedControl<'photo' | 'text'>
+                  ariaLabel="Modalità input scanner menù"
+                  fullWidth
+                  value={aiScanInputMode}
+                  onChange={(mode) => {
+                    setAiScanError(null);
+                    setAiScanInputMode(mode);
+                  }}
+                  options={[
+                    { value: 'photo', label: 'Foto Menù Cartaceo', icon: Camera },
+                    { value: 'text', label: 'Incolla Testo Menù', icon: FileText },
+                  ]}
+                />
 
                 {/* Hidden scan file input */}
                 <input
@@ -2204,6 +2298,7 @@ export default function CanvaMenuStudioPage() {
                   ref={scanFileInputRef}
                   onChange={(e) => {
                     if (e.target.files?.[0]) {
+                      setAiScanError(null);
                       handleScanFileUpload(e.target.files[0]);
                     }
                   }}
@@ -2213,39 +2308,41 @@ export default function CanvaMenuStudioPage() {
 
                 {aiScanInputMode === 'photo' ? (
                   <div className="space-y-3">
-                    <div
+                    <button
+                      type="button"
                       onClick={() => scanFileInputRef.current?.click()}
-                      className="p-6 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-white/15 hover:border-purple-400 dark:hover:border-purple-400 bg-zinc-50/50 dark:bg-white/[0.02] flex flex-col items-center justify-center text-center cursor-pointer transition-all"
+                      className="w-full p-6 rounded-xl border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--accent-telemetry)] bg-[var(--bg-subtle)] flex flex-col items-center justify-center text-center cursor-pointer transition-all"
                     >
                       {aiScanPhotoBase64 ? (
-                        <div className="relative w-full max-h-48 rounded-xl overflow-hidden shadow-md">
+                        <div className="relative w-full max-h-48 rounded-xl overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={aiScanPhotoBase64}
                             alt="Anteprima foto menù"
                             className="w-full h-44 object-contain rounded-xl"
                           />
-                          <span className="inline-block mt-2 text-xs text-purple-400 font-semibold underline">
+                          <span className="inline-block mt-2 text-xs text-[var(--accent-telemetry-text)] font-semibold underline">
                             Clicca per cambiare foto
                           </span>
                         </div>
                       ) : (
                         <>
-                          <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-2">
+                          <div className="w-12 h-12 rounded-2xl bg-[var(--accent-telemetry-bg)] border border-[var(--accent-telemetry-border)] text-[var(--accent-telemetry-text)] flex items-center justify-center mb-2">
                             <Upload className="w-6 h-6" />
                           </div>
-                          <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
                             Carica una foto del menù cartaceo o scatta dal telefono
                           </span>
-                          <span className="text-[11px] text-zinc-400 mt-1">
+                          <span className="text-[11px] text-[var(--text-muted)] mt-1 font-mono">
                             PNG, JPG, WEBP fino a 10MB
                           </span>
                         </>
                       )}
-                    </div>
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                    <label className="text-xs font-semibold text-[var(--text-primary)] block">
                       Incolla il testo del tuo menù:
                     </label>
                     <textarea
@@ -2260,16 +2357,16 @@ ANTIPASTI
 PRIMI PIATTI
 - Spaghetti alla Carbonara: 13€
 - Risotto al Tartufo: 16€"
-                      className="w-full text-xs p-3 rounded-xl border border-zinc-300 dark:border-white/10 bg-zinc-50 dark:bg-black/40 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+                      className="w-full text-xs p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] font-mono"
                     />
                   </div>
                 )}
 
-                <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-white/10">
+                <div className="pt-3 flex items-center justify-end gap-2 border-t border-[var(--border-subtle)]">
                   <button
                     type="button"
                     onClick={() => setShowAiScannerModal(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                   >
                     Annulla
                   </button>
@@ -2277,7 +2374,7 @@ PRIMI PIATTI
                     type="button"
                     disabled={aiScanning || (!aiScanPhotoBase64 && !aiScanText.trim())}
                     onClick={handleStartAiScan}
-                    className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] disabled:opacity-50 text-[#09090B] font-bold text-xs transition-all active:scale-95 cursor-pointer flex items-center gap-2"
                   >
                     {aiScanning ? (
                       <>
@@ -2286,7 +2383,7 @@ PRIMI PIATTI
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4 text-amber-300" />
+                        <Wand2 className="w-4 h-4" />
                         <span>Avvia Scansione AI</span>
                       </>
                     )}
@@ -2294,6 +2391,98 @@ PRIMI PIATTI
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================================= */}
+      {/* MODAL: CONFIRM RESET DEFAULT MENU */}
+      {/* ======================================================================= */}
+      {confirmResetModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Ripristina Menù d'esempio"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain animate-fade-in"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--accent-warning-bg)] border border-[var(--accent-warning-border)] flex items-center justify-center text-[var(--accent-warning-text)] shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Ripristinare il Menù d&apos;esempio?
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  Sei sicuro di voler ripristinare il Menù d&apos;esempio con tutti i piatti consigliati? Le modifiche non salvate andranno perse.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setConfirmResetModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={executeResetDefault}
+                className="px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs cursor-pointer transition-all"
+              >
+                Ripristina Menù
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================================= */}
+      {/* MODAL: CONFIRM DELETE CATEGORY */}
+      {/* ======================================================================= */}
+      {confirmDeleteCategory && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Conferma eliminazione categoria"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs overscroll-contain animate-fade-in"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] flex items-center justify-center text-[var(--accent-critical-text)] shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Eliminare la categoria &ldquo;{confirmDeleteCategory.name}&rdquo;?
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  Sei sicuro di voler eliminare questa categoria e tutti i suoi{' '}
+                  <span className="font-mono tabular-nums font-semibold text-[var(--text-primary)]">
+                    {confirmDeleteCategory.items.length}
+                  </span>{' '}
+                  piatti?
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteCategory(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={() => executeDeleteCategory(confirmDeleteCategory.id)}
+                className="px-4 py-2 rounded-xl bg-[#B91C1C] hover:opacity-90 text-white font-bold text-xs cursor-pointer transition-all"
+              >
+                Elimina Categoria
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -126,10 +126,10 @@ export default function AcceptInvitePage() {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh flex items-center justify-center p-4 bg-[#09090B] text-zinc-100 font-sans">
-      <div className="w-full max-w-md bg-[#121214] border border-[#27272A] rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-        {/* Glow accent */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-[#bfff00] rounded-full shadow-[0_0_20px_#bfff00]" />
+    <div className="min-h-screen min-h-dvh flex flex-col items-center justify-center p-4 bg-[#09090B] text-[#FAFAFA] font-sans overflow-x-hidden selection:bg-[#BFFF00] selection:text-[#09090B]">
+      <div className="w-full max-w-md mx-auto bg-[#111114] border border-[#27272A] rounded-2xl p-6 sm:p-7 shadow-2xl relative overflow-hidden">
+        {/* Top hardware accent strip */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-[#BFFF00]" />
 
         {/* Brand Header */}
         <div className="flex flex-col items-center mb-6 pt-2">
@@ -144,15 +144,15 @@ export default function AcceptInvitePage() {
             />
             <span className="text-xl font-bold tracking-tight text-white">RIVO</span>
           </div>
-          <span className="text-[11px] font-semibold tracking-wider text-[#bfff00] uppercase">
-            Staff & Floor Operations
+          <span className="text-[11px] font-mono font-semibold tracking-wider text-[#BFFF00] uppercase">
+            Staff &amp; Floor Operations
           </span>
         </div>
 
         {/* State: Loading */}
         {loading && (
           <div className="py-12 flex flex-col items-center justify-center gap-3 text-zinc-400">
-            <Loader2 className="w-6 h-6 animate-spin text-[#bfff00]" />
+            <Loader2 className="w-6 h-6 animate-spin motion-reduce:animate-none text-[#BFFF00]" />
             <p className="text-sm">Verifica invito in corso...</p>
           </div>
         )}
@@ -166,8 +166,9 @@ export default function AcceptInvitePage() {
             <h2 className="text-base font-semibold text-white mb-1">Invito Non Valido</h2>
             <p className="text-sm text-zinc-400 mb-6 max-w-xs">{error}</p>
             <button
+              type="button"
               onClick={() => router.push('/login')}
-              className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-medium text-white transition-colors"
+              className="min-h-[48px] px-6 py-2.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] text-sm font-semibold text-white transition-colors cursor-pointer"
             >
               Torna al Login
             </button>
@@ -176,15 +177,15 @@ export default function AcceptInvitePage() {
 
         {/* State: Success Screen */}
         {submitSuccess && (
-          <div className="py-8 flex flex-col items-center text-center animate-in fade-in zoom-in duration-300">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
+          <div className="py-8 flex flex-col items-center text-center animate-fade-in">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4">
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <h2 className="text-lg font-bold text-white mb-1">Account Attivato!</h2>
-            <p className="text-sm text-zinc-400 mb-4">
+            <p className="text-sm text-zinc-300 mb-4">
               Le tue credenziali sono state salvate. Ti stiamo reindirizzando al login...
             </p>
-            <Loader2 className="w-5 h-5 animate-spin text-[#bfff00]" />
+            <Loader2 className="w-5 h-5 animate-spin motion-reduce:animate-none text-[#BFFF00]" />
           </div>
         )}
 
@@ -192,14 +193,14 @@ export default function AcceptInvitePage() {
         {!loading && invite && !submitSuccess && (
           <div>
             {/* Organization Info Box */}
-            <div className="mb-6 p-4 rounded-xl bg-[#18181B] border border-[#27272A]/80 space-y-2.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                <Building2 className="w-3.5 h-3.5 text-[#bfff00]" />
+            <div className="mb-6 p-4 rounded-xl bg-[#18181B] border border-[#27272A] space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                <Building2 className="w-3.5 h-3.5 text-[#BFFF00]" />
                 <span>Invito da {invite.organizationName}</span>
               </div>
-              <div className="flex items-center justify-between text-sm pt-1 border-t border-zinc-800">
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-[#27272A]">
                 <span className="text-zinc-400">Ruolo Assegnato:</span>
-                <span className="font-semibold text-white px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700/60 text-xs">
+                <span className="font-semibold text-white px-2.5 py-0.5 rounded-lg bg-[#111114] border border-[#27272A] text-xs">
                   {ROLE_DISPLAY[invite.role] || invite.role}
                 </span>
               </div>
@@ -212,7 +213,7 @@ export default function AcceptInvitePage() {
             </div>
 
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center gap-2 text-xs text-rose-400">
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center gap-2 text-xs text-rose-300">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -221,60 +222,71 @@ export default function AcceptInvitePage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email (Readonly) */}
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Email di accesso</label>
+                <label htmlFor="invite-email" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                  Email di accesso
+                </label>
                 <input
+                  id="invite-email"
                   type="email"
                   disabled
                   value={invite.email}
-                  className="w-full min-h-[42px] bg-zinc-900/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-400 cursor-not-allowed opacity-80"
+                  className="w-full min-h-[44px] bg-[#09090B] border border-[#27272A] rounded-xl px-3 py-2 text-sm text-zinc-400 cursor-not-allowed"
                 />
               </div>
 
               {/* Name and Surname */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Nome</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Mario"
-                      className="w-full min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
-                    />
-                  </div>
+                  <label htmlFor="invite-firstname" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                    Nome
+                  </label>
+                  <input
+                    id="invite-firstname"
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Mario"
+                    className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00] transition-colors"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Cognome</label>
+                  <label htmlFor="invite-lastname" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                    Cognome
+                  </label>
                   <input
+                    id="invite-lastname"
                     type="text"
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Rossi"
-                    className="w-full min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+                    className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00] transition-colors"
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Crea una Password</label>
+                <label htmlFor="invite-password" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                  Crea una Password
+                </label>
                 <div className="relative">
                   <input
+                    id="invite-password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     minLength={8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Almeno 8 caratteri"
-                    className="w-full min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl pl-3 pr-10 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+                    className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl pl-3 pr-12 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00] transition-colors"
                   />
                   <button
                     type="button"
+                    aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -283,15 +295,18 @@ export default function AcceptInvitePage() {
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Conferma Password</label>
+                <label htmlFor="invite-confirm-password" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                  Conferma Password
+                </label>
                 <input
+                  id="invite-confirm-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   minLength={8}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Ripeti la password"
-                  className="w-full min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00] transition-colors"
                 />
               </div>
 
@@ -299,10 +314,10 @@ export default function AcceptInvitePage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full mt-3 bg-[#bfff00] hover:bg-[#a6df00] text-black font-bold text-sm min-h-[46px] py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-[#bfff00]/10"
+                className="w-full mt-2 bg-[#BFFF00] hover:bg-[#d2ff4d] text-[#09090B] font-extrabold text-sm min-h-[48px] py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-[#BFFF00]/15 cursor-pointer"
               >
                 {submitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
                 ) : (
                   <>
                     <span>Completa e Attiva Account</span>
@@ -312,14 +327,23 @@ export default function AcceptInvitePage() {
               </button>
             </form>
 
-            <div className="mt-6 pt-4 border-t border-zinc-800/80 text-center">
-              <p className="text-[11px] text-zinc-500">
-                Creando l'account accetti le condizioni di servizio e le policy aziendali di {invite.organizationName}.
+            <div className="mt-6 pt-4 border-t border-[#27272A] text-center">
+              <p className="text-[11px] text-zinc-400">
+                Creando l&apos;account accetti le condizioni di servizio e le policy aziendali di {invite.organizationName}.
               </p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Hardware RIVO Footer Badge */}
+      <footer className="w-full max-w-md mx-auto pt-4 pb-2 flex items-center justify-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111114] border border-[#27272A] text-[11px] font-mono text-zinc-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
+          <span>Accesso Staff • Powered by</span>
+          <strong className="text-white font-bold tracking-wide">RIVO</strong>
+        </div>
+      </footer>
     </div>
   );
 }

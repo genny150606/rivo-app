@@ -9,12 +9,15 @@ import {
   ArrowRight,
   CheckCircle2,
   Building2,
+  X,
 } from 'lucide-react';
 import {
   OUTREACH_PIPELINE_STAGES,
   type OutreachProspectRecord,
   type OutreachCommercialStatus,
 } from '@/lib/outreach/types';
+import { PageHeader, SurfaceCard, StatusBadge } from '@/components/ui';
+import { cn } from '@/lib/cn';
 
 export default function OutreachPipelinePage() {
   const [prospects, setProspects] = useState<OutreachProspectRecord[]>([]);
@@ -98,66 +101,65 @@ export default function OutreachPipelinePage() {
       : OUTREACH_PIPELINE_STAGES.filter((s) => s.id === selectedStageFilter);
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-[#FAFAFA] p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-[#27272A] pb-5">
-        <div>
-          <div className="flex items-center gap-2.5 mb-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#BFFF00]" />
-            <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#BFFF00]">
-              RIVO OUTREACH — PIPELINE COMMERCIALE & CRM (SEZ. 11 & 12 PRD)
-            </span>
-          </div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-[-0.02em] text-[#FAFAFA]">
-            Pipeline Commerciale End-to-End (12 Stati)
-          </h1>
-          <p className="text-sm text-[#A1A1AA] mt-1">
-            Gestione completa dalla scoperta alla conversione transazionale in Organizzazione Cliente RIVO.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <select
-            value={selectedStageFilter}
-            onChange={(e) => setSelectedStageFilter(e.target.value)}
-            className="h-9 px-3 rounded-lg bg-[#121214] border border-[#27272A] text-xs text-[#FAFAFA]"
-          >
-            <option value="ALL">Mostra tutte le 12 colonne</option>
-            {OUTREACH_PIPELINE_STAGES.map((st) => (
-              <option key={st.id} value={st.id}>
-                Filtra: {st.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={loadPipeline}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] text-xs text-[#FAFAFA]"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Aggiorna
-          </button>
-        </div>
-      </div>
+    <div className="space-y-6 min-w-0">
+      <PageHeader
+        eyebrow="RIVO OUTREACH — PIPELINE COMMERCIALE & CRM (SEZ. 11 & 12 PRD)"
+        title="Pipeline Commerciale End-to-End (12 Stati)"
+        description="Gestione completa dalla scoperta alla conversione transazionale in Organizzazione Cliente RIVO."
+        actions={
+          <>
+            <label htmlFor="pipeline-stage-filter" className="sr-only">
+              Filtra stato pipeline
+            </label>
+            <select
+              id="pipeline-stage-filter"
+              value={selectedStageFilter}
+              onChange={(e) => setSelectedStageFilter(e.target.value)}
+              className="min-h-[40px] px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+            >
+              <option value="ALL">Mostra tutte le 12 colonne</option>
+              {OUTREACH_PIPELINE_STAGES.map((st) => (
+                <option key={st.id} value={st.id}>
+                  Filtra: {st.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={loadPipeline}
+              className="inline-flex min-h-[40px] items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              <RefreshCw
+                className={cn('w-3.5 h-3.5', loading && 'animate-spin')}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+              <span>Aggiorna</span>
+            </button>
+          </>
+        }
+      />
 
       {feedback && (
-        <div className="p-3.5 rounded-xl bg-[#121214] border border-[#BFFF00]/40 text-xs text-[#FAFAFA] flex items-center justify-between">
+        <div
+          aria-live="polite"
+          className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--rivo-volt-border)] text-xs text-[var(--text-primary)] flex items-center justify-between gap-2"
+        >
           <span>{feedback}</span>
           <button
             type="button"
             onClick={() => setFeedback(null)}
-            className="text-[#A1A1AA] hover:text-[#FAFAFA]"
+            className="inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
           >
-            Chiudi
+            <X className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Chiudi</span>
           </button>
         </div>
       )}
 
       {/* Horizontal Kanban Board across 12 Stages */}
       {loading ? (
-        <div className="p-12 text-center text-xs font-mono text-[#71717A]">
-          CARICAMENTO PIPELINE COMMERCIALE...
-        </div>
+        <SurfaceCard loading />
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-6">
           {stagesToRender.map((stage) => {
@@ -167,69 +169,79 @@ export default function OutreachPipelinePage() {
             return (
               <div
                 key={stage.id}
-                className={`w-80 shrink-0 rounded-xl border p-4 flex flex-col gap-3 ${
+                className={cn(
+                  'w-80 shrink-0 rounded-xl border p-4 flex flex-col gap-3 bg-[var(--bg-surface)]',
                   isConvertedStage
-                    ? 'bg-[#121214] border-[#BFFF00]/60'
-                    : 'bg-[#121214] border-[#27272A]'
-                }`}
+                    ? 'border-[var(--rivo-volt-border)]'
+                    : 'border-[var(--border-subtle)]'
+                )}
               >
-                <div className="flex items-center justify-between border-b border-[#27272A] pb-2.5">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
                     <Kanban
-                      className={`w-3.5 h-3.5 ${
-                        isConvertedStage ? 'text-[#BFFF00]' : 'text-[#A1A1AA]'
-                      }`}
+                      className={cn(
+                        'w-3.5 h-3.5 shrink-0',
+                        isConvertedStage
+                          ? 'text-[var(--rivo-volt-text)]'
+                          : 'text-[var(--text-secondary)]'
+                      )}
+                      strokeWidth={1.75}
+                      aria-hidden="true"
                     />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#FAFAFA]">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] truncate">
                       {stage.shortLabel}
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#18181B] border border-[#27272A] text-[#BFFF00]">
+                  <StatusBadge tone="volt" shape="tag" className="tabular-nums">
                     {stageProspects.length}
-                  </span>
+                  </StatusBadge>
                 </div>
 
                 <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
                   {stageProspects.length === 0 ? (
-                    <div className="py-8 text-center text-[11px] text-[#71717A] border border-dashed border-[#27272A] rounded-lg">
+                    <div className="py-8 text-center text-[11px] text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)] rounded-lg">
                       Nessun prospect in questo stato
                     </div>
                   ) : (
                     stageProspects.map((p) => (
                       <div
                         key={p.id}
-                        className="p-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] hover:border-[#3F3F46] space-y-2.5"
+                        className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] space-y-2.5 transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div>
+                          <div className="min-w-0">
                             <Link
-                              href={`/admin/outreach/prospects`}
-                              className="text-xs font-bold text-[#FAFAFA] hover:text-[#BFFF00]"
+                              href="/admin/outreach/prospects"
+                              className="text-xs font-bold text-[var(--text-primary)] hover:text-[var(--rivo-volt-text)] block truncate"
                             >
                               {p.business_name}
                             </Link>
-                            <div className="text-[11px] text-[#71717A]">
-                              {p.category} • {p.city || 'N/D'}
+                            <div className="text-[11px] text-[var(--text-muted)] truncate">
+                              {p.category} · {p.city || 'N/D'}
                             </div>
                           </div>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#18181B] border border-[#27272A] text-[#BFFF00]">
+                          <StatusBadge tone="volt" shape="tag" className="tabular-nums">
                             {p.lead_score}/100
-                          </span>
+                          </StatusBadge>
                         </div>
 
                         {p.admin_notes && (
-                          <p className="text-[11px] text-[#A1A1AA] bg-[#121214] p-2 rounded border border-[#27272A] line-clamp-2">
+                          <p className="text-[11px] text-[var(--text-secondary)] bg-[var(--bg-surface)] p-2 rounded-lg border border-[var(--border-subtle)] line-clamp-2">
                             {p.admin_notes}
                           </p>
                         )}
 
                         <div className="pt-1 flex flex-col gap-2">
+                          <label htmlFor={`move-${p.id}`} className="sr-only">
+                            Sposta stato per {p.business_name}
+                          </label>
                           <select
+                            id={`move-${p.id}`}
                             value={p.commercial_status}
                             onChange={(e) =>
                               handleMoveStage(p.id, e.target.value as OutreachCommercialStatus)
                             }
-                            className="w-full h-8 px-2 rounded bg-[#121214] border border-[#27272A] text-[11px] text-[#FAFAFA]"
+                            className="w-full min-h-[36px] px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-primary)]"
                           >
                             {OUTREACH_PIPELINE_STAGES.map((st) => (
                               <option key={st.id} value={st.id}>
@@ -243,27 +255,28 @@ export default function OutreachPipelinePage() {
                               <button
                                 type="button"
                                 onClick={() => handleQuickConvert(p)}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-[11px] font-bold"
+                                className="flex-1 min-h-[36px] inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-[11px] font-bold transition-colors cursor-pointer"
                               >
-                                <UserCheck className="w-3 h-3" />
-                                CONVERTI IN CLIENTE RIVO
+                                <UserCheck className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
+                                <span>CONVERTI IN CLIENTE RIVO</span>
                               </button>
                               <Link
                                 href={`/admin/organizations/new?outreachProspectId=${p.id}`}
                                 title="Apri Wizard Organizzazione precompilato"
-                                className="p-1.5 rounded bg-[#18181B] border border-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA]"
+                                aria-label={`Apri Wizard Organizzazione precompilato per ${p.business_name}`}
+                                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                               >
-                                <Building2 className="w-3.5 h-3.5" />
+                                <Building2 className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
                               </Link>
                             </div>
                           ) : (
                             <Link
                               href={`/admin/organizations/${p.organization_id}`}
-                              className="inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded bg-[#22C55E]/15 border border-[#22C55E]/40 text-[#22C55E] text-[11px] font-semibold"
+                              className="inline-flex min-h-[36px] items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] text-[11px] font-semibold"
                             >
-                              <CheckCircle2 className="w-3 h-3" />
-                              Cliente Attivo RIVO
-                              <ArrowRight className="w-3 h-3" />
+                              <CheckCircle2 className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
+                              <span>Cliente Attivo RIVO</span>
+                              <ArrowRight className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
                             </Link>
                           )}
                         </div>

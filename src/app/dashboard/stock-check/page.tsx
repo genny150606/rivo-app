@@ -1,21 +1,17 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  Search, 
-  Barcode, 
-  RotateCw, 
-  Package, 
-  CheckCircle2, 
-  AlertCircle, 
-  Boxes, 
-  ArrowLeft,
+import {
+  Search,
+  RotateCw,
+  Package,
+  AlertCircle,
   X,
-  Sparkles,
-  Layers,
-  Tag
+  Tag,
 } from 'lucide-react';
-import Link from 'next/link';
+import { PageHeader, SurfaceCard, StatusBadge, EmptyState } from '@/components/ui';
+import { formatItCurrency } from '@/lib/chart-theme';
+import { cn } from '@/lib/cn';
 
 interface ProductVariant {
   id: string;
@@ -53,9 +49,9 @@ export default function StockCheckPage() {
         throw new Error(data.error || 'Errore nel recupero prodotti');
       }
       setProducts(data.products || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Stock check fetch error:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Errore nel recupero prodotti');
     } finally {
       setLoading(false);
     }
@@ -67,7 +63,7 @@ export default function StockCheckPage() {
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    products.forEach(p => {
+    products.forEach((p) => {
       if (p.category_name) set.add(p.category_name);
     });
     return Array.from(set);
@@ -75,7 +71,7 @@ export default function StockCheckPage() {
 
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return products.filter(p => {
+    return products.filter((p) => {
       if (selectedCategory !== 'all' && p.category_name !== selectedCategory) {
         return false;
       }
@@ -84,7 +80,7 @@ export default function StockCheckPage() {
       const inBrand = (p.brand || '').toLowerCase().includes(q);
       const inSku = (p.sku || '').toLowerCase().includes(q);
       const inVariant = (p.variants || []).some(
-        v =>
+        (v) =>
           (v.size || '').toLowerCase().includes(q) ||
           (v.color || '').toLowerCase().includes(q) ||
           (v.barcode || '').toLowerCase().includes(q)
@@ -94,82 +90,95 @@ export default function StockCheckPage() {
   }, [products, query, selectedCategory]);
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto pb-16">
-      {/* Top Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard"
-              className="text-xs text-zinc-400 hover:text-white transition-colors"
-            >
-              Dashboard
-            </Link>
-            <span className="text-zinc-600">/</span>
-            <span className="text-xs text-zinc-200">Verifica Taglie Rapida</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white mt-1 flex items-center gap-2">
-            <span>Verifica Taglie Rapida</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#BFFF00]/10 text-[#BFFF00] border border-[#BFFF00]/30">
-              Staff Live
-            </span>
-          </h1>
-        </div>
-
-        <button
-          onClick={fetchStock}
-          disabled={loading}
-          className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-50"
-          title="Aggiorna giacenze"
-        >
-          <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#BFFF00]' : ''}`} />
-        </button>
-      </div>
+    <div className="space-y-5 max-w-3xl mx-auto pb-16 min-w-0">
+      <PageHeader
+        eyebrow="01 // CONTROLLO RAPIDO"
+        title="Verifica Taglie Rapida"
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Verifica Taglie Rapida' },
+        ]}
+        badge={
+          <StatusBadge tone="volt" variant="soft" dot>
+            Staff Live
+          </StatusBadge>
+        }
+        actions={
+          <button
+            type="button"
+            onClick={fetchStock}
+            disabled={loading}
+            aria-label="Aggiorna giacenze"
+            title="Aggiorna giacenze"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <RotateCw
+              className={cn('w-4 h-4', loading && 'animate-spin text-[var(--rivo-volt-text)]')}
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+          </button>
+        }
+      />
 
       {/* Instant Search Bar */}
-      <div className="space-y-2 sticky top-2 z-20">
-        <div className="relative shadow-2xl">
-          <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+      <div className="space-y-2.5 sticky top-16 z-10 bg-[var(--bg-canvas)]/95 backdrop-blur-xs py-1">
+        <div className="relative">
+          <label htmlFor="stock-check-search" className="sr-only">
+            Cerca per modello, brand, taglia o barcode
+          </label>
+          <Search
+            className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           <input
-            type="text"
-            autoFocus
+            id="stock-check-search"
+            name="stock-check-search"
+            type="search"
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Cerca per modello, brand, taglia o barcode..."
-            className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-[#141715]/95 backdrop-blur-xl border border-zinc-700/80 text-white placeholder:text-zinc-500 text-sm font-medium focus:outline-none focus:border-[#BFFF00] focus:ring-1 focus:ring-[#BFFF00] shadow-xl"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cerca per modello, brand, taglia o barcode…"
+            className="w-full min-h-[48px] pl-10 pr-11 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-strong)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm font-medium focus:outline-none focus:border-[var(--focus-ring)] transition-colors"
           />
           {query && (
             <button
+              type="button"
               onClick={() => setQuery('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1"
+              aria-label="Cancella ricerca"
+              className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
             </button>
           )}
         </div>
 
         {/* Category Pills */}
         {categories.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
             <button
+              type="button"
               onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-colors ${
+              className={cn(
+                'px-3 min-h-[40px] sm:min-h-[34px] rounded-lg font-medium whitespace-nowrap transition-colors border cursor-pointer',
                 selectedCategory === 'all'
-                  ? 'bg-white text-black font-bold shadow-xs'
-                  : 'bg-zinc-900/80 text-zinc-400 hover:text-white border border-zinc-800'
-              }`}
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-canvas)] border-transparent font-semibold'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'
+              )}
             >
               Tutti ({products.length})
             </button>
-            {categories.map(c => (
+            {categories.map((c) => (
               <button
                 key={c}
+                type="button"
                 onClick={() => setSelectedCategory(c)}
-                className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-colors ${
+                className={cn(
+                  'px-3 min-h-[40px] sm:min-h-[34px] rounded-lg font-medium whitespace-nowrap transition-colors border cursor-pointer',
                   selectedCategory === c
-                    ? 'bg-white text-black font-bold shadow-xs'
-                    : 'bg-zinc-900/80 text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-canvas)] border-transparent font-semibold'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'
+                )}
               >
                 {c}
               </button>
@@ -180,76 +189,84 @@ export default function StockCheckPage() {
 
       {/* Error Notice */}
       {error && (
-        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div
+          role="alert"
+          className="p-3.5 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center gap-2"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Results List */}
       {loading && products.length === 0 ? (
-        <div className="py-20 text-center text-zinc-500 space-y-2">
-          <RotateCw className="w-6 h-6 mx-auto animate-spin text-[#BFFF00]" />
-          <p className="text-xs">Caricamento disponibilità scorte...</p>
+        <div className="space-y-3" aria-busy="true">
+          {[1, 2, 3].map((i) => (
+            <SurfaceCard key={i} loading />
+          ))}
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="p-8 text-center text-zinc-500 bg-[#121214] border border-zinc-800 rounded-2xl space-y-2">
-          <Package className="w-8 h-8 mx-auto opacity-40" />
-          <p className="text-sm font-semibold text-zinc-300">Nessun articolo corrispondente</p>
-          <p className="text-xs text-zinc-500">Prova a cercare un nome diverso o azzera i filtri.</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Nessun articolo corrispondente"
+          description="Prova a cercare un nome diverso o azzera i filtri."
+          primaryAction={
+            query || selectedCategory !== 'all'
+              ? {
+                  label: 'Azzera filtri',
+                  onClick: () => {
+                    setQuery('');
+                    setSelectedCategory('all');
+                  },
+                }
+              : undefined
+          }
+        />
       ) : (
         <div className="space-y-3">
-          {filteredProducts.map(prod => {
+          {filteredProducts.map((prod) => {
             const hasStock = prod.totalStock > 0;
             return (
-              <div
-                key={prod.id}
-                className="p-4 rounded-2xl border border-zinc-800 bg-[#121413] hover:border-zinc-700 transition-all shadow-md space-y-3"
-              >
+              <SurfaceCard key={prod.id} padding="md" className="space-y-3.5">
                 {/* Product Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-0.5">
                       {prod.brand && (
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">
+                        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
                           {prod.brand}
                         </span>
                       )}
                       {prod.sku && (
-                        <span className="text-[10px] font-mono text-zinc-500">
+                        <span className="font-mono text-[10px] text-[var(--text-muted)]" translate="no">
                           SKU: {prod.sku}
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-bold text-white leading-snug">{prod.name}</h3>
+                    <h2 className="font-display text-base font-bold text-[var(--text-primary)] leading-snug">
+                      {prod.name}
+                    </h2>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="text-sm font-extrabold text-white block">
-                      € {Number(prod.sale_price).toFixed(2)}
+                  <div className="text-right shrink-0 space-y-1">
+                    <span className="font-mono tabular-nums text-sm font-bold text-[var(--text-primary)] block">
+                      {formatItCurrency(Number(prod.sale_price))}
                     </span>
-                    <span
-                      className={`inline-block mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        hasStock
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      }`}
-                    >
+                    <StatusBadge tone={hasStock ? 'operational' : 'critical'} size="sm">
                       {hasStock ? `${prod.totalStock} pz in negozio` : 'Esaurito'}
-                    </span>
+                    </StatusBadge>
                   </div>
                 </div>
 
                 {/* Instant Size & Stock Matrix */}
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5 flex items-center gap-1">
-                    <Tag className="w-3 h-3 text-[#BFFF00]" />
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                    <Tag className="w-3 h-3 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
                     <span>Disponibilità taglie in magazzino:</span>
                   </span>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {prod.variants.map(v => {
+                    {prod.variants.map((v) => {
                       const qty = v.stock;
                       const isAvailable = qty > 0;
                       const isLow = qty > 0 && qty <= 2;
@@ -257,44 +274,38 @@ export default function StockCheckPage() {
                       return (
                         <div
                           key={v.id}
-                          className={`p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                          className={cn(
+                            'p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-colors',
                             isAvailable
                               ? isLow
-                                ? 'bg-amber-500/5 border-amber-500/30'
-                                : 'bg-zinc-900 border-zinc-700/80'
-                              : 'bg-zinc-900/30 border-zinc-800/60 opacity-50'
-                          }`}
+                                ? 'bg-[var(--accent-warning-bg)] border-[var(--accent-warning-border)]'
+                                : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)]'
+                              : 'bg-[var(--bg-subtle)]/50 border-[var(--border-subtle)] opacity-55'
+                          )}
                         >
                           <div className="min-w-0">
-                            <span className="text-sm font-black text-white block font-mono">
+                            <span className="text-sm font-bold text-[var(--text-primary)] block font-mono tabular-nums">
                               {v.size || 'Unica'}
                             </span>
                             {v.color && (
-                              <span className="text-[10px] text-zinc-400 block truncate">
+                              <span className="text-[11px] text-[var(--text-secondary)] block truncate">
                                 {v.color}
                               </span>
                             )}
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <span
-                              className={`text-xs font-mono font-black px-2 py-0.5 rounded-lg inline-block ${
-                                isAvailable
-                                  ? isLow
-                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                  : 'bg-zinc-800 text-zinc-500'
-                              }`}
-                            >
-                              {qty} pz
-                            </span>
-                          </div>
+                          <StatusBadge
+                            tone={isAvailable ? (isLow ? 'warning' : 'operational') : 'neutral'}
+                            size="sm"
+                          >
+                            {qty} pz
+                          </StatusBadge>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              </div>
+              </SurfaceCard>
             );
           })}
         </div>

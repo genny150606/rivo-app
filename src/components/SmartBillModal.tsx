@@ -1,33 +1,33 @@
 'use client';
 
 import { useState, useId, useMemo, useEffect, ChangeEvent, FormEvent } from 'react';
-import { 
-  Receipt, 
-  CreditCard, 
-  Banknote, 
-  Users, 
-  Building2, 
-  FileText, 
-  CheckCircle2, 
-  X, 
-  Send, 
-  QrCode, 
-  Sparkles,
+import {
+  Receipt,
+  CreditCard,
+  Banknote,
+  Users,
+  User,
+  Building2,
+  FileText,
+  CheckCircle2,
+  X,
+  Send,
+  QrCode,
+  Upload,
   ShieldCheck,
   AlertCircle,
   Clock,
   Coins,
-  ArrowRight,
-  Check,
-  Wifi
+  Wifi,
 } from 'lucide-react';
-import { 
-  BillRequestStatus, 
-  PaymentMethodIntent, 
-  BillRequestInvoiceData 
+import {
+  BillRequestStatus,
+  PaymentMethodIntent,
+  BillRequestInvoiceData,
 } from '@/lib/types/smart-bill';
 import { parseAdeQrCode } from '@/lib/invoice-helpers';
 import { enqueueOutboxItem } from '@/lib/offline-outbox';
+import { StatusBadge } from '@/components/ui';
 
 interface SmartBillModalProps {
   isOpen: boolean;
@@ -60,6 +60,9 @@ function safeHaptic(pattern: number | number[] = 15): void {
 
 const CASH_BANKNOTE_PRESETS = [10, 20, 50, 100];
 
+const SMART_INPUT_CLASS =
+  'w-full min-h-[44px] bg-[var(--bg-subtle)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--rivo-volt)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] transition-colors';
+
 export default function SmartBillModal({
   isOpen,
   onClose,
@@ -77,7 +80,7 @@ export default function SmartBillModal({
   // State: Payment Method & Intent
   const [mainMethod, setMainMethod] = useState<'pos' | 'cash'>('pos');
   const [posVariant, setPosVariant] = useState<'contactless' | 'traditional'>('contactless');
-  
+
   // Cash details
   const [isExactCash, setIsExactCash] = useState<boolean>(false);
   const [selectedBanknote, setSelectedBanknote] = useState<number>(50);
@@ -117,6 +120,20 @@ export default function SmartBillModal({
   const [isOfflineSuccess, setIsOfflineSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (qrModalOpen) {
+        setQrModalOpen(false);
+      } else if (!submitting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, qrModalOpen, submitting, onClose]);
 
   // Check existing table cooldown in sessionStorage to prevent accidental spam
   useEffect(() => {
@@ -274,13 +291,15 @@ export default function SmartBillModal({
       total_amount: numericTotal,
       banknote_denomination: mainMethod === 'cash' && !isExactCash ? effectiveBanknote : null,
       split_count: splitCount,
-      invoice_data: wantsInvoice ? {
-        companyName: invoiceData.companyName.trim(),
-        vatNumber: invoiceData.vatNumber.trim().toUpperCase(),
-        sdiCode: (invoiceData.sdiCode.trim() || '0000000').toUpperCase(),
-        pec: invoiceData.pec?.trim() || '',
-        address: invoiceData.address?.trim() || '',
-      } : null,
+      invoice_data: wantsInvoice
+        ? {
+            companyName: invoiceData.companyName.trim(),
+            vatNumber: invoiceData.vatNumber.trim().toUpperCase(),
+            sdiCode: (invoiceData.sdiCode.trim() || '0000000').toUpperCase(),
+            pec: invoiceData.pec?.trim() || '',
+            address: invoiceData.address?.trim() || '',
+          }
+        : null,
     };
 
     const handleSuccessState = (offline: boolean = false) => {
@@ -343,7 +362,7 @@ export default function SmartBillModal({
     } catch (err: unknown) {
       const isNetworkError =
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        (err instanceof TypeError) ||
+        err instanceof TypeError ||
         (err instanceof Error && /network|fetch|failed to fetch/i.test(err.message));
 
       if (isNetworkError) {
@@ -369,26 +388,30 @@ export default function SmartBillModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="w-full max-w-lg bg-[#121214] border border-[#27272A] rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 text-white my-auto relative overflow-hidden max-h-[92vh] overflow-y-auto">
-        {/* Glow ambient background */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[90px] pointer-events-none rounded-full" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#BFFF00]/10 blur-[90px] pointer-events-none rounded-full" />
-
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="smart-bill-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--bg-backdrop)] backdrop-blur-md animate-fade-in overflow-y-auto overscroll-contain"
+    >
+      <div className="w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-5 text-[var(--text-primary)] my-auto relative max-h-[92vh] overflow-y-auto">
         {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-[#BFFF00]/20 border border-cyan-500/30 flex items-center justify-center text-cyan-300">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex items-center justify-center text-[var(--rivo-volt-text)] shrink-0">
               <Receipt className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            <div className="min-w-0">
+              <h2
+                id="smart-bill-modal-title"
+                className="text-base sm:text-lg font-bold tracking-tight text-[var(--text-primary)] flex flex-wrap items-center gap-2"
+              >
                 <span>Chiamata Conto Intelligente</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 font-mono">
+                <StatusBadge tone="neutral" size="sm" mono>
                   {tableLabel}
-                </span>
+                </StatusBadge>
               </h2>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-[var(--text-secondary)]">
                 Invia allo staff il metodo di pagamento e i dettagli fattura
               </p>
             </div>
@@ -396,7 +419,8 @@ export default function SmartBillModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors"
+            aria-label="Chiudi modale chiamata conto"
+            className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -404,74 +428,114 @@ export default function SmartBillModal({
 
         {/* Success Screen */}
         {isSuccess ? (
-          <div className="py-8 text-center space-y-4 relative z-10 animate-fade-in">
-            <div className={`w-16 h-16 rounded-full ${isOfflineSuccess ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'} flex items-center justify-center mx-auto border`}>
-              {isOfflineSuccess ? <Wifi className="w-9 h-9 animate-pulse" /> : <CheckCircle2 className="w-9 h-9 animate-bounce" />}
+          <div className="py-8 text-center space-y-4 animate-fade-in">
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border ${
+                isOfflineSuccess
+                  ? 'bg-[var(--accent-warning-bg)] text-[var(--accent-warning-text)] border-[var(--accent-warning-border)]'
+                  : 'bg-[var(--accent-operational-bg)] text-[var(--accent-operational-text)] border-[var(--accent-operational-border)]'
+              }`}
+            >
+              {isOfflineSuccess ? (
+                <Wifi className="w-9 h-9 animate-pulse" />
+              ) : (
+                <CheckCircle2 className="w-9 h-9" />
+              )}
             </div>
             <div className="space-y-1.5">
-              <h3 className="text-lg font-bold text-white">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">
                 {isOfflineSuccess ? 'Richiesta conto registrata offline!' : 'Cameriere Allertato al Tavolo!'}
               </h3>
-              <p className="text-xs text-zinc-300 max-w-xs mx-auto">
-                {isOfflineSuccess ? 'Sarà recapitata alla cassa appena torna la connessione.' : 'Lo staff sa già come intendi pagare:'}
+              <p className="text-xs text-[var(--text-secondary)] max-w-xs mx-auto">
+                {isOfflineSuccess
+                  ? 'Sarà recapitata alla cassa appena torna la connessione.'
+                  : 'Lo staff sa già come intendi pagare:'}
               </p>
-              <div className="inline-block px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-semibold text-[#BFFF00]">
-                {mainMethod === 'pos' 
-                  ? (posVariant === 'contactless' ? 'Terminale POS Contactless in arrivo' : 'POS Tradizionale con Chip') 
-                  : (isExactCash ? 'Contanti esatti alla cassa' : `Contanti: banconota da ${effectiveBanknote}€ (Porta ${changeDue}€ di resto)`)}
+              <div className="inline-block px-3 py-1.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--rivo-volt-text)] font-mono tabular-nums">
+                {mainMethod === 'pos'
+                  ? posVariant === 'contactless'
+                    ? 'Terminale POS Contactless in arrivo'
+                    : 'POS Tradizionale con Chip'
+                  : isExactCash
+                  ? 'Contanti esatti alla cassa'
+                  : `Contanti: banconota da ${effectiveBanknote}€ (Porta ${changeDue}€ di resto)`}
               </div>
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 border border-zinc-800 text-xs text-zinc-400">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#BFFF00]" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+              <ShieldCheck className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
               <span>
-                {isOfflineSuccess ? 'Nessuna preoccupazione: la richiesta è salvata in locale e verrà recapitata non appena torna linea' : 'Nessuna attesa in fila: il servizio arriva direttamente qui'}
+                {isOfflineSuccess
+                  ? 'Nessuna preoccupazione: la richiesta è salvata in locale e verrà recapitata non appena torna linea'
+                  : 'Nessuna attesa in fila: il servizio arriva direttamente qui'}
               </span>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-xs text-[var(--accent-critical-text)] flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {cooldownRemaining > 0 && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-center gap-2">
-                <Clock className="w-4 h-4 shrink-0 text-amber-400 animate-spin" />
-                <span>Richiesta inviata di recente. Riprova tra <strong>{cooldownRemaining}s</strong> per evitare duplicati in sala.</span>
+              <div className="p-3 rounded-xl bg-[var(--accent-warning-bg)] border border-[var(--accent-warning-border)] text-xs text-[var(--accent-warning-text)] flex items-center gap-2">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>
+                  Richiesta inviata di recente. Riprova tra{' '}
+                  <strong className="font-mono tabular-nums">{cooldownRemaining}s</strong> per evitare duplicati
+                  in sala.
+                </span>
               </div>
             )}
 
             {/* SEZIONE 1: METODO DI PAGAMENTO CON SUB-SELETTORI */}
             <div className="space-y-2.5">
-              <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider block">
+              <span
+                id="smartbill-payment-method-label"
+                className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block"
+              >
                 1. Come vuoi pagare?
-              </label>
+              </span>
 
               {/* Main Selector: POS vs Cash */}
-              <div className="grid grid-cols-2 gap-2.5">
+              <div
+                role="group"
+                aria-labelledby="smartbill-payment-method-label"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-2.5"
+              >
                 <button
                   type="button"
                   onClick={() => {
                     safeHaptic(10);
                     setMainMethod('pos');
                   }}
-                  className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
+                  className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
                     mainMethod === 'pos'
-                      ? 'bg-cyan-500/15 border-cyan-500/50 text-white shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-500/30'
-                      : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[var(--accent-telemetry-bg)] border-[var(--accent-telemetry-border)] text-[var(--text-primary)] ring-1 ring-[var(--accent-telemetry)]'
+                      : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    mainMethod === 'pos' ? 'bg-cyan-500/30 text-cyan-300' : 'bg-zinc-800 text-zinc-400'
-                  }`}>
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      mainMethod === 'pos'
+                        ? 'bg-[var(--accent-telemetry)]/15 text-[var(--accent-telemetry-text)]'
+                        : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
+                    }`}
+                  >
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold block text-white">Carta / Bancomat</span>
-                    <span className="text-[10px] text-zinc-400 block">Terminale POS al tavolo</span>
+                    <span className="text-xs font-bold block text-[var(--text-primary)]">
+                      Carta / Bancomat
+                    </span>
+                    <span className="text-[11px] text-[var(--text-muted)] block">
+                      Terminale POS al tavolo
+                    </span>
                   </div>
                 </button>
 
@@ -481,41 +545,45 @@ export default function SmartBillModal({
                     safeHaptic(10);
                     setMainMethod('cash');
                   }}
-                  className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
+                  className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
                     mainMethod === 'cash'
-                      ? 'bg-emerald-500/15 border-emerald-500/50 text-white shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30'
-                      : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational-border)] text-[var(--text-primary)] ring-1 ring-[var(--accent-operational)]'
+                      : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    mainMethod === 'cash' ? 'bg-emerald-500/30 text-emerald-300' : 'bg-zinc-800 text-zinc-400'
-                  }`}>
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      mainMethod === 'cash'
+                        ? 'bg-[var(--accent-operational)]/15 text-[var(--accent-operational-text)]'
+                        : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
+                    }`}
+                  >
                     <Banknote className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold block text-white">Contanti</span>
-                    <span className="text-[10px] text-zinc-400 block">Con eventuale resto</span>
+                    <span className="text-xs font-bold block text-[var(--text-primary)]">Contanti</span>
+                    <span className="text-[11px] text-[var(--text-muted)] block">Con eventuale resto</span>
                   </div>
                 </button>
               </div>
 
               {/* Sub-selector: POS Variants */}
               {mainMethod === 'pos' && (
-                <div className="bg-[#18181B] rounded-2xl p-3 border border-cyan-500/20 space-y-2 animate-fade-in">
-                  <span className="text-[11px] font-semibold text-zinc-400 block">
+                <div className="bg-[var(--bg-elevated)] rounded-2xl p-3 border border-[var(--accent-telemetry-border)] space-y-2 animate-fade-in">
+                  <span className="text-[11px] font-semibold text-[var(--text-secondary)] block">
                     Preferenza terminale:
                   </span>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         safeHaptic(8);
                         setPosVariant('contactless');
                       }}
-                      className={`py-2 px-3 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                      className={`min-h-[44px] py-2 px-3 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                         posVariant === 'contactless'
-                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 font-bold'
-                          : 'bg-black/30 border-white/5 text-zinc-400 hover:text-zinc-200'
+                          ? 'bg-[var(--accent-telemetry-bg)] border-[var(--accent-telemetry)] text-[var(--accent-telemetry-text)] font-bold'
+                          : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       <Wifi className="w-3.5 h-3.5 rotate-90" />
@@ -528,14 +596,14 @@ export default function SmartBillModal({
                         safeHaptic(8);
                         setPosVariant('traditional');
                       }}
-                      className={`py-2 px-3 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                      className={`min-h-[44px] py-2 px-3 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                         posVariant === 'traditional'
-                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 font-bold'
-                          : 'bg-black/30 border-white/5 text-zinc-400 hover:text-zinc-200'
+                          ? 'bg-[var(--accent-telemetry-bg)] border-[var(--accent-telemetry)] text-[var(--accent-telemetry-text)] font-bold'
+                          : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       <CreditCard className="w-3.5 h-3.5" />
-                      <span>Chip & PIN Fisico</span>
+                      <span>Chip &amp; PIN Fisico</span>
                     </button>
                   </div>
                 </div>
@@ -543,11 +611,11 @@ export default function SmartBillModal({
 
               {/* Sub-selector: Cash Banknote & Change calculation */}
               {mainMethod === 'cash' && (
-                <div className="bg-[#18181B] rounded-2xl p-3.5 border border-emerald-500/20 space-y-3 animate-fade-in">
-                  <div className="flex items-center justify-between">
+                <div className="bg-[var(--bg-elevated)] rounded-2xl p-3.5 border border-[var(--accent-operational-border)] space-y-3 animate-fade-in">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      <Coins className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-xs font-bold text-white">Resto al tavolo:</span>
+                      <Coins className="w-3.5 h-3.5 text-[var(--accent-operational-text)]" />
+                      <span className="text-xs font-bold text-[var(--text-primary)]">Resto al tavolo:</span>
                     </div>
 
                     <button
@@ -556,10 +624,10 @@ export default function SmartBillModal({
                         safeHaptic(10);
                         setIsExactCash(!isExactCash);
                       }}
-                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                      className={`min-h-[44px] text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                         isExactCash
-                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                          : 'bg-black/40 border-white/10 text-zinc-400 hover:text-zinc-200'
+                          ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational)] text-[var(--accent-operational-text)]'
+                          : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       {isExactCash ? 'Conto Esatto (Nessun resto)' : 'Hai soldi giusti?'}
@@ -568,7 +636,7 @@ export default function SmartBillModal({
 
                   {!isExactCash && (
                     <div className="space-y-2">
-                      <span className="text-[11px] text-zinc-400 block">
+                      <span className="text-[11px] text-[var(--text-secondary)] block">
                         Con quale banconota paghi?
                       </span>
 
@@ -582,10 +650,10 @@ export default function SmartBillModal({
                               setSelectedBanknote(note);
                               setCustomBanknoteInput('');
                             }}
-                            className={`py-2 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer ${
+                            className={`min-h-[44px] py-2 rounded-xl text-xs font-mono tabular-nums font-bold border transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] ${
                               selectedBanknote === note && !customBanknoteInput
-                                ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300 shadow-md shadow-emerald-500/10'
-                                : 'bg-black/40 border-white/5 text-zinc-400 hover:text-zinc-200'
+                                ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational)] text-[var(--accent-operational-text)]'
+                                : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                             }`}
                           >
                             {note} €
@@ -595,11 +663,11 @@ export default function SmartBillModal({
 
                       {/* Dynamic Change indicator */}
                       {numericTotal > 0 && (
-                        <div className="flex items-center justify-between bg-black/40 rounded-xl p-2.5 border border-white/5 text-xs">
-                          <span className="text-zinc-400">
+                        <div className="flex items-center justify-between gap-2 bg-[var(--bg-subtle)] rounded-xl p-2.5 border border-[var(--border-subtle)] text-xs">
+                          <span className="text-[var(--text-secondary)] font-mono tabular-nums">
                             Totale {numericTotal.toFixed(2)} € con banconota da {effectiveBanknote} €:
                           </span>
-                          <span className="font-mono font-bold text-emerald-400">
+                          <span className="font-mono tabular-nums font-bold text-[var(--accent-operational-text)] shrink-0">
                             Resto: {changeDue > 0 ? `${changeDue.toFixed(2)} €` : '0.00 €'}
                           </span>
                         </div>
@@ -611,21 +679,21 @@ export default function SmartBillModal({
             </div>
 
             {/* SEZIONE 2: SPLIT "ALLA ROMANA" O QUOTA PERSONALE */}
-            <div className="bg-[#18181B] rounded-2xl p-4 border border-[#27272A] space-y-3">
+            <div className="bg-[var(--bg-elevated)] rounded-2xl p-4 border border-[var(--border-subtle)] space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#BFFF00]" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  <Users className="w-4 h-4 text-[var(--rivo-volt-text)]" />
+                  <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
                     2. Dividi Spesa / La Tua Quota
                   </span>
                 </div>
-                <span className="text-[11px] text-zinc-400">
+                <span className="text-[11px] font-mono tabular-nums text-[var(--text-secondary)]">
                   {splitCount === 1 ? 'Conto Singolo / Personale' : `${splitCount} Persone`}
                 </span>
               </div>
 
               {typeof personalQuota === 'number' && personalQuota > 0 && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -633,12 +701,13 @@ export default function SmartBillModal({
                       setCustomTotal(personalQuota.toFixed(2));
                       setSplitCount(1);
                     }}
-                    className="p-2.5 rounded-xl bg-[#BFFF00]/15 hover:bg-[#BFFF00]/25 border border-[#BFFF00]/40 text-left transition-all cursor-pointer"
+                    className="p-2.5 rounded-xl bg-[var(--rivo-volt-bg)] hover:opacity-90 border border-[var(--rivo-volt-border)] text-left transition-all cursor-pointer"
                   >
-                    <span className="text-[10px] font-bold uppercase text-[#BFFF00] block">
-                      👤 Solo la mia quota {guestName ? `(${guestName})` : ''}
+                    <span className="text-[10px] font-bold uppercase text-[var(--rivo-volt-text)] flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      <span>Solo la mia quota {guestName ? `(${guestName})` : ''}</span>
                     </span>
-                    <span className="text-sm font-mono font-extrabold text-white">
+                    <span className="text-sm font-mono tabular-nums font-extrabold text-[var(--text-primary)] mt-0.5 block">
                       {personalQuota.toFixed(2)} €
                     </span>
                   </button>
@@ -653,12 +722,13 @@ export default function SmartBillModal({
                         if (val > 0) setCustomTotal(val.toFixed(2));
                         setSplitCount(initialSplitCount && initialSplitCount > 1 ? initialSplitCount : 2);
                       }}
-                      className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all cursor-pointer"
+                      className="p-2.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-left transition-all cursor-pointer"
                     >
-                      <span className="text-[10px] font-bold uppercase text-zinc-300 block">
-                        👥 Totale Tavolo (Alla Romana)
+                      <span className="text-[10px] font-bold uppercase text-[var(--text-secondary)] flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        <span>Totale Tavolo (Alla Romana)</span>
                       </span>
-                      <span className="text-sm font-mono font-extrabold text-white">
+                      <span className="text-sm font-mono tabular-nums font-extrabold text-[var(--text-primary)] mt-0.5 block">
                         {estimatedTotal}
                       </span>
                     </button>
@@ -666,66 +736,73 @@ export default function SmartBillModal({
                 </div>
               )}
 
-              <div className="flex items-center justify-between bg-black/40 rounded-xl p-2 border border-white/5">
-                <span className="text-xs text-zinc-300 pl-2">Numero commensali:</span>
+              <div className="flex items-center justify-between bg-[var(--bg-subtle)] rounded-xl p-2 border border-[var(--border-subtle)]">
+                <span className="text-xs text-[var(--text-secondary)] pl-2">Numero commensali:</span>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => handleAdjustSplit(-1)}
                     disabled={splitCount <= 1}
-                    className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white font-bold flex items-center justify-center text-sm cursor-pointer"
+                    aria-label="Riduci numero commensali"
+                    className="min-h-[44px] min-w-[44px] w-11 h-11 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] disabled:opacity-40 text-[var(--text-primary)] font-bold flex items-center justify-center text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                   >
                     -
                   </button>
-                  <span className="font-mono text-base font-bold text-white w-6 text-center">
+                  <span className="font-mono tabular-nums text-base font-bold text-[var(--text-primary)] w-6 text-center">
                     {splitCount}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleAdjustSplit(1)}
                     disabled={splitCount >= 20}
-                    className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white font-bold flex items-center justify-center text-sm cursor-pointer"
+                    aria-label="Aumenta numero commensali"
+                    className="min-h-[44px] min-w-[44px] w-11 h-11 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] disabled:opacity-40 text-[var(--text-primary)] font-bold flex items-center justify-center text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                 <div>
-                  <label className="text-[10px] text-zinc-400 uppercase font-semibold block mb-1">
+                  <label
+                    htmlFor="smartbill-custom-total"
+                    className="text-[11px] text-[var(--text-muted)] uppercase font-semibold block mb-1"
+                  >
                     Totale Tavolo (€)
                   </label>
                   <input
+                    id="smartbill-custom-total"
                     type="text"
                     value={customTotal}
                     onChange={(e) => setCustomTotal(e.target.value)}
                     placeholder="Es. 60.00"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                    className={`${SMART_INPUT_CLASS} font-mono tabular-nums`}
                   />
                 </div>
 
-                <div className="bg-black/30 border border-white/5 rounded-xl p-2.5 flex flex-col justify-center">
-                  <span className="text-[10px] text-zinc-400 uppercase font-semibold block">
+                <div className="bg-[var(--bg-subtle)] border border-[var(--border-subtle)] rounded-xl p-2.5 flex flex-col justify-center">
+                  <span className="text-[10px] text-[var(--text-muted)] uppercase font-semibold block">
                     Quota a persona
                   </span>
-                  <span className="text-base font-mono font-bold text-[#BFFF00]">
-                    {splitQuota || (numericTotal > 0 ? `${(numericTotal / splitCount).toFixed(2)} €` : 'Da definire')}
+                  <span className="text-base font-mono tabular-nums font-bold text-[var(--rivo-volt-text)]">
+                    {splitQuota ||
+                      (numericTotal > 0 ? `${(numericTotal / splitCount).toFixed(2)} €` : 'Da definire')}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* SEZIONE 3: FATTURA ELETTRONICA B2B */}
-            <div className="bg-[#18181B] rounded-2xl p-4 border border-[#27272A] space-y-3.5">
-              <div className="flex items-center justify-between">
+            <div className="bg-[var(--bg-elevated)] rounded-2xl p-4 border border-[var(--border-subtle)] space-y-3.5">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-cyan-400" />
+                  <FileText className="w-4 h-4 text-[var(--accent-telemetry-text)] shrink-0" />
                   <div>
-                    <span className="text-xs font-bold text-white block">
+                    <span className="text-xs font-bold text-[var(--text-primary)] block">
                       3. Richiedi Fattura Elettronica
                     </span>
-                    <span className="text-[10px] text-zinc-400 block">
+                    <span className="text-[11px] text-[var(--text-muted)] block">
                       Per detrazione aziendale e professionisti
                     </span>
                   </div>
@@ -733,12 +810,15 @@ export default function SmartBillModal({
 
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={wantsInvoice}
+                  aria-label="Richiedi Fattura Elettronica"
                   onClick={() => {
                     safeHaptic(10);
                     setWantsInvoice(!wantsInvoice);
                   }}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    wantsInvoice ? 'bg-cyan-500' : 'bg-zinc-700'
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-elevated)] ${
+                    wantsInvoice ? 'bg-[var(--accent-telemetry)]' : 'bg-[var(--border-strong)]'
                   }`}
                 >
                   <span
@@ -750,15 +830,15 @@ export default function SmartBillModal({
               </div>
 
               {wantsInvoice && (
-                <div className="pt-2 border-t border-zinc-800 space-y-3 animate-fade-in">
-                  <div className="flex items-center gap-2">
+                <div className="pt-3 border-t border-[var(--border-subtle)] space-y-3 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         safeHaptic(10);
                         setQrModalOpen(true);
                       }}
-                      className="flex-1 py-2 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                      className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-[var(--accent-telemetry-bg)] hover:opacity-90 border border-[var(--accent-telemetry-border)] text-[var(--accent-telemetry-text)] text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                     >
                       <QrCode className="w-4 h-4" />
                       <span>Incolla / Scansiona QR AdE</span>
@@ -766,10 +846,10 @@ export default function SmartBillModal({
 
                     <label
                       htmlFor={fileInputId}
-                      className="py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="min-h-[44px] py-2 px-3 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
                       title="Carica file XML o immagine QR dell'Agenzia delle Entrate"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <Upload className="w-3.5 h-3.5 text-[var(--accent-warning-text)]" />
                       <span>Carica XML/QR</span>
                       <input
                         id={fileInputId}
@@ -783,48 +863,62 @@ export default function SmartBillModal({
 
                   <div className="space-y-2.5">
                     <div>
-                      <label className="text-[11px] text-zinc-400 font-semibold block mb-1">
-                        Ragione Sociale <span className="text-rose-400">*</span>
+                      <label
+                        htmlFor="smartbill-company-name"
+                        className="text-[11px] text-[var(--text-secondary)] font-semibold block mb-1"
+                      >
+                        Ragione Sociale <span className="text-[var(--accent-critical-text)]">*</span>
                       </label>
                       <div className="relative">
-                        <Building2 className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <Building2 className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
+                          id="smartbill-company-name"
                           type="text"
                           required
                           value={invoiceData.companyName}
                           onChange={(e) => setInvoiceData({ ...invoiceData, companyName: e.target.value })}
                           placeholder="Mario Rossi S.r.l."
-                          className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400"
+                          className={`${SMART_INPUT_CLASS} pl-9`}
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[11px] text-zinc-400 font-semibold block mb-1">
-                          Partita IVA o CF <span className="text-rose-400">*</span>
+                        <label
+                          htmlFor="smartbill-vat-number"
+                          className="text-[11px] text-[var(--text-secondary)] font-semibold block mb-1"
+                        >
+                          Partita IVA o CF <span className="text-[var(--accent-critical-text)]">*</span>
                         </label>
                         <input
+                          id="smartbill-vat-number"
                           type="text"
                           required
                           value={invoiceData.vatNumber}
                           onChange={(e) => setInvoiceData({ ...invoiceData, vatNumber: e.target.value })}
                           placeholder="11 cifre o CF"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono uppercase text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400"
+                          className={`${SMART_INPUT_CLASS} font-mono tabular-nums uppercase`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-[11px] text-zinc-400 font-semibold block mb-1">
+                        <label
+                          htmlFor="smartbill-sdi-code"
+                          className="text-[11px] text-[var(--text-secondary)] font-semibold block mb-1"
+                        >
                           Codice SDI (7 caratteri)
                         </label>
                         <input
+                          id="smartbill-sdi-code"
                           type="text"
                           maxLength={7}
                           value={invoiceData.sdiCode}
-                          onChange={(e) => setInvoiceData({ ...invoiceData, sdiCode: e.target.value.toUpperCase() })}
+                          onChange={(e) =>
+                            setInvoiceData({ ...invoiceData, sdiCode: e.target.value.toUpperCase() })
+                          }
                           placeholder="0000000"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono uppercase text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400"
+                          className={`${SMART_INPUT_CLASS} font-mono tabular-nums uppercase`}
                         />
                       </div>
                     </div>
@@ -841,7 +935,7 @@ export default function SmartBillModal({
                   safeHaptic(10);
                   onClose();
                 }}
-                className="px-4 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors cursor-pointer"
+                className="min-h-[44px] px-4 py-3 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
               >
                 Annulla
               </button>
@@ -849,13 +943,13 @@ export default function SmartBillModal({
               <button
                 type="submit"
                 disabled={submitting || cooldownRemaining > 0}
-                className="flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-[#BFFF00] to-emerald-400 hover:opacity-95 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                className="flex-1 min-h-[44px] py-3 px-5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-extrabold text-xs shadow-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-surface)]"
               >
                 {submitting ? (
                   <span>Invio al monitor cassa...</span>
                 ) : (
                   <>
-                    <Send className="w-4 h-4 text-black" />
+                    <Send className="w-4 h-4 text-[#09090B]" />
                     <span>Chiama Conto al Tavolo</span>
                   </>
                 )}
@@ -866,46 +960,61 @@ export default function SmartBillModal({
 
         {/* Modal: Paste/Scan AdE QR */}
         {qrModalOpen && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-md bg-[#18181B] border border-cyan-500/30 rounded-3xl p-5 shadow-2xl space-y-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="smart-qr-modal-title"
+            className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-md animate-fade-in overscroll-contain"
+          >
+            <div className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-2xl space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
+                <div
+                  id="smart-qr-modal-title"
+                  className="flex items-center gap-2 text-[var(--accent-telemetry-text)] font-bold text-sm"
+                >
                   <QrCode className="w-4 h-4" />
                   <span>Acquisizione Dati Agenzia delle Entrate</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setQrModalOpen(false)}
-                  className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center"
+                  aria-label="Chiudi finestra QR AdE"
+                  className="min-h-[44px] min-w-[44px] rounded-xl bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-xs text-zinc-300">
+              <p className="text-xs text-[var(--text-secondary)]">
                 Incolla il testo del tuo QR AdE o il frammento XML per estrarre Partita IVA e SDI:
               </p>
 
-              <textarea
-                rows={4}
-                value={qrRawText}
-                onChange={(e) => setQrRawText(e.target.value)}
-                placeholder="Es. PI:01234567890;CF:...;RA:Azienda Srl;CD:M5UXCR1;"
-                className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-400 resize-none"
-              />
+              <div>
+                <label htmlFor="smartbill-qr-raw" className="sr-only">
+                  Testo QR Agenzia delle Entrate o XML
+                </label>
+                <textarea
+                  id="smartbill-qr-raw"
+                  rows={4}
+                  value={qrRawText}
+                  onChange={(e) => setQrRawText(e.target.value)}
+                  placeholder="Es. PI:01234567890;CF:...;RA:Azienda Srl;CD:M5UXCR1;"
+                  className={`${SMART_INPUT_CLASS} p-3 font-mono resize-none`}
+                />
+              </div>
 
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setQrModalOpen(false)}
-                  className="px-3 py-2 rounded-xl bg-zinc-800 text-zinc-400 text-xs font-medium"
+                  className="min-h-[44px] px-3 py-2 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                 >
                   Annulla
                 </button>
                 <button
                   type="button"
                   onClick={handleQrTextApply}
-                  className="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-bold text-xs shadow-md"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BFFF00]"
                 >
                   Estrai Dati e Compila
                 </button>

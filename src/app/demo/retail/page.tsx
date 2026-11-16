@@ -1,42 +1,46 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useSyncExternalStore, useId } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import QRCode from 'qrcode';
-import { 
-  Smartphone, 
-  QrCode, 
-  Boxes, 
-  ScanLine, 
-  Receipt, 
-  BarChart3, 
-  ShieldCheck, 
-  Sparkles, 
-  ExternalLink, 
-  CheckCircle2, 
-  ArrowRight, 
-  Tag, 
-  Footprints, 
-  Search, 
-  Check, 
-  Copy, 
-  ShoppingBag, 
-  ArrowUpRight, 
-  Zap, 
-  AlertTriangle, 
-  Sliders, 
-  Users, 
-  CreditCard,
+import {
+  Smartphone,
+  Boxes,
+  ScanLine,
+  Receipt,
+  BarChart3,
+  ShieldCheck,
+  Award,
+  ExternalLink,
+  CheckCircle2,
+  ArrowRight,
+  Footprints,
+  Search,
+  Check,
+  Copy,
+  ShoppingBag,
+  ArrowUpRight,
+  Zap,
+  AlertTriangle,
   Volume2,
   VolumeX,
-  RotateCw,
-  Eye,
-  Info
+  Cpu,
+  X,
 } from 'lucide-react';
 import { useSimpleMode } from '@/lib/simple-mode';
-import SimpleModeToggle from '@/components/dashboard/SimpleModeToggle';
+import { ThemeToggle } from '@/components/theme-toggle';
 import SimpleRetailERPView from '@/components/dashboard/SimpleRetailERPView';
+import {
+  SurfaceCard,
+  StatusBadge,
+  SegmentedControl,
+  KpiCard,
+  EmptyState,
+  type SegmentedOption,
+} from '@/components/ui';
+import { formatItCurrency } from '@/lib/chart-theme';
+import { cn } from '@/lib/cn';
 
 interface ShoeSample {
   id: string;
@@ -50,7 +54,7 @@ interface ShoeSample {
   sizes: Array<{ size: string; stock: number; barcode: string; low: boolean; out: boolean }>;
 }
 
-const SHOE_SAMPLES: ShoeSample[] = [
+const INITIAL_SHOE_SAMPLES: ShoeSample[] = [
   {
     id: '1',
     name: 'Mocassino Artigianale Borrelli',
@@ -140,53 +144,125 @@ const SHOE_SAMPLES: ShoeSample[] = [
 ];
 
 type DemoTab = 'touchpoint' | 'stockcheck' | 'scanner' | 'pos' | 'controlroom';
+type DemoInterfaceMode = 'control' | 'simple';
+
+interface ScannerMatchResult {
+  shoeName: string;
+  brand: string;
+  size: string;
+  price: number;
+  stock: number;
+  barcode: string;
+}
+
+interface ToastNotification {
+  title: string;
+  detail: string;
+}
+
+const MODE_SWITCH_OPTIONS: ReadonlyArray<SegmentedOption<DemoInterfaceMode>> = [
+  { value: 'control', label: 'Standard Control', icon: Cpu },
+  { value: 'simple', label: 'Semplice ERP', icon: Boxes },
+];
+
+const DEMO_TABS: ReadonlyArray<{ id: DemoTab; label: string; icon: typeof Smartphone }> = [
+  { id: 'touchpoint', label: '1. Touchpoint NFC/QR', icon: Smartphone },
+  { id: 'stockcheck', label: '2. Verifica Taglie', icon: Search },
+  { id: 'scanner', label: '3. Scanner IA Scatole', icon: ScanLine },
+  { id: 'pos', label: '4. Cassa POS', icon: Receipt },
+  { id: 'controlroom', label: '5. Control Room', icon: BarChart3 },
+];
+
+const subscribeEmpty = () => () => {};
 
 export default function RetailDemoPage() {
   const { isSimple, setSimple } = useSimpleMode();
+  const posCustomerId = useId();
   const [activeTab, setActiveTab] = useState<DemoTab>('touchpoint');
+  const origin = useSyncExternalStore(
+    subscribeEmpty,
+    () => window.location.origin,
+    () => 'https://rivo-app-ten.vercel.app'
+  );
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [toast, setToast] = useState<ToastNotification | null>(null);
+  const [showPresenterStrip, setShowPresenterStrip] = useState(true);
+
+  // Stock samples state (supports live increment in scanner tab)
+  const [shoeSamples, setShoeSamples] = useState<ShoeSample[]>(INITIAL_SHOE_SAMPLES);
 
   // Stock check interactive simulation state
   const [stockSearchQuery, setStockSearchQuery] = useState('');
-  const [selectedShoe, setSelectedShoe] = useState<ShoeSample>(SHOE_SAMPLES[0]);
+  const [selectedShoeId, setSelectedShoeId] = useState<string>(INITIAL_SHOE_SAMPLES[0].id);
 
   // Scanner interactive simulator state
   const [simulatedCode, setSimulatedCode] = useState('8012345001426');
-  const [scannerResult, setScannerResult] = useState<any>(null);
+  const [scannerResult, setScannerResult] = useState<ScannerMatchResult | null>(null);
   const [scannerScanning, setScannerScanning] = useState(false);
 
   // POS simulation state
-  const [posCart, setPosCart] = useState<Array<{ name: string; size: string; price: number; qty: number }>>([
-    { name: 'Mocassino Artigianale Borrelli', size: '42', price: 149.00, qty: 1 },
-  ]);
+  const [posCart, setPosCart] = useState<
+    Array<{ name: string; size: string; price: number; qty: number }>
+  >([{ name: 'Mocassino Artigianale Borrelli', size: '42', price: 149.00, qty: 1 }]);
   const [posCustomer, setPosCustomer] = useState('Marco Esposito (VIP 140 pt)');
   const [posDiscount, setPosDiscount] = useState(10);
   const [posSaleComplete, setPosSaleComplete] = useState(false);
 
   const deviceCode = 'RIVO-FMT1GW';
-  const hubUrl = typeof window !== 'undefined' ? `${window.location.origin}/hub/${deviceCode}` : `https://rivo-app-ten.vercel.app/hub/${deviceCode}`;
-  const tapUrl = typeof window !== 'undefined' ? `${window.location.origin}/t/${deviceCode}` : `https://rivo-app-ten.vercel.app/t/${deviceCode}`;
+  const hubRelativeUrl = `/hub/${deviceCode}`;
+
+  const selectedShoe = useMemo(
+    () => shoeSamples.find((s) => s.id === selectedShoeId) ?? shoeSamples[0],
+    [shoeSamples, selectedShoeId]
+  );
+
+  const tapUrl = `${origin}/t/${deviceCode}`;
 
   useEffect(() => {
+    let active = true;
     QRCode.toDataURL(tapUrl, {
       margin: 1,
       width: 280,
       color: {
-        dark: '#00FF66',
-        light: '#0a0d0b',
+        dark: '#BFFF00',
+        light: '#09090B',
       },
-    }).then(setQrDataUrl);
+    })
+      .then((url) => {
+        if (active) setQrDataUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, [tapUrl]);
+
+  // Auto-dismiss non-blocking toast
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const triggerHaptic = useCallback((duration = 12) => {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(duration);
+      } catch {}
+    }
+  }, []);
 
   // Audio effect
   const playLaserBeep = useCallback(() => {
-    if (!soundEnabled) return;
+    if (!soundEnabled || typeof window === 'undefined') return;
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
@@ -201,25 +277,54 @@ export default function RetailDemoPage() {
     } catch {}
   }, [soundEnabled]);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
+  const copyToClipboard = async (text: string) => {
+    triggerHaptic(10);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+      setCopiedLink(true);
+      setToast({
+        title: 'Link Touchpoint copiato',
+        detail: text,
+      });
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      setToast({
+        title: 'Copia manuale richiesta',
+        detail: text,
+      });
+    }
   };
 
   // Run simulated scan
   const triggerSimulatedScan = (barcode: string) => {
+    triggerHaptic(16);
     setSimulatedCode(barcode);
     setScannerScanning(true);
     playLaserBeep();
     setTimeout(() => {
       setScannerScanning(false);
-      const match = SHOE_SAMPLES.flatMap(s => 
-        s.sizes.map(sz => ({ ...sz, shoeName: s.name, brand: s.brand, price: s.price, cost: s.cost }))
-      ).find(x => x.barcode === barcode);
+      const match = shoeSamples
+        .flatMap((s) =>
+          s.sizes.map((sz) => ({
+            ...sz,
+            shoeName: s.name,
+            brand: s.brand,
+            price: s.price,
+          }))
+        )
+        .find((x) => x.barcode === barcode);
 
       if (match) {
-        setScannerResult(match);
+        setScannerResult({
+          shoeName: match.shoeName,
+          brand: match.brand,
+          size: match.size,
+          price: match.price,
+          stock: match.stock,
+          barcode: match.barcode,
+        });
       } else {
         setScannerResult({
           shoeName: 'Articolo Non a Catalogo',
@@ -233,68 +338,246 @@ export default function RetailDemoPage() {
     }, 450);
   };
 
+  const handleRegisterStockLoad = (barcode: string, shoeName: string, size: string) => {
+    triggerHaptic(18);
+    playLaserBeep();
+
+    setShoeSamples((prev) =>
+      prev.map((shoe) => ({
+        ...shoe,
+        sizes: shoe.sizes.map((sz) =>
+          sz.barcode === barcode
+            ? {
+                ...sz,
+                stock: sz.stock + 1,
+                out: false,
+                low: sz.stock + 1 <= 2,
+              }
+            : sz
+        ),
+      }))
+    );
+
+    setScannerResult((prev) =>
+      prev && prev.barcode === barcode ? { ...prev, stock: prev.stock + 1 } : prev
+    );
+
+    setToast({
+      title: 'Carico magazzino registrato (+1 pz)',
+      detail: `${shoeName} — TG ${size} aggiornato in tempo reale.`,
+    });
+  };
+
   const filteredShoes = useMemo(() => {
     const q = stockSearchQuery.trim().toLowerCase();
-    if (!q) return SHOE_SAMPLES;
-    return SHOE_SAMPLES.filter(s => 
-      s.name.toLowerCase().includes(q) ||
-      s.brand.toLowerCase().includes(q) ||
-      s.sku.toLowerCase().includes(q) ||
-      s.sizes.some(sz => sz.size === q || sz.barcode.includes(q))
+    if (!q) return shoeSamples;
+    return shoeSamples.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.brand.toLowerCase().includes(q) ||
+        s.sku.toLowerCase().includes(q) ||
+        s.sizes.some((sz) => sz.size === q || sz.barcode.includes(q))
     );
-  }, [stockSearchQuery]);
+  }, [shoeSamples, stockSearchQuery]);
 
   const posSubtotal = posCart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const posDiscountAmount = (posSubtotal * posDiscount) / 100;
   const posTotal = posSubtotal - posDiscountAmount;
 
   return (
-    <div className="min-h-screen bg-[#050507] text-slate-100 selection:bg-emerald-500 selection:text-black font-sans pb-24">
-      {/* Top Banner / Breadcrumb */}
-      <header className="sticky top-0 z-40 bg-[#08090D]/90 backdrop-blur-xl border-b border-white/[0.08]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center p-1.5 group-hover:border-emerald-500 transition-colors">
-                <Image src="/brand/rivo-icon.png" alt="RIVO" width={22} height={22} className="rounded-xs" />
+    <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] font-sans pb-16 overflow-x-clip">
+      {/* Non-blocking Top-Right Notification Toast (never overlaps bottom interactive cards) */}
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm rounded-xl border border-[var(--rivo-volt-border)] bg-[var(--bg-surface)] p-3.5 shadow-xl flex items-start justify-between gap-3"
+        >
+          <div className="flex items-start gap-2.5 min-w-0">
+            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)]">
+              <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-[var(--text-primary)]">{toast.title}</p>
+              <p className="mt-0.5 text-[11px] text-[var(--text-secondary)] break-words">
+                {toast.detail}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            aria-label="Chiudi notifica"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {/* Top Sticky Command Header */}
+      <header className="sticky top-0 z-40 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5">
+          {/* Brand + Live Demo Context */}
+          <div className="flex items-center justify-between gap-2.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link href="/" className="flex items-center gap-2 group shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-[#09090B] border border-[#22242A] flex items-center justify-center p-1.5">
+                  <Image
+                    src="/brand/rivo-icon.png"
+                    alt="RIVO"
+                    width={20}
+                    height={20}
+                    className="rounded-xs"
+                  />
+                </div>
+                <span className="hidden xl:inline font-mono text-[11px] tracking-[0.12em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors uppercase whitespace-nowrap">
+                  RIVO / RETAIL
+                </span>
+              </Link>
+              <span className="hidden xl:inline text-[var(--border-strong)]" aria-hidden="true">
+                /
+              </span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-display font-bold text-sm tracking-tight text-[var(--text-primary)] truncate">
+                  Borrelli Calzature
+                </span>
+                <StatusBadge
+                  tone="volt"
+                  variant="hardware"
+                  size="sm"
+                  dot
+                  pulse
+                  className="whitespace-nowrap shrink-0"
+                >
+                  LIVE DEMO
+                </StatusBadge>
               </div>
-              <span className="font-mono text-xs tracking-widest text-slate-400 group-hover:text-white transition-colors uppercase">
-                RIVO / RETAIL
-              </span>
-            </Link>
-            <span className="text-slate-600">/</span>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm tracking-tight text-white">Borrelli Calzature</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                LIVE DEMO
-              </span>
+            </div>
+
+            {/* Mobile right quick utility icons */}
+            <div className="flex items-center gap-1.5 lg:hidden shrink-0">
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                aria-label={soundEnabled ? 'Disattiva effetti audio' : 'Attiva effetti audio'}
+                className="inline-flex min-h-[38px] max-sm:min-h-[44px] min-w-[38px] max-sm:min-w-[44px] items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer shrink-0"
+              >
+                {soundEnabled ? (
+                  <Volume2 className="w-4 h-4 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                ) : (
+                  <VolumeX className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                )}
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <SimpleModeToggle />
+          {/* Interactive Mode Switcher + Theme + Sound + CTA */}
+          <div className="flex flex-wrap lg:flex-nowrap items-center justify-between lg:justify-end gap-2 shrink-0">
+            <SegmentedControl<DemoInterfaceMode>
+              options={MODE_SWITCH_OPTIONS}
+              value={isSimple ? 'simple' : 'control'}
+              onChange={(mode) => {
+                triggerHaptic(10);
+                setSimple(mode === 'simple');
+              }}
+              ariaLabel="Modalità interfaccia demo"
+              size="sm"
+              className="shrink-0"
+            />
 
-            <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-slate-400 hover:text-white hover:border-white/20 text-xs transition-colors"
-              title={soundEnabled ? 'Disattiva effetti audio' : 'Attiva effetti audio'}
-            >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4" />}
-            </button>
+            <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                aria-label={soundEnabled ? 'Disattiva effetti audio' : 'Attiva effetti audio'}
+                title={soundEnabled ? 'Disattiva effetti audio' : 'Attiva effetti audio'}
+                className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer shrink-0"
+              >
+                {soundEnabled ? (
+                  <Volume2 className="w-4 h-4 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                ) : (
+                  <VolumeX className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                )}
+              </button>
+            </div>
 
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white text-zinc-950 font-semibold text-xs hover:bg-slate-200 transition-colors shadow-sm touch-press"
+              className="inline-flex min-h-[38px] max-sm:min-h-[44px] items-center gap-1.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] px-3.5 text-xs font-bold text-[var(--rivo-volt-ink)] transition-colors whitespace-nowrap shrink-0"
             >
-              <span>Accedi al Gestionale</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
+              <span className="sm:hidden">Gestionale</span>
+              <span className="hidden sm:inline">Accedi al Gestionale</span>
+              <ArrowUpRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
             </Link>
           </div>
         </div>
       </header>
 
+      {/* Non-Overlapping Inline Presenter Reference Strip */}
+      {showPresenterStrip && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)]">
+                <Zap className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">
+                    Pronto per Borrelli Calzature
+                  </span>
+                  <StatusBadge tone="operational" size="sm">
+                    Sandbox Interattiva
+                  </StatusBadge>
+                </div>
+                <div className="mt-1 inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                  <span className="inline-flex flex-wrap items-center gap-1">
+                    <span>Account Titolare:</span>
+                    <code className="font-mono text-[var(--text-primary)] break-all">
+                      enzoborrelli73@gmail.com
+                    </code>
+                  </span>
+                  <span className="hidden sm:inline text-[var(--text-muted)]" aria-hidden="true">
+                    •
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 whitespace-nowrap">
+                    <span className="text-[var(--text-muted)]">Cassa:</span>
+                    <code className="font-mono font-semibold text-[var(--rivo-volt-text)]">
+                      {deviceCode}
+                    </code>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <a
+                href={hubRelativeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-[36px] max-sm:min-h-[44px] items-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] px-3 text-xs font-semibold text-[var(--text-primary)] transition-colors"
+              >
+                <span>Hub Smartphone</span>
+                <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowPresenterStrip(false)}
+                aria-label="Nascondi barra riepilogo demo"
+                className="inline-flex min-h-[36px] max-sm:min-h-[44px] min-w-[36px] max-sm:min-w-[44px] items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <X className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isSimple ? (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
           <SimpleRetailERPView
             orgName="Borrelli Calzature"
             onExitSimpleMode={() => setSimple(false)}
@@ -302,894 +585,1095 @@ export default function RetailDemoPage() {
         </main>
       ) : (
         <>
-          {/* CTA: Attivare la modalità semplice? */}
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
-            <div className="p-4 rounded-2xl border border-white/10 bg-zinc-900/80 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-[#00FF66] shrink-0">
-                  <Boxes className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-white">
-                      Attivare la modalità semplice?
-                    </h3>
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/10 text-[#00FF66]">
-                      ERP GESTIONALE
-                    </span>
+          {/* Hero Presentation Section */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 pb-6">
+            <SurfaceCard variant="default" padding="lg" radius="2xl">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-2.5 max-w-2xl min-w-0">
+                  <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--rivo-volt-text)] font-semibold">
+                    <Footprints className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                    <span>Piattaforma Operativa Retail • Calzature &amp; Accessori</span>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Visualizzazione ad alta densità richiesta per Borrelli: zero animazioni, tabelle statiche con tutte le taglie e cassa rapida da banco.
+                  <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[-0.03em] text-[var(--text-primary)] leading-tight text-balance">
+                    Esperienza RIVO per Borrelli Calzature
+                  </h1>
+                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed text-pretty">
+                    Dimostrazione interattiva dei 5 pilastri retail: dal touchpoint NFC sul banco
+                    cassa per recensioni e catalogo, fino alla verifica istantanea taglie, scanner
+                    scatole e punto cassa veloce con scarico scorte.
                   </p>
                 </div>
-              </div>
-              <button
-                onClick={() => setSimple(true)}
-                className="shrink-0 px-4 py-2 text-xs font-bold rounded-xl bg-white text-black hover:bg-[#00FF66] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-              >
-                <span>Attiva Modalità Semplice</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
 
-          {/* Hero Presentation Header */}
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-6">
-            <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-[#020204] border border-white/[0.1] shadow-2xl overflow-hidden">
-              {/* Subtle Glow Background */}
-              <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#00FF66]/10 blur-[120px] rounded-full pointer-events-none -z-10" />
-
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-zinc-400">
-                <Footprints className="w-4 h-4 text-[#00FF66]" />
-                <span>Piattaforma Operativa Retail • Calzature & Accessori</span>
-              </div>
-              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-                Esperienza RIVO per <span className="text-[#00FF66]">Borrelli Calzature</span>
-              </h1>
-              <p className="text-sm sm:text-base text-zinc-400 leading-relaxed">
-                Dimostrazione live dei 5 pilastri retail: dal touchpoint fisico NFC al banco per recensioni e catalogo, 
-                fino alla verifica istantanea delle taglie per i commessi, scanner IA scatole e cassa veloce con scarico scorte.
-              </p>
-            </div>
-
-            {/* Quick Stats Pill */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
-              <div className="p-3.5 rounded-2xl bg-black/60 border border-white/10 text-center">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 block">Catalogo Attivo</span>
-                <span className="text-xl font-mono font-bold text-white">10 Modelli</span>
-                <span className="text-[10px] text-[#00FF66] block">40 Numerazioni</span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-black/60 border border-white/10 text-center">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 block">Margine Medio</span>
-                <span className="text-xl font-mono font-bold text-[#00FF66]">54.2%</span>
-                <span className="text-[10px] text-zinc-400 block">Ricarico Reale</span>
-              </div>
-              <div className="col-span-2 sm:col-span-1 p-3.5 rounded-2xl bg-black/60 border border-white/10 text-center">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 block">Touchpoint Cassa</span>
-                <span className="text-xs font-mono font-bold text-zinc-200 block truncate">{deviceCode}</span>
-                <span className="text-[10px] text-emerald-400 block">NFC + QR Live</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Scenario Tabs */}
-          <div className="mt-8 pt-6 border-t border-white/[0.08] flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => setActiveTab('touchpoint')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                activeTab === 'touchpoint'
-                  ? 'bg-[#00FF66] text-black shadow-lg shadow-[#00FF66]/20 font-bold scale-[1.02]'
-                  : 'bg-zinc-900/80 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-white/5'
-              }`}
-            >
-              <Smartphone className="w-4 h-4" />
-              <span>1. Touchpoint Cliente (NFC/QR)</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('stockcheck')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                activeTab === 'stockcheck'
-                  ? 'bg-[#00FF66] text-black shadow-lg shadow-[#00FF66]/20 font-bold scale-[1.02]'
-                  : 'bg-zinc-900/80 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-white/5'
-              }`}
-            >
-              <Search className="w-4 h-4" />
-              <span>2. Verifica Taglie Rapida</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                activeTab === 'scanner'
-                  ? 'bg-[#00FF66] text-black shadow-lg shadow-[#00FF66]/20 font-bold scale-[1.02]'
-                  : 'bg-zinc-900/80 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-white/5'
-              }`}
-            >
-              <ScanLine className="w-4 h-4" />
-              <span>3. Scanner IA Scatole</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('pos')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                activeTab === 'pos'
-                  ? 'bg-[#00FF66] text-black shadow-lg shadow-[#00FF66]/20 font-bold scale-[1.02]'
-                  : 'bg-zinc-900/80 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-white/5'
-              }`}
-            >
-              <Receipt className="w-4 h-4" />
-              <span>4. Cassa POS & Vendita</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('controlroom')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                activeTab === 'controlroom'
-                  ? 'bg-[#00FF66] text-black shadow-lg shadow-[#00FF66]/20 font-bold scale-[1.02]'
-                  : 'bg-zinc-900/80 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-white/5'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>5. Control Room Titolare</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Dynamic Interactive Showcase Stage */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6">
-        {/* ============================================================ */}
-        {/* TAB 1: TOUCHPOINT CLIENTE (NFC, QR, REVIEW SHIELD, CATALOG) */}
-        {/* ============================================================ */}
-        {activeTab === 'touchpoint' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
-            {/* Left Column: Context & Real QR Code for Vincenzo Borrelli */}
-            <div className="lg:col-span-5 space-y-6">
-              <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-4">
-                <div className="flex items-center gap-2 text-xs font-mono text-[#00FF66] uppercase">
-                  <Zap className="w-4 h-4" />
-                  <span>Cosa mostrare al titolare</span>
-                </div>
-                <h3 className="text-xl font-bold text-white">
-                  Il Puck NFC fisico sul banco cassa di Borrelli
-                </h3>
-                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                  Quando il cliente conclude un acquisto o è in cassa, appoggia lo smartphone sul puck NFC 
-                  oppure inquadra il QR con la fotocamera. Non richiede alcuna app da scaricare.
-                </p>
-
-                {/* Features Pill List */}
-                <div className="space-y-2.5 pt-2">
-                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-black/40 border border-white/5">
-                    <ShieldCheck className="w-4 h-4 text-[#00FF66] shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold text-white block">Review Shield Google 5 Stelle</span>
-                      <span className="text-[11px] text-zinc-400">
-                        Se il cliente clicca 5 stelle va dritto su Google Maps di Borrelli Calzature. Se vota 1-3 stelle, invia un feedback privato al titolare.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-black/40 border border-white/5">
-                    <ShoppingBag className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold text-white block">Catalogo Digitale con Giacenze Live</span>
-                      <span className="text-[11px] text-zinc-400">
-                        I clienti sfogliano i modelli, vedono i prezzi ufficiali e le taglie attualmente in stock.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-black/40 border border-white/5">
-                    <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold text-white block">Fidelity Pass & Timbri Digitali</span>
-                      <span className="text-[11px] text-zinc-400">
-                        10 timbri digitali per il 15% di sconto. Nessuna tessera cartacea da stampare o perdere.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Live QR Code Box */}
-                <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center gap-4">
-                  {qrDataUrl ? (
-                    <div className="p-3 bg-[#0a0d0b] border border-[#00FF66]/30 rounded-2xl shadow-xl shrink-0">
-                      <img src={qrDataUrl} alt="QR Code Borrelli" className="w-32 h-32 rounded-lg" />
-                    </div>
-                  ) : (
-                    <div className="w-32 h-32 rounded-2xl bg-zinc-900 animate-pulse shrink-0" />
-                  )}
-
-                  <div className="space-y-2 text-center sm:text-left">
-                    <span className="text-xs font-bold text-white block">
-                      Fai inquadrare lo schermo al cliente
+                {/* Quick Stats Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
+                  <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3.5 text-center">
+                    <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                      Catalogo Attivo
                     </span>
-                    <p className="text-[11px] text-zinc-400 leading-normal">
-                      Vincenzo può inquadrare questo QR col proprio telefono per provare in prima persona l'apertura istantanea dell'Hub.
-                    </p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        onClick={() => copyToClipboard(tapUrl)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-colors"
-                      >
-                        {copiedLink ? <Check className="w-3.5 h-3.5 text-[#00FF66]" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedLink ? 'Copiato!' : 'Copia Link'}</span>
-                      </button>
+                    <span className="mt-1 block font-mono tabular-nums text-lg font-bold text-[var(--text-primary)]">
+                      10 Modelli
+                    </span>
+                    <span className="block font-mono text-[10px] text-[var(--rivo-volt-text)]">
+                      40 Numerazioni
+                    </span>
+                  </div>
 
-                      <a
-                        href={hubUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#00FF66]/20 text-[#00FF66] hover:bg-[#00FF66]/30 border border-[#00FF66]/30 text-xs font-medium transition-colors"
-                      >
-                        <span>Apri in nuova scheda</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
+                  <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3.5 text-center">
+                    <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                      Margine Medio
+                    </span>
+                    <span className="mt-1 block font-mono tabular-nums text-lg font-bold text-[var(--rivo-volt-text)]">
+                      54.2%
+                    </span>
+                    <span className="block text-[10px] text-[var(--text-secondary)]">
+                      Ricarico Reale
+                    </span>
+                  </div>
+
+                  <div className="col-span-2 sm:col-span-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3.5 text-center">
+                    <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                      Touchpoint Cassa
+                    </span>
+                    <span className="mt-1 block font-mono text-xs font-bold text-[var(--text-primary)] truncate">
+                      {deviceCode}
+                    </span>
+                    <div className="mt-1 flex justify-center">
+                      <StatusBadge tone="operational" size="sm" dot>
+                        NFC + QR Live
+                      </StatusBadge>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Right Column: Live Smartphone Simulator */}
-            <div className="lg:col-span-7 flex justify-center">
-              <div className="w-full max-w-[380px] rounded-[48px] p-3.5 bg-gradient-to-b from-zinc-800 via-zinc-900 to-black border-4 border-zinc-700 shadow-2xl relative">
-                {/* Speaker pill notch */}
-                <div className="w-28 h-4 bg-black rounded-full mx-auto mb-2" />
-
-                {/* Smartphone Screen Viewport with live iframe */}
-                <div className="w-full h-[680px] rounded-[36px] overflow-hidden bg-black border border-white/10 relative">
-                  <iframe
-                    src={`/hub/${deviceCode}?demo=1`}
-                    title="Borrelli Calzature Hub Simulator"
-                    className="w-full h-full border-0 select-none"
-                  />
-                </div>
+              {/* 5 Interactive Scenario Tabs (single horizontal bar >=1024px, clean wrap <1024px) */}
+              <div
+                role="tablist"
+                aria-label="Scenari dimostrativi RIVO Retail"
+                className="mt-6 pt-5 border-t border-[var(--border-subtle)] flex flex-wrap lg:flex-nowrap items-center gap-1.5 xl:gap-2"
+              >
+                {DEMO_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const active = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => {
+                        triggerHaptic(8);
+                        setActiveTab(tab.id);
+                      }}
+                      className={cn(
+                        'inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border px-2.5 xl:px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-[background-color,border-color,color] duration-[180ms] cursor-pointer',
+                        active
+                          ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] border-transparent font-bold'
+                          : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                      )}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          </div>
-        )}
+            </SurfaceCard>
+          </section>
 
-        {/* ============================================================ */}
-        {/* TAB 2: VERIFICA TAGLIE RAPIDA (SHOP FLOOR FOR SALES STAFF) */}
-        {/* ============================================================ */}
-        {activeTab === 'stockcheck' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
-            {/* Left Column: Search & Size Matrix Simulator */}
-            <div className="lg:col-span-8 space-y-6">
-              <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-mono text-[#00FF66] uppercase block">Strumento Commessi in Negozio</span>
-                    <h3 className="text-xl font-bold text-white">Verifica Giacenza Taglie in Tempo Reale</h3>
-                  </div>
-                  <Link
-                    href="/dashboard/stock-check"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 text-xs text-zinc-200 hover:text-white border border-white/10"
+          {/* Main Dynamic Interactive Showcase Stage */}
+          <main className="max-w-7xl mx-auto px-4 sm:px-6">
+            {/* ============================================================ */}
+            {/* TAB 1: TOUCHPOINT CLIENTE (NFC, QR, REVIEW SHIELD, CATALOG) */}
+            {/* ============================================================ */}
+            {activeTab === 'touchpoint' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Left Column: Context & Real QR Code */}
+                <div className="lg:col-span-5 min-w-0">
+                  <SurfaceCard
+                    padding="lg"
+                    radius="2xl"
+                    header={{
+                      eyebrow: 'COSA MOSTRARE AL TITOLARE',
+                      title: 'Puck NFC fisico sul banco cassa',
+                      icon: Zap,
+                    }}
                   >
-                    <span>Apri Schermata Intera</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
+                    <div className="space-y-5">
+                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                        Quando il cliente conclude un acquisto o attende al banco, avvicina lo
+                        smartphone al puck NFC oppure inquadra il QR Code. Non richiede alcuna app
+                        da scaricare.
+                      </p>
 
-                {/* Instant Search Bar */}
-                <div className="relative">
-                  <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    type="text"
-                    value={stockSearchQuery}
-                    onChange={(e) => setStockSearchQuery(e.target.value)}
-                    placeholder="Digita modello, brand (Hogan, Premiata...) o taglia (es. 42)..."
-                    className="w-full pl-11 pr-4 py-3 bg-black/60 border border-zinc-700 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#00FF66]"
-                  />
-                  {stockSearchQuery && (
-                    <button
-                      onClick={() => setStockSearchQuery('')}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs"
-                    >
-                      Azzera
-                    </button>
-                  )}
-                </div>
-
-                {/* Quick Size Filter Buttons */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-                  <span className="text-zinc-500 font-mono pr-1">Filtro rapido taglia:</span>
-                  {['37', '38', '40', '41', '42', '43', '44', '45'].map(size => (
-                    <button
-                      key={size}
-                      onClick={() => setStockSearchQuery(size)}
-                      className={`px-2.5 py-1 rounded-lg border font-mono transition-colors ${
-                        stockSearchQuery === size
-                          ? 'bg-[#00FF66] text-black border-[#00FF66] font-bold'
-                          : 'bg-zinc-800/80 text-zinc-300 border-zinc-700 hover:text-white'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Shoe Cards with Size Matrix */}
-                <div className="space-y-3 pt-2">
-                  {filteredShoes.map((shoe) => {
-                    const totalPieces = shoe.sizes.reduce((sum, s) => sum + s.stock, 0);
-                    const isSelected = selectedShoe.id === shoe.id;
-
-                    return (
-                      <div
-                        key={shoe.id}
-                        onClick={() => setSelectedShoe(shoe)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#121613] border-[#00FF66]/50 shadow-lg'
-                            : 'bg-black/40 border-white/5 hover:border-white/20'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="space-y-2.5">
+                        <div className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3.5">
+                          <ShieldCheck
+                            className="w-4 h-4 text-[var(--rivo-volt-text)] shrink-0 mt-0.5"
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono font-bold uppercase text-[#00FF66]">
-                                {shoe.brand}
-                              </span>
-                              <span className="text-[10px] font-mono text-zinc-500">
-                                {shoe.sku}
-                              </span>
-                            </div>
-                            <h4 className="text-base font-bold text-white">{shoe.name}</h4>
-                          </div>
-
-                          <div className="text-right">
-                            <span className="text-base font-mono font-extrabold text-white block">
-                              € {shoe.price.toFixed(2)}
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">
+                              Review Shield Google 5 Stelle
                             </span>
-                            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                              {totalPieces} paia in negozio
+                            <span className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                              Con 5 stelle il cliente accede direttamente a Google Maps di Borrelli
+                              Calzature. Con 1–3 stelle invia un feedback privato al titolare.
                             </span>
                           </div>
                         </div>
 
-                        {/* Size Matrix Pills */}
-                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                          {shoe.sizes.map((sz) => (
-                            <div
-                              key={sz.size}
-                              className={`p-2 rounded-xl border text-center transition-all ${
-                                sz.out
-                                  ? 'bg-rose-500/5 border-rose-500/20 opacity-50'
-                                  : sz.low
-                                  ? 'bg-amber-500/10 border-amber-500/30'
-                                  : 'bg-zinc-900 border-zinc-700/60'
-                              }`}
+                        <div className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3.5">
+                          <ShoppingBag
+                            className="w-4 h-4 text-[var(--accent-warning-text)] shrink-0 mt-0.5"
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">
+                              Catalogo Digitale con Giacenze Live
+                            </span>
+                            <span className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                              I clienti sfogliano i modelli disponibili, i prezzi ufficiali e le
+                              numerazioni effettivamente in negozio.
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3.5">
+                          <Award
+                            className="w-4 h-4 text-[var(--accent-telemetry-text)] shrink-0 mt-0.5"
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">
+                              Fidelity Pass &amp; Timbri Digitali
+                            </span>
+                            <span className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                              10 timbri digitali per ottenere il 15% di sconto. Zero tessere
+                              cartacee da stampare o smarrire.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Live QR Code Box */}
+                      <div className="pt-4 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center gap-4">
+                        {qrDataUrl ? (
+                          <div className="p-2.5 bg-[#09090B] border border-[#22242A] rounded-xl shrink-0">
+                            <Image
+                              src={qrDataUrl}
+                              alt="QR Code Borrelli Calzature"
+                              width={128}
+                              height={128}
+                              unoptimized
+                              className="w-32 h-32 rounded-lg"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-32 h-32 rounded-xl bg-[var(--bg-elevated)] animate-pulse shrink-0" />
+                        )}
+
+                        <div className="space-y-2 text-center sm:text-left min-w-0">
+                          <span className="text-xs font-bold text-[var(--text-primary)] block">
+                            Fai inquadrare lo schermo al cliente
+                          </span>
+                          <p className="text-[11px] text-[var(--text-secondary)] leading-normal">
+                            Inquadra questo QR col telefono per testare in tempo reale l&apos;apertura
+                            istantanea dell&apos;Hub cliente.
+                          </p>
+                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(tapUrl)}
+                              className="inline-flex min-h-[38px] max-sm:min-h-[44px] items-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] px-3 text-xs font-semibold text-[var(--text-primary)] transition-colors cursor-pointer"
                             >
-                              <span className="text-xs font-mono font-bold text-white block">
-                                TG {sz.size}
-                              </span>
-                              <span
-                                className={`text-[10px] font-mono font-bold block ${
-                                  sz.out
-                                    ? 'text-rose-400'
-                                    : sz.low
-                                    ? 'text-amber-400'
-                                    : 'text-[#00FF66]'
-                                }`}
-                              >
-                                {sz.out ? 'Esaurito' : sz.stock === 1 ? '1 rimasto' : `${sz.stock} paia`}
-                              </span>
-                            </div>
-                          ))}
+                              {copiedLink ? (
+                                <Check
+                                  className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]"
+                                  strokeWidth={2}
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                              )}
+                              <span>{copiedLink ? 'Copiato' : 'Copia Link'}</span>
+                            </button>
+
+                            <a
+                              href={hubRelativeUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex min-h-[38px] max-sm:min-h-[44px] items-center gap-1.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] px-3 text-xs font-bold text-[var(--rivo-volt-ink)] transition-colors"
+                            >
+                              <span>Apri Hub</span>
+                              <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                            </a>
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column: Explanatory Pitch & Focus Panel */}
-            <div className="lg:col-span-4 space-y-6">
-              <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-4">
-                <span className="text-xs font-mono text-[#00FF66] uppercase block">Il Valore per il Negozio</span>
-                <h4 className="text-lg font-bold text-white">Zero corse a vuoto in magazzino</h4>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Quando un cliente chiede al banco: <em>"Avete il 42 o il 43 in questo colore?"</em>, 
-                  il personale non deve più assentarsi per 5 minuti a cercare tra le scatole. 
-                  In 1 secondo sul cellulare sanno la disponibilità esatta.
-                </p>
-
-                <div className="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-2">
-                  <span className="text-xs font-bold text-white block">Articolo Selezionato:</span>
-                  <p className="text-sm font-semibold text-[#00FF66]">{selectedShoe.name}</p>
-                  <div className="text-xs text-zinc-400 space-y-1 pt-1">
-                    <p>• Prezzo vendita: <strong>€ {selectedShoe.price.toFixed(2)}</strong></p>
-                    <p>• Costo fornitore: <strong>€ {selectedShoe.cost.toFixed(2)}</strong></p>
-                    <p>• Margine lordo: <strong className="text-emerald-400">{selectedShoe.margin}%</strong></p>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <Link
-                    href="/dashboard/stock-check"
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#00FF66] text-black font-bold text-xs hover:bg-[#00FF66]/90 transition-colors shadow-lg shadow-[#00FF66]/10"
-                  >
-                    <span>Apri Schermata Verifica Taglie</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB 3: SCANNER IA SCATOLE & BARCODE */}
-        {/* ============================================================ */}
-        {activeTab === 'scanner' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
-            {/* Left Column: Interactive Laser Simulator */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-mono text-[#00FF66] uppercase block">Magazzino & Carico Merce</span>
-                    <h3 className="text-xl font-bold text-white">Scanner Codici a Barre & Visione IA</h3>
-                  </div>
-                  <Link
-                    href="/dashboard/scanner"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 text-xs text-zinc-200 hover:text-white border border-white/10"
-                  >
-                    <span>Apri Scanner Camera</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-
-                {/* Laser Scanning Frame Simulation */}
-                <div className="relative rounded-2xl h-64 bg-black/80 border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center overflow-hidden">
-                  {/* Red / Neon Laser line */}
-                  <div
-                    className={`absolute inset-x-0 h-1 bg-[#00FF66] shadow-[0_0_15px_#00FF66] transition-all duration-300 ${
-                      scannerScanning ? 'top-1/2 animate-bounce' : 'top-1/3'
-                    }`}
-                  />
-
-                  {/* Corner Targets */}
-                  <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-[#00FF66]" />
-                  <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-[#00FF66]" />
-                  <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-[#00FF66]" />
-                  <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-[#00FF66]" />
-
-                  <ScanLine className={`w-12 h-12 text-[#00FF66] mb-2 ${scannerScanning ? 'animate-pulse' : ''}`} />
-                  <span className="font-mono text-xs text-zinc-400">Puntamento Laser Codice EAN-13</span>
-                  <span className="font-mono text-sm font-bold text-white mt-1 tracking-widest">{simulatedCode}</span>
-                </div>
-
-                {/* Sample Barcode Triggers */}
-                <div>
-                  <span className="text-xs font-mono text-zinc-400 block mb-2">Simula scansione con un tap:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <button
-                      onClick={() => triggerSimulatedScan('8012345001426')}
-                      className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-left border border-white/5 transition-colors"
-                    >
-                      <span className="text-[11px] font-bold text-white block">Mocassino TG 42</span>
-                      <span className="text-[10px] font-mono text-zinc-400">8012345001426</span>
-                    </button>
-
-                    <button
-                      onClick={() => triggerSimulatedScan('8033984110436')}
-                      className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-left border border-white/5 transition-colors"
-                    >
-                      <span className="text-[11px] font-bold text-white block">Premiata Mick TG 43</span>
-                      <span className="text-[10px] font-mono text-zinc-400">8033984110436</span>
-                    </button>
-
-                    <button
-                      onClick={() => triggerSimulatedScan('8059345010382')}
-                      className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-left border border-white/5 transition-colors"
-                    >
-                      <span className="text-[11px] font-bold text-white block">Hogan Platform TG 38</span>
-                      <span className="text-[10px] font-mono text-zinc-400">8059345010382</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Scanner Result Card */}
-                {scannerResult && (
-                  <div className="p-4 rounded-2xl bg-[#0d140e] border border-[#00FF66]/40 space-y-3 animate-fade-in">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-[#00FF66]" />
-                        <span className="text-xs font-bold text-white">Articolo Riconosciuto Istantaneamente</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-[#00FF66] bg-[#00FF66]/10 px-2 py-0.5 rounded-md">
-                        Stock Attuale: {scannerResult.stock} pz
-                      </span>
                     </div>
+                  </SurfaceCard>
+                </div>
 
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <h4 className="text-sm font-bold text-white">{scannerResult.shoeName}</h4>
-                        <span className="text-xs text-zinc-400">
-                          {scannerResult.brand} • Taglia: <strong>{scannerResult.size}</strong>
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-base font-mono font-bold text-white">€ {scannerResult.price?.toFixed(2)}</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-                      <span className="text-xs text-zinc-400">Vuoi aggiungere carico a magazzino?</span>
-                      <button
-                        onClick={() => {
-                          playLaserBeep();
-                          alert(`Carico di +1 paio per "${scannerResult.shoeName}" (TG ${scannerResult.size}) registrato con successo!`);
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-[#00FF66] text-black text-xs font-bold hover:bg-[#00FF66]/90 transition-colors"
-                      >
-                        +1 Carico a Magazzino
-                      </button>
+                {/* Right Column: Live Smartphone Simulator */}
+                <div className="lg:col-span-7 flex justify-center min-w-0">
+                  <div className="w-full max-w-[358px] sm:max-w-[380px] rounded-[40px] p-3 bg-[#09090B] border-2 border-[#32353E] shadow-2xl relative">
+                    <div className="w-24 h-3.5 bg-[#18191E] rounded-full mx-auto mb-2.5" />
+                    <div className="w-full h-[600px] sm:h-[660px] rounded-[30px] overflow-hidden bg-black border border-[#22242A] relative">
+                      <iframe
+                        src={`/hub/${deviceCode}?demo=1`}
+                        title="Borrelli Calzature Hub Simulator"
+                        className="w-full h-full border-0 select-none"
+                      />
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column: AI Shoe Box Label Vision Explainer */}
-            <div className="lg:col-span-5 space-y-6">
-              <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-4">
-                <div className="flex items-center gap-2 text-xs font-mono text-purple-400 uppercase">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Riconoscimento OCR Etichette Scatola</span>
-                </div>
-                <h4 className="text-lg font-bold text-white">Scatta una foto alla scatola di scarpe</h4>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Quando arrivano nuovi scatoloni dai fornitori (Nero Giardini, Hogan, Premiata...), il commesso 
-                  può semplicemente <strong>inquadrare l'etichetta frontale della scatola</strong> col telefono.
-                </p>
-
-                <div className="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-2 text-xs text-zinc-300">
-                  <span className="font-bold text-white block">L'IA estrae automaticamente:</span>
-                  <p>✓ Marchio (es. <em>Nero Giardini</em>)</p>
-                  <p>✓ Codice Modello (es. <em>A111640D</em>)</p>
-                  <p>✓ Misura Europea (es. <em>TG 38</em>)</p>
-                  <p>✓ Colore stampato (es. <em>Nero Spazzolato</em>)</p>
-                  <p>✓ Codice a barre EAN impresso</p>
-                </div>
-
-                <div className="pt-2">
-                  <Link
-                    href="/dashboard/scanner"
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 font-bold text-xs transition-colors"
-                  >
-                    <span>Apri Scanner con Fotocamera Live</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* ============================================================ */}
-        {/* TAB 4: CASSA POS RAPIDA & VENDITA CON SCARICO SCORTE */}
-        {/* ============================================================ */}
-        {activeTab === 'pos' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
-            {/* Left Column: POS Touch Screen Simulator */}
-            <div className="lg:col-span-8 space-y-6">
-              <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-mono text-[#00FF66] uppercase block">Vendite & Cassa Touch</span>
-                    <h3 className="text-xl font-bold text-white">Registratore Cassa & Scarico Immediato</h3>
-                  </div>
-                  <Link
-                    href="/dashboard/sales"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 text-xs text-zinc-200 hover:text-white border border-white/10"
-                  >
-                    <span>Apri Schermata POS Completa</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-
-                {/* Quick Add Product Chips */}
-                <div>
-                  <span className="text-xs font-mono text-zinc-400 block mb-2">Aggiungi calzatura al carrello con 1 tap:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {SHOE_SAMPLES.slice(0, 3).map((shoe) => (
-                      <button
-                        key={shoe.id}
-                        onClick={() => {
-                          playLaserBeep();
-                          setPosCart([...posCart, { name: shoe.name, size: '42', price: shoe.price, qty: 1 }]);
-                          setPosSaleComplete(false);
-                        }}
-                        className="p-3 rounded-2xl bg-black/60 hover:bg-zinc-800 border border-white/5 text-left transition-colors"
-                      >
-                        <span className="text-xs font-bold text-white block truncate">{shoe.name}</span>
-                        <div className="flex items-center justify-between text-[11px] text-zinc-400 mt-1">
-                          <span>TG 42</span>
-                          <span className="font-mono text-[#00FF66] font-bold">€ {shoe.price.toFixed(2)}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Cart View */}
-                <div className="p-4 rounded-2xl bg-black/80 border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-mono text-zinc-400 border-b border-zinc-800 pb-2">
-                    <span>Articolo nel Carrello</span>
-                    <span>Subtotale</span>
-                  </div>
-
-                  {posCart.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between gap-3 text-sm">
-                      <div>
-                        <span className="font-bold text-white block">{item.name}</span>
-                        <span className="text-xs text-zinc-400">Taglia: <strong>{item.size}</strong> • Qty: {item.qty}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-white">€ {(item.price * item.qty).toFixed(2)}</span>
-                        <button
-                          onClick={() => setPosCart(posCart.filter((_, i) => i !== idx))}
-                          className="text-xs text-rose-400 hover:text-rose-300"
+            {/* ============================================================ */}
+            {/* TAB 2: VERIFICA TAGLIE RAPIDA (SHOP FLOOR FOR SALES STAFF) */}
+            {/* ============================================================ */}
+            {activeTab === 'stockcheck' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-8 min-w-0">
+                  <SurfaceCard
+                    padding="lg"
+                    radius="2xl"
+                    header={{
+                      eyebrow: 'STRUMENTO COMMESSI IN NEGOZIO',
+                      title: 'Verifica Giacenza Taglie in Tempo Reale',
+                      icon: Search,
+                      action: (
+                        <Link
+                          href="/dashboard/stock-check"
+                          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] px-3 text-xs font-semibold text-[var(--text-primary)]"
                         >
-                          Rimuovi
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Customer Link & Discount Controls */}
-                  <div className="pt-3 border-t border-zinc-800 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="text-zinc-400 block mb-1">Cliente Fidelity Associato:</span>
-                      <select
-                        value={posCustomer}
-                        onChange={(e) => setPosCustomer(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00FF66]"
-                      >
-                        <option value="Marco Esposito (VIP 140 pt)">Marco Esposito (Fidelity 140 pt)</option>
-                        <option value="Elena De Luca (VIP 90 pt)">Elena De Luca (Fidelity 90 pt)</option>
-                        <option value="Vincenzo Rossi (VIP 210 pt)">Vincenzo Rossi (Fidelity 210 pt)</option>
-                        <option value="Scontrino Anonimo">Cliente Anonimo al Banco</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <span className="text-zinc-400 block mb-1">Sconto Promozionale:</span>
-                      <div className="flex items-center gap-1.5">
-                        {[0, 10, 15, 20].map((d) => (
+                          <span>Schermata Intera</span>
+                          <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                        </Link>
+                      ),
+                    }}
+                  >
+                    <div className="space-y-4">
+                      {/* Instant Search Bar */}
+                      <div className="relative">
+                        <Search
+                          className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                          strokeWidth={1.75}
+                          aria-hidden="true"
+                        />
+                        <input
+                          type="text"
+                          aria-label="Cerca modello, brand o taglia disponibile"
+                          value={stockSearchQuery}
+                          onChange={(e) => setStockSearchQuery(e.target.value)}
+                          placeholder="Digita modello, brand (Hogan, Premiata…) o taglia (es. 42)…"
+                          spellCheck={false}
+                          autoComplete="off"
+                          className="w-full min-h-[44px] pl-10 pr-20 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-strong)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                        />
+                        {stockSearchQuery && (
                           <button
-                            key={d}
-                            onClick={() => setPosDiscount(d)}
-                            className={`flex-1 py-1.5 rounded-lg border text-xs font-mono font-bold transition-colors ${
-                              posDiscount === d
-                                ? 'bg-white text-black border-white'
-                                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white'
-                            }`}
+                            type="button"
+                            onClick={() => setStockSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                           >
-                            {d === 0 ? '0%' : `-${d}%`}
+                            Azzera
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Quick Size Filter Buttons */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="text-[var(--text-muted)] font-mono pr-1">
+                          Filtro rapido taglia:
+                        </span>
+                        {['37', '38', '40', '41', '42', '43', '44', '45'].map((size) => (
+                          <button
+                            key={size}
+                            type="button"
+                            onClick={() => setStockSearchQuery(size)}
+                            className={cn(
+                              'min-h-[34px] max-sm:min-h-[44px] min-w-[36px] px-2.5 rounded-lg border font-mono tabular-nums font-semibold transition-colors cursor-pointer',
+                              stockSearchQuery === size
+                                ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] border-transparent font-bold'
+                                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
+                            )}
+                          >
+                            {size}
                           </button>
                         ))}
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Totals Summary */}
-                  <div className="pt-3 border-t border-zinc-800 space-y-1 text-xs">
-                    <div className="flex justify-between text-zinc-400">
-                      <span>Totale Listino:</span>
-                      <span className="font-mono">€ {posSubtotal.toFixed(2)}</span>
+                      {/* Shoe Cards with Size Matrix */}
+                      {filteredShoes.length === 0 ? (
+                        <EmptyState
+                          icon={Search}
+                          title="Nessuna calzatura trovata"
+                          description="Nessun modello o numerazione corrisponde alla ricerca impostata."
+                          primaryAction={{
+                            label: 'Mostra tutto il catalogo',
+                            onClick: () => setStockSearchQuery(''),
+                          }}
+                          compact
+                        />
+                      ) : (
+                        <div className="space-y-3 pt-1">
+                          {filteredShoes.map((shoe) => {
+                            const totalPieces = shoe.sizes.reduce((sum, s) => sum + s.stock, 0);
+                            const isSelected = selectedShoe.id === shoe.id;
+
+                            return (
+                              <button
+                                key={shoe.id}
+                                type="button"
+                                onClick={() => setSelectedShoeId(shoe.id)}
+                                className={cn(
+                                  'w-full text-left p-4 rounded-xl border transition-colors cursor-pointer',
+                                  isSelected
+                                    ? 'bg-[var(--bg-elevated)] border-[var(--rivo-volt-border)]'
+                                    : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]'
+                                )}
+                              >
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="font-mono text-[10px] font-bold uppercase text-[var(--rivo-volt-text)]">
+                                        {shoe.brand}
+                                      </span>
+                                      <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                                        {shoe.sku}
+                                      </span>
+                                    </div>
+                                    <h4 className="font-display text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">
+                                      {shoe.name}
+                                    </h4>
+                                  </div>
+
+                                  <div className="text-right shrink-0">
+                                    <span className="font-mono tabular-nums text-base font-bold text-[var(--text-primary)] block">
+                                      {formatItCurrency(shoe.price)}
+                                    </span>
+                                    <StatusBadge tone="operational" size="sm">
+                                      {totalPieces} paia in negozio
+                                    </StatusBadge>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                  {shoe.sizes.map((sz) => (
+                                    <div
+                                      key={sz.size}
+                                      className={cn(
+                                        'p-2 rounded-lg border text-center',
+                                        sz.out
+                                          ? 'bg-[var(--accent-critical-bg)] border-[var(--accent-critical-border)] opacity-75'
+                                          : sz.low
+                                          ? 'bg-[var(--accent-warning-bg)] border-[var(--accent-warning-border)]'
+                                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]'
+                                      )}
+                                    >
+                                      <span className="text-xs font-mono tabular-nums font-bold text-[var(--text-primary)] block">
+                                        TG {sz.size}
+                                      </span>
+                                      <span
+                                        className={cn(
+                                          'text-[10px] font-mono tabular-nums font-bold block mt-0.5',
+                                          sz.out
+                                            ? 'text-[var(--accent-critical-text)]'
+                                            : sz.low
+                                            ? 'text-[var(--accent-warning-text)]'
+                                            : 'text-[var(--rivo-volt-text)]'
+                                        )}
+                                      >
+                                        {sz.out
+                                          ? 'Esaurito'
+                                          : sz.stock === 1
+                                          ? '1 rimasto'
+                                          : `${sz.stock} paia`}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    {posDiscount > 0 && (
-                      <div className="flex justify-between text-amber-400">
-                        <span>Sconto Fedeltà ({posDiscount}%):</span>
-                        <span className="font-mono">- € {posDiscountAmount.toFixed(2)}</span>
+                  </SurfaceCard>
+                </div>
+
+                {/* Right Column: Focus Panel */}
+                <div className="lg:col-span-4 min-w-0">
+                  <SurfaceCard
+                    padding="lg"
+                    radius="2xl"
+                    header={{
+                      eyebrow: 'IL VALORE PER IL NEGOZIO',
+                      title: 'Zero corse a vuoto in magazzino',
+                      icon: Boxes,
+                    }}
+                  >
+                    <div className="space-y-4">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        Quando un cliente chiede al banco la disponibilità di una taglia, il
+                        personale verifica in 1 secondo sul cellulare l&apos;esatta giacenza di
+                        negozio e deposito senza lasciare il cliente.
+                      </p>
+
+                      <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-2">
+                        <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)] block">
+                          Articolo Selezionato
+                        </span>
+                        <p className="font-display text-sm font-bold text-[var(--rivo-volt-text)]">
+                          {selectedShoe.name}
+                        </p>
+                        <div className="text-xs text-[var(--text-secondary)] space-y-1 pt-1 font-mono tabular-nums">
+                          <p className="flex justify-between">
+                            <span>Prezzo vendita:</span>
+                            <strong className="text-[var(--text-primary)]">
+                              {formatItCurrency(selectedShoe.price)}
+                            </strong>
+                          </p>
+                          <p className="flex justify-between">
+                            <span>Costo fornitore:</span>
+                            <strong className="text-[var(--text-primary)]">
+                              {formatItCurrency(selectedShoe.cost)}
+                            </strong>
+                          </p>
+                          <p className="flex justify-between">
+                            <span>Margine lordo:</span>
+                            <strong className="text-[var(--accent-operational-text)]">
+                              {selectedShoe.margin}%
+                            </strong>
+                          </p>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex justify-between text-base font-bold text-white pt-2 border-t border-zinc-800">
-                      <span>Totale da Pagare:</span>
-                      <span className="font-mono text-xl text-[#00FF66]">€ {posTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
 
-                  {/* Complete Sale Button */}
-                  <div className="pt-2">
-                    <button
-                      onClick={() => {
-                        playLaserBeep();
-                        setPosSaleComplete(true);
-                      }}
-                      disabled={posCart.length === 0}
-                      className="w-full py-3 rounded-2xl bg-[#00FF66] text-black font-extrabold text-sm hover:bg-[#00FF66]/90 transition-all shadow-lg shadow-[#00FF66]/10 disabled:opacity-50"
+                      <Link
+                        href="/dashboard/stock-check"
+                        className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] font-bold text-xs transition-colors"
+                      >
+                        <span>Apri Verifica Taglie</span>
+                        <ArrowRight className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </SurfaceCard>
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================ */}
+            {/* TAB 3: SCANNER IA SCATOLE & BARCODE */}
+            {/* ============================================================ */}
+            {activeTab === 'scanner' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-7 min-w-0">
+                  <SurfaceCard
+                    padding="lg"
+                    radius="2xl"
+                    header={{
+                      eyebrow: 'MAGAZZINO & CARICO MERCE',
+                      title: 'Scanner Codici a Barre & Visione IA',
+                      icon: ScanLine,
+                      action: (
+                        <Link
+                          href="/dashboard/scanner"
+                          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] px-3 text-xs font-semibold text-[var(--text-primary)]"
+                        >
+                          <span>Apri Scanner Camera</span>
+                          <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                        </Link>
+                      ),
+                    }}
+                  >
+                    <div className="space-y-5">
+                      {/* Laser Scanning Frame Simulation (hardware dark sensor viewport) */}
+                      <div className="relative rounded-xl h-56 bg-[#09090B] border border-[#22242A] flex flex-col items-center justify-center overflow-hidden">
+                        <div
+                          className={cn(
+                            'absolute inset-x-6 h-0.5 bg-[#BFFF00] transition-transform duration-300',
+                            scannerScanning ? 'translate-y-6' : '-translate-y-6'
+                          )}
+                        />
+                        <div className="absolute top-4 left-4 w-5 h-5 border-t-2 border-l-2 border-[#BFFF00]" />
+                        <div className="absolute top-4 right-4 w-5 h-5 border-t-2 border-r-2 border-[#BFFF00]" />
+                        <div className="absolute bottom-4 left-4 w-5 h-5 border-b-2 border-l-2 border-[#BFFF00]" />
+                        <div className="absolute bottom-4 right-4 w-5 h-5 border-b-2 border-r-2 border-[#BFFF00]" />
+
+                        <ScanLine
+                          className="w-10 h-10 text-[#BFFF00] mb-2"
+                          strokeWidth={1.75}
+                          aria-hidden="true"
+                        />
+                        <span className="font-mono text-[11px] text-[#A1A1AA]">
+                          Puntamento Laser Codice EAN-13
+                        </span>
+                        <span className="font-mono tabular-nums text-sm font-bold text-[#F4F4F6] mt-1 tracking-widest">
+                          {simulatedCode}
+                        </span>
+                      </div>
+
+                      {/* Sample Barcode Triggers */}
+                      <div>
+                        <span className="text-xs font-mono text-[var(--text-muted)] block mb-2">
+                          Simula scansione con un tap:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => triggerSimulatedScan('8012345001426')}
+                            className="p-3 min-h-[56px] rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-left border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+                          >
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">
+                              Mocassino TG 42
+                            </span>
+                            <span className="text-[11px] font-mono tabular-nums text-[var(--text-muted)]">
+                              8012345001426
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => triggerSimulatedScan('8033984110436')}
+                            className="p-3 min-h-[56px] rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-left border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+                          >
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">
+                              Premiata Mick TG 43
+                            </span>
+                            <span className="text-[11px] font-mono tabular-nums text-[var(--text-muted)]">
+                              8033984110436
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => triggerSimulatedScan('8059345010382')}
+                            className="p-3 min-h-[56px] rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-left border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+                          >
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">
+                              Hogan Platform TG 38
+                            </span>
+                            <span className="text-[11px] font-mono tabular-nums text-[var(--text-muted)]">
+                              8059345010382
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Scanner Result Card */}
+                      {scannerResult && (
+                        <div className="p-4 rounded-xl bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2
+                                className="w-4 h-4 text-[var(--rivo-volt-text)] shrink-0"
+                                strokeWidth={1.75}
+                                aria-hidden="true"
+                              />
+                              <span className="text-xs font-bold text-[var(--text-primary)]">
+                                Articolo Riconosciuto Istantaneamente
+                              </span>
+                            </div>
+                            <StatusBadge tone="volt" size="sm">
+                              Stock Attuale: {scannerResult.stock} pz
+                            </StatusBadge>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <h4 className="font-display text-sm font-bold text-[var(--text-primary)]">
+                                {scannerResult.shoeName}
+                              </h4>
+                              <span className="text-xs text-[var(--text-secondary)]">
+                                {scannerResult.brand} • Taglia:{' '}
+                                <strong className="text-[var(--text-primary)]">
+                                  {scannerResult.size}
+                                </strong>
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-base font-mono tabular-nums font-bold text-[var(--text-primary)]">
+                                {formatItCurrency(scannerResult.price)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2.5 border-t border-[var(--rivo-volt-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              Vuoi aggiungere carico a magazzino?
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRegisterStockLoad(
+                                  scannerResult.barcode,
+                                  scannerResult.shoeName,
+                                  scannerResult.size
+                                )
+                              }
+                              className="min-h-[38px] max-sm:min-h-[44px] px-3.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              +1 Carico a Magazzino
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </SurfaceCard>
+                </div>
+
+                {/* Right Column: OCR Box Label Vision Explainer */}
+                <div className="lg:col-span-5 min-w-0">
+                  <SurfaceCard
+                    padding="lg"
+                    radius="2xl"
+                    header={{
+                      eyebrow: 'RICONOSCIMENTO OCR ETICHETTE SCATOLA',
+                      title: 'Scatta una foto alla scatola di scarpe',
+                      icon: Cpu,
+                    }}
+                  >
+                    <div className="space-y-4">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        Quando arrivano nuovi colli dai fornitori (Nero Giardini, Hogan, Premiata),
+                        il commesso inquadra semplicemente l&apos;etichetta frontale della scatola
+                        col telefono.
+                      </p>
+
+                      <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-2 text-xs text-[var(--text-secondary)]">
+                        <span className="font-bold text-[var(--text-primary)] block">
+                          Il motore estrae automaticamente:
+                        </span>
+                        {[
+                          'Marchio (es. Nero Giardini)',
+                          'Codice Modello (es. A111640D)',
+                          'Misura Europea (es. TG 38)',
+                          'Colore stampato (es. Nero Spazzolato)',
+                          'Codice a barre EAN impresso',
+                        ].map((item) => (
+                          <div key={item} className="flex items-center gap-2">
+                            <Check
+                              className="w-3.5 h-3.5 text-[var(--rivo-volt-text)] shrink-0"
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <Link
+                        href="/dashboard/scanner"
+                        className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] font-bold text-xs transition-colors"
+                      >
+                        <span>Apri Scanner con Fotocamera Live</span>
+                        <ArrowRight className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </SurfaceCard>
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================ */}
+            {/* TAB 4: CASSA POS RAPIDA & VENDITA CON SCARICO SCORTE */}
+            {/* ============================================================ */}
+            {activeTab === 'pos' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-8 min-w-0">
+                  <SurfaceCard
+                    padding="lg"
+                    radius="2xl"
+                    header={{
+                      eyebrow: 'VENDITE & CASSA TOUCH',
+                      title: 'Registratore Cassa & Scarico Immediato',
+                      icon: Receipt,
+                      action: (
+                        <Link
+                          href="/dashboard/sales"
+                          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] px-3 text-xs font-semibold text-[var(--text-primary)]"
+                        >
+                          <span>Schermata POS</span>
+                          <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                        </Link>
+                      ),
+                    }}
+                  >
+                    <div className="space-y-5">
+                      {/* Quick Add Product Chips */}
+                      <div>
+                        <span className="text-xs font-mono text-[var(--text-muted)] block mb-2">
+                          Aggiungi calzatura al carrello con 1 tap:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          {shoeSamples.slice(0, 3).map((shoe) => (
+                            <button
+                              key={shoe.id}
+                              type="button"
+                              onClick={() => {
+                                triggerHaptic(10);
+                                playLaserBeep();
+                                setPosCart([
+                                  ...posCart,
+                                  { name: shoe.name, size: '42', price: shoe.price, qty: 1 },
+                                ]);
+                                setPosSaleComplete(false);
+                              }}
+                              className="p-3 min-h-[60px] rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-left transition-colors cursor-pointer"
+                            >
+                              <span className="text-xs font-bold text-[var(--text-primary)] block truncate">
+                                {shoe.name}
+                              </span>
+                              <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] mt-1">
+                                <span>TG 42</span>
+                                <span className="font-mono tabular-nums text-[var(--rivo-volt-text)] font-bold">
+                                  {formatItCurrency(shoe.price)}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cart View */}
+                      <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-3">
+                        <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-subtle)] pb-2">
+                          <span>Articolo nel Carrello</span>
+                          <span>Subtotale</span>
+                        </div>
+
+                        {posCart.length === 0 ? (
+                          <p className="py-4 text-center text-xs text-[var(--text-muted)]">
+                            Carrello vuoto. Tocca un modello sopra per aggiungerlo alla vendita.
+                          </p>
+                        ) : (
+                          posCart.map((item, idx) => (
+                            <div
+                              key={`${item.name}-${idx}`}
+                              className="flex items-center justify-between gap-3 text-sm"
+                            >
+                              <div className="min-w-0">
+                                <span className="font-semibold text-[var(--text-primary)] block truncate">
+                                  {item.name}
+                                </span>
+                                <span className="text-xs text-[var(--text-secondary)] font-mono tabular-nums">
+                                  Taglia: <strong>{item.size}</strong> • Qty: {item.qty}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-mono tabular-nums font-bold text-[var(--text-primary)]">
+                                  {formatItCurrency(item.price * item.qty)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPosCart(posCart.filter((_, i) => i !== idx))
+                                  }
+                                  className="text-xs font-semibold text-[var(--accent-critical-text)] hover:underline cursor-pointer"
+                                >
+                                  Rimuovi
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+
+                        {/* Customer Link & Discount Controls */}
+                        <div className="pt-3 border-t border-[var(--border-subtle)] grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <label
+                              htmlFor={posCustomerId}
+                              className="text-[var(--text-secondary)] block mb-1.5 font-medium"
+                            >
+                              Cliente Fidelity Associato
+                            </label>
+                            <select
+                              id={posCustomerId}
+                              value={posCustomer}
+                              onChange={(e) => setPosCustomer(e.target.value)}
+                              className="w-full min-h-[40px] max-sm:min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
+                            >
+                              <option value="Marco Esposito (VIP 140 pt)">
+                                Marco Esposito (Fidelity 140 pt)
+                              </option>
+                              <option value="Elena De Luca (VIP 90 pt)">
+                                Elena De Luca (Fidelity 90 pt)
+                              </option>
+                              <option value="Vincenzo Rossi (VIP 210 pt)">
+                                Vincenzo Rossi (Fidelity 210 pt)
+                              </option>
+                              <option value="Scontrino Anonimo">
+                                Cliente Anonimo al Banco
+                              </option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <span className="text-[var(--text-secondary)] block mb-1.5 font-medium">
+                              Sconto Promozionale
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {[0, 10, 15, 20].map((d) => (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  onClick={() => setPosDiscount(d)}
+                                  className={cn(
+                                    'flex-1 min-h-[40px] max-sm:min-h-[44px] rounded-lg border text-xs font-mono tabular-nums font-bold transition-colors cursor-pointer',
+                                    posDiscount === d
+                                      ? 'bg-[var(--text-primary)] text-[var(--bg-canvas)] border-transparent'
+                                      : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                                  )}
+                                >
+                                  {d === 0 ? '0%' : `-${d}%`}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Totals Summary */}
+                        <div className="pt-3 border-t border-[var(--border-subtle)] space-y-1.5 text-xs">
+                          <div className="flex justify-between text-[var(--text-secondary)]">
+                            <span>Totale Listino:</span>
+                            <span className="font-mono tabular-nums">
+                              {formatItCurrency(posSubtotal)}
+                            </span>
+                          </div>
+                          {posDiscount > 0 && (
+                            <div className="flex justify-between text-[var(--accent-warning-text)]">
+                              <span>Sconto Fedeltà ({posDiscount}%):</span>
+                              <span className="font-mono tabular-nums">
+                                - {formatItCurrency(posDiscountAmount)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-baseline text-base font-bold text-[var(--text-primary)] pt-2 border-t border-[var(--border-subtle)]">
+                            <span>Totale da Pagare:</span>
+                            <span className="font-mono tabular-nums text-xl text-[var(--rivo-volt-text)]">
+                              {formatItCurrency(posTotal)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Complete Sale Button */}
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic(20);
+                              playLaserBeep();
+                              setPosSaleComplete(true);
+                              setToast({
+                                title: 'Scontrino emesso #BOR-0142',
+                                detail: `Incasso ${formatItCurrency(posTotal)} • Giacenze aggiornate.`,
+                              });
+                            }}
+                            disabled={posCart.length === 0}
+                            className="w-full min-h-[44px] rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] font-bold text-sm transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            Emetti Scontrino &amp; Scarica Scorta
+                          </button>
+                        </div>
+
+                        {posSaleComplete && (
+                          <div
+                            role="status"
+                            aria-live="polite"
+                            className="p-3.5 rounded-xl bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] text-xs flex items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                              <span className="font-semibold">
+                                Scontrino registrato! Giacenza magazzino aggiornata in tempo reale.
+                              </span>
+                            </div>
+                            <span className="font-mono text-[10px] shrink-0">#BOR-0142</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </SurfaceCard>
+                </div>
+
+                {/* Right Column: POS Explainer */}
+                <div className="lg:col-span-4 min-w-0">
+                  <SurfaceCard
+                    padding="lg"
+                    radius="2xl"
+                    header={{
+                      eyebrow: 'INTEGRAZIONE TOTALE',
+                      title: 'Niente più doppie scritture',
+                      icon: Receipt,
+                    }}
+                  >
+                    <div className="space-y-4">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        Ogni volta che vendi un paio in negozio, il sistema scarica all&apos;istante
+                        la taglia venduta su tutti i touchpoint:
+                      </p>
+
+                      <div className="space-y-2.5 text-xs text-[var(--text-secondary)]">
+                        <p>
+                          <strong className="font-mono text-[var(--rivo-volt-text)]">01.</strong>{' '}
+                          Il commesso vede subito la scorta aggiornata dallo smartphone.
+                        </p>
+                        <p>
+                          <strong className="font-mono text-[var(--rivo-volt-text)]">02.</strong>{' '}
+                          Il catalogo cliente NFC nasconde in automatico le taglie esaurite.
+                        </p>
+                        <p>
+                          <strong className="font-mono text-[var(--rivo-volt-text)]">03.</strong>{' '}
+                          Il titolare monitora la marginalità reale di ogni transazione.
+                        </p>
+                      </div>
+
+                      <Link
+                        href="/dashboard/sales"
+                        className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-[var(--text-primary)] font-bold text-xs transition-colors"
+                      >
+                        <span>Apri Schermata Cassa</span>
+                        <ArrowRight className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </SurfaceCard>
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================ */}
+            {/* TAB 5: CONTROL ROOM TITOLARE (KPI, MARGINI, NOTIFICHE) */}
+            {/* ============================================================ */}
+            {activeTab === 'controlroom' && (
+              <SurfaceCard
+                padding="lg"
+                radius="2xl"
+                header={{
+                  eyebrow: 'CONTROL ROOM TITOLARE',
+                  title: 'Telemetria Finanziaria & Scorte Borrelli Calzature',
+                  icon: BarChart3,
+                  action: (
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] px-4 text-xs font-bold text-[var(--rivo-volt-ink)] transition-colors"
                     >
-                      Emetti Scontrino & Scarica Scorta
-                    </button>
+                      <span>Apri Dashboard Ufficiale</span>
+                      <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                    </Link>
+                  ),
+                }}
+              >
+                <div className="space-y-6">
+                  {/* 4 Financial KPI Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <KpiCard
+                      label="Fatturato Ultimi 7 Giorni"
+                      value="€ 6.480,00"
+                      tone="neutral"
+                      delta={{
+                        value: '+14.2%',
+                        direction: 'up',
+                        sentiment: 'positive',
+                        label: 'rispetto a settimana scorsa',
+                      }}
+                    />
+
+                    <KpiCard
+                      label="Margine Lordo Reale"
+                      value="€ 3.512,18"
+                      tone="volt"
+                      context="54.2% marginalità netta sui capi"
+                    />
+
+                    <KpiCard
+                      label="Scontrino Medio"
+                      value="€ 165,40"
+                      tone="neutral"
+                      context="39 paia totali transate"
+                    />
+
+                    <KpiCard
+                      label="Allerte Sotto Scorta"
+                      value="4 Modelli"
+                      tone="warning"
+                      context="Riordino fornitore consigliato"
+                    />
                   </div>
 
-                  {posSaleComplete && (
-                    <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between animate-fade-in">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>Scontrino registrato! Giacenza magazzino aggiornata in tempo reale.</span>
+                  {/* Low Stock Alerts List */}
+                  <div className="p-5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="font-display text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                        <AlertTriangle
+                          className="w-4 h-4 text-[var(--accent-warning-text)]"
+                          strokeWidth={1.75}
+                          aria-hidden="true"
+                        />
+                        <span>Numerazioni Critiche da Riordinare</span>
+                      </h4>
+                      <Link
+                        href="/dashboard/inventory"
+                        className="text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline inline-flex items-center gap-1"
+                      >
+                        <span>Vedi tutto l&apos;inventario</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                      </Link>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      <div className="p-3 rounded-lg bg-[var(--accent-warning-bg)] border border-[var(--accent-warning-border)] flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-bold text-[var(--text-primary)] block">
+                            Mocassino Artigianale Borrelli — TG 44
+                          </span>
+                          <span className="text-[var(--text-secondary)]">
+                            Fornitore: Calzaturificio Artigiano Campano
+                          </span>
+                        </div>
+                        <StatusBadge tone="warning" size="md">
+                          1 PAIO RIMASTO
+                        </StatusBadge>
                       </div>
-                      <span className="font-mono text-[10px] text-zinc-400">#BOR-0142</span>
+
+                      <div className="p-3 rounded-lg bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-bold text-[var(--text-primary)] block">
+                            Mocassino Artigianale Borrelli — TG 45
+                          </span>
+                          <span className="text-[var(--text-secondary)]">
+                            Fornitore: Calzaturificio Artigiano Campano
+                          </span>
+                        </div>
+                        <StatusBadge tone="critical" size="md">
+                          ESAURITO (0 PZ)
+                        </StatusBadge>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-[var(--accent-warning-bg)] border border-[var(--accent-warning-border)] flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-bold text-[var(--text-primary)] block">
+                            Hogan H-Stripes Platform — TG 41
+                          </span>
+                          <span className="text-[var(--text-secondary)]">
+                            Fornitore: Premiata Luxury Footwear
+                          </span>
+                        </div>
+                        <StatusBadge tone="warning" size="md">
+                          1 PAIO RIMASTO
+                        </StatusBadge>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column: POS Explainer */}
-            <div className="lg:col-span-4 space-y-6">
-              <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-4">
-                <span className="text-xs font-mono text-[#00FF66] uppercase block">Integrazione Totale</span>
-                <h4 className="text-lg font-bold text-white">Niente più doppie scritture</h4>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Ogni volta che vendi un paio in negozio, il sistema scarica all'istante la taglia venduta:
-                </p>
-
-                <div className="space-y-2 text-xs text-zinc-300">
-                  <p>1. Se un commesso cerca la taglia sul telefono, vedrà subito la scorta aggiornata.</p>
-                  <p>2. Se il cliente apre il catalogo dall'NFC, non vedrà scarpe non disponibili.</p>
-                  <p>3. Il titolare vede la marginalità reale dell'operazione all'istante.</p>
-                </div>
-
-                <div className="pt-2">
-                  <Link
-                    href="/dashboard/sales"
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition-colors"
-                  >
-                    <span>Apri Schermata Cassa</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB 5: CONTROL ROOM TITOLARE (KPI, MARGINI, NOTIFICHE) */}
-        {/* ============================================================ */}
-        {activeTab === 'controlroom' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="p-6 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <span className="text-xs font-mono text-[#00FF66] uppercase block">Control Room Titolare</span>
-                  <h3 className="text-xl font-bold text-white">Telemetria Finanziaria & Scorte Borrelli Calzature</h3>
-                </div>
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#00FF66] text-black font-bold text-xs hover:bg-[#00FF66]/90 transition-colors"
-                >
-                  <span>Apri Dashboard Ufficiale</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              {/* 4 Financial KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-black/60 border border-white/10 space-y-1">
-                  <span className="text-[11px] font-mono uppercase text-zinc-400 block">Fatturato Ultimi 7 Giorni</span>
-                  <span className="text-2xl sm:text-3xl font-mono font-extrabold text-white">€ 6.480,00</span>
-                  <span className="text-[10px] text-emerald-400 block">+14.2% rispetto a settimana scorsa</span>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-black/60 border border-white/10 space-y-1">
-                  <span className="text-[11px] font-mono uppercase text-zinc-400 block">Margine Lordo Reale</span>
-                  <span className="text-2xl sm:text-3xl font-mono font-extrabold text-[#00FF66]">€ 3.512,18</span>
-                  <span className="text-[10px] text-[#00FF66] block">54.2% marginalità netta sui capi venduti</span>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-black/60 border border-white/10 space-y-1">
-                  <span className="text-[11px] font-mono uppercase text-zinc-400 block">Scontrino Medio</span>
-                  <span className="text-2xl sm:text-3xl font-mono font-extrabold text-white">€ 165,40</span>
-                  <span className="text-[10px] text-zinc-400 block">39 paia totali transate</span>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-black/60 border border-white/10 space-y-1">
-                  <span className="text-[11px] font-mono uppercase text-zinc-400 block">Allerte Sotto Scorta</span>
-                  <span className="text-2xl sm:text-3xl font-mono font-extrabold text-amber-400">4 Modelli</span>
-                  <span className="text-[10px] text-amber-300 block">Riordino fornitore consigliato</span>
-                </div>
-              </div>
-
-              {/* Low Stock Alerts Table for Shoe Store */}
-              <div className="p-5 rounded-2xl bg-black/80 border border-white/10 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
-                    <span>Numerazioni Critiche da Riordinare (Segnalate dall'IA)</span>
-                  </h4>
-                  <Link
-                    href="/dashboard/inventory"
-                    className="text-xs text-[#00FF66] hover:underline"
-                  >
-                    Vedi tutto l'inventario →
-                  </Link>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-white block">Mocassino Artigianale Borrelli - TG 44</span>
-                      <span className="text-zinc-400">Fornitore: Calzaturificio Artigiano Campano</span>
-                    </div>
-                    <span className="font-mono text-amber-400 font-bold px-2 py-1 rounded bg-amber-500/20">
-                      1 PAIO RIMASTO
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-white block">Mocassino Artigianale Borrelli - TG 45</span>
-                      <span className="text-zinc-400">Fornitore: Calzaturificio Artigiano Campano</span>
-                    </div>
-                    <span className="font-mono text-rose-400 font-bold px-2 py-1 rounded bg-rose-500/20">
-                      ESAURITO (0 pz)
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-white block">Hogan H-Stripes Platform - TG 41</span>
-                      <span className="text-zinc-400">Fornitore: Premiata Luxury Footwear</span>
-                    </div>
-                    <span className="font-mono text-amber-400 font-bold px-2 py-1 rounded bg-amber-500/20">
-                      1 PAIO RIMASTO
-                    </span>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Presentation Cheat Sheet Floating Card (for Genny) */}
-      <aside className="fixed bottom-4 left-4 right-4 max-w-4xl mx-auto z-50">
-        <div className="p-4 rounded-2xl bg-[#0e120f]/95 backdrop-blur-xl border border-[#00FF66]/30 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#00FF66]/20 border border-[#00FF66]/40 flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4 text-[#00FF66]" />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-white block">
-                Pronto per Borrelli Calzature
-              </span>
-              <span className="text-[11px] text-zinc-400 block">
-                Account Titolare: <code className="text-white font-mono">enzoborrelli73@gmail.com</code> • Cassa: <code className="text-[#00FF66] font-mono">{deviceCode}</code>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <a
-              href={`/hub/${deviceCode}`}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-white/10 transition-colors"
-            >
-              Hub Smartphone
-            </a>
-            <Link
-              href="/dashboard"
-              className="px-3.5 py-1.5 rounded-xl bg-[#00FF66] text-black text-xs font-bold hover:bg-[#00FF66]/90 transition-colors shadow-sm"
-            >
-              Dashboard Completa →
-            </Link>
-          </div>
-        </div>
-      </aside>
+              </SurfaceCard>
+            )}
+          </main>
         </>
       )}
     </div>

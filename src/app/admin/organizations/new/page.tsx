@@ -2,46 +2,67 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  CheckCircle2, 
-  Loader2, 
-  Building, 
-  MapPin, 
-  UserCheck, 
-  Cpu, 
-  Phone, 
-  Wifi, 
-  Star, 
-  Sparkles, 
-  Globe, 
-  MessageSquare, 
-  KeyRound, 
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  Building,
+  MapPin,
+  UserCheck,
+  Cpu,
+  Phone,
+  Wifi,
+  Star,
+  Palette,
+  Globe,
+  MessageSquare,
+  KeyRound,
   Search,
-  SlidersHorizontal,
   Image as ImageIcon,
-  Boxes
+  Boxes,
 } from 'lucide-react';
+import Link from 'next/link';
+import { HUB_COLOR_PRESETS } from '@/lib/palettes';
+import {
+  CATEGORIES,
+  CATEGORY_GROUPS,
+  getCategoryDefinition,
+} from '@/lib/categories';
+import { BusinessCategory } from '@/lib/types';
+import {
+  MODULE_CATALOG,
+  BUSINESS_TYPE_DEFINITIONS,
+  ModuleSlug,
+  BusinessTypeSlug,
+} from '@/lib/modules/catalog';
+import { PageHeader, SurfaceCard, StatusBadge } from '@/components/ui';
+import { cn } from '@/lib/cn';
 
-function InstagramIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+function InstagramIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
       <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
       <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
     </svg>
   );
 }
-import Link from 'next/link';
-import { HUB_COLOR_PRESETS } from '@/lib/palettes';
-import { 
-  CATEGORIES, 
-  CATEGORY_GROUPS, 
-  getCategoryDefinition 
-} from '@/lib/categories';
-import { BusinessCategory } from '@/lib/types';
-import { MODULE_CATALOG, BUSINESS_TYPE_DEFINITIONS, ModuleSlug, BusinessTypeSlug } from '@/lib/modules/catalog';
+
+const INPUT_CLASS =
+  'w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors';
+
+const NESTED_INPUT_CLASS =
+  'w-full min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors';
 
 export default function NewOrganizationWizard() {
   const router = useRouter();
@@ -100,7 +121,9 @@ export default function NewOrganizationWizard() {
 
   const [deviceName, setDeviceName] = useState('Tavolo 1');
   const [deviceType, setDeviceType] = useState<'nfc' | 'qr' | 'both'>('both');
-  const [deviceCode, setDeviceCode] = useState(() => 'RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase());
+  const [deviceCode, setDeviceCode] = useState(
+    () => 'RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase()
+  );
   const [destinationUrl, setDestinationUrl] = useState('https://google.com');
   const [outreachProspectId, setOutreachProspectId] = useState<string | null>(null);
 
@@ -150,21 +173,20 @@ export default function NewOrganizationWizard() {
         if (p.province) setProvince(p.province);
       })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filtered categories
   const filteredCategories = useMemo(() => {
     return CATEGORIES.filter((cat) => {
       const matchesGroup = selectedGroup === 'all' || cat.categoryGroup === selectedGroup;
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch =
+        searchQuery === '' ||
         cat.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         cat.desc.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesGroup && matchesSearch;
     });
   }, [selectedGroup, searchQuery]);
 
-  // Generate random strong password
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*';
     let pass = 'Rivo-';
@@ -179,7 +201,6 @@ export default function NewOrganizationWizard() {
     const def = getCategoryDefinition(catId);
     setCustomCtaLabel(def.defaultCtaLabel);
 
-    // Map category to business type slug
     let mappedBt: BusinessTypeSlug = 'restaurant';
     if (catId === 'hotel') mappedBt = 'hotel';
     else if (catId === 'bnb') mappedBt = 'bb';
@@ -205,33 +226,30 @@ export default function NewOrganizationWizard() {
     } else if (catId === 'retail' || catId === 'store' || catId === 'pharmacy') {
       setDeviceName('Cassa Principale');
     } else if (catId === 'medical' || catId === 'dental' || catId === 'professional') {
-      setDeviceName('Sala d\'Attesa');
+      setDeviceName("Sala d'Attesa");
     } else {
       setDeviceName('Tavolo 1');
     }
   };
 
-  const handleToggleModule = (slug: ModuleSlug) => {
+  const handleToggleModule = (modSlug: ModuleSlug) => {
     const btDef = BUSINESS_TYPE_DEFINITIONS[businessType] || BUSINESS_TYPE_DEFINITIONS.restaurant;
-    if (btDef.requiredModules.includes(slug)) {
-      // Cannot toggle required modules
+    if (btDef.requiredModules.includes(modSlug)) {
       return;
     }
     const next = new Set(selectedModules);
-    if (next.has(slug)) {
-      next.delete(slug);
-      // If module has dependents (e.g. inventory depends on products), remove them
+    if (next.has(modSlug)) {
+      next.delete(modSlug);
       Object.entries(MODULE_CATALOG).forEach(([k, def]) => {
-        if (def.dependencies?.includes(slug)) {
+        if (def.dependencies?.includes(modSlug)) {
           next.delete(k as ModuleSlug);
         }
       });
     } else {
-      next.add(slug);
-      // Auto-enable required dependencies
-      const def = MODULE_CATALOG[slug];
+      next.add(modSlug);
+      const def = MODULE_CATALOG[modSlug];
       if (def?.dependencies) {
-        def.dependencies.forEach(dep => next.add(dep));
+        def.dependencies.forEach((dep) => next.add(dep));
       }
     }
     setSelectedModules(next);
@@ -310,48 +328,47 @@ export default function NewOrganizationWizard() {
   if (completionMsg) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
-        <div className="rounded-xl border border-[#BFFF00]/30 bg-[#121214] p-6 sm:p-8">
-          <CheckCircle2 className="w-10 h-10 text-[#BFFF00] mb-4" />
-          <h1 className="text-2xl font-bold text-white tracking-tight">Organizzazione Attivata</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-300">{completionMsg}</p>
-          <div className="mt-6 pt-6 border-t border-[#27272A] flex flex-wrap gap-3">
+        <SurfaceCard radius="2xl" padding="lg" className="border-[var(--rivo-volt-border)]">
+          <CheckCircle2
+            className="w-10 h-10 text-[var(--rivo-volt-text)] mb-4"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
+          <h1 className="font-display text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+            Organizzazione Attivata
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{completionMsg}</p>
+          <div className="mt-6 pt-6 border-t border-[var(--border-subtle)] flex flex-wrap gap-3">
             <Link
               href="/admin/organizations"
-              className="inline-flex items-center gap-2 rounded-lg bg-[#BFFF00] px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-[#a8e000]"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] px-5 py-2.5 text-sm font-bold text-[var(--rivo-volt-ink)] transition-colors"
             >
-              Vai all&apos;Elenco Organizzazioni <ArrowRight className="w-4 h-4" />
+              <span>Vai all&apos;Elenco Organizzazioni</span>
+              <ArrowRight className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
             </Link>
           </div>
-        </div>
+        </SurfaceCard>
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 min-w-0">
-      {/* Header */}
-      <div>
-        <Link
-          href="/admin/organizations"
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors mb-3 min-h-[44px]"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Torna alle Organizzazioni
-        </Link>
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            Nuova Attività Cliente
-          </h1>
-          <span className="text-xs text-[#BFFF00] font-semibold px-2.5 py-1 rounded-full bg-[#BFFF00]/10 border border-[#BFFF00]/20">
+      <PageHeader
+        backHref="/admin/organizations"
+        backLabel="Torna alle Organizzazioni"
+        eyebrow="ONBOARDING WIZARD"
+        title="Nuova Attività Cliente"
+        description="Configurazione approfondita: identità, canali digitali, esperienza Hub in-store, sede e chip NFC/QR."
+        badge={
+          <StatusBadge tone="volt" variant="soft" className="tabular-nums">
             Fase {step} di 5
-          </span>
-        </div>
-        <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-          Configurazione approfondita: identità, canali digitali, esperienza Hub in-store, sede e chip NFC/QR.
-        </p>
-      </div>
+          </StatusBadge>
+        }
+      />
 
       {/* Progress Steps Bar */}
-      <div className="grid grid-cols-5 gap-1.5 sm:gap-2 border-b border-[#27272A] pb-4">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-2 border-b border-[var(--border-subtle)] pb-4">
         {[
           { num: 1, label: 'Identità', icon: Building },
           { num: 2, label: 'Contatti & Web', icon: Phone },
@@ -369,30 +386,44 @@ export default function NewOrganizationWizard() {
               onClick={() => {
                 if (s.num < step) setStep(s.num);
               }}
-              className={`flex items-center gap-2 p-1.5 sm:p-2 rounded-lg text-left transition-all ${
+              aria-current={isCurrent ? 'step' : undefined}
+              className={cn(
+                'flex items-center gap-2 p-2 rounded-xl text-left border transition-colors min-h-[48px]',
                 isCurrent
-                  ? 'bg-zinc-800/80 border border-zinc-700'
+                  ? 'bg-[var(--bg-elevated)] border-[var(--border-strong)]'
                   : isDone
-                  ? 'hover:bg-zinc-900 cursor-pointer'
-                  : 'opacity-50 cursor-default'
-              }`}
+                  ? 'border-transparent hover:bg-[var(--bg-elevated)]/60 cursor-pointer'
+                  : 'border-transparent opacity-50 cursor-default'
+              )}
             >
               <div
-                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-all ${
+                className={cn(
+                  'w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-colors',
                   isCurrent
-                    ? 'bg-[#BFFF00] text-black ring-2 ring-[#BFFF00]/30'
+                    ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)]'
                     : isDone
-                    ? 'bg-zinc-800 text-[#BFFF00]'
-                    : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
-                }`}
+                    ? 'bg-[var(--rivo-volt-bg)] text-[var(--rivo-volt-text)] border border-[var(--rivo-volt-border)]'
+                    : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
+                )}
               >
-                {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-3.5 h-3.5" />}
+                {isDone ? (
+                  <CheckCircle2 className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                ) : (
+                  <Icon className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                )}
               </div>
               <div className="hidden md:block min-w-0">
-                <span className={`text-[11px] font-medium block truncate ${isCurrent ? 'text-white' : 'text-zinc-500'}`}>
+                <span
+                  className={cn(
+                    'text-[11px] font-semibold block truncate',
+                    isCurrent ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
+                  )}
+                >
                   {s.label}
                 </span>
-                <span className="text-[9px] text-zinc-500 block">Fase {s.num}</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--text-muted)] block tabular-nums">
+                  Fase {s.num}
+                </span>
               </div>
             </button>
           );
@@ -400,52 +431,67 @@ export default function NewOrganizationWizard() {
       </div>
 
       {errorMsg && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm flex items-center gap-2">
+        <div
+          role="alert"
+          className="p-4 bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] rounded-xl text-sm flex items-center gap-2"
+        >
           <span>{errorMsg}</span>
         </div>
       )}
 
       {/* Wizard Form Card */}
-      <div className="bg-[#121214] border border-[#27272A] rounded-2xl p-4 sm:p-6 lg:p-7 space-y-6">
-        
-        {/* STEP 1: IDENTITÀ & BRAND (18+ SETTORI CON SVG) */}
+      <SurfaceCard radius="2xl" padding="lg" className="space-y-6">
+        {/* STEP 1: IDENTITÀ & BRAND */}
         {step === 1 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white mb-1">1. Identità & Categoria Attività</h2>
-              <p className="text-xs text-zinc-400">Seleziona il settore merceologico per preconfigurare l&apos;Hub e le interazioni automatiche.</p>
+              <h2 className="font-display text-base sm:text-lg font-bold text-[var(--text-primary)] mb-1">
+                1. Identità &amp; Categoria Attività
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Seleziona il settore merceologico per preconfigurare l&apos;Hub e le interazioni automatiche.
+              </p>
             </div>
 
             {/* Category Filter Tabs */}
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                <label
+                  htmlFor="category-search"
+                  className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]"
+                >
                   Settore di Attività ({CATEGORIES.length} Categorie Disponibili) *
                 </label>
                 <div className="relative w-full sm:w-64">
-                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search
+                    className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
                   <input
+                    id="category-search"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cerca settore o attività..."
-                    className="w-full bg-[#18181B] border border-[#27272A] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                    placeholder="Cerca settore o attività…"
+                    className="w-full min-h-[38px] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                   />
                 </div>
               </div>
 
               {/* Group Pill Filters */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                 {CATEGORY_GROUPS.map((g) => (
                   <button
                     key={g.id}
                     type="button"
                     onClick={() => setSelectedGroup(g.id)}
-                    className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-all ${
+                    className={cn(
+                      'min-h-[34px] px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors cursor-pointer border',
                       selectedGroup === g.id
-                        ? 'bg-[#BFFF00] text-black font-semibold'
-                        : 'bg-[#18181B] text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    }`}
+                        ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] border-[var(--rivo-volt)] font-bold'
+                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    )}
                   >
                     {g.label}
                   </button>
@@ -453,7 +499,7 @@ export default function NewOrganizationWizard() {
               </div>
 
               {/* Category Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto p-1 rounded-xl border border-[#27272A]/50 bg-[#09090B]/50 scrollbar-thin">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto p-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]">
                 {filteredCategories.map((cat) => {
                   const Icon = cat.icon;
                   const isSelected = category === cat.id;
@@ -462,21 +508,39 @@ export default function NewOrganizationWizard() {
                       key={cat.id}
                       type="button"
                       onClick={() => handleSelectCategory(cat.id)}
-                      className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                      className={cn(
+                        'p-3 rounded-xl border text-left transition-colors relative flex flex-col justify-between cursor-pointer',
                         isSelected
-                          ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-white shadow-[0_0_15px_rgba(191,255,0,0.15)] ring-1 ring-[#BFFF00]'
-                          : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                      }`}
+                          ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt)] text-[var(--text-primary)] ring-1 ring-[var(--rivo-volt)]'
+                          : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                      )}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <div className={`p-2 rounded-lg ${isSelected ? 'bg-[#BFFF00] text-black' : 'bg-zinc-800 text-zinc-300'}`}>
-                          <Icon className="w-4 h-4" />
+                        <div
+                          className={cn(
+                            'p-2 rounded-lg',
+                            isSelected
+                              ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)]'
+                              : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)]'
+                          )}
+                        >
+                          <Icon className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
                         </div>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-[#BFFF00]" />}
+                        {isSelected && (
+                          <CheckCircle2
+                            className="w-4 h-4 text-[var(--rivo-volt-text)]"
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
+                        )}
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-white block leading-snug">{cat.label}</span>
-                        <span className="text-[10px] text-zinc-500 block mt-0.5 line-clamp-2 leading-tight">{cat.desc}</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)] block leading-snug">
+                          {cat.label}
+                        </span>
+                        <span className="text-[10px] text-[var(--text-muted)] block mt-0.5 line-clamp-2 leading-tight">
+                          {cat.desc}
+                        </span>
                       </div>
                     </button>
                   );
@@ -485,56 +549,66 @@ export default function NewOrganizationWizard() {
             </div>
 
             {/* Modular Platform Presets Configurator */}
-            <div className="p-4 rounded-xl bg-[#18181B]/80 border border-[#27272A] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-zinc-200 font-semibold text-xs uppercase tracking-wider">
-                  <Boxes className="w-4 h-4 text-[#BFFF00]" /> Moduli & Preset Piattaforma ({selectedModules.size} attivi)
+            <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[var(--text-primary)] font-mono font-semibold text-xs uppercase tracking-[0.08em]">
+                  <Boxes className="w-4 h-4 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                  <span className="tabular-nums">
+                    Moduli &amp; Preset Piattaforma ({selectedModules.size} attivi)
+                  </span>
                 </div>
-                <span className="text-[11px] text-zinc-400">
-                  Preset: <strong className="text-white">{BUSINESS_TYPE_DEFINITIONS[businessType]?.name || businessType}</strong>
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  Preset:{' '}
+                  <strong className="text-[var(--text-primary)]">
+                    {BUSINESS_TYPE_DEFINITIONS[businessType]?.name || businessType}
+                  </strong>
                 </span>
               </div>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-[var(--text-secondary)]">
                 In base al tipo di business selezionato, RIVO pre-configura i moduli ideali. Puoi abilitare o disabilitare funzionalità su misura per questo cliente.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
                 {Object.values(MODULE_CATALOG).map((mod) => {
                   const isChecked = selectedModules.has(mod.slug);
-                  const isReq = (BUSINESS_TYPE_DEFINITIONS[businessType]?.requiredModules || []).includes(mod.slug);
+                  const isReq = (
+                    BUSINESS_TYPE_DEFINITIONS[businessType]?.requiredModules || []
+                  ).includes(mod.slug);
                   return (
-                    <div
+                    <label
                       key={mod.slug}
-                      onClick={() => !isReq && handleToggleModule(mod.slug)}
-                      className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2.5 select-none ${
+                      className={cn(
+                        'p-2.5 rounded-xl border text-left transition-colors flex items-start gap-2.5 select-none',
                         isReq
-                          ? 'bg-[#18181B] border-zinc-700/60 opacity-80 cursor-not-allowed'
+                          ? 'bg-[var(--bg-surface)] border-[var(--border-strong)] opacity-85 cursor-not-allowed'
                           : isChecked
-                          ? 'bg-[#BFFF00]/10 border-[#BFFF00]/50 hover:bg-[#BFFF00]/15 cursor-pointer'
-                          : 'bg-[#121214] border-[#27272A] hover:border-zinc-700 cursor-pointer opacity-60'
-                      }`}
+                          ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt-border)] cursor-pointer'
+                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] cursor-pointer opacity-70'
+                      )}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         disabled={isReq}
-                        onChange={() => {}}
-                        className="mt-0.5 rounded border-zinc-700 text-[#BFFF00] focus:ring-[#BFFF00] cursor-pointer"
+                        onChange={() => !isReq && handleToggleModule(mod.slug)}
+                        className="mt-0.5 rounded border-[var(--border-strong)] accent-[var(--rivo-volt)] cursor-pointer"
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 justify-between">
-                          <span className="text-xs font-semibold text-white truncate">{mod.name}</span>
+                          <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                            {mod.name}
+                          </span>
                           {isReq && (
-                            <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0">
+                            <span className="font-mono text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-[var(--bg-subtle)] text-[var(--text-muted)] shrink-0">
                               Obbligatorio
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-zinc-500 line-clamp-1 block mt-0.5">
+                        <span className="text-[10px] text-[var(--text-muted)] line-clamp-1 block mt-0.5">
                           {mod.description}
                         </span>
                       </div>
-                    </div>
+                    </label>
                   );
                 })}
               </div>
@@ -543,78 +617,119 @@ export default function NewOrganizationWizard() {
             {/* Business Names & Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Ragione Sociale / Nome Attività *</label>
+                <label
+                  htmlFor="business-name-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Ragione Sociale / Nome Attività *
+                </label>
                 <input
+                  id="business-name-input"
                   type="text"
                   required
                   value={businessName}
                   onChange={(e) => {
                     setBusinessName(e.target.value);
                     if (!slug) {
-                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-'));
+                      setSlug(
+                        e.target.value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]/g, '-')
+                          .replace(/-+/g, '-')
+                      );
                     }
                   }}
-                  placeholder="es. Bar Centrale oppure Studio Dentistico De Luca"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  placeholder="es. Bar Centrale oppure Studio Dentistico De Luca…"
+                  className={INPUT_CLASS}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Partita IVA / Codice Fiscale</label>
+                <label
+                  htmlFor="vat-number-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Partita IVA / Codice Fiscale
+                </label>
                 <input
+                  id="vat-number-input"
                   type="text"
                   value={vatNumber}
                   onChange={(e) => setVatNumber(e.target.value)}
                   placeholder="es. IT12345678901"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#BFFF00]"
+                  className={cn(INPUT_CLASS, 'font-mono')}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">Slogan / Breve Descrizione (Mostrato nell&apos;Hub)</label>
+              <label
+                htmlFor="description-input"
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+              >
+                Slogan / Breve Descrizione (Mostrato nell&apos;Hub)
+              </label>
               <input
+                id="description-input"
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="es. Dal 1985 la migliore tradizione napoletana nel cuore della città"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                placeholder="es. Dal 1985 la migliore tradizione napoletana nel cuore della città…"
+                className={INPUT_CLASS}
               />
             </div>
 
             {/* Slug & Logo */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Slug URL Piattaforma</label>
+                <label
+                  htmlFor="slug-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Slug URL Piattaforma
+                </label>
                 <input
+                  id="slug-input"
                   type="text"
+                  spellCheck={false}
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder="es. bar-centrale-napoli"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs focus:outline-none focus:border-[#BFFF00]"
+                  className={cn(INPUT_CLASS, 'font-mono text-xs')}
                 />
-                <p className="text-[10px] text-zinc-500 mt-1">Generato automaticamente dal nome.</p>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                  Generato automaticamente dal nome.
+                </p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">URL Logo Attività (Opzionale)</label>
+                <label
+                  htmlFor="logo-url-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  URL Logo Attività (Opzionale)
+                </label>
                 <div className="flex items-center gap-2">
                   {logoUrl ? (
                     <img
                       src={logoUrl}
                       alt="Logo preview"
-                      className="w-11 h-11 rounded-xl object-cover border border-[#27272A] shrink-0"
+                      width={44}
+                      height={44}
+                      className="w-11 h-11 rounded-xl object-cover border border-[var(--border-subtle)] shrink-0"
                     />
                   ) : (
-                    <div className="w-11 h-11 rounded-xl bg-zinc-800 border border-[#27272A] flex items-center justify-center shrink-0">
-                      <ImageIcon className="w-4 h-4 text-zinc-500" />
+                    <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-4 h-4 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
                     </div>
                   )}
                   <input
+                    id="logo-url-input"
                     type="url"
+                    spellCheck={false}
                     value={logoUrl}
                     onChange={(e) => setLogoUrl(e.target.value)}
-                    placeholder="https://... (potrà caricarlo anche il titolare)"
-                    className="flex-1 min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#BFFF00]"
+                    placeholder="https://… (potrà caricarlo anche il titolare)"
+                    className={cn(INPUT_CLASS, 'flex-1 text-xs')}
                   />
                 </div>
               </div>
@@ -626,88 +741,135 @@ export default function NewOrganizationWizard() {
         {step === 2 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white mb-1">2. Contatti, Web & Canali Digitali</h2>
-              <p className="text-xs text-zinc-400">I recapiti verranno utilizzati nei pulsanti rapidi dell&apos;Hub e per l&apos;assistenza clienti.</p>
+              <h2 className="font-display text-base sm:text-lg font-bold text-[var(--text-primary)] mb-1">
+                2. Contatti, Web &amp; Canali Digitali
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                I recapiti verranno utilizzati nei pulsanti rapidi dell&apos;Hub e per l&apos;assistenza clienti.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-zinc-400" /> Telefono Sede
+                <label
+                  htmlFor="phone-input"
+                  className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5"
+                >
+                  <Phone className="w-3.5 h-3.5 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
+                  <span>Telefono Sede</span>
                 </label>
                 <input
-                  type="text"
+                  id="phone-input"
+                  type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+39 081 1234567"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400" /> WhatsApp Assistenza / Ordini
+                <label
+                  htmlFor="whatsapp-input"
+                  className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5"
+                >
+                  <MessageSquare
+                    className="w-3.5 h-3.5 text-[var(--accent-operational-text)]"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                  <span>WhatsApp Assistenza / Ordini</span>
                 </label>
                 <input
-                  type="text"
+                  id="whatsapp-input"
+                  type="tel"
                   value={whatsappNumber}
                   onChange={(e) => setWhatsappNumber(e.target.value)}
                   placeholder="+39 340 1234567"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={INPUT_CLASS}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Email Ufficiale Attività</label>
+                <label
+                  htmlFor="email-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Email Ufficiale Attività
+                </label>
                 <input
+                  id="email-input"
                   type="email"
+                  spellCheck={false}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="info@nomelocale.it"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-zinc-400" /> Sito Web
+                <label
+                  htmlFor="website-input"
+                  className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5"
+                >
+                  <Globe className="w-3.5 h-3.5 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
+                  <span>Sito Web</span>
                 </label>
                 <input
+                  id="website-input"
                   type="url"
+                  spellCheck={false}
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://www.nomelocale.it"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={INPUT_CLASS}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-                  <InstagramIcon className="w-3.5 h-3.5 text-pink-400" /> Profilo Instagram (URL o @username)
+                <label
+                  htmlFor="instagram-input"
+                  className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5"
+                >
+                  <InstagramIcon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                  <span>Profilo Instagram (URL o @username)</span>
                 </label>
                 <input
+                  id="instagram-input"
                   type="text"
+                  spellCheck={false}
                   value={instagramUrl}
                   onChange={(e) => setInstagramUrl(e.target.value)}
-                  placeholder="@nomelocale oppure https://instagram.com/..."
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  placeholder="@nomelocale oppure https://instagram.com/…"
+                  className={INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-                  <Star className="w-3.5 h-3.5 text-amber-400" /> Link Diretto Recensioni Google (Review Shield)
+                <label
+                  htmlFor="google-review-input"
+                  className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5"
+                >
+                  <Star
+                    className="w-3.5 h-3.5 text-[var(--accent-warning-text)]"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                  <span>Link Diretto Recensioni Google (Review Shield)</span>
                 </label>
                 <input
+                  id="google-review-input"
                   type="url"
+                  spellCheck={false}
                   value={googleReviewUrl}
                   onChange={(e) => setGoogleReviewUrl(e.target.value)}
-                  placeholder="https://g.page/r/... o link Google Maps"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  placeholder="https://g.page/r/… o link Google Maps"
+                  className={INPUT_CLASS}
                 />
               </div>
             </div>
@@ -718,15 +880,19 @@ export default function NewOrganizationWizard() {
         {step === 3 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white mb-1">3. Esperienza Hub & Servizi In-Store</h2>
-              <p className="text-xs text-zinc-400">Configura i servizi rapidi che i clienti vedranno con un tap del chip NFC o scansione QR.</p>
+              <h2 className="font-display text-base sm:text-lg font-bold text-[var(--text-primary)] mb-1">
+                3. Esperienza Hub &amp; Servizi In-Store
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Configura i servizi rapidi che i clienti vedranno con un tap del chip NFC o scansione QR.
+              </p>
             </div>
 
             {/* Hub Mode Selector */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+              <span className="block font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)] mb-2">
                 Modalità Operativa del Tag NFC/QR
-              </label>
+              </span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   {
@@ -748,37 +914,45 @@ export default function NewOrganizationWizard() {
                   <button
                     key={mode.id}
                     type="button"
-                    onClick={() => setHubMode(mode.id as any)}
-                    className={`p-3.5 rounded-xl border text-left transition-all ${
+                    onClick={() => setHubMode(mode.id as 'hub' | 'shield' | 'smart_routing' | 'direct')}
+                    className={cn(
+                      'p-3.5 rounded-xl border text-left transition-colors cursor-pointer',
                       hubMode === mode.id
-                        ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-white shadow-[0_0_15px_rgba(191,255,0,0.15)] ring-1 ring-[#BFFF00]'
-                        : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200'
-                    }`}
+                        ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt)] text-[var(--text-primary)] ring-1 ring-[var(--rivo-volt)]'
+                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    )}
                   >
-                    <span className="text-xs font-bold text-white block mb-1">{mode.label}</span>
-                    <span className="text-[11px] text-zinc-500 leading-snug block">{mode.desc}</span>
+                    <span className="text-xs font-bold text-[var(--text-primary)] block mb-1">
+                      {mode.label}
+                    </span>
+                    <span className="text-[11px] text-[var(--text-muted)] leading-snug block">
+                      {mode.desc}
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Palette Colori Hub */}
-            <div className="p-4 rounded-xl bg-[#18181B]/80 border border-[#27272A] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-zinc-200 font-semibold text-xs uppercase tracking-wider">
-                  <Sparkles className="w-4 h-4 text-[#BFFF00]" /> Palette Colori & Tema Hub
+            <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[var(--text-primary)] font-mono font-semibold text-xs uppercase tracking-[0.08em]">
+                  <Palette className="w-4 h-4 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                  <span>Palette Colori &amp; Tema Hub</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-zinc-400">Colore attivo:</span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">Colore attivo:</span>
                   <div
-                    className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                    className="w-5 h-5 rounded-full border border-[var(--border-strong)]"
                     style={{ backgroundColor: primaryColor }}
                   />
-                  <span className="font-mono text-xs text-white uppercase">{primaryColor}</span>
+                  <span className="font-mono text-xs text-[var(--text-primary)] uppercase">
+                    {primaryColor}
+                  </span>
                 </div>
               </div>
-              <p className="text-xs text-zinc-400">
-                Personalizza l&apos;accento cromatico dell&apos;Hub cliente (tasto hero, icone, pulsante chiamata e bagliori).
+              <p className="text-xs text-[var(--text-secondary)]">
+                Personalizza l&apos;accento cromatico dell&apos;Hub cliente (tasto hero, icone, pulsante chiamata e accenti).
               </p>
 
               {/* Color Presets Grid */}
@@ -790,17 +964,18 @@ export default function NewOrganizationWizard() {
                       key={p.id}
                       type="button"
                       onClick={() => setPrimaryColor(p.primary)}
-                      className={`p-2.5 rounded-xl border flex flex-col items-center gap-1.5 text-center transition-all ${
+                      className={cn(
+                        'p-2.5 rounded-xl border flex flex-col items-center gap-1.5 text-center transition-colors cursor-pointer',
                         isSelected
-                          ? 'bg-white/10 border-white text-white shadow-lg ring-1 ring-white/50 scale-[1.02]'
-                          : 'bg-[#121214] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                      }`}
+                          ? 'bg-[var(--bg-surface)] border-[var(--text-primary)] text-[var(--text-primary)] ring-1 ring-[var(--text-primary)]/40'
+                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                      )}
                     >
                       <div
-                        className="w-7 h-7 rounded-full shadow-md border border-white/20 flex items-center justify-center transition-transform"
+                        className="w-7 h-7 rounded-full border border-[var(--border-strong)] flex items-center justify-center"
                         style={{ backgroundColor: p.primary }}
                       >
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-black drop-shadow" />}
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-[#09090B]" aria-hidden="true" />}
                       </div>
                       <span className="text-[11px] font-bold truncate max-w-full">{p.name}</span>
                     </button>
@@ -809,50 +984,62 @@ export default function NewOrganizationWizard() {
               </div>
 
               {/* Custom Hex Input */}
-              <div className="flex items-center gap-3 pt-2 border-t border-zinc-800">
-                <label className="text-xs text-zinc-400 shrink-0">Colore Personalizzato (HEX):</label>
+              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--border-subtle)]">
+                <label htmlFor="hub-hex-input" className="text-xs text-[var(--text-secondary)] shrink-0">
+                  Colore Personalizzato (HEX):
+                </label>
                 <div className="flex items-center gap-2 max-w-xs">
                   <input
                     type="color"
+                    aria-label="Selettore colore personalizzato"
                     value={primaryColor.startsWith('#') ? primaryColor : '#B4F02A'}
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0 p-0"
                   />
                   <input
+                    id="hub-hex-input"
                     type="text"
+                    spellCheck={false}
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     placeholder="#B4F02A"
-                    className="w-28 min-h-[36px] bg-[#121214] border border-[#27272A] rounded-lg px-2.5 py-1 text-xs text-white font-mono uppercase focus:outline-none focus:border-[#BFFF00]"
+                    className="w-28 min-h-[38px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] rounded-lg px-2.5 py-1 text-xs text-[var(--text-primary)] font-mono uppercase"
                   />
                 </div>
               </div>
             </div>
 
             {/* Wi-Fi Configuration */}
-            <div className="p-4 rounded-xl bg-[#18181B]/80 border border-[#27272A] space-y-3">
-              <div className="flex items-center gap-2 text-zinc-200 font-semibold text-xs uppercase tracking-wider">
-                <Wifi className="w-4 h-4 text-cyan-400" /> Rete Wi-Fi Ospiti (Connessione 1-Tap)
+            <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-3">
+              <div className="flex items-center gap-2 text-[var(--text-primary)] font-mono font-semibold text-xs uppercase tracking-[0.08em]">
+                <Wifi className="w-4 h-4 text-[var(--accent-telemetry-text)]" strokeWidth={1.75} aria-hidden="true" />
+                <span>Rete Wi-Fi Ospiti (Connessione 1-Tap)</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Nome Rete (SSID)</label>
+                  <label htmlFor="wifi-ssid-input" className="block text-xs text-[var(--text-secondary)] mb-1">
+                    Nome Rete (SSID)
+                  </label>
                   <input
+                    id="wifi-ssid-input"
                     type="text"
                     value={wifiSsid}
                     onChange={(e) => setWifiSsid(e.target.value)}
                     placeholder="es. BarCentrale_Ospiti"
-                    className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                    className={NESTED_INPUT_CLASS}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Password Wi-Fi</label>
+                  <label htmlFor="wifi-password-input" className="block text-xs text-[var(--text-secondary)] mb-1">
+                    Password Wi-Fi
+                  </label>
                   <input
+                    id="wifi-password-input"
                     type="text"
                     value={wifiPassword}
                     onChange={(e) => setWifiPassword(e.target.value)}
                     placeholder="es. benvenuto2026"
-                    className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#BFFF00]"
+                    className={cn(NESTED_INPUT_CLASS, 'font-mono')}
                   />
                 </div>
               </div>
@@ -861,24 +1048,37 @@ export default function NewOrganizationWizard() {
             {/* Custom CTA Button */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Testo Pulsante Principale Hub</label>
+                <label
+                  htmlFor="cta-label-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Testo Pulsante Principale Hub
+                </label>
                 <input
+                  id="cta-label-input"
                   type="text"
                   value={customCtaLabel}
                   onChange={(e) => setCustomCtaLabel(e.target.value)}
                   placeholder="Es. Consulta Menù / Prenota Trattamento"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Link di Destinazione (Opzionale)</label>
+                <label
+                  htmlFor="cta-url-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Link di Destinazione (Opzionale)
+                </label>
                 <input
+                  id="cta-url-input"
                   type="url"
+                  spellCheck={false}
                   value={customCtaUrl}
                   onChange={(e) => setCustomCtaUrl(e.target.value)}
-                  placeholder="https://... (se vuoto apre il menù in-app)"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs focus:outline-none focus:border-[#BFFF00]"
+                  placeholder="https://… (se vuoto apre il menù in-app)"
+                  className={cn(INPUT_CLASS, 'font-mono text-xs')}
                 />
               </div>
             </div>
@@ -886,24 +1086,36 @@ export default function NewOrganizationWizard() {
             {/* AI Menu Context & Loyalty Reward */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Contesto Menù / Specialità per AI Sommelier</label>
+                <label
+                  htmlFor="ai-menu-context-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Contesto Menù / Specialità per AI Sommelier
+                </label>
                 <textarea
+                  id="ai-menu-context-input"
                   rows={3}
                   value={aiMenuContext}
                   onChange={(e) => setAiMenuContext(e.target.value)}
-                  placeholder="Es. Specialità pesce fresco, pasta trafilata al bronzo, ottima selezione di vini bianchi campani e dolci fatti in casa..."
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg p-3 text-xs text-white focus:outline-none focus:border-[#BFFF00]"
+                  placeholder="Es. Specialità pesce fresco, pasta trafilata al bronzo, ottima selezione di vini bianchi campani e dolci fatti in casa…"
+                  className="w-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] rounded-lg p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Premio Fedeltà / Ruota della Fortuna</label>
+                <label
+                  htmlFor="loyalty-reward-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Premio Fedeltà / Ruota della Fortuna
+                </label>
                 <textarea
+                  id="loyalty-reward-input"
                   rows={3}
                   value={loyaltyRewardText}
                   onChange={(e) => setLoyaltyRewardText(e.target.value)}
-                  placeholder="Es. 10% di sconto sul conto al 10° timbro oppure caffè omaggio alla cassa"
-                  className="w-full bg-[#18181B] border border-[#27272A] rounded-lg p-3 text-xs text-white focus:outline-none focus:border-[#BFFF00]"
+                  placeholder="Es. 10% di sconto sul conto al 10° timbro oppure caffè omaggio alla cassa…"
+                  className="w-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] rounded-lg p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                 />
               </div>
             </div>
@@ -914,65 +1126,99 @@ export default function NewOrganizationWizard() {
         {step === 4 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white mb-1">4. Sede Fisica dell&apos;Attività</h2>
-              <p className="text-xs text-zinc-400">Specifica l&apos;indirizzo per le statistiche geolocalizzate e il routing dei dispositivi.</p>
+              <h2 className="font-display text-base sm:text-lg font-bold text-[var(--text-primary)] mb-1">
+                4. Sede Fisica dell&apos;Attività
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Specifica l&apos;indirizzo per le statistiche geolocalizzate e il routing dei dispositivi.
+              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">Nome Sede *</label>
+              <label
+                htmlFor="location-name-input"
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+              >
+                Nome Sede *
+              </label>
               <input
+                id="location-name-input"
                 type="text"
                 required
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
                 placeholder="es. Sede Principale, oppure Napoli Centro, Milano Duomo"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                className={INPUT_CLASS}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">Indirizzo (Via e Civico)</label>
+              <label
+                htmlFor="address-input"
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+              >
+                Indirizzo (Via e Civico)
+              </label>
               <input
+                id="address-input"
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="es. Via Toledo 120"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                className={INPUT_CLASS}
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Città</label>
+                <label
+                  htmlFor="city-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Città
+                </label>
                 <input
+                  id="city-input"
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Napoli"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">Provincia (Sigla)</label>
+                <label
+                  htmlFor="province-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  Provincia (Sigla)
+                </label>
                 <input
+                  id="province-input"
                   type="text"
                   maxLength={4}
                   value={province}
                   onChange={(e) => setProvince(e.target.value.toUpperCase())}
                   placeholder="NA"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white uppercase focus:outline-none focus:border-[#BFFF00]"
+                  className={cn(INPUT_CLASS, 'uppercase font-mono')}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">CAP</label>
+                <label
+                  htmlFor="postal-code-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
+                >
+                  CAP
+                </label>
                 <input
+                  id="postal-code-input"
                   type="text"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
                   placeholder="80134"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={cn(INPUT_CLASS, 'font-mono')}
                 />
               </div>
             </div>
@@ -983,77 +1229,99 @@ export default function NewOrganizationWizard() {
         {step === 5 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white mb-1">5. Accesso Titolare & Hardware NFC</h2>
-              <p className="text-xs text-zinc-400">Crea l&apos;account esercente e associa il primo chip/QR fisico pronto all&apos;uso.</p>
+              <h2 className="font-display text-base sm:text-lg font-bold text-[var(--text-primary)] mb-1">
+                5. Accesso Titolare &amp; Hardware NFC
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Crea l&apos;account esercente e associa il primo chip/QR fisico pronto all&apos;uso.
+              </p>
             </div>
 
             {/* Owner Details */}
-            <div className="p-4 rounded-xl bg-[#18181B]/80 border border-[#27272A] space-y-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-[#BFFF00]" /> Dati del Titolare dell&apos;Attività
+            <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-4">
+              <div className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-primary)] flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                <span>Dati del Titolare dell&apos;Attività</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Nome</label>
+                  <label htmlFor="owner-first-name" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    Nome
+                  </label>
                   <input
+                    id="owner-first-name"
                     type="text"
                     value={ownerFirstName}
                     onChange={(e) => setOwnerFirstName(e.target.value)}
                     placeholder="Mario"
-                    className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                    className={NESTED_INPUT_CLASS}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Cognome</label>
+                  <label htmlFor="owner-last-name" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    Cognome
+                  </label>
                   <input
+                    id="owner-last-name"
                     type="text"
                     value={ownerLastName}
                     onChange={(e) => setOwnerLastName(e.target.value)}
                     placeholder="Rossi"
-                    className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                    className={NESTED_INPUT_CLASS}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Email di Accesso Dashboard Titolare *</label>
+                <label htmlFor="owner-email" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Email di Accesso Dashboard Titolare *
+                </label>
                 <input
+                  id="owner-email"
                   type="email"
                   required
+                  spellCheck={false}
                   value={ownerEmail}
                   onChange={(e) => setOwnerEmail(e.target.value)}
                   placeholder="mario.rossi@barcentrale.it"
-                  className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={NESTED_INPUT_CLASS}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-zinc-400">Password Iniziale Titolare *</label>
+                  <label htmlFor="owner-password" className="text-xs font-medium text-[var(--text-secondary)]">
+                    Password Iniziale Titolare *
+                  </label>
                   <button
                     type="button"
                     onClick={generateRandomPassword}
-                    className="text-[11px] text-[#BFFF00] hover:underline flex items-center gap-1"
+                    className="text-[11px] font-semibold text-[var(--rivo-volt-text)] hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <KeyRound className="w-3 h-3" /> Genera Casuale
+                    <KeyRound className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
+                    <span>Genera Casuale</span>
                   </button>
                 </div>
                 <input
+                  id="owner-password"
                   type="text"
                   required
                   value={ownerPassword}
                   onChange={(e) => setOwnerPassword(e.target.value)}
-                  className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#BFFF00]"
+                  className={cn(NESTED_INPUT_CLASS, 'font-mono')}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Piano Abbonamento</label>
+                <label htmlFor="plan-name-select" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Piano Abbonamento
+                </label>
                 <select
+                  id="plan-name-select"
                   value={planName}
                   onChange={(e) => setPlanName(e.target.value)}
-                  className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                  className={NESTED_INPUT_CLASS}
                 >
                   <option value="Free">Free (€0/mese - 3 dispositivi)</option>
                   <option value="Starter">Starter (€29/mese - 10 dispositivi)</option>
@@ -1063,30 +1331,37 @@ export default function NewOrganizationWizard() {
             </div>
 
             {/* First Device */}
-            <div className="p-4 rounded-xl bg-[#18181B]/80 border border-[#27272A] space-y-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
-                <Cpu className="w-4 h-4 text-emerald-400" /> Primo Chip / QR Code Hardware
+            <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-4">
+              <div className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-primary)] flex items-center gap-1.5">
+                <Cpu className="w-4 h-4 text-[var(--accent-operational-text)]" strokeWidth={1.75} aria-hidden="true" />
+                <span>Primo Chip / QR Code Hardware</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Nome Dispositivo *</label>
+                  <label htmlFor="first-device-name" className="block text-xs text-[var(--text-secondary)] mb-1">
+                    Nome Dispositivo *
+                  </label>
                   <input
+                    id="first-device-name"
                     type="text"
                     required
                     value={deviceName}
                     onChange={(e) => setDeviceName(e.target.value)}
                     placeholder="es. Tavolo 1"
-                    className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                    className={NESTED_INPUT_CLASS}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Tecnologia Supportata</label>
+                  <label htmlFor="first-device-type" className="block text-xs text-[var(--text-secondary)] mb-1">
+                    Tecnologia Supportata
+                  </label>
                   <select
+                    id="first-device-type"
                     value={deviceType}
                     onChange={(e) => setDeviceType(e.target.value as 'both' | 'nfc' | 'qr')}
-                    className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00]"
+                    className={NESTED_INPUT_CLASS}
                   >
                     <option value="both">Entrambi (NFC + QR)</option>
                     <option value="nfc">Solo Chip NFC</option>
@@ -1096,34 +1371,44 @@ export default function NewOrganizationWizard() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs text-zinc-400">Codice Seriale Univoco</label>
+                    <label htmlFor="first-device-code" className="block text-xs text-[var(--text-secondary)]">
+                      Codice Seriale Univoco
+                    </label>
                     <button
                       type="button"
-                      onClick={() => setDeviceCode('RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase())}
-                      className="text-[11px] text-[#BFFF00] hover:underline"
+                      onClick={() =>
+                        setDeviceCode('RIVO-' + Math.random().toString(36).substring(2, 8).toUpperCase())
+                      }
+                      className="text-[11px] font-semibold text-[var(--rivo-volt-text)] hover:underline cursor-pointer"
                     >
                       Rigenera
                     </button>
                   </div>
                   <input
+                    id="first-device-code"
                     type="text"
                     required
+                    spellCheck={false}
                     value={deviceCode}
                     onChange={(e) => setDeviceCode(e.target.value.toUpperCase())}
-                    className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs uppercase focus:outline-none focus:border-[#BFFF00]"
+                    className={cn(NESTED_INPUT_CLASS, 'font-mono text-xs uppercase')}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-400 mb-1">URL Reale di Destinazione *</label>
+                <label htmlFor="first-device-url" className="block text-xs text-[var(--text-secondary)] mb-1">
+                  URL Reale di Destinazione *
+                </label>
                 <input
+                  id="first-device-url"
                   type="url"
                   required
+                  spellCheck={false}
                   value={destinationUrl}
                   onChange={(e) => setDestinationUrl(e.target.value)}
-                  placeholder="https://... oppure link Google Maps"
-                  className="w-full min-h-[44px] bg-[#121214] border border-[#27272A] rounded-lg px-3 py-2 text-sm text-white font-mono text-xs focus:outline-none focus:border-[#BFFF00]"
+                  placeholder="https://… oppure link Google Maps"
+                  className={cn(NESTED_INPUT_CLASS, 'font-mono text-xs')}
                 />
               </div>
             </div>
@@ -1131,14 +1416,15 @@ export default function NewOrganizationWizard() {
         )}
 
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-[#27272A] gap-3">
+        <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)] gap-3">
           {step > 1 ? (
             <button
               type="button"
               onClick={() => setStep(step - 1)}
-              className="px-4 py-2.5 rounded-lg border border-[#27272A] text-zinc-300 hover:text-white hover:bg-[#18181B] text-xs font-semibold transition-colors min-h-[44px] flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] text-xs font-semibold transition-colors min-h-[44px] flex items-center gap-1.5 cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Indietro
+              <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+              <span>Indietro</span>
             </button>
           ) : (
             <div />
@@ -1149,38 +1435,39 @@ export default function NewOrganizationWizard() {
               type="button"
               onClick={() => {
                 if (step === 1 && !businessName.trim()) {
-                  setErrorMsg('Inserisci la ragione sociale o il nome dell\'attività.');
+                  setErrorMsg("Inserisci la ragione sociale o il nome dell'attività.");
                   return;
                 }
                 setErrorMsg(null);
                 setStep(step + 1);
               }}
-              className="px-5 py-2.5 rounded-lg bg-[#BFFF00] hover:bg-[#a8e000] text-black text-xs font-bold transition-all shadow-[0_0_15px_rgba(191,255,0,0.2)] min-h-[44px] flex items-center gap-1.5"
+              className="px-5 py-2.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold transition-colors min-h-[44px] flex items-center gap-1.5 cursor-pointer"
             >
-              Avanti <ArrowRight className="w-3.5 h-3.5" />
+              <span>Avanti</span>
+              <ArrowRight className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
             </button>
           ) : (
             <button
               type="button"
               disabled={loading}
               onClick={handleCreateOrg}
-              className="px-6 py-2.5 rounded-lg bg-[#BFFF00] hover:bg-[#a8e000] text-black text-xs font-bold transition-all shadow-[0_0_20px_rgba(191,255,0,0.25)] min-h-[44px] flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-2.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold transition-colors min-h-[44px] flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Attivazione in Corso...</span>
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                  <span>Attivazione in Corso…</span>
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Completa Registrazione & Attiva</span>
+                  <CheckCircle2 className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                  <span>Completa Registrazione &amp; Attiva</span>
                 </>
               )}
             </button>
           )}
         </div>
-      </div>
+      </SurfaceCard>
     </div>
   );
 }

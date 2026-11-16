@@ -38,32 +38,32 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#050507] text-slate-100 overflow-x-hidden selection:bg-emerald-500 selection:text-black relative">
-      {/* 60fps Hardware-Accelerated Ambient Star & Constellation Field */}
+    <main className="min-h-screen bg-[#09090B] text-[#F4F4F6] overflow-x-clip selection:bg-[#BFFF00] selection:text-[#09090B] relative">
+      {/* Precision architectural grid backdrop */}
       <LandingAmbientCanvas />
 
-      {/* Precision Floating Navbar */}
+      {/* Solid sticky navigation chrome */}
       <LandingNavbar />
 
-      {/* Hero Section + Interactive "Tap-to-Cloud" Split Simulator */}
+      {/* Hero + Interactive Tap-to-Cloud Simulator */}
       <LandingHeroSimulator />
 
       {/* Dual-Vertical Engine: Ristorazione vs Retail ERP */}
       <LandingDualVertical />
 
-      {/* Interactive 5-Card Bento Grid */}
+      {/* 5-Card Bento Grid */}
       <LandingBentoGrid />
 
-      {/* 3-Step Architecture Flow */}
+      {/* 3-Step Hardware-to-Cloud Flow */}
       <LandingArchitectureFlow />
 
       {/* Cost Consolidation & ROI Calculator */}
       <LandingCostComparison />
 
-      {/* Live Lead Capture Form wired to /api/leads */}
+      {/* Lead Capture wired to /api/leads */}
       <LandingLeadCapture />
 
-      {/* Monumental Enterprise Footer */}
+      {/* Enterprise Footer */}
       <LandingFooter />
     </main>
   );

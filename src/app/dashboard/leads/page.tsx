@@ -1,31 +1,34 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { 
-  Users, 
-  Download, 
-  Search, 
-  Wifi, 
-  Gift, 
-  Award, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  RefreshCw,
+import {
+  Users,
+  Download,
+  Search,
+  Wifi,
+  Gift,
+  Award,
+  Mail,
+  Phone,
   Plus,
-  ShoppingBag,
-  CreditCard,
   Edit3,
   X,
   Loader2,
   AlertCircle,
-  CheckCircle2,
   DollarSign,
   TrendingUp,
-  ChevronRight,
-  UserCheck
+  UserCheck,
 } from 'lucide-react';
 import { Customer } from '@/platform/retail/types';
+import {
+  EmptyState,
+  KpiCard,
+  PageHeader,
+  SegmentedControl,
+  StatusBadge,
+  SurfaceCard,
+} from '@/components/ui';
+import { formatItCurrency } from '@/lib/chart-theme';
 
 interface LeadItem {
   id: string;
@@ -81,34 +84,74 @@ export default function CustomersAndLeadsPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithSales | null>(null);
   const [loadingCustomerDetails, setLoadingCustomerDetails] = useState(false);
 
+  const fetchCustomersAndLeads = useCallback(async () => {
+    const [custRes, leadsRes] = await Promise.all([
+      fetch('/api/customers'),
+      fetch('/api/leads'),
+    ]);
+
+    const [custData, leadsData] = await Promise.all([
+      custRes.json().catch(() => ({ customers: [] })),
+      leadsRes.json().catch(() => ({ leads: [] })),
+    ]);
+
+    return {
+      customers: custRes.ok ? (custData.customers || []) : null,
+      leads: leadsRes.ok ? (leadsData.leads || []) : null,
+    };
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const [custRes, leadsRes] = await Promise.all([
-        fetch('/api/customers'),
-        fetch('/api/leads'),
-      ]);
-
-      const [custData, leadsData] = await Promise.all([
-        custRes.json().catch(() => ({ customers: [] })),
-        leadsRes.json().catch(() => ({ leads: [] })),
-      ]);
-
-      if (custRes.ok) setCustomers(custData.customers || []);
-      if (leadsRes.ok) setLeads(leadsData.leads || []);
+      const data = await fetchCustomersAndLeads();
+      if (data.customers) setCustomers(data.customers);
+      if (data.leads) setLeads(data.leads);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Errore nel caricamento clienti e lead';
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchCustomersAndLeads]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let active = true;
+    async function initLeads() {
+      try {
+        const data = await fetchCustomersAndLeads();
+        if (!active) return;
+        setError(null);
+        if (data.customers) setCustomers(data.customers);
+        if (data.leads) setLeads(data.leads);
+      } catch (err: unknown) {
+        if (!active) return;
+        const msg = err instanceof Error ? err.message : 'Errore nel caricamento clienti e lead';
+        setError(msg);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void initLeads();
+    return () => {
+      active = false;
+    };
+  }, [fetchCustomersAndLeads]);
+
+  // Escape key closes open modals
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (selectedCustomer) {
+        setSelectedCustomer(null);
+      } else if (isCustomerModalOpen) {
+        setIsCustomerModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isCustomerModalOpen, selectedCustomer]);
 
   // Open Create Customer
   const handleOpenCreateCustomer = () => {
@@ -144,6 +187,7 @@ export default function CustomersAndLeadsPage() {
   const handleViewCustomer = async (c: Customer) => {
     try {
       setLoadingCustomerDetails(true);
+      setError(null);
       const res = await fetch(`/api/customers?id=${c.id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore recupero scheda cliente');
@@ -152,7 +196,7 @@ export default function CustomersAndLeadsPage() {
         sales: data.sales || [],
       });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Errore');
+      setError(err instanceof Error ? err.message : 'Errore recupero scheda cliente');
     } finally {
       setLoadingCustomerDetails(false);
     }
@@ -202,7 +246,16 @@ export default function CustomersAndLeadsPage() {
   const handleExportCsv = () => {
     if (activeTab === 'customers') {
       if (customers.length === 0) return;
-      const headers = ['Nome', 'Cognome', 'Telefono', 'Email', 'Punti Fidelity', 'Totale Speso (€)', 'Numero Acquisti', 'Ultimo Acquisto'];
+      const headers = [
+        'Nome',
+        'Cognome',
+        'Telefono',
+        'Email',
+        'Punti Fidelity',
+        'Totale Speso (€)',
+        'Numero Acquisti',
+        'Ultimo Acquisto',
+      ];
       const rows = customers.map((c) => [
         `"${c.first_name}"`,
         `"${c.last_name || ''}"`,
@@ -214,7 +267,9 @@ export default function CustomersAndLeadsPage() {
         `"${c.last_purchase_at ? new Date(c.last_purchase_at).toLocaleDateString('it-IT') : ''}"`,
       ]);
 
-      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const csvContent =
+        'data:text/csv;charset=utf-8,' +
+        [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement('a');
       link.setAttribute('href', encodedUri);
@@ -232,7 +287,9 @@ export default function CustomersAndLeadsPage() {
         `"${new Date(l.created_at).toLocaleString('it-IT')}"`,
       ]);
 
-      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const csvContent =
+        'data:text/csv;charset=utf-8,' +
+        [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement('a');
       link.setAttribute('href', encodedUri);
@@ -300,417 +357,527 @@ export default function CustomersAndLeadsPage() {
   }, [customers]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800/80 pb-6">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-            <Users className="w-3.5 h-3.5 text-lime-500 dark:text-[#bfff00]" />
-            <span>Retail Customer Relationship Management</span>
+    <div className="space-y-6 min-w-0">
+      <PageHeader
+        eyebrow="Retail Customer Relationship Management"
+        title="Clienti & CRM"
+        description="Anagrafica clienti, storico acquisti scontrino per scontrino, punti fidelity e contatti acquisiti."
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="min-h-[44px] inline-flex items-center justify-center gap-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-strong)] text-[var(--text-primary)] px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-[var(--text-secondary)]" strokeWidth={1.75} aria-hidden="true" />
+              <span>Esporta CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenCreateCustomer}
+              className="min-h-[44px] inline-flex items-center justify-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-4 py-2 rounded-lg text-xs font-bold transition-[background-color,transform] duration-[180ms] active:scale-[0.98] cursor-pointer"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+              <span>Nuovo Cliente</span>
+            </button>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            Clienti & CRM
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 max-w-2xl">
-            Anagrafica clienti, storico acquisti scontrino per scontrino, punti fidelity e contatti acquisiti.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleExportCsv}
-            className="inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
-          >
-            <Download className="w-4 h-4 text-zinc-500" />
-            <span className="hidden md:inline">Esporta CSV</span>
-          </button>
-
-          <button
-            onClick={handleOpenCreateCustomer}
-            className="inline-flex items-center justify-center gap-2 bg-[#bfff00] text-black px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#a8e600] transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuovo Cliente</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <span className="text-xs text-zinc-500 font-medium">Clienti Anagrafica</span>
-          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
-            {stats.totalCustomers}
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            Profili cliente registrati
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <span className="text-xs text-zinc-500 font-medium">Spesa Totale Cumulata</span>
-          <div className="text-2xl font-bold text-lime-600 dark:text-[#bfff00] font-mono mt-1">
-            € {stats.totalSpent.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            Fatturato generato dai clienti
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <span className="text-xs text-zinc-500 font-medium">Scontrino Medio Cliente</span>
-          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
-            € {stats.avgBasket.toFixed(2)}
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            Su {stats.totalPurchases} acquisti
-          </span>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <span className="text-xs text-zinc-500 font-medium">Contatti & Leads Raccolti</span>
-          <div className="text-2xl font-bold text-zinc-950 dark:text-white font-mono mt-1">
-            {leads.length}
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            Da Wi-Fi, NFC, Fidelity & Ruota
-          </span>
-        </div>
+        <KpiCard
+          label="Clienti Anagrafica"
+          value={stats.totalCustomers}
+          icon={Users}
+          tone="neutral"
+          context="Profili cliente registrati"
+          loading={loading}
+        />
+        <KpiCard
+          label="Spesa Totale Cumulata"
+          value={formatItCurrency(stats.totalSpent)}
+          icon={DollarSign}
+          tone="volt"
+          context="Fatturato generato dai clienti"
+          loading={loading}
+        />
+        <KpiCard
+          label="Scontrino Medio Cliente"
+          value={formatItCurrency(stats.avgBasket)}
+          icon={TrendingUp}
+          tone="neutral"
+          context={`Su ${stats.totalPurchases} acquisti`}
+          loading={loading}
+        />
+        <KpiCard
+          label="Contatti & Leads Raccolti"
+          value={leads.length}
+          icon={Wifi}
+          tone="telemetry"
+          context="Da Wi-Fi, NFC, Fidelity & Ruota"
+          loading={loading}
+        />
       </div>
 
       {/* Tabs Switcher and Search */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl">
-          <button
-            onClick={() => setActiveTab('customers')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
-              activeTab === 'customers'
-                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5 text-[#bfff00]" />
-            <span>Anagrafica Clienti ({customers.length})</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('leads')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
-              activeTab === 'leads'
-                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            <Wifi className="w-3.5 h-3.5" />
-            <span>Lead Raccolti Wi-Fi/NFC ({leads.length})</span>
-          </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+        <div className="overflow-x-auto max-w-full">
+          <SegmentedControl
+            ariaLabel="Vista anagrafica"
+            size="sm"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              {
+                value: 'customers',
+                label: 'Anagrafica Clienti',
+                icon: UserCheck,
+                badge: customers.length,
+              },
+              {
+                value: 'leads',
+                label: 'Lead Raccolti Wi-Fi/NFC',
+                icon: Wifi,
+                badge: leads.length,
+              },
+            ]}
+          />
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+        <div className="relative w-full sm:w-72 min-w-0">
+          <label htmlFor="crm-search" className="sr-only">
+            Cerca clienti o lead
+          </label>
+          <Search
+            className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           <input
-            type="text"
-            placeholder={activeTab === 'customers' ? 'Cerca cliente, telefono, email...' : 'Cerca lead o contatto...'}
+            id="crm-search"
+            name="crmSearch"
+            type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+            placeholder={
+              activeTab === 'customers'
+                ? 'Cerca cliente, telefono, email…'
+                : 'Cerca lead o contatto…'
+            }
+            className="w-full min-h-[44px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg pl-9 pr-3 text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
           />
         </div>
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+        <div
+          role="alert"
+          aria-live="polite"
+          className="p-4 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            aria-label="Chiudi errore"
+            className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-lg hover:bg-[var(--bg-surface)]/40 shrink-0 cursor-pointer"
+          >
+            <X className="w-4 h-4" aria-hidden="true" />
+          </button>
         </div>
       )}
 
       {/* Content based on Tab */}
       {loading ? (
-        <div className="p-16 text-center text-zinc-400 flex flex-col items-center justify-center gap-2">
-          <Loader2 className="w-6 h-6 animate-spin text-[#bfff00]" />
-          <span className="text-xs">Caricamento anagrafiche in corso...</span>
-        </div>
+        <SurfaceCard loading />
       ) : activeTab === 'customers' ? (
         /* Tab 1: Customers Table */
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3">Contatti</th>
-                  <th className="px-4 py-3 text-right">Spesa Totale</th>
-                  <th className="px-4 py-3 text-right">Acquisti</th>
-                  <th className="px-4 py-3 text-center">Punti Fidelity</th>
-                  <th className="px-4 py-3">Ultimo Acquisto</th>
-                  <th className="px-4 py-3 text-right">Azioni</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
-                {filteredCustomers.length === 0 ? (
+        <SurfaceCard radius="xl" padding="none">
+          {filteredCustomers.length === 0 ? (
+            <div className="p-5">
+              <EmptyState
+                compact
+                icon={Users}
+                title="Nessun cliente trovato"
+                description='Nessun cliente trovato. Clicca "Nuovo Cliente" per registrare il primo profilo.'
+                primaryAction={
+                  customers.length === 0
+                    ? {
+                        label: 'Nuovo Cliente',
+                        onClick: handleOpenCreateCustomer,
+                        icon: Plus,
+                      }
+                    : undefined
+                }
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[var(--bg-elevated)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[11px] uppercase tracking-[0.08em]">
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
-                      Nessun cliente trovato. Clicca &quot;Nuovo Cliente&quot; per registrare il primo profilo.
-                    </td>
+                    <th className="px-4 py-3.5 font-medium">Cliente</th>
+                    <th className="px-4 py-3.5 font-medium">Contatti</th>
+                    <th className="px-4 py-3.5 text-right font-medium">Spesa Totale</th>
+                    <th className="px-4 py-3.5 text-right font-medium">Acquisti</th>
+                    <th className="px-4 py-3.5 text-center font-medium">Punti Fidelity</th>
+                    <th className="px-4 py-3.5 font-medium">Ultimo Acquisto</th>
+                    <th className="px-4 py-3.5 text-right font-medium">Azioni</th>
                   </tr>
-                ) : (
-                  filteredCustomers.map((c) => (
-                    <tr key={c.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-zinc-950 dark:text-white">
-                        <div>{c.first_name} {c.last_name || ''}</div>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)]">
+                  {filteredCustomers.map((c) => (
+                    <tr
+                      key={c.id}
+                      className="min-h-[48px] hover:bg-[var(--bg-elevated)]/60 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
+                        <div>
+                          {c.first_name} {c.last_name || ''}
+                        </div>
                         {c.tax_code && (
-                          <span className="text-[10px] text-zinc-400 block font-mono font-normal">
+                          <span
+                            translate="no"
+                            className="text-[11px] text-[var(--text-muted)] block font-mono font-normal"
+                          >
                             CF: {c.tax_code}
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-zinc-500">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {c.phone && (
-                          <div className="flex items-center gap-1 font-mono text-[11px]">
-                            <Phone className="w-3 h-3 text-zinc-400" />
+                          <div className="flex items-center gap-1.5 font-mono tabular-nums text-[11px]">
+                            <Phone className="w-3 h-3 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
                             <span>{c.phone}</span>
                           </div>
                         )}
                         {c.email && (
-                          <div className="flex items-center gap-1 text-[11px]">
-                            <Mail className="w-3 h-3 text-zinc-400" />
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <Mail className="w-3 h-3 text-[var(--text-muted)]" strokeWidth={1.75} aria-hidden="true" />
                             <span>{c.email}</span>
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-zinc-950 dark:text-white">
-                        € {Number(c.total_spent || 0).toFixed(2)}
+                      <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-[var(--text-primary)]">
+                        {formatItCurrency(Number(c.total_spent || 0))}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-zinc-600 dark:text-zinc-300">
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                         {c.purchases_count || 0} ordini
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-lime-500/10 text-lime-600 dark:text-[#bfff00] border border-lime-500/20">
-                          <Award className="w-3 h-3" />
-                          <span>{c.fidelity_points || 0} pt</span>
-                        </span>
+                        <StatusBadge tone="volt" icon={Award} mono>
+                          {c.fidelity_points || 0} pt
+                        </StatusBadge>
                       </td>
-                      <td className="px-4 py-3 text-zinc-400 font-mono text-[11px]">
-                        {c.last_purchase_at ? new Date(c.last_purchase_at).toLocaleDateString('it-IT') : '-'}
+                      <td className="px-4 py-3 text-[var(--text-muted)] font-mono tabular-nums text-[11px]">
+                        {c.last_purchase_at
+                          ? new Date(c.last_purchase_at).toLocaleDateString('it-IT')
+                          : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-1.5">
                           <button
+                            type="button"
+                            disabled={loadingCustomerDetails}
                             onClick={() => handleViewCustomer(c)}
-                            className="text-xs font-medium text-lime-600 dark:text-[#bfff00] hover:underline"
+                            className="min-h-[44px] px-2.5 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline cursor-pointer disabled:opacity-50"
                           >
                             Scheda & Acquisti
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleOpenEditCustomer(c)}
-                            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                            aria-label={`Modifica ${c.first_name} ${c.last_name || ''}`.trim()}
+                            title="Modifica cliente"
+                            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SurfaceCard>
       ) : (
         /* Tab 2: Leads Table (Wi-Fi, NFC, Wheel, Loyalty contacts) */
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-3">Contatto</th>
-                  <th className="px-4 py-3">Nome Indicato</th>
-                  <th className="px-4 py-3">Canale Acquisizione</th>
-                  <th className="px-4 py-3">Data e Ora</th>
-                  <th className="px-4 py-3 text-right">Azione</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
-                {filteredLeads.length === 0 ? (
+        <SurfaceCard radius="xl" padding="none">
+          {filteredLeads.length === 0 ? (
+            <div className="p-5">
+              <EmptyState
+                compact
+                icon={Wifi}
+                title="Nessun contatto lead registrato"
+                description="Nessun contatto lead registrato tramite QR/NFC."
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[var(--bg-elevated)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-mono text-[11px] uppercase tracking-[0.08em]">
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-zinc-400">
-                      Nessun contatto lead registrato tramite QR/NFC.
-                    </td>
+                    <th className="px-4 py-3.5 font-medium">Contatto</th>
+                    <th className="px-4 py-3.5 font-medium">Nome Indicato</th>
+                    <th className="px-4 py-3.5 font-medium">Canale Acquisizione</th>
+                    <th className="px-4 py-3.5 font-medium">Data e Ora</th>
+                    <th className="px-4 py-3.5 text-right font-medium">Azione</th>
                   </tr>
-                ) : (
-                  filteredLeads.map((l) => (
-                    <tr key={l.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                      <td className="px-4 py-3 font-mono font-medium text-zinc-900 dark:text-white">
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)]">
+                  {filteredLeads.map((l) => (
+                    <tr
+                      key={l.id}
+                      className="min-h-[48px] hover:bg-[var(--bg-elevated)]/60 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-mono tabular-nums font-medium text-[var(--text-primary)]">
                         {l.contact}
                       </td>
-                      <td className="px-4 py-3 text-zinc-500">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {l.name || 'Anonimo'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                          {l.source === 'wifi' && <Wifi className="w-3 h-3 text-blue-500" />}
-                          {l.source === 'wheel' && <Gift className="w-3 h-3 text-pink-500" />}
-                          {l.source === 'loyalty' && <Award className="w-3 h-3 text-amber-500" />}
-                          <span className="capitalize">{l.source}</span>
-                        </span>
+                        <StatusBadge
+                          tone={
+                            l.source === 'wifi'
+                              ? 'telemetry'
+                              : l.source === 'wheel'
+                              ? 'volt'
+                              : 'warning'
+                          }
+                          icon={
+                            l.source === 'wifi'
+                              ? Wifi
+                              : l.source === 'wheel'
+                              ? Gift
+                              : Award
+                          }
+                          mono
+                        >
+                          {l.source}
+                        </StatusBadge>
                       </td>
-                      <td className="px-4 py-3 text-zinc-400 font-mono text-[11px]">
+                      <td className="px-4 py-3 text-[var(--text-muted)] font-mono tabular-nums text-[11px]">
                         {new Date(l.created_at).toLocaleString('it-IT')}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
+                          type="button"
                           onClick={() => handlePromoteLeadToCustomer(l)}
-                          className="text-xs font-semibold text-lime-600 dark:text-[#bfff00] hover:underline"
+                          className="min-h-[44px] px-2.5 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline cursor-pointer"
                         >
                           Converti in Cliente
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SurfaceCard>
       )}
 
       {/* CREATE / EDIT CUSTOMER MODAL */}
       {isCustomerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#bfff00]" />
-                <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="customer-modal-title"
+          onClick={() => setIsCustomerModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-sm overscroll-contain"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex items-center justify-center text-[var(--rivo-volt-text)] shrink-0">
+                  <Users className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                </div>
+                <h2
+                  id="customer-modal-title"
+                  className="font-display text-base sm:text-lg font-bold text-[var(--text-primary)] truncate"
+                >
                   {editingCustomer ? 'Modifica Scheda Cliente' : 'Nuovo Cliente'}
                 </h2>
               </div>
               <button
+                type="button"
                 onClick={() => setIsCustomerModalOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+                aria-label="Chiudi modale"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 
             {modalError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div
+                role="alert"
+                className="p-3 rounded-lg bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
                 <span>{modalError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveCustomer} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSaveCustomer} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="cust-first-name"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
                     Nome *
                   </label>
                   <input
+                    id="cust-first-name"
+                    name="firstName"
                     type="text"
                     required
-                    placeholder="Mario"
+                    placeholder="Mario…"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="cust-last-name"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
                     Cognome
                   </label>
                   <input
+                    id="cust-last-name"
+                    name="lastName"
                     type="text"
-                    placeholder="Rossi"
+                    placeholder="Rossi…"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="cust-phone"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
                     Telefono / WhatsApp
                   </label>
                   <input
+                    id="cust-phone"
+                    name="phone"
                     type="tel"
-                    placeholder="+39 333 1234567"
+                    placeholder="+39 333 1234567…"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="cust-email"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
                     Email
                   </label>
                   <input
+                    id="cust-email"
+                    name="email"
                     type="email"
-                    placeholder="mario.rossi@email.it"
+                    spellCheck={false}
+                    placeholder="mario.rossi@email.it…"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="cust-tax-code"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
                     Codice Fiscale
                   </label>
                   <input
+                    id="cust-tax-code"
+                    name="taxCode"
                     type="text"
-                    placeholder="RSSMRA80A01F205X"
+                    spellCheck={false}
+                    placeholder="RSSMRA80A01F205X…"
                     value={taxCode}
                     onChange={(e) => setTaxCode(e.target.value.toUpperCase())}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  <label
+                    htmlFor="cust-fidelity-points"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
                     Punti Fidelity
                   </label>
                   <input
+                    id="cust-fidelity-points"
+                    name="fidelityPoints"
                     type="number"
                     min="0"
                     value={fidelityPoints}
                     onChange={(e) => setFidelityPoints(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono tabular-nums focus:outline-none focus-visible:border-[var(--text-primary)]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label
+                  htmlFor="cust-notes"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
                   Note Preferenze Cliente (Taglia abituale, gusti, ecc.)
                 </label>
                 <textarea
+                  id="cust-notes"
+                  name="notes"
                   rows={2}
-                  placeholder="es. Preferisce sneakers numero 42, interessato a nuovi arrivi brand Borrelli..."
+                  placeholder="es. Preferisce sneakers numero 42, interessato a nuovi arrivi brand Borrelli…"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#bfff00]"
+                  className="w-full bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setIsCustomerModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={savingCustomer}
-                  className="inline-flex items-center gap-2 bg-[#bfff00] text-black px-5 py-2 rounded-xl text-xs font-semibold hover:bg-[#a8e600] disabled:opacity-50"
+                  className="min-h-[44px] inline-flex items-center gap-2 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] px-5 py-2 rounded-lg text-xs font-bold disabled:opacity-50 active:scale-[0.98] transition-[background-color,transform] duration-[180ms] cursor-pointer"
                 >
-                  {savingCustomer && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {savingCustomer && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
                   <span>{editingCustomer ? 'Aggiorna Profilo' : 'Crea Profilo Cliente'}</span>
                 </button>
               </div>
@@ -721,92 +888,123 @@ export default function CustomersAndLeadsPage() {
 
       {/* VIEW CUSTOMER PROFILE & PURCHASE HISTORY MODAL */}
       {selectedCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
-              <div className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-[#bfff00]" />
-                <div>
-                  <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="customer-detail-title"
+          onClick={() => setSelectedCustomer(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-sm overscroll-contain"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-2xl w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex items-center justify-center text-[var(--rivo-volt-text)] shrink-0">
+                  <UserCheck className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <h2
+                    id="customer-detail-title"
+                    className="font-display text-lg font-bold text-[var(--text-primary)] truncate"
+                  >
                     {selectedCustomer.first_name} {selectedCustomer.last_name || ''}
                   </h2>
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-xs font-mono tabular-nums text-[var(--text-muted)]">
                     Cliente dal {new Date(selectedCustomer.created_at).toLocaleDateString('it-IT')}
                   </span>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedCustomer(null)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+                aria-label="Chiudi scheda cliente"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 
             {/* Quick customer stat pills */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                <span className="text-[10px] text-zinc-400 font-semibold uppercase">Spesa Storica</span>
-                <div className="text-base font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
-                  € {Number(selectedCustomer.total_spent || 0).toFixed(2)}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+                <span className="text-[11px] font-mono text-[var(--text-muted)] font-semibold uppercase tracking-wider">
+                  Spesa Storica
+                </span>
+                <div className="text-base font-bold font-mono tabular-nums text-[var(--text-primary)] mt-1">
+                  {formatItCurrency(Number(selectedCustomer.total_spent || 0))}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                <span className="text-[10px] text-zinc-400 font-semibold uppercase">Acquisti Effettuati</span>
-                <div className="text-base font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+                <span className="text-[11px] font-mono text-[var(--text-muted)] font-semibold uppercase tracking-wider">
+                  Acquisti Effettuati
+                </span>
+                <div className="text-base font-bold font-mono tabular-nums text-[var(--text-primary)] mt-1">
                   {selectedCustomer.purchases_count || 0}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                <span className="text-[10px] text-zinc-400 font-semibold uppercase">Punti Fidelity</span>
-                <div className="text-base font-bold font-mono text-lime-600 dark:text-[#bfff00] mt-0.5">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+                <span className="text-[11px] font-mono text-[var(--text-muted)] font-semibold uppercase tracking-wider">
+                  Punti Fidelity
+                </span>
+                <div className="text-base font-bold font-mono tabular-nums text-[var(--rivo-volt-text)] mt-1">
                   {selectedCustomer.fidelity_points || 0} pt
                 </div>
               </div>
             </div>
 
             {selectedCustomer.notes && (
-              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs">
-                <span className="font-semibold text-zinc-400 block mb-0.5">Note Cliente:</span>
-                <p className="text-zinc-700 dark:text-zinc-300">{selectedCustomer.notes}</p>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs">
+                <span className="font-semibold text-[var(--text-muted)] block mb-1">
+                  Note Cliente:
+                </span>
+                <p className="text-[var(--text-primary)]">{selectedCustomer.notes}</p>
               </div>
             )}
 
             {/* Purchase History */}
-            <div className="space-y-2 border-t border-zinc-200 dark:border-zinc-800 pt-3">
-              <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
+            <div className="space-y-2.5 border-t border-[var(--border-subtle)] pt-3">
+              <h3 className="text-xs font-mono font-bold text-[var(--text-primary)] uppercase tracking-wider tabular-nums">
                 Storico Scontrini & Acquisti ({selectedCustomer.sales?.length || 0})
               </h3>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="space-y-2 max-h-60 overflow-y-auto overscroll-contain">
                 {!selectedCustomer.sales || selectedCustomer.sales.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-zinc-400">
+                  <div className="py-8 text-center text-xs text-[var(--text-muted)]">
                     Nessun acquisto ancora registrato a cassa per questo cliente.
                   </div>
                 ) : (
                   selectedCustomer.sales.map((s) => (
                     <div
                       key={s.id}
-                      className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-1.5 text-xs"
+                      className="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] space-y-1.5 text-xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-zinc-950 dark:text-white">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono font-bold text-[var(--text-primary)]">
                           {s.sale_number}
                         </span>
-                        <span className="font-mono font-bold text-lime-600 dark:text-[#bfff00]">
-                          € {Number(s.total_amount).toFixed(2)}
+                        <span className="font-mono tabular-nums font-bold text-[var(--rivo-volt-text)]">
+                          {formatItCurrency(Number(s.total_amount))}
                         </span>
                       </div>
-                      <div className="text-[11px] text-zinc-400 flex items-center justify-between">
-                        <span>{new Date(s.created_at).toLocaleString('it-IT')}</span>
+                      <div className="text-[11px] text-[var(--text-muted)] flex items-center justify-between gap-2">
+                        <span className="font-mono tabular-nums">
+                          {new Date(s.created_at).toLocaleString('it-IT')}
+                        </span>
                         <span className="capitalize">{s.payment_method}</span>
                       </div>
                       {s.items && s.items.length > 0 && (
-                        <div className="pt-1 border-t border-zinc-200/50 dark:border-zinc-800/50 text-[11px] text-zinc-500 space-y-0.5">
+                        <div className="pt-1.5 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] space-y-0.5">
                           {s.items.map((it, idx) => (
-                            <div key={idx} className="flex justify-between">
-                              <span>{it.product_name} {it.variant_name ? `(${it.variant_name})` : ''} × {it.quantity}</span>
-                              <span className="font-mono">€ {Number(it.total_price).toFixed(2)}</span>
+                            <div key={idx} className="flex justify-between gap-2">
+                              <span className="truncate">
+                                {it.product_name} {it.variant_name ? `(${it.variant_name})` : ''} ×{' '}
+                                <span className="font-mono tabular-nums">{it.quantity}</span>
+                              </span>
+                              <span className="font-mono tabular-nums shrink-0">
+                                {formatItCurrency(Number(it.total_price))}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -817,10 +1015,11 @@ export default function CustomersAndLeadsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="flex justify-end pt-3 border-t border-[var(--border-subtle)]">
               <button
+                type="button"
                 onClick={() => setSelectedCustomer(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-900 dark:text-white"
+                className="min-h-[44px] px-4 py-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] border border-[var(--border-strong)] text-xs font-semibold text-[var(--text-primary)] transition-colors cursor-pointer"
               >
                 Chiudi
               </button>

@@ -8,7 +8,7 @@ import {
   Layers,
   Crosshair,
   ExternalLink,
-  Sparkles,
+  Cpu,
   UserPlus,
   Phone,
   Globe,
@@ -17,6 +17,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import type { OutreachProspectRecord } from '@/lib/outreach/types';
+import { SurfaceCard, StatusBadge } from '@/components/ui';
+import { cn } from '@/lib/cn';
 
 declare global {
   interface Window {
@@ -172,7 +174,6 @@ export default function OutreachInteractiveMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cleanup map instance on component unmount
   useEffect(() => {
     return () => {
       if (mapInstanceRef.current) {
@@ -182,7 +183,6 @@ export default function OutreachInteractiveMap({
     };
   }, []);
 
-  // Switch tile layer when mapStyle changes
   useEffect(() => {
     if (!leafletReady || !mapInstanceRef.current || !window.L) return;
     const L = window.L;
@@ -208,7 +208,6 @@ export default function OutreachInteractiveMap({
     }).addTo(map);
   }, [leafletReady, mapStyle]);
 
-  // Draw search radius circle, center pin, and prospect pins
   useEffect(() => {
     if (!leafletReady || !mapInstanceRef.current || !overlayLayerRef.current || !window.L) return;
     const L = window.L;
@@ -217,7 +216,6 @@ export default function OutreachInteractiveMap({
 
     group.clearLayers();
 
-    // 1. Live Search Radius Circle
     const radiusCircle = L.circle([centerLat, centerLon], {
       radius: Math.max(500, radiusKm * 1000),
       color: '#BFFF00',
@@ -228,7 +226,6 @@ export default function OutreachInteractiveMap({
       dashArray: '6 6',
     }).addTo(group);
 
-    // 2. Search Center Crosshair Marker
     L.circleMarker([centerLat, centerLon], {
       radius: 7,
       color: '#09090B',
@@ -242,15 +239,14 @@ export default function OutreachInteractiveMap({
       })
       .addTo(group);
 
-    // 3. Prospect Markers
     for (const p of mappableProspects) {
       const isSelected = selectedProspect?.id === p.id;
       const isNew = newlyInsertedIds?.has(p.id);
-      let fill = '#F59E0B'; // waiting analysis / default
+      let fill = '#F59E0B';
       if (isSelected) fill = '#FFFFFF';
       else if (isNew || p.lead_score >= 80) fill = '#BFFF00';
-      else if (p.lead_score >= 60) fill = '#22C55E';
-      else if (p.ai_analysis) fill = '#38BDF8';
+      else if (p.lead_score >= 60) fill = '#10B981';
+      else if (p.ai_analysis) fill = '#3B82F6';
 
       const marker = L.circleMarker([p.latitude, p.longitude], {
         radius: isSelected ? 10 : isNew ? 8 : 6.5,
@@ -275,7 +271,6 @@ export default function OutreachInteractiveMap({
       marker.addTo(group);
     }
 
-    // Fit bounds only when center/radius changes
     const fitKey = `${centerLat.toFixed(4)}:${centerLon.toFixed(4)}:${radiusKm}`;
     if (lastFitKeyRef.current !== fitKey) {
       lastFitKeyRef.current = fitKey;
@@ -297,7 +292,6 @@ export default function OutreachInteractiveMap({
     onSelectProspect,
   ]);
 
-  // Smooth pan to selected prospect when clicked from table
   useEffect(() => {
     if (
       !leafletReady ||
@@ -341,7 +335,6 @@ export default function OutreachInteractiveMap({
     }
   };
 
-  // Compute Google Maps Embed URL for either the selected prospect or the Napoli/Campania search center
   const googleMapsEmbedUrl = useMemo(() => {
     if (selectedProspect) {
       const query = [
@@ -393,52 +386,53 @@ export default function OutreachInteractiveMap({
   }, [selectedProspect, centerLat, centerLon]);
 
   return (
-    <div className="bg-[#121214] border border-[#27272A] rounded-xl overflow-hidden">
+    <SurfaceCard padding="none" className="overflow-hidden">
       {/* Top Map Toolbar */}
-      <div className="px-5 py-3.5 border-b border-[#27272A] flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[#0D0D10]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#BFFF00]/15 border border-[#BFFF00]/40 text-[#BFFF00]">
-              <MapIcon className="w-4 h-4" />
+      <div className="px-4 sm:px-5 py-3.5 border-b border-[var(--border-subtle)] flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[var(--bg-elevated)]">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] shrink-0">
+              <MapIcon className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
             </span>
-            <div>
-              <h2 className="text-sm font-semibold text-[#FAFAFA] leading-tight">
-                Mappa Interattiva Campania & Preview Google Maps
+            <div className="min-w-0">
+              <h2 className="font-display text-sm font-semibold text-[var(--text-primary)] leading-tight truncate">
+                Mappa Interattiva Campania &amp; Preview Google Maps
               </h2>
-              <p className="text-[11px] text-[#A1A1AA]">
-                Centro: <span className="text-[#FAFAFA] font-medium">{locationLabel}</span> ({centerLat.toFixed(4)}, {centerLon.toFixed(4)}) · Raggio{' '}
-                <span className="text-[#BFFF00] font-mono">{radiusKm} km</span> ·{' '}
-                <span className="font-mono text-[#FAFAFA]">{mappableProspects.length}</span> pin geolocalizzati
+              <p className="text-[11px] text-[var(--text-secondary)] font-mono tabular-nums truncate">
+                Centro: <span className="text-[var(--text-primary)] font-medium">{locationLabel}</span> ({centerLat.toFixed(4)}, {centerLon.toFixed(4)}) · Raggio{' '}
+                <span className="text-[var(--rivo-volt-text)]">{radiusKm} km</span> ·{' '}
+                <span className="text-[var(--text-primary)]">{mappableProspects.length}</span> pin
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Layer Switcher */}
-          <div className="inline-flex rounded-lg bg-[#121214] border border-[#27272A] p-0.5 text-[11px]">
+          <div className="inline-flex rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-0.5 text-[11px]">
             <button
               type="button"
               onClick={() => setMapStyle('dark')}
-              className={`px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${
+              className={cn(
+                'min-h-[34px] px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors cursor-pointer',
                 mapStyle === 'dark'
-                  ? 'bg-[#BFFF00] text-[#09090B] font-semibold'
-                  : 'text-[#A1A1AA] hover:text-[#FAFAFA]'
-              }`}
+                  ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] font-semibold'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              )}
             >
-              <Layers className="w-3 h-3" />
-              Dark Maps
+              <Layers className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
+              <span>Dark Maps</span>
             </button>
             <button
               type="button"
               onClick={() => setMapStyle('street')}
-              className={`px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${
+              className={cn(
+                'min-h-[34px] px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors cursor-pointer',
                 mapStyle === 'street'
-                  ? 'bg-[#BFFF00] text-[#09090B] font-semibold'
-                  : 'text-[#A1A1AA] hover:text-[#FAFAFA]'
-              }`}
+                  ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] font-semibold'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              )}
             >
-              Stradale OSM
+              <span>Stradale OSM</span>
             </button>
           </div>
 
@@ -446,99 +440,108 @@ export default function OutreachInteractiveMap({
             type="button"
             onClick={() => onSearchThisArea(centerLat, centerLon)}
             disabled={searching}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold transition-colors disabled:opacity-50"
+            className="inline-flex min-h-[38px] items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <Search className="w-3.5 h-3.5" />
-            {searching ? 'Scansione Area...' : 'Cerca Attività in Quest’Area'}
+            <Search className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+            <span>{searching ? 'Scansione Area…' : 'Cerca Attività in Quest’Area'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Split View: Interactive Pin Map (Left) + Live Google Maps Preview (Right) */}
+      {/* Main Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-12">
-        {/* Interactive Leaflet Map Canvas */}
-        <div className="lg:col-span-7 relative min-h-[400px] lg:min-h-[470px] border-b lg:border-b-0 lg:border-r border-[#27272A] bg-[#09090B]">
+        <div className="lg:col-span-7 relative min-h-[400px] lg:min-h-[470px] border-b lg:border-b-0 lg:border-r border-[var(--border-subtle)] bg-[var(--bg-canvas)]">
           <div ref={mapContainerRef} className="w-full h-[400px] lg:h-[470px] z-0" />
 
           {!leafletReady && !leafletFailed && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#09090B]/90 text-xs text-[#A1A1AA] gap-2 z-10">
-              <div className="w-6 h-6 border-2 border-[#BFFF00] border-t-transparent rounded-full animate-spin" />
-              <span>Caricamento mappa interattiva Napoli & Campania...</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--bg-canvas)]/90 text-xs text-[var(--text-secondary)] gap-2 z-10">
+              <div className="w-6 h-6 border-2 border-[var(--rivo-volt)] border-t-transparent rounded-full animate-spin" />
+              <span>Caricamento mappa interattiva Napoli &amp; Campania…</span>
             </div>
           )}
 
           {leafletFailed && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[#09090B] text-xs text-[#A1A1AA] gap-3 z-10">
-              <MapPin className="w-7 h-7 text-[#BFFF00]" />
-              <p>Mappa interattiva Leaflet non raggiungibile in questa rete: usa il pannello Google Maps Live qui a fianco.</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--bg-canvas)] text-xs text-[var(--text-secondary)] gap-3 z-10">
+              <MapPin className="w-7 h-7 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+              <p>
+                Mappa interattiva Leaflet non raggiungibile in questa rete: usa il pannello Google Maps Live qui a fianco.
+              </p>
             </div>
           )}
 
-          {/* Legend & Click-to-Center Hint */}
           <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-[400]">
-            <div className="pointer-events-auto px-3 py-1.5 rounded-lg bg-[#09090B]/90 backdrop-blur border border-[#27272A] text-[10px] text-[#A1A1AA] flex items-center gap-3">
+            <div className="pointer-events-auto px-3 py-1.5 rounded-lg bg-[var(--bg-canvas)]/90 border border-[var(--border-subtle)] text-[10px] text-[var(--text-secondary)] flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#BFFF00]" /> Nuovi / Priorità
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E]" /> Alto Potenziale
+                <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" /> Alto Potenziale
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#38BDF8]" /> Analizzati
+                <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6]" /> Analizzati
               </span>
               <span className="inline-flex items-center gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" /> Da Analizzare
               </span>
             </div>
 
-            <div className="pointer-events-auto px-2.5 py-1.5 rounded-lg bg-[#09090B]/90 backdrop-blur border border-[#27272A] text-[10px] text-[#FAFAFA] flex items-center gap-1.5">
-              <Crosshair className="w-3 h-3 text-[#BFFF00]" />
+            <div className="pointer-events-auto px-2.5 py-1.5 rounded-lg bg-[var(--bg-canvas)]/90 border border-[var(--border-subtle)] text-[10px] text-[var(--text-primary)] flex items-center gap-1.5">
+              <Crosshair className="w-3 h-3 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
               <span>Clicca sulla mappa per spostare il centro di ricerca</span>
             </div>
           </div>
         </div>
 
         {/* Right Side: Live Google Maps Preview & Quick Prospect Card */}
-        <div className="lg:col-span-5 flex flex-col justify-between bg-[#121214]">
-          <div className="p-4 border-b border-[#27272A] space-y-2.5">
+        <div className="lg:col-span-5 flex flex-col justify-between bg-[var(--bg-surface)]">
+          <div className="p-4 border-b border-[var(--border-subtle)] space-y-2.5">
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[#BFFF00]">
-                  <Navigation className="w-3 h-3" />
-                  {selectedProspect ? 'Scheda Maps Live — Attività Selezionata' : 'Anteprima Google Maps — Area Campania'}
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--rivo-volt-text)]">
+                  <Navigation className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
+                  <span>
+                    {selectedProspect
+                      ? 'Scheda Maps Live — Attività Selezionata'
+                      : 'Anteprima Google Maps — Area Campania'}
+                  </span>
                 </span>
-                <h3 className="text-base font-bold text-[#FAFAFA] mt-0.5 leading-snug">
+                <h3 className="font-display text-base font-bold text-[var(--text-primary)] mt-0.5 leading-snug truncate">
                   {selectedProspect ? selectedProspect.business_name : `${locationLabel} (${radiusKm} km)`}
                 </h3>
               </div>
 
               {selectedProspect && selectedProspect.lead_score > 0 && (
-                <span className="shrink-0 px-2 py-1 rounded bg-[#BFFF00]/15 border border-[#BFFF00]/40 text-[#BFFF00] font-mono text-xs font-bold">
+                <StatusBadge tone="volt" shape="tag" className="tabular-nums">
                   {selectedProspect.lead_score}/100
-                </span>
+                </StatusBadge>
               )}
             </div>
 
             {selectedProspect ? (
-              <div className="space-y-1.5 text-xs text-[#A1A1AA]">
+              <div className="space-y-1.5 text-xs text-[var(--text-secondary)]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#FAFAFA] text-[11px]">
+                  <StatusBadge tone="neutral" shape="tag">
                     {selectedProspect.subcategory || selectedProspect.category}
-                  </span>
+                  </StatusBadge>
                   {selectedDistance !== null && (
-                    <span className="px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#BFFF00] font-mono text-[11px]">
+                    <StatusBadge tone="volt" shape="tag" className="tabular-nums">
                       {selectedDistance} km dal centro
-                    </span>
+                    </StatusBadge>
                   )}
                   {typeof selectedProspect.digital_signals?.rating === 'number' && (
-                    <span className="px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-amber-300 font-mono text-[11px]">
-                      ★ {selectedProspect.digital_signals.rating} ({selectedProspect.digital_signals.userRatingCount || 0})
-                    </span>
+                    <StatusBadge tone="warning" shape="tag" className="tabular-nums">
+                      ★ {selectedProspect.digital_signals.rating} (
+                      {selectedProspect.digital_signals.userRatingCount || 0})
+                    </StatusBadge>
                   )}
                 </div>
 
-                <div className="flex items-start gap-1.5 text-xs text-[#D4D4D8]">
-                  <MapPin className="w-3.5 h-3.5 text-[#BFFF00] shrink-0 mt-0.5" />
+                <div className="flex items-start gap-1.5 text-xs text-[var(--text-primary)]">
+                  <MapPin
+                    className="w-3.5 h-3.5 text-[var(--rivo-volt-text)] shrink-0 mt-0.5"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
                   <span>
                     {[selectedProspect.address, selectedProspect.city, selectedProspect.province]
                       .filter(Boolean)
@@ -548,9 +551,9 @@ export default function OutreachInteractiveMap({
 
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {selectedProspect.business_phone && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#0D0D10] border border-[#27272A] font-mono text-[11px] text-[#FAFAFA]">
-                      <Phone className="w-3 h-3 text-[#BFFF00]" />
-                      {selectedProspect.business_phone}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] font-mono text-[11px] text-[var(--text-primary)]">
+                      <Phone className="w-3 h-3 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                      <span>{selectedProspect.business_phone}</span>
                     </span>
                   )}
                   {selectedProspect.website && (
@@ -558,26 +561,26 @@ export default function OutreachInteractiveMap({
                       href={selectedProspect.website}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#0D0D10] border border-[#27272A] text-[11px] text-[#FAFAFA] hover:border-[#BFFF00]"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-primary)] hover:border-[var(--rivo-volt)] transition-colors"
                     >
-                      <Globe className="w-3 h-3 text-[#BFFF00]" />
-                      {selectedProspect.website_domain || 'Sito Web'}
+                      <Globe className="w-3 h-3 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                      <span>{selectedProspect.website_domain || 'Sito Web'}</span>
                     </a>
                   )}
                 </div>
 
                 {selectedProspect.ai_analysis && (
-                  <div className="mt-2 p-2.5 rounded-lg bg-[#0D0D10] border border-[#27272A] space-y-1.5">
+                  <div className="mt-2 p-2.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[#BFFF00]">
-                        <Sparkles className="w-3 h-3" />
-                        Analisi AI Completata
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--rivo-volt-text)]">
+                        <Cpu className="w-3 h-3" strokeWidth={1.75} aria-hidden="true" />
+                        <span>Analisi AI Completata</span>
                       </span>
-                      <span className="text-[10px] font-semibold text-emerald-300">
+                      <span className="text-[10px] font-semibold text-[var(--accent-operational-text)]">
                         {selectedProspect.ai_analysis.classification?.label}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#D4D4D8] leading-relaxed line-clamp-3">
+                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed line-clamp-3">
                       {selectedProspect.ai_analysis.executiveSummary}
                     </p>
                     {selectedProspect.ai_analysis.opportunities?.length > 0 && (
@@ -585,7 +588,7 @@ export default function OutreachInteractiveMap({
                         {selectedProspect.ai_analysis.opportunities.slice(0, 3).map((opp) => (
                           <span
                             key={opp.moduleSlug}
-                            className="px-1.5 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[10px] text-[#A1A1AA]"
+                            className="px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[10px] text-[var(--text-secondary)]"
                           >
                             {opp.moduleName}
                           </span>
@@ -596,14 +599,14 @@ export default function OutreachInteractiveMap({
                 )}
               </div>
             ) : (
-              <p className="text-xs text-[#A1A1AA]">
-                Clicca su qualsiasi pin nella mappa interattiva o su <strong className="text-[#FAFAFA]">Anteprima Maps</strong> nella tabella risultati per ispezionare la scheda Google Maps dell&apos;attività.
+              <p className="text-xs text-[var(--text-secondary)]">
+                Clicca su qualsiasi pin nella mappa interattiva o su{' '}
+                <strong className="text-[var(--text-primary)]">Anteprima Maps</strong> nella tabella risultati per ispezionare la scheda Google Maps dell&apos;attività.
               </p>
             )}
           </div>
 
-          {/* Embedded Google Maps Live Frame */}
-          <div className="relative w-full h-[230px] lg:h-[250px] bg-[#09090B]">
+          <div className="relative w-full h-[230px] lg:h-[250px] bg-[var(--bg-canvas)]">
             <iframe
               key={googleMapsEmbedUrl}
               title="Anteprima Google Maps Live"
@@ -615,11 +618,13 @@ export default function OutreachInteractiveMap({
             />
           </div>
 
-          {/* Footer Action Buttons */}
-          <div className="p-3.5 border-t border-[#27272A] bg-[#0D0D10] space-y-2">
+          <div className="p-3.5 border-t border-[var(--border-subtle)] bg-[var(--bg-elevated)] space-y-2">
             {analyzeFeedback && (
-              <div className="px-2.5 py-1.5 rounded bg-[#BFFF00]/10 border border-[#BFFF00]/30 text-[11px] text-[#BFFF00] flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <div
+                aria-live="polite"
+                className="px-2.5 py-1.5 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[11px] text-[var(--rivo-volt-text)] flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
                 <span>{analyzeFeedback}</span>
               </div>
             )}
@@ -629,30 +634,30 @@ export default function OutreachInteractiveMap({
                 href={selectedExternalMapsUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs font-medium text-[#FAFAFA] transition-colors"
+                className="inline-flex min-h-[38px] items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--text-primary)] transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-[#BFFF00]" />
-                Apri su Google Maps
+                <ExternalLink className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+                <span>Apri su Google Maps</span>
               </a>
 
               {selectedProspect && (
                 <>
                   <Link
                     href={`/admin/outreach/intelligence?prospectId=${encodeURIComponent(selectedProspect.id)}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold transition-colors"
+                    className="inline-flex min-h-[38px] items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold transition-colors"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Apri Scheda &amp; Pitch AI
+                    <Cpu className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                    <span>Apri Scheda &amp; Pitch AI</span>
                   </Link>
 
                   <button
                     type="button"
                     disabled={analyzingId === selectedProspect.id}
                     onClick={() => handleQuickAiAnalyze(selectedProspect)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-[#FAFAFA] text-xs font-medium transition-colors disabled:opacity-50"
+                    className="inline-flex min-h-[38px] items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-[var(--text-primary)] text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     {analyzingId === selectedProspect.id
-                      ? 'Analisi AI...'
+                      ? 'Analisi AI…'
                       : selectedProspect.ai_analysis
                       ? 'Rianalizza AI'
                       : 'Analizza AI'}
@@ -660,10 +665,10 @@ export default function OutreachInteractiveMap({
 
                   <Link
                     href={`/admin/organizations/new?outreachProspectId=${encodeURIComponent(selectedProspect.id)}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 hover:bg-emerald-500/25 text-emerald-300 text-xs font-semibold transition-colors"
+                    className="inline-flex min-h-[38px] items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] hover:opacity-90 text-[var(--accent-operational-text)] text-xs font-semibold transition-opacity"
                   >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    Converti in RIVO
+                    <UserPlus className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                    <span>Converti in RIVO</span>
                   </Link>
                 </>
               )}
@@ -671,6 +676,6 @@ export default function OutreachInteractiveMap({
           </div>
         </div>
       </div>
-    </div>
+    </SurfaceCard>
   );
 }

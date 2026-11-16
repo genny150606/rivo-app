@@ -4,14 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  Building2, 
-  Layers, 
-  PlusCircle, 
-  ArrowLeft, 
-  LogOut, 
-  Menu, 
-  X, 
+import {
+  Building2,
+  Layers,
+  PlusCircle,
+  ArrowLeft,
+  LogOut,
+  Menu,
+  X,
   ShieldCheck,
   LayoutDashboard,
   Radar,
@@ -21,9 +21,10 @@ import {
   Megaphone,
   MessageSquare,
   Kanban,
-  SlidersHorizontal
+  SlidersHorizontal,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { cn } from '@/lib/cn';
 
 const adminNavItems = [
   { label: 'Command Center', href: '/admin', icon: LayoutDashboard },
@@ -53,28 +54,34 @@ function AdminSidebarContent({ pathname, onLogout, onNavigate }: AdminSidebarCon
     <>
       <div>
         {/* Brand */}
-        <div className="flex items-center gap-2.5 px-3 py-4 mb-4">
-          <Image
-            src="/brand/rivo-icon.png"
-            alt="RIVO"
-            width={28}
-            height={28}
-            className="rounded-sm"
-          />
+        <div className="flex items-center gap-2.5 px-2.5 py-3 mb-4 border-b border-[#22242A]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#09090B] border border-[#22242A] p-1">
+            <Image
+              src="/brand/rivo-icon.png"
+              alt="RIVO"
+              width={20}
+              height={20}
+              className="rounded-xs"
+            />
+          </div>
           <div>
-            <span className="font-bold text-lg tracking-tight text-white block leading-tight">RIVO</span>
-            <span className="text-[10px] uppercase font-mono tracking-wider text-[#BFFF00]">Admin HQ</span>
+            <span className="font-display font-bold text-base tracking-tight text-[#F4F4F6] block leading-tight">
+              RIVO
+            </span>
+            <span className="text-[10px] uppercase font-mono tracking-[0.14em] text-[#BFFF00]">
+              Admin HQ
+            </span>
           </div>
         </div>
 
         {/* Quick action */}
-        <div className="px-3 mb-4">
+        <div className="px-1 mb-4">
           <Link
             href="/admin/organizations/new"
             onClick={onNavigate}
-            className="w-full bg-[#BFFF00] hover:bg-[#a8e000] text-black font-semibold text-xs min-h-[44px] px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors touch-press"
+            className="w-full bg-[#BFFF00] hover:bg-[#CEFF33] text-[#09090B] font-bold text-xs min-h-[44px] px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-4 h-4" strokeWidth={1.75} />
             <span>Nuova Attività</span>
           </Link>
         </div>
@@ -83,19 +90,21 @@ function AdminSidebarContent({ pathname, onLogout, onNavigate }: AdminSidebarCon
         <nav className="space-y-1">
           {adminNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+            const isActive =
+              pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
-                className={`flex items-center gap-3 px-3.5 min-h-[40px] rounded-md text-sm font-medium transition-all ${
+                className={cn(
+                  'flex items-center gap-3 px-3 min-h-[40px] rounded-lg text-[13px] font-medium transition-colors border-l-2',
                   isActive
-                    ? 'bg-[#18181B] text-[#BFFF00] border-l-2 border-[#BFFF00]'
-                    : 'text-zinc-400 hover:text-white hover:bg-[#18181B]/50'
-                }`}
+                    ? 'bg-[#18191E] text-[#BFFF00] border-[#BFFF00] font-semibold'
+                    : 'border-transparent text-[#A1A1AA] hover:text-[#F4F4F6] hover:bg-[#18191E]/60'
+                )}
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
                 <span>{item.label}</span>
               </Link>
             );
@@ -103,13 +112,13 @@ function AdminSidebarContent({ pathname, onLogout, onNavigate }: AdminSidebarCon
         </nav>
 
         {/* OUTREACH Module Section */}
-        <div className="mt-6 pt-5 border-t border-[#27272A]">
-          <div className="px-3.5 mb-2 flex items-center justify-between">
+        <div className="mt-6 pt-5 border-t border-[#22242A]">
+          <div className="px-3 mb-2 flex items-center justify-between">
             <span className="text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-[#BFFF00]">
               OUTREACH
             </span>
-            <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 bg-[#18181B] border border-[#27272A] text-zinc-400">
-              BI & SALES
+            <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#18191E] border border-[#22242A] text-[#A1A1AA]">
+              BI &amp; SALES
             </span>
           </div>
           <nav className="space-y-0.5">
@@ -123,13 +132,14 @@ function AdminSidebarContent({ pathname, onLogout, onNavigate }: AdminSidebarCon
                   key={item.href}
                   href={item.href}
                   onClick={onNavigate}
-                  className={`flex items-center gap-2.5 px-3.5 min-h-[36px] rounded-md text-xs font-medium transition-all ${
+                  className={cn(
+                    'flex items-center gap-2.5 px-3 min-h-[38px] rounded-lg text-xs font-medium transition-colors border-l-2',
                     isActive
-                      ? 'bg-[#18181B] text-[#BFFF00] border-l-2 border-[#BFFF00]'
-                      : 'text-zinc-400 hover:text-white hover:bg-[#18181B]/50'
-                  }`}
+                      ? 'bg-[#18191E] text-[#BFFF00] border-[#BFFF00] font-semibold'
+                      : 'border-transparent text-[#A1A1AA] hover:text-[#F4F4F6] hover:bg-[#18191E]/60'
+                  )}
                 >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -139,21 +149,22 @@ function AdminSidebarContent({ pathname, onLogout, onNavigate }: AdminSidebarCon
       </div>
 
       {/* Footer / Switch to client dashboard & logout */}
-      <div className="pt-4 border-t border-[#27272A]/60 space-y-1">
+      <div className="pt-4 border-t border-[#22242A] space-y-1">
         <Link
           href="/dashboard"
           onClick={onNavigate}
-          className="flex items-center gap-3 w-full px-3.5 min-h-[44px] rounded-lg text-xs font-medium text-zinc-400 hover:text-white hover:bg-[#18181B]/50 transition-colors"
+          className="flex items-center gap-3 w-full px-3 min-h-[44px] rounded-lg text-xs font-medium text-[#A1A1AA] hover:text-[#F4F4F6] hover:bg-[#18191E] transition-colors"
         >
-          <ArrowLeft className="w-4 h-4 shrink-0" />
+          <ArrowLeft className="w-4 h-4 shrink-0" strokeWidth={1.75} />
           <span>Portale Clienti</span>
         </Link>
         <button
+          type="button"
           onClick={onLogout}
-          className="flex items-center gap-3 w-full px-3.5 min-h-[44px] rounded-lg text-xs font-medium text-zinc-400 hover:text-red-400 hover:bg-[#18181B]/50 active:scale-[0.98] transition-all touch-press"
+          className="flex items-center gap-3 w-full px-3 min-h-[44px] rounded-lg text-xs font-medium text-[#A1A1AA] hover:text-[#F87171] hover:bg-[#EF4444]/10 transition-colors cursor-pointer"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
-          <span>Esci dall'Admin</span>
+          <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+          <span>Esci dall&apos;Admin</span>
         </button>
       </div>
     </>
@@ -179,7 +190,9 @@ export default function AdminLayout({
     async function checkAdmin() {
       try {
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           router.replace('/login');
           return;
@@ -201,17 +214,20 @@ export default function AdminLayout({
       }
     }
     checkAdmin();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
-  // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
     if (sidebarOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [sidebarOpen]);
 
   const handleLogout = async () => {
@@ -226,23 +242,25 @@ export default function AdminLayout({
       <div className="min-h-screen bg-[#09090B] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-6 h-6 border-2 border-[#BFFF00] border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-zinc-500 font-mono tracking-wider uppercase">Verifica privilegi RIVO...</span>
+          <span className="text-xs text-[#71717A] font-mono tracking-wider uppercase">
+            Verifica privilegi RIVO…
+          </span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-[#09090B] overflow-x-hidden">
+    <div className="dark flex min-h-screen bg-[#09090B] text-[#F4F4F6] font-sans overflow-x-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-[#27272A] flex-col justify-between p-4 bg-[#0D0D10] shrink-0 fixed inset-y-0 left-0 z-30">
+      <aside className="hidden lg:flex w-64 border-r border-[#22242A] flex-col justify-between p-4 bg-[#111215] shrink-0 fixed inset-y-0 left-0 z-30">
         <AdminSidebarContent pathname={pathname} onLogout={handleLogout} />
       </aside>
 
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300 gpu-layer"
+          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-200"
           onClick={closeSidebar}
           aria-hidden="true"
         />
@@ -250,51 +268,56 @@ export default function AdminLayout({
 
       {/* Mobile Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#0D0D10] border-r border-[#27272A] flex flex-col justify-between p-4 transform transition-transform duration-300 ease-out will-change-transform gpu-layer lg:hidden ${
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#111215] border-r border-[#22242A] flex flex-col justify-between p-4 transform transition-transform duration-200 ease-out lg:hidden',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        )}
         aria-label="Menu amministrazione mobile"
       >
-        {/* Close button with >= 44x44px touch target */}
         <button
+          type="button"
           onClick={closeSidebar}
           aria-label="Chiudi menu"
-          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-[#18181B] active:scale-95 transition-all touch-press"
+          className="absolute top-3 right-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[#A1A1AA] hover:text-white hover:bg-[#18191E] transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
-        <AdminSidebarContent pathname={pathname} onLogout={handleLogout} onNavigate={closeSidebar} />
+        <AdminSidebarContent
+          pathname={pathname}
+          onLogout={handleLogout}
+          onNavigate={closeSidebar}
+        />
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden lg:ml-64">
         {/* Header */}
-        <header className="h-14 lg:h-16 border-b border-[#27272A] px-3 sm:px-5 lg:px-6 flex items-center justify-between bg-[#09090B]/90 backdrop-blur shrink-0 sticky top-0 z-20">
+        <header className="h-14 border-b border-[#22242A] px-4 sm:px-6 flex items-center justify-between bg-[#09090B]/95 backdrop-blur shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Hamburger with >= 44x44px touch target */}
             <button
+              type="button"
               onClick={() => setSidebarOpen(true)}
               aria-label="Apri menu amministrazione"
-              className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#18181B] active:scale-95 transition-all touch-press"
+              className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 rounded-lg text-[#A1A1AA] hover:text-white hover:bg-[#18191E] transition-colors cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Mobile logo */}
             <div className="flex items-center gap-2 lg:hidden">
               <Image
                 src="/brand/rivo-icon.png"
                 alt="RIVO"
-                width={22}
-                height={22}
-                className="rounded-sm"
+                width={20}
+                height={20}
+                className="rounded-xs"
               />
-              <span className="font-bold text-sm tracking-tight text-white">RIVO Admin</span>
+              <span className="font-display font-bold text-sm tracking-tight text-white">
+                RIVO Admin
+              </span>
             </div>
 
-            {/* Desktop label */}
-            <div className="hidden lg:flex items-center gap-2 text-sm font-medium text-zinc-300">
-              <ShieldCheck className="w-4 h-4 text-[#BFFF00]" />
+            <div className="hidden lg:flex items-center gap-2 text-xs font-mono uppercase tracking-[0.1em] text-[#A1A1AA]">
+              <ShieldCheck className="w-4 h-4 text-[#BFFF00]" strokeWidth={1.75} />
               <span>Command Center Superadmin</span>
             </div>
           </div>
@@ -302,19 +325,21 @@ export default function AdminLayout({
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/admin/organizations/new"
-              className="hidden sm:inline-flex items-center gap-1.5 bg-[#BFFF00] hover:bg-[#a8e000] text-black font-semibold text-xs px-3 py-1.5 rounded-lg transition-colors touch-press"
+              className="hidden sm:inline-flex items-center gap-1.5 bg-[#BFFF00] hover:bg-[#CEFF33] text-[#09090B] font-bold text-xs px-3.5 min-h-[38px] rounded-lg transition-colors"
             >
-              <PlusCircle className="w-3.5 h-3.5" />
+              <PlusCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
               <span>Nuova Attività</span>
             </Link>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#BFFF00] animate-pulse" />
-              <span className="text-xs text-zinc-400 hidden sm:inline">Admin Mode</span>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#22242A] bg-[#111215] px-2.5 py-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#BFFF00]" />
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA] hidden sm:inline">
+                Admin Online
+              </span>
             </div>
           </div>
         </header>
 
-        <div className="p-3 sm:p-5 md:p-6 lg:p-7 max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
           {children}
         </div>
       </main>

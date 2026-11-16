@@ -1,22 +1,44 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { PwaRegister } from '@/components/pwa-register';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+  preload: true,
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-plus-jakarta',
+  preload: true,
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-jetbrains-mono',
+  preload: true,
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: 'cover',
-  themeColor: '#09090B',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F6F7F9' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090B' },
+  ],
 };
 
 export const metadata: Metadata = {
-  title: 'RIVO — B2B NFC & QR Platform',
-  description: 'Physical touchpoint analytics and review automation',
+  title: 'RIVO — B2B Physical-Digital Operating System',
+  description:
+    'Piattaforma operativa B2B per ristorazione e retail: hardware NFC/QR NTAG 424, Review Shield, POS/ERP e Loyalty Wallet.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -42,6 +64,8 @@ const themeInitScript = `
       root.setAttribute('data-theme', 'light');
       root.style.colorScheme = 'light';
     }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', isDark ? '#09090B' : '#F6F7F9');
   } catch (e) {}
 })();
 `;
@@ -52,20 +76,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" data-scroll-behavior="smooth" suppressHydrationWarning className="dark antialiased">
+    <html
+      lang="it"
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+      className={`${inter.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} dark antialiased`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@600;700;800&display=swap"
-        />
       </head>
-      <body className={`${inter.className} min-h-screen flex flex-col`}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+      <body className="min-h-screen flex flex-col font-sans bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+        <ThemeProvider>{children}</ThemeProvider>
         <PwaRegister />
       </body>
     </html>

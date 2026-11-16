@@ -2,26 +2,23 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  BellRing, 
-  Layers, 
-  CheckCircle2, 
-  Clock, 
-  PlusCircle, 
-  LogOut, 
-  UserCheck, 
-  X, 
-  RefreshCw, 
-  CreditCard, 
-  Banknote, 
-  Utensils, 
+import {
+  BellRing,
+  Layers,
+  CheckCircle2,
+  PlusCircle,
+  LogOut,
+  X,
+  RefreshCw,
+  Banknote,
+  Utensils,
   AlertCircle,
   Loader2,
   ChevronRight,
-  ShieldAlert
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { hapticTap, hapticSuccess, hapticWarning, hapticWaiterCall } from '@/lib/haptics';
+import { SurfaceCard, StatusBadge, EmptyState } from '@/components/ui';
 
 interface ServiceCall {
   id: string;
@@ -57,14 +54,17 @@ export default function WaiterDashboardPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Take Table modal
+  // Take Table modal & Release Confirmation modal
   const [showTakeModal, setShowTakeModal] = useState(false);
+  const [confirmReleaseTable, setConfirmReleaseTable] = useState<AssignedTable | null>(null);
 
   const fetchWaiterData = useCallback(async () => {
     try {
       setError(null);
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (!user) {
         router.push('/login');
@@ -125,11 +125,9 @@ export default function WaiterDashboardPage() {
       const callsData = await resCalls.json();
 
       if (callsData.calls) {
-        // Prioritize calls for this waiter's tables or assigned explicitly to this waiter
         const relevantCalls = callsData.calls.filter((c: any) => {
           if (c.assigned_waiter_id === userProfile.id) return true;
           if (myTableNames.has((c.table_label || '').toLowerCase())) return true;
-          // Also show calls from tables not taken by anyone
           return false;
         });
         setActiveCalls(relevantCalls);
@@ -163,6 +161,19 @@ export default function WaiterDashboardPage() {
     };
   }, [fetchWaiterData]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (confirmReleaseTable && !actionLoading) {
+        setConfirmReleaseTable(null);
+      } else if (showTakeModal && !actionLoading) {
+        setShowTakeModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmReleaseTable, showTakeModal, actionLoading]);
+
   // Handle Take Table
   const handleTakeTable = async (deviceId: string) => {
     setActionLoading(true);
@@ -193,15 +204,14 @@ export default function WaiterDashboardPage() {
     }
   };
 
-  // Handle Release Table
-  const handleReleaseTable = async (assignmentId: string) => {
+  // Handle Release Table (confirmed via modal)
+  const handleConfirmReleaseTable = async () => {
+    if (!confirmReleaseTable) return;
+    setActionLoading(true);
     hapticTap();
-    if (!confirm('Vuoi rilasciare questo tavolo? Non riceverai più le sue chiamate dirette.')) {
-      return;
-    }
 
     try {
-      const res = await fetch(`/api/tables/assignments?assignmentId=${assignmentId}`, {
+      const res = await fetch(`/api/tables/assignments?assignmentId=${confirmReleaseTable.id}`, {
         method: 'DELETE',
       });
 
@@ -209,9 +219,13 @@ export default function WaiterDashboardPage() {
       if (!res.ok) throw new Error(data.error || 'Errore nel rilascio');
 
       hapticSuccess();
+      setConfirmReleaseTable(null);
       fetchWaiterData();
     } catch (err: any) {
       setError(err.message);
+      setConfirmReleaseTable(null);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -240,19 +254,19 @@ export default function WaiterDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-zinc-100 font-sans pb-12">
+    <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] font-sans pb-12">
       {/* Waiter Mobile Top Bar */}
-      <header className="sticky top-0 z-30 bg-[#121214]/90 backdrop-blur-md border-b border-[#27272A] px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-30 glass-chrome border-b border-[var(--border-subtle)] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#bfff00] text-black font-bold flex items-center justify-center text-sm shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-[var(--rivo-volt)] text-[#09090B] font-bold flex items-center justify-center text-sm shadow-xs">
             {(profile?.first_name?.[0] || 'C').toUpperCase()}
           </div>
           <div>
-            <h1 className="text-sm font-bold text-white leading-tight">
+            <h1 className="text-sm font-bold text-[var(--text-primary)] leading-tight">
               {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'Cameriere'}
             </h1>
-            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--accent-operational)] animate-pulse" />
               <span>In Turno Operativo</span>
             </div>
           </div>
@@ -260,15 +274,19 @@ export default function WaiterDashboardPage() {
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={fetchWaiterData}
-            className="p-2 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
+            aria-label="Ricarica dati turno"
+            className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors"
             title="Ricarica"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
+            type="button"
             onClick={handleLogout}
-            className="p-2 rounded-xl bg-zinc-800 text-zinc-300 hover:text-rose-400 transition-colors"
+            aria-label="Esci dal turno"
+            className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-critical-text)] hover:bg-[var(--accent-critical-bg)] transition-colors"
             title="Esci dal turno"
           >
             <LogOut className="w-4 h-4" />
@@ -279,12 +297,20 @@ export default function WaiterDashboardPage() {
       <main className="max-w-md mx-auto p-4 space-y-6">
         {/* Error notification */}
         {error && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+          <div
+            role="alert"
+            className="p-3.5 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-xs text-[var(--accent-critical-text)] flex items-center justify-between gap-2"
+          >
+            <div className="flex items-center gap-2 font-medium">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
-            <button onClick={() => setError(null)}>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              aria-label="Chiudi errore"
+              className="p-1 rounded-lg hover:bg-[var(--bg-surface)]/40"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -293,11 +319,12 @@ export default function WaiterDashboardPage() {
         {/* Action Button: Prendi Tavolo */}
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => {
               hapticTap();
               setShowTakeModal(true);
             }}
-            className="w-full py-3.5 px-4 rounded-2xl bg-[#bfff00] hover:bg-[#a6df00] text-black font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-[#bfff00]/10"
+            className="w-full py-3.5 px-4 rounded-2xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
           >
             <PlusCircle className="w-5 h-5" />
             <span>Prendi Tavolo in Carico</span>
@@ -307,23 +334,26 @@ export default function WaiterDashboardPage() {
         {/* Section: Richieste Live al Tavolo */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <BellRing className="w-3.5 h-3.5 text-amber-400" />
-              <span>Chiamate & Richieste ({activeCalls.length})</span>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+              <BellRing className="w-3.5 h-3.5 text-[var(--accent-warning-text)]" />
+              <span className="tabular-nums">Chiamate &amp; Richieste ({activeCalls.length})</span>
             </h2>
             {activeCalls.length > 0 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+              <StatusBadge tone="warning" size="sm" dot pulse>
                 Attive Ora
-              </span>
+              </StatusBadge>
             )}
           </div>
 
           {activeCalls.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-[#121214] border border-[#27272A] text-center">
-              <CheckCircle2 className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-              <p className="text-xs font-medium text-zinc-400">Nessuna richiesta in attesa sui tuoi tavoli.</p>
-              <p className="text-[11px] text-zinc-600 mt-0.5">Ti avviseremo appena un cliente chiama il cameriere o chiede il conto.</p>
-            </div>
+            <SurfaceCard padding="none">
+              <EmptyState
+                compact
+                icon={CheckCircle2}
+                title="Nessuna richiesta in attesa sui tuoi tavoli."
+                description="Ti avviseremo appena un cliente chiama il cameriere o chiede il conto."
+              />
+            </SurfaceCard>
           ) : (
             <div className="space-y-3">
               {activeCalls.map((call) => {
@@ -331,61 +361,68 @@ export default function WaiterDashboardPage() {
                 const isOrder = call.type === 'dish_order';
 
                 return (
-                  <div
+                  <SurfaceCard
                     key={call.id}
-                    className="p-4 rounded-2xl bg-[#18181B] border border-amber-500/40 shadow-lg relative overflow-hidden"
+                    variant="warning"
+                    padding="md"
+                    className="shadow-sm relative overflow-hidden"
                   >
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-lg bg-zinc-800 text-white font-mono font-bold text-xs">
+                        <span className="px-2.5 py-1 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-mono tabular-nums font-bold text-xs">
                           {call.table_label}
                         </span>
-                        <span className="text-[11px] text-zinc-400">
-                          {new Date(call.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-[11px] font-mono tabular-nums text-[var(--text-muted)]">
+                          {new Date(call.created_at).toLocaleTimeString('it-IT', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </span>
                       </div>
 
                       {isBill ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[11px] font-semibold">
-                          <Banknote className="w-3 h-3" />
+                        <StatusBadge tone="telemetry" size="sm" icon={Banknote}>
                           Conto
-                        </span>
+                        </StatusBadge>
                       ) : isOrder ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[11px] font-semibold">
-                          <Utensils className="w-3 h-3" />
+                        <StatusBadge tone="telemetry" size="sm" icon={Utensils}>
                           Comanda
-                        </span>
+                        </StatusBadge>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-semibold">
-                          <BellRing className="w-3 h-3" />
+                        <StatusBadge tone="warning" size="sm" icon={BellRing}>
                           Assistenza
-                        </span>
+                        </StatusBadge>
                       )}
                     </div>
 
                     {/* Order Details / Instructions */}
                     {call.order_details?.action_required && (
-                      <p className="text-xs font-semibold text-[#bfff00] mb-3">
+                      <p className="text-xs font-semibold text-[var(--rivo-volt-text)] mb-2">
                         • {call.order_details.action_required}
                       </p>
                     )}
 
                     {call.order_details?.total && (
-                      <p className="text-xs text-zinc-300 mb-3">
-                        Importo: <strong className="text-white">{call.order_details.total}</strong>
-                        {call.order_details.split_count > 1 && ` (diviso tra ${call.order_details.split_count} persone)`}
+                      <p className="text-xs text-[var(--text-secondary)] mb-3">
+                        Importo:{' '}
+                        <strong className="text-[var(--text-primary)] font-mono tabular-nums">
+                          {call.order_details.total}
+                        </strong>
+                        {call.order_details.split_count > 1 &&
+                          ` (diviso tra ${call.order_details.split_count} persone)`}
                       </p>
                     )}
 
                     {/* Action button: Risolvi */}
                     <button
+                      type="button"
                       onClick={() => handleResolveCall(call.id)}
-                      className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+                      className="w-full py-2.5 px-3 rounded-xl bg-[#047857] hover:opacity-90 text-white dark:bg-[var(--accent-operational)] dark:text-[#09090B] font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Segna come Servito / Risolto</span>
                     </button>
-                  </div>
+                  </SurfaceCard>
                 );
               })}
             </div>
@@ -395,50 +432,56 @@ export default function WaiterDashboardPage() {
         {/* Section: I Miei Tavoli Assegnati */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-[#bfff00]" />
-              <span>I Miei Tavoli in Turno ({myTables.length})</span>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
+              <span className="tabular-nums">I Miei Tavoli in Turno ({myTables.length})</span>
             </h2>
           </div>
 
           {loading ? (
-            <div className="py-8 flex justify-center text-zinc-500">
-              <Loader2 className="w-6 h-6 animate-spin text-[#bfff00]" />
+            <div className="py-8 flex justify-center text-[var(--text-muted)]">
+              <Loader2 className="w-6 h-6 animate-spin text-[var(--rivo-volt-text)]" />
             </div>
           ) : myTables.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-[#121214] border border-[#27272A] text-center">
-              <p className="text-xs text-zinc-400">Non hai ancora preso in carico nessun tavolo per questo turno.</p>
+            <SurfaceCard className="p-6 text-center">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Non hai ancora preso in carico nessun tavolo per questo turno.
+              </p>
               <button
+                type="button"
                 onClick={() => setShowTakeModal(true)}
-                className="mt-3 text-xs font-semibold text-[#bfff00] hover:underline"
+                className="mt-3 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline"
               >
                 + Seleziona i tuoi tavoli ora
               </button>
-            </div>
+            </SurfaceCard>
           ) : (
             <div className="space-y-2.5">
               {myTables.map((t) => (
-                <div
-                  key={t.id}
-                  className="p-3.5 rounded-2xl bg-[#121214] border border-[#27272A] flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-zinc-800 text-[#bfff00] flex items-center justify-center font-bold text-xs font-mono">
+                <SurfaceCard key={t.id} padding="sm" className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--rivo-volt-text)] flex items-center justify-center font-bold text-xs font-mono tabular-nums shrink-0">
                       {t.tableName.replace(/\D/g, '') || '#'}
                     </div>
-                    <div>
-                      <p className="font-bold text-sm text-white">{t.tableName}</p>
-                      <p className="text-[10px] text-zinc-500 font-mono">{t.uniqueCode}</p>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-[var(--text-primary)] truncate">{t.tableName}</p>
+                      <p className="text-[11px] text-[var(--text-muted)] font-mono tabular-nums">
+                        {t.uniqueCode}
+                      </p>
                     </div>
                   </div>
 
                   <button
-                    onClick={() => handleReleaseTable(t.id)}
-                    className="px-3 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 text-xs font-medium transition-colors"
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setConfirmReleaseTable(t);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-critical-bg)] text-[var(--text-secondary)] hover:text-[var(--accent-critical-text)] border border-[var(--border-subtle)] text-xs font-semibold transition-colors"
                   >
                     Libera
                   </button>
-                </div>
+                </SurfaceCard>
               ))}
             </div>
           )}
@@ -447,16 +490,25 @@ export default function WaiterDashboardPage() {
 
       {/* Modal: Prendi Tavolo */}
       {showTakeModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full sm:max-w-md bg-[#18181B] border-t sm:border border-[#27272A] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#27272A]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="take-table-modal-title"
+          className="fixed inset-0 bg-[var(--bg-backdrop)] backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overscroll-contain"
+        >
+          <div className="w-full sm:max-w-md bg-[var(--bg-surface)] border-t sm:border border-[var(--border-subtle)] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div>
-                <h3 className="font-bold text-base text-white">Prendi Tavolo in Carico</h3>
-                <p className="text-xs text-zinc-400">Tavoli attualmente liberi in sala</p>
+                <h3 id="take-table-modal-title" className="font-bold text-base text-[var(--text-primary)]">
+                  Prendi Tavolo in Carico
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)]">Tavoli attualmente liberi in sala</p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowTakeModal(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-white"
+                aria-label="Chiudi modale tavoli liberi"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -464,28 +516,84 @@ export default function WaiterDashboardPage() {
 
             <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2">
               {freeTables.length === 0 ? (
-                <p className="text-xs text-zinc-400 text-center py-6">
+                <p className="text-xs text-[var(--text-muted)] text-center py-6">
                   Tutti i tavoli risultano già presi in carico o non ci sono tavoli configurati.
                 </p>
               ) : (
                 freeTables.map((table) => (
                   <button
                     key={table.id}
+                    type="button"
                     disabled={actionLoading}
                     onClick={() => handleTakeTable(table.id)}
-                    className="w-full p-3.5 rounded-xl bg-[#121214] hover:bg-zinc-800 border border-[#27272A] flex items-center justify-between text-left transition-all active:scale-[0.98]"
+                    className="w-full p-3.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] flex items-center justify-between text-left transition-all active:scale-[0.98]"
                   >
                     <div>
-                      <p className="font-bold text-sm text-white">{table.name}</p>
-                      <p className="text-[10px] text-zinc-500 font-mono">{table.unique_code}</p>
+                      <p className="font-bold text-sm text-[var(--text-primary)]">{table.name}</p>
+                      <p className="text-[11px] text-[var(--text-muted)] font-mono tabular-nums">
+                        {table.unique_code}
+                      </p>
                     </div>
-                    <span className="text-xs font-semibold text-[#bfff00] flex items-center gap-1">
+                    <span className="text-xs font-semibold text-[var(--rivo-volt-text)] flex items-center gap-1">
                       <span>Prendi</span>
                       <ChevronRight className="w-4 h-4" />
                     </span>
                   </button>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Conferma Rilascio Tavolo */}
+      {confirmReleaseTable && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="release-table-modal-title"
+          className="fixed inset-0 bg-[var(--bg-backdrop)] backdrop-blur-xs z-50 flex items-center justify-center p-4 overscroll-contain"
+        >
+          <div className="w-full max-w-sm bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-[var(--accent-warning-text)]" />
+                <h3 id="release-table-modal-title" className="font-bold text-base text-[var(--text-primary)]">
+                  Rilascia {confirmReleaseTable.tableName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => !actionLoading && setConfirmReleaseTable(null)}
+                aria-label="Chiudi conferma rilascio"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Vuoi rilasciare questo tavolo? Non riceverai più le sue chiamate dirette.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)]">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setConfirmReleaseTable(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleConfirmReleaseTable}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#B91C1C] text-white text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Rilascia Tavolo</span>
+              </button>
             </div>
           </div>
         </div>

@@ -242,8 +242,8 @@ export default async function ProspectPreviewPage({ params }: PreviewPageProps) 
 
   if (!data) {
     return (
-      <main className="min-h-screen bg-[#09090B] text-[#FAFAFA] flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md rounded-3xl bg-[#121214] border border-[#27272A] p-7 text-center space-y-5 shadow-2xl">
+      <main className="min-h-screen min-h-dvh bg-[#09090B] text-[#FAFAFA] flex items-center justify-center px-4 py-12 overflow-x-hidden">
+        <div className="w-full max-w-md rounded-2xl bg-[#111114] border border-[#27272A] p-7 text-center space-y-5 shadow-2xl">
           <div className="flex items-center justify-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-[#18181B] border border-[#27272A] flex items-center justify-center p-1.5">
               <Image
@@ -275,7 +275,7 @@ export default async function ProspectPreviewPage({ params }: PreviewPageProps) 
 
           <Link
             href="/"
-            className="w-full py-3 px-4 rounded-xl bg-[#BFFF00] hover:bg-[#BFFF00]/90 text-[#09090B] text-xs font-extrabold transition-colors inline-flex items-center justify-center gap-2"
+            className="w-full min-h-[48px] px-4 rounded-xl bg-[#BFFF00] hover:bg-[#d2ff4d] text-[#09090B] text-xs font-extrabold transition-colors inline-flex items-center justify-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Torna a RIVO</span>

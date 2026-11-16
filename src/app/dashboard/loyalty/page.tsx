@@ -1,18 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { 
-  Award, 
-  CheckCircle2, 
-  Plus, 
-  RotateCcw, 
-  Users, 
-  Gift, 
-  Search, 
-  Save, 
-  RefreshCw 
+import {
+  Award,
+  CheckCircle2,
+  Plus,
+  RotateCcw,
+  Users,
+  Gift,
+  Save,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
+import {
+  EmptyState,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  SurfaceCard,
+} from '@/components/ui';
 
 interface LoyaltyCardItem {
   id: string;
@@ -37,15 +44,35 @@ export default function LoyaltyDashboardPage() {
   const [stampName, setStampName] = useState('');
   const [stamping, setStamping] = useState(false);
   const [stampMsg, setStampMsg] = useState<string | null>(null);
+  const [stampError, setStampError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const fetchLoyaltyForOrg = useCallback(
+    async (targetOrgId: string) => {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('loyalty_reward_text')
+        .eq('id', targetOrgId)
+        .single();
 
-  async function loadData() {
+      if (org?.loyalty_reward_text) {
+        setRewardText(org.loyalty_reward_text);
+      }
+
+      const res = await fetch(`/api/loyalty?organization_id=${targetOrgId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCards(data.cards || []);
+      }
+    },
+    [supabase]
+  );
+
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
@@ -64,36 +91,57 @@ export default function LoyaltyDashboardPage() {
         targetOrgId = firstOrg?.id;
       }
 
-      if (!targetOrgId) {
-        setLoading(false);
-        return;
-      }
+      if (!targetOrgId) return;
 
       setOrgId(targetOrgId);
-
-      // Fetch org reward text
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('loyalty_reward_text')
-        .eq('id', targetOrgId)
-        .single();
-
-      if (org?.loyalty_reward_text) {
-        setRewardText(org.loyalty_reward_text);
-      }
-
-      // Fetch cards
-      const res = await fetch(`/api/loyalty?organization_id=${targetOrgId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCards(data.cards || []);
-      }
+      await fetchLoyaltyForOrg(targetOrgId);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase, fetchLoyaltyForOrg]);
+
+  useEffect(() => {
+    let active = true;
+    async function initLoyalty() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user || !active) return;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id, role')
+          .eq('auth_user_id', user.id)
+          .single();
+
+        let targetOrgId = profile?.organization_id;
+        if (!targetOrgId && profile?.role === 'admin') {
+          const { data: firstOrg } = await supabase
+            .from('organizations')
+            .select('id')
+            .limit(1)
+            .single();
+          targetOrgId = firstOrg?.id;
+        }
+
+        if (!targetOrgId || !active) return;
+
+        setOrgId(targetOrgId);
+        await fetchLoyaltyForOrg(targetOrgId);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void initLoyalty();
+    return () => {
+      active = false;
+    };
+  }, [supabase, fetchLoyaltyForOrg]);
 
   const handleQuickStamp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +149,7 @@ export default function LoyaltyDashboardPage() {
 
     setStamping(true);
     setStampMsg(null);
+    setStampError(null);
 
     try {
       const res = await fetch('/api/loyalty', {
@@ -115,13 +164,18 @@ export default function LoyaltyDashboardPage() {
 
       const data = await res.json();
       if (res.ok && data.card) {
-        setStampMsg(`Timbro aggiunto a ${stampPhone}! Totale: ${data.card.stamps_count}/${data.card.max_stamps}`);
+        setStampMsg(
+          `Timbro aggiunto a ${stampPhone}! Totale: ${data.card.stamps_count}/${data.card.max_stamps}`
+        );
         setStampPhone('');
         setStampName('');
         loadData();
+      } else if (!res.ok) {
+        setStampError(data.error || 'Errore durante la registrazione del timbro');
       }
     } catch (e) {
       console.warn(e);
+      setStampError('Errore di connessione durante la timbratura');
     } finally {
       setStamping(false);
     }
@@ -170,200 +224,265 @@ export default function LoyaltyDashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse max-w-5xl">
-        <div className="h-8 bg-zinc-800 rounded w-1/4" />
-        <div className="h-4 bg-zinc-800 rounded w-1/3" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-28 bg-[#121214] border border-[#27272A] rounded-xl" />
-          ))}
+      <div className="space-y-6 max-w-5xl min-w-0">
+        <PageHeader title="Tessera Fedeltà Digitale" loading />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SurfaceCard loading />
+          <SurfaceCard loading />
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <KpiCard label="" value="" loading />
+          <KpiCard label="" value="" loading />
+        </div>
+        <SurfaceCard loading />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-5xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1 flex items-center gap-2">
-            <Award className="w-6 h-6 text-[#BFFF00]" />
-            <span>Tessera Fedeltà Digitale</span>
-          </h1>
-          <p className="text-sm text-zinc-400">
-            Gestisci i timbri dei clienti abituali e definisci i premi fedeltà della tua attività.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={loadData}
-          className="p-2.5 rounded-xl bg-[#18181B] hover:bg-[#27272A] border border-[#27272A] text-zinc-400 hover:text-white transition-colors self-start sm:self-auto"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
-      </div>
+    <div className="space-y-6 sm:space-y-8 max-w-5xl min-w-0">
+      <PageHeader
+        eyebrow="Fidelizzazione"
+        title="Tessera Fedeltà Digitale"
+        description="Gestisci i timbri dei clienti abituali e definisci i premi fedeltà della tua attività."
+        actions={
+          <button
+            type="button"
+            onClick={loadData}
+            aria-label="Aggiorna tessere fedeltà"
+            title="Aggiorna tessere fedeltà"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        }
+      />
 
       {/* 2 Column Actions: Quick Stamp + Reward Config */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Quick Stamp */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-[#BFFF00]" />
-            <h2 className="text-sm font-bold text-white">Timbratura Rapida alla Cassa</h2>
+        <SurfaceCard
+          radius="xl"
+          padding="md"
+          header={{
+            eyebrow: 'Operatività Cassa',
+            title: 'Timbratura Rapida alla Cassa',
+            icon: Plus,
+          }}
+        >
+          <div className="space-y-4">
+            <form onSubmit={handleQuickStamp} className="space-y-3.5">
+              <div>
+                <label
+                  htmlFor="loyalty-stamp-phone"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
+                  Numero di Telefono Cliente{' '}
+                  <span className="text-[var(--rivo-volt-text)]">*</span>
+                </label>
+                <input
+                  id="loyalty-stamp-phone"
+                  name="customerPhone"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  value={stampPhone}
+                  onChange={(e) => setStampPhone(e.target.value)}
+                  placeholder="+39 340 1234567…"
+                  className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-sm font-mono text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="loyalty-stamp-name"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
+                  Nome Cliente (opzionale)
+                </label>
+                <input
+                  id="loyalty-stamp-name"
+                  name="customerName"
+                  type="text"
+                  autoComplete="name"
+                  value={stampName}
+                  onChange={(e) => setStampName(e.target.value)}
+                  placeholder="Mario Rossi…"
+                  className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={stamping}
+                className="w-full min-h-[44px] bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs sm:text-sm rounded-lg transition-[background-color,transform] duration-[180ms] flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+                <span>{stamping ? 'Registrazione…' : 'Aggiungi Timbro al Cliente'}</span>
+              </button>
+            </form>
+
+            {stampMsg && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="p-3 bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] rounded-lg text-xs flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <span>{stampMsg}</span>
+              </div>
+            )}
+
+            {stampError && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="p-3 bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] rounded-lg text-xs flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <span>{stampError}</span>
+              </div>
+            )}
           </div>
-
-          <form onSubmit={handleQuickStamp} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-medium text-zinc-400 mb-1">
-                Numero di Telefono Cliente <span className="text-[#BFFF00]">*</span>
-              </label>
-              <input
-                type="tel"
-                required
-                value={stampPhone}
-                onChange={(e) => setStampPhone(e.target.value)}
-                placeholder="+39 340 1234567"
-                className="w-full min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs sm:text-sm text-white focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-zinc-400 mb-1">Nome Cliente (opzionale)</label>
-              <input
-                type="text"
-                value={stampName}
-                onChange={(e) => setStampName(e.target.value)}
-                placeholder="Mario Rossi"
-                className="w-full min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs sm:text-sm text-white focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={stamping}
-              className="w-full min-h-[44px] bg-[#BFFF00] hover:bg-[#a8e000] text-black font-semibold text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 touch-press shadow-md shadow-[#BFFF00]/20 disabled:opacity-50"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{stamping ? 'Registrazione...' : 'Aggiungi Timbro al Cliente'}</span>
-            </button>
-          </form>
-
-          {stampMsg && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{stampMsg}</span>
-            </div>
-          )}
-        </div>
+        </SurfaceCard>
 
         {/* Reward Settings */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Gift className="w-4 h-4 text-[#BFFF00]" />
-            <h2 className="text-sm font-bold text-white">Configura Premio Fedeltà</h2>
+        <SurfaceCard
+          radius="xl"
+          padding="md"
+          header={{
+            eyebrow: 'Regole Premio',
+            title: 'Configura Premio Fedeltà',
+            icon: Gift,
+          }}
+        >
+          <div className="space-y-4">
+            <form onSubmit={handleSaveRewardConfig} className="space-y-3.5">
+              <div>
+                <label
+                  htmlFor="loyalty-reward-text"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
+                  Descrizione Premio (sbloccato dopo 10 timbri)
+                </label>
+                <input
+                  id="loyalty-reward-text"
+                  name="rewardText"
+                  type="text"
+                  required
+                  value={rewardText}
+                  onChange={(e) => setRewardText(e.target.value)}
+                  placeholder="Es. Caffè e cornetto omaggio, o 10€ di sconto…"
+                  className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                />
+              </div>
+
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                Questo messaggio comparirà nella tessera digitale visibile sullo smartphone dei tuoi
+                clienti.
+              </p>
+
+              <button
+                type="submit"
+                disabled={savingReward}
+                className="w-full min-h-[44px] bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-[var(--text-primary)] font-semibold text-xs sm:text-sm rounded-lg transition-[background-color,border-color,transform] duration-[180ms] flex items-center justify-center gap-2 border border-[var(--border-strong)] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              >
+                <Save className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                <span>{savingReward ? 'Salvataggio…' : 'Salva Regole Premio'}</span>
+              </button>
+            </form>
+
+            {savedSuccess && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="p-3 bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] rounded-lg text-xs flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <span>Premio salvato correttamente!</span>
+              </div>
+            )}
           </div>
-
-          <form onSubmit={handleSaveRewardConfig} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-medium text-zinc-400 mb-1">
-                Descrizione Premio (sbloccato dopo 10 timbri)
-              </label>
-              <input
-                type="text"
-                required
-                value={rewardText}
-                onChange={(e) => setRewardText(e.target.value)}
-                placeholder="Es. Caffè e cornetto omaggio, o 10€ di sconto"
-                className="w-full min-h-[42px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs sm:text-sm text-white focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <p className="text-[11px] text-zinc-500 leading-relaxed">
-              Questo messaggio comparirà nella tessera digitale visibile sullo smartphone dei tuoi clienti.
-            </p>
-
-            <button
-              type="submit"
-              disabled={savingReward}
-              className="w-full min-h-[44px] bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 border border-zinc-700 touch-press disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{savingReward ? 'Salvataggio...' : 'Salva Regole Premio'}</span>
-            </button>
-          </form>
-
-          {savedSuccess && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Premio salvato correttamente!</span>
-            </div>
-          )}
-        </div>
+        </SurfaceCard>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A]">
-          <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 block mb-1">Membri Fidelity</span>
-          <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{totalMembers}</div>
-          <span className="text-[11px] text-zinc-500 mt-1 block">Tessere digitali attive</span>
-        </div>
-
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121214] border border-[#27272A]">
-          <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 block mb-1">Pronti per il Premio</span>
-          <div className="text-2xl sm:text-3xl font-bold text-[#BFFF00] tracking-tight">{readyForReward}</div>
-          <span className="text-[11px] text-[#BFFF00] mt-1 block">Con 10 timbri completati</span>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <KpiCard
+          label="Membri Fidelity"
+          value={totalMembers}
+          icon={Users}
+          tone="neutral"
+          context="Tessere digitali attive"
+        />
+        <KpiCard
+          label="Pronti per il Premio"
+          value={readyForReward}
+          icon={Award}
+          tone="volt"
+          context="Con 10 timbri completati"
+        />
       </div>
 
       {/* Members Table */}
-      <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 space-y-4">
-        <h2 className="text-base font-semibold text-white">Clienti con Tessera Attiva ({cards.length})</h2>
-
+      <SurfaceCard
+        radius="xl"
+        padding="none"
+        header={{
+          eyebrow: 'Archivio Tessere',
+          title: `Clienti con Tessera Attiva (${cards.length})`,
+          icon: Users,
+        }}
+      >
         {cards.length === 0 ? (
-          <div className="p-8 text-center text-xs text-zinc-500">
-            Nessun cliente registrato ancora. Aggiungi il primo timbro usando il form in alto o fai scansionare il chip NFC ai clienti al tavolo.
+          <div className="p-5">
+            <EmptyState
+              compact
+              icon={Award}
+              title="Nessun cliente registrato ancora"
+              description="Nessun cliente registrato ancora. Aggiungi il primo timbro usando il form in alto o fai scansionare il chip NFC ai clienti al tavolo."
+            />
           </div>
         ) : (
-          <div className="divide-y divide-[#27272A]">
+          <div className="divide-y divide-[var(--border-subtle)]">
             {cards.map((c) => {
               const hasReachedReward = c.stamps_count >= c.max_stamps;
               return (
-                <div key={c.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-white shrink-0">
+                <div
+                  key={c.id}
+                  className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--bg-elevated)]/50 transition-colors min-w-0"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-center font-mono tabular-nums font-bold text-xs text-[var(--text-primary)] shrink-0">
                       {c.stamps_count}/{c.max_stamps}
                     </div>
-                    <div>
-                      <span className="text-sm font-semibold text-white block">
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-[var(--text-primary)] block truncate">
                         {c.customer_name || 'Cliente'}
                       </span>
-                      <span className="text-[11px] text-zinc-400 font-mono">
+                      <span className="text-xs text-[var(--text-secondary)] font-mono tabular-nums block truncate">
                         {c.customer_contact}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                     {hasReachedReward ? (
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#BFFF00] text-black animate-pulse inline-flex items-center gap-1.5">
-                          <Gift className="w-3.5 h-3.5 text-black" />
-                          <span>PREMIO DISPONIBILE</span>
-                        </span>
+                      <>
+                        <StatusBadge tone="volt" variant="solid" size="md" icon={Gift} mono>
+                          PREMIO DISPONIBILE
+                        </StatusBadge>
                         <button
                           type="button"
                           onClick={() => handleResetReward(c.id)}
-                          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs flex items-center gap-1.5 transition-colors touch-press"
+                          className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] border border-[var(--border-strong)] text-[var(--text-primary)] text-xs font-semibold flex items-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer"
                         >
-                          <RotateCcw className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
                           <span>Eroga & Resetta</span>
                         </button>
-                      </div>
+                      </>
                     ) : (
-                      <span className="text-zinc-500 text-[11px]">
+                      <span className="text-xs font-mono tabular-nums text-[var(--text-muted)]">
                         Mancano {c.max_stamps - c.stamps_count} timbri al premio
                       </span>
                     )}
@@ -373,7 +492,7 @@ export default function LoyaltyDashboardPage() {
             })}
           </div>
         )}
-      </div>
+      </SurfaceCard>
     </div>
   );
 }

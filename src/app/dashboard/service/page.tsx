@@ -2,34 +2,30 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { 
-  BellRing, 
-  CreditCard, 
-  Banknote, 
-  CheckCircle2, 
-  Clock, 
-  RefreshCw, 
-  Volume2, 
+import {
+  BellRing,
+  CreditCard,
+  Banknote,
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+  Volume2,
   VolumeX,
-  Sparkles,
-  Layers,
   UtensilsCrossed,
   MessageSquareText,
   Music,
   Play,
   X,
   Check,
-  Sliders,
   ShieldAlert,
   Receipt,
-  FileText,
   Copy,
   Building2,
   Users,
+  User,
+  Utensils,
   CheckCheck,
-  Coins,
   Send,
-  Wifi,
 } from 'lucide-react';
 import {
   SERVICE_SOUND_OPTIONS,
@@ -38,10 +34,18 @@ import {
 } from '@/lib/service-sounds';
 import { hapticTap, hapticSelection, hapticSuccess } from '@/lib/haptics';
 import { formatInvoiceForCashier } from '@/lib/invoice-helpers';
+import { PageHeader, SurfaceCard, StatusBadge, EmptyState } from '@/components/ui';
 
 interface ServiceCallRecord {
   id: string;
-  type: 'waiter' | 'bill_pos' | 'bill_cash' | 'dish_order' | 'negative_review_alert' | 'in_dining_review_alert' | 'bill_invoice';
+  type:
+    | 'waiter'
+    | 'bill_pos'
+    | 'bill_cash'
+    | 'dish_order'
+    | 'negative_review_alert'
+    | 'in_dining_review_alert'
+    | 'bill_invoice';
   table_label: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   created_at: string;
@@ -78,6 +82,8 @@ interface ServiceCallRecord {
     };
   };
 }
+
+type StatusTone = 'neutral' | 'volt' | 'operational' | 'warning' | 'critical' | 'telemetry';
 
 export default function ServiceDashboardPage() {
   const [supabase] = useState(() => createClient());
@@ -137,6 +143,16 @@ export default function ServiceDashboardPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showSoundModal) {
+        setShowSoundModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSoundModal]);
 
   // Supabase Realtime Live WebSocket Channel (Zero-Refresh)
   useEffect(() => {
@@ -202,7 +218,9 @@ export default function ServiceDashboardPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
@@ -213,11 +231,7 @@ export default function ServiceDashboardPage() {
 
       let targetOrgId = profile?.organization_id;
       if (!targetOrgId && profile?.role === 'admin') {
-        const { data: firstOrg } = await supabase
-          .from('organizations')
-          .select('id')
-          .limit(1)
-          .single();
+        const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).single();
         targetOrgId = firstOrg?.id;
       }
 
@@ -287,9 +301,7 @@ export default function ServiceDashboardPage() {
         });
       }
 
-      setCalls((prev) =>
-        prev.map((c) => (c.id === call.id ? { ...c, status: 'in_progress' } : c))
-      );
+      setCalls((prev) => prev.map((c) => (c.id === call.id ? { ...c, status: 'in_progress' } : c)));
       hapticSuccess();
     } catch (e) {
       console.error('Error dispatching attendant:', e);
@@ -322,59 +334,65 @@ export default function ServiceDashboardPage() {
     }
   };
 
-  const typeConfig: Record<string, { label: string; icon: typeof BellRing; color: string; badge: string }> = {
+  const typeConfig: Record<
+    string,
+    { label: string; icon: typeof BellRing; tone: StatusTone; iconWrap: string }
+  > = {
     waiter: {
       label: 'Cameriere al Tavolo',
       icon: BellRing,
-      color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-      badge: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40',
+      tone: 'warning',
+      iconWrap: 'bg-[var(--accent-warning-bg)] text-[var(--accent-warning-text)] border-[var(--accent-warning-border)]',
     },
     bill_pos: {
       label: 'Conto con POS / Carta',
       icon: CreditCard,
-      color: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20',
-      badge: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400 border-sky-200/60 dark:border-sky-800/40',
+      tone: 'telemetry',
+      iconWrap: 'bg-[var(--accent-telemetry-bg)] text-[var(--accent-telemetry-text)] border-[var(--accent-telemetry-border)]',
     },
     bill_cash: {
       label: 'Conto in Contanti',
       icon: Banknote,
-      color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-      badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/40',
+      tone: 'operational',
+      iconWrap: 'bg-[var(--accent-operational-bg)] text-[var(--accent-operational-text)] border-[var(--accent-operational-border)]',
     },
     dish_order: {
       label: 'Comanda Cucina',
       icon: UtensilsCrossed,
-      color: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
-      badge: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800/40',
+      tone: 'telemetry',
+      iconWrap: 'bg-[var(--accent-telemetry-bg)] text-[var(--accent-telemetry-text)] border-[var(--accent-telemetry-border)]',
     },
     negative_review_alert: {
       label: 'Priorità: Esperienza Negativa',
       icon: ShieldAlert,
-      color: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25',
-      badge: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200/60 dark:border-rose-800/40',
+      tone: 'critical',
+      iconWrap: 'bg-[var(--accent-critical-bg)] text-[var(--accent-critical-text)] border-[var(--accent-critical-border)]',
     },
     in_dining_review_alert: {
       label: 'Priorità: Esperienza Negativa',
       icon: ShieldAlert,
-      color: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25',
-      badge: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200/60 dark:border-rose-800/40',
+      tone: 'critical',
+      iconWrap: 'bg-[var(--accent-critical-bg)] text-[var(--accent-critical-text)] border-[var(--accent-critical-border)]',
     },
     bill_invoice: {
       label: 'Conto con Fattura Elettronica',
       icon: Receipt,
-      color: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/25',
-      badge: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400 border-violet-200/60 dark:border-violet-800/40',
+      tone: 'volt',
+      iconWrap: 'bg-[var(--rivo-volt-bg)] text-[var(--rivo-volt-text)] border-[var(--rivo-volt-border)]',
     },
   };
 
   if (loading) {
     return (
       <div className="space-y-6 max-w-5xl">
-        <div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg w-1/4 animate-pulse" />
-        <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded-md w-1/3 animate-pulse" />
+        <div className="h-8 bg-[var(--bg-subtle)] rounded-lg w-1/4 animate-pulse" />
+        <div className="h-4 bg-[var(--bg-subtle)] rounded-md w-1/3 animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-36 bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 rounded-xl animate-pulse" />
+            <div
+              key={i}
+              className="h-36 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl animate-pulse"
+            />
           ))}
         </div>
       </div>
@@ -382,89 +400,82 @@ export default function ServiceDashboardPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-5xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-zinc-200/80 dark:border-white/[0.06]">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-              Chiamate Sala &amp; Richieste Conto
-            </h1>
+    <div className="space-y-6 sm:space-y-8 max-w-5xl animate-fade-in">
+      <PageHeader
+        eyebrow="Duplex Floor Console"
+        eyebrowTone="volt"
+        title="Chiamate Sala & Richieste Conto"
+        description="Console di servizio duplex per personale di sala e cassa: sincronizzazione istantanea senza ricaricamento."
+        badge={
+          <div className="flex flex-wrap items-center gap-2">
             {calls.length > 0 && (
-              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 tabular-nums">
+              <StatusBadge tone="neutral" variant="solid" size="sm" mono>
                 {calls.length} {calls.length === 1 ? 'Attiva' : 'Attive'}
-              </span>
+              </StatusBadge>
             )}
             {isRealtimeLive ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Live Realtime</span>
-              </span>
+              <StatusBadge tone="operational" size="sm" dot pulse>
+                Live Realtime
+              </StatusBadge>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-                <span>Connessione...</span>
-              </span>
+              <StatusBadge tone="neutral" size="sm" dot>
+                Connessione...
+              </StatusBadge>
             )}
           </div>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Console di servizio duplex per personale di sala e cassa: sincronizzazione istantanea senza ricaricamento.
-          </p>
-        </div>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                hapticTap();
+                setShowSoundModal(true);
+              }}
+              className="px-3 py-2 rounded-xl border text-xs font-medium flex items-center gap-2 transition-all touch-press bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-primary)] shadow-2xs"
+              title="Scegli suono chiamate"
+            >
+              <Music className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+              <span className="hidden sm:inline">
+                {SERVICE_SOUND_OPTIONS.find((s) => s.id === selectedSound)?.name || 'Campanello'}
+              </span>
+            </button>
 
-        <div className="flex items-center gap-2">
-          {/* Custom Sound Picker */}
-          <button
-            type="button"
-            onClick={() => {
-              hapticTap();
-              setShowSoundModal(true);
-            }}
-            className="px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all touch-press bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 shadow-2xs"
-            title="Scegli suono chiamate"
-          >
-            <Music className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="hidden sm:inline">
-              {SERVICE_SOUND_OPTIONS.find((s) => s.id === selectedSound)?.name || 'Campanello'}
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`px-3 py-2 rounded-xl border text-xs font-medium flex items-center gap-2 transition-all touch-press ${
+                soundEnabled
+                  ? 'bg-[var(--bg-subtle)] text-[var(--text-primary)] border-[var(--border-strong)]'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+              }`}
+            >
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{soundEnabled ? 'Audio Attivo' : 'Muto'}</span>
+            </button>
 
-          {/* Sound Toggle */}
-          <button
-            type="button"
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all touch-press ${
-              soundEnabled
-                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border-zinc-300 dark:border-zinc-700'
-                : 'bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-200/80 dark:border-zinc-800'
-            }`}
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{soundEnabled ? 'Audio Attivo' : 'Muto'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={loadCallsOnly}
-            className="p-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-2xs"
-            title="Aggiorna chiamate"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={loadCallsOnly}
+              aria-label="Aggiorna chiamate"
+              className="p-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shadow-2xs"
+              title="Aggiorna chiamate"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        }
+      />
 
       {/* Active Calls Grid */}
       {calls.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900/40 p-12 text-center space-y-3">
-          <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Nessuna chiamata in attesa</h2>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
-            Tutti i tavoli sono serviti. Quando un cliente tocca &ldquo;Chiama Cameriere&rdquo; o &ldquo;Richiedi Conto&rdquo;, il ticket di servizio comparirà qui in tempo reale.
-          </p>
-        </div>
+        <SurfaceCard padding="none">
+          <EmptyState
+            icon={CheckCircle2}
+            title="Nessuna chiamata in attesa"
+            description="Tutti i tavoli sono serviti. Quando un cliente tocca 'Chiama Cameriere' o 'Richiedi Conto', il ticket di servizio comparirà qui in tempo reale."
+          />
+        </SurfaceCard>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {calls.map((call) => {
@@ -474,31 +485,36 @@ export default function ServiceDashboardPage() {
             const minutesAgo = Math.floor((Date.now() - date.getTime()) / 60000);
 
             return (
-              <div
+              <SurfaceCard
                 key={call.id}
-                className="rounded-xl border border-zinc-200/90 dark:border-white/[0.08] bg-white dark:bg-[#0E0F12] p-5 space-y-4 shadow-xs hover:border-zinc-300 dark:hover:border-white/[0.15] transition-all"
+                padding="md"
+                className="space-y-4 hover:border-[var(--border-strong)] transition-all"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 ${config.color}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 ${config.iconWrap}`}
+                    >
                       <Icon className="w-5 h-5" />
                     </div>
-                    <div>
-                      <h2 className="text-base font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+                    <div className="min-w-0">
+                      <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)] truncate">
                         {call.table_label}
                       </h2>
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border inline-block mt-0.5 ${config.badge}`}>
-                        {config.label}
-                      </span>
+                      <div className="mt-0.5">
+                        <StatusBadge tone={config.tone} size="sm">
+                          {config.label}
+                        </StatusBadge>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="text-right font-mono">
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 justify-end">
+                  <div className="text-right font-mono tabular-nums shrink-0">
+                    <span className="text-xs text-[var(--text-secondary)] flex items-center gap-1 justify-end">
                       <Clock className="w-3.5 h-3.5" />
                       <span>{minutesAgo < 1 ? 'Adesso' : `${minutesAgo} min fa`}</span>
                     </span>
-                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    <span className="text-[11px] text-[var(--text-muted)]">
                       {date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -506,24 +522,27 @@ export default function ServiceDashboardPage() {
 
                 {/* Dettaglio Comanda Piatti */}
                 {call.type === 'dish_order' && call.order_details && (
-                  <div className="bg-zinc-50 dark:bg-zinc-900/60 rounded-lg p-3.5 border border-zinc-200/80 dark:border-white/[0.06] space-y-2.5">
-                    {call.order_details.collaborative && call.order_details.guests && call.order_details.guests.length > 0 && (
-                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-zinc-200/80 dark:border-zinc-800 text-[11px]">
-                        <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                          👥 Ordine Condiviso ({call.order_details.guests.length} al tavolo)
-                        </span>
-                        <span className="text-zinc-500 dark:text-zinc-400 truncate">
-                          {call.order_details.guests.join(', ')}
-                        </span>
-                      </div>
-                    )}
+                  <div className="bg-[var(--bg-subtle)] rounded-xl p-3.5 border border-[var(--border-subtle)] space-y-2.5">
+                    {call.order_details.collaborative &&
+                      call.order_details.guests &&
+                      call.order_details.guests.length > 0 && (
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)] text-[11px]">
+                          <span className="font-semibold text-[var(--accent-telemetry-text)] inline-flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            <span>Ordine Condiviso ({call.order_details.guests.length} al tavolo)</span>
+                          </span>
+                          <span className="text-[var(--text-muted)] truncate">
+                            {call.order_details.guests.join(', ')}
+                          </span>
+                        </div>
+                      )}
                     {/* Lista piatti ordinati con quantità in evidenza */}
                     {call.order_details.items && call.order_details.items.length > 0 && (
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                        <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                           Portate Ordinate {call.order_details.round ? `• Giro #${call.order_details.round}` : ''}
                         </p>
-                        <div className="divide-y divide-zinc-200/80 dark:divide-zinc-800">
+                        <div className="divide-y divide-[var(--border-subtle)]">
                           {call.order_details.items.map((item, idx) => (
                             <div
                               key={item.id || idx}
@@ -531,29 +550,29 @@ export default function ServiceDashboardPage() {
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-200/70 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[11px] shrink-0 font-mono">
+                                  <span className="font-semibold text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded text-[11px] shrink-0 font-mono tabular-nums">
                                     {item.quantity}x
                                   </span>
-                                  <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                                  <span className="font-medium text-[var(--text-primary)] truncate">
                                     {item.name}
                                   </span>
                                   {item.shared ? (
-                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                                      🤝 Al Centro
-                                    </span>
+                                    <StatusBadge tone="warning" size="sm" icon={Utensils}>
+                                      Al Centro
+                                    </StatusBadge>
                                   ) : item.guest_name ? (
-                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">
-                                      👤 {item.guest_name}
-                                    </span>
+                                    <StatusBadge tone="telemetry" size="sm" icon={User}>
+                                      {item.guest_name}
+                                    </StatusBadge>
                                   ) : null}
                                 </div>
                                 {item.notes && (
-                                  <p className="text-[11px] text-amber-700 dark:text-amber-400 italic pl-7 mt-0.5">
+                                  <p className="text-[11px] text-[var(--accent-warning-text)] italic pl-7 mt-0.5">
                                     Nota: {item.notes}
                                   </p>
                                 )}
                               </div>
-                              <span className="font-mono text-zinc-500 dark:text-zinc-400 text-xs shrink-0">
+                              <span className="font-mono tabular-nums text-[var(--text-secondary)] text-xs shrink-0">
                                 {item.price}
                               </span>
                             </div>
@@ -564,10 +583,10 @@ export default function ServiceDashboardPage() {
 
                     {/* Note cliente per la cucina */}
                     {call.order_details.notes && (
-                      <div className="p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
-                        <MessageSquareText className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                      <div className="p-2.5 rounded-lg bg-[var(--accent-warning-bg)] border border-[var(--accent-warning-border)] text-xs text-[var(--text-primary)] flex items-start gap-2">
+                        <MessageSquareText className="w-4 h-4 shrink-0 mt-0.5 text-[var(--accent-warning-text)]" />
                         <div className="min-w-0">
-                          <span className="font-semibold block text-[11px] text-amber-800 dark:text-amber-400">
+                          <span className="font-semibold block text-[11px] text-[var(--accent-warning-text)]">
                             Note per la cucina:
                           </span>
                           <span className="break-words">{call.order_details.notes}</span>
@@ -577,9 +596,9 @@ export default function ServiceDashboardPage() {
 
                     {/* Totale comanda */}
                     {call.order_details.total && (
-                      <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
-                        <span className="text-xs text-zinc-500 font-medium">Totale Comanda:</span>
-                        <span className="font-mono font-semibold text-sm text-zinc-950 dark:text-zinc-50">
+                      <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                        <span className="text-xs text-[var(--text-secondary)] font-medium">Totale Comanda:</span>
+                        <span className="font-mono tabular-nums font-semibold text-sm text-[var(--text-primary)]">
                           {call.order_details.total}
                         </span>
                       </div>
@@ -588,35 +607,43 @@ export default function ServiceDashboardPage() {
                 )}
 
                 {/* Dettaglio Alert Recensione / Insoddisfazione In-Dining */}
-                {(call.type === 'negative_review_alert' || call.type === 'in_dining_review_alert') && call.order_details && (
-                  <div className="bg-rose-50 dark:bg-rose-950/30 rounded-lg p-3.5 border border-rose-200/60 dark:border-rose-800/40 space-y-2">
-                    <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-semibold text-xs">
-                      <ShieldAlert className="w-4 h-4 shrink-0" />
-                      <span>Valutazione: {call.order_details.rating || '1-3'} Stelle • Intervento Immediato</span>
-                    </div>
-                    {call.order_details.notes && (
-                      <p className="text-xs text-rose-900 dark:text-rose-200 bg-rose-100/60 dark:bg-rose-900/30 p-2.5 rounded-md italic">
-                        &quot;{call.order_details.notes}&quot;
+                {(call.type === 'negative_review_alert' || call.type === 'in_dining_review_alert') &&
+                  call.order_details && (
+                    <div className="bg-[var(--accent-critical-bg)] rounded-xl p-3.5 border border-[var(--accent-critical-border)] space-y-2">
+                      <div className="flex items-center gap-2 text-[var(--accent-critical-text)] font-semibold text-xs">
+                        <ShieldAlert className="w-4 h-4 shrink-0" />
+                        <span className="tabular-nums">
+                          Valutazione: {call.order_details.rating || '1-3'} Stelle • Intervento Immediato
+                        </span>
+                      </div>
+                      {call.order_details.notes && (
+                        <p className="text-xs text-[var(--text-primary)] bg-[var(--bg-surface)]/70 p-2.5 rounded-lg italic border border-[var(--accent-critical-border)]">
+                          &quot;{call.order_details.notes}&quot;
+                        </p>
+                      )}
+                      <p className="text-[11px] text-[var(--text-secondary)]">
+                        Raggiungete il tavolo per assistere l&apos;ospite prima del pagamento e dell&apos;uscita dal
+                        locale.
                       </p>
-                    )}
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Raggiungete il tavolo per assistere l&apos;ospite prima del pagamento e dell&apos;uscita dal locale.
-                    </p>
-                  </div>
-                )}
+                    </div>
+                  )}
 
                 {/* Dettaglio Conto con Fattura Elettronica / Split Bill */}
-                {(call.type === 'bill_invoice' || call.order_details?.invoice || (call.order_details?.split_count && call.order_details.split_count > 1)) && (
-                  <div className="bg-zinc-50 dark:bg-zinc-900/60 rounded-lg p-3.5 border border-zinc-200/80 dark:border-white/[0.06] space-y-2.5">
-                    <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 dark:border-zinc-800 pb-2">
+                {(call.type === 'bill_invoice' ||
+                  call.order_details?.invoice ||
+                  (call.order_details?.split_count && call.order_details.split_count > 1)) && (
+                  <div className="bg-[var(--bg-subtle)] rounded-xl p-3.5 border border-[var(--border-subtle)] space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
                       <div className="flex items-center gap-2">
-                        <Receipt className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                        <Receipt className="w-4 h-4 text-[var(--rivo-volt-text)] shrink-0" />
                         <div>
-                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 block">
+                          <span className="text-xs font-semibold text-[var(--text-primary)] block">
                             {call.order_details?.invoice ? 'Fattura Elettronica Richiesta' : 'Richiesta Conto al Tavolo'}
                           </span>
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                            {call.order_details?.payment_method === 'cash' ? 'Pagamento in contanti' : 'Pagamento con POS al tavolo'}
+                          <span className="text-[11px] text-[var(--text-muted)]">
+                            {call.order_details?.payment_method === 'cash'
+                              ? 'Pagamento in contanti'
+                              : 'Pagamento con POS al tavolo'}
                           </span>
                         </div>
                       </div>
@@ -625,13 +652,13 @@ export default function ServiceDashboardPage() {
                         <button
                           type="button"
                           onClick={() => handleCopyInvoice(call)}
-                          className="px-2.5 py-1.5 rounded-md bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 text-[11px] font-medium flex items-center gap-1.5 shadow-2xs transition-all touch-press active:scale-95 cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-[11px] font-medium flex items-center gap-1.5 shadow-2xs transition-all touch-press active:scale-95 cursor-pointer"
                           title="Copia dati fiscali pronti per registratore o software fatture"
                         >
                           {copiedId === call.id ? (
                             <>
-                              <CheckCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copiato</span>
+                              <CheckCheck className="w-3.5 h-3.5 text-[var(--accent-operational-text)]" />
+                              <span className="text-[var(--accent-operational-text)] font-semibold">Copiato</span>
                             </>
                           ) : (
                             <>
@@ -645,45 +672,55 @@ export default function ServiceDashboardPage() {
 
                     {/* Dati Fiscali Aziendali */}
                     {call.order_details?.invoice && (
-                      <div className="bg-white dark:bg-zinc-950/70 rounded-md p-3 border border-zinc-200/80 dark:border-white/[0.05] text-xs space-y-2">
+                      <div className="bg-[var(--bg-surface)] rounded-lg p-3 border border-[var(--border-subtle)] text-xs space-y-2">
                         <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-zinc-400 shrink-0" />
+                          <Building2 className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                           <div className="min-w-0">
-                            <span className="text-[10px] uppercase text-zinc-400 font-medium block">Ragione Sociale</span>
-                            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs truncate block">
+                            <span className="text-[10px] uppercase text-[var(--text-muted)] font-medium block">
+                              Ragione Sociale
+                            </span>
+                            <span className="font-semibold text-[var(--text-primary)] text-xs truncate block">
                               {call.order_details.invoice.companyName || 'Non specificata'}
                             </span>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-zinc-100 dark:border-zinc-800/80">
+                        <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-[var(--border-subtle)]">
                           <div>
-                            <span className="text-[10px] uppercase text-zinc-400 font-medium block">Partita IVA / CF</span>
-                            <span className="font-mono text-zinc-900 dark:text-zinc-100 text-[11px] font-medium">
-                              {call.order_details.invoice.vatNumber || '-'}
+                            <span className="text-[10px] uppercase text-[var(--text-muted)] font-medium block">
+                              Partita IVA / CF
+                            </span>
+                            <span className="font-mono tabular-nums text-[var(--text-primary)] text-[11px] font-medium">
+                              {call.order_details.invoice.vatNumber || '—'}
                             </span>
                           </div>
                           <div>
-                            <span className="text-[10px] uppercase text-zinc-400 font-medium block">Codice SDI</span>
-                            <span className="font-mono text-zinc-900 dark:text-zinc-100 text-[11px] font-bold bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 inline-block">
+                            <span className="text-[10px] uppercase text-[var(--text-muted)] font-medium block">
+                              Codice SDI
+                            </span>
+                            <span className="font-mono tabular-nums text-[var(--text-primary)] text-[11px] font-bold bg-[var(--bg-subtle)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)] inline-block">
                               {call.order_details.invoice.sdiCode?.toUpperCase() || '0000000'}
                             </span>
                           </div>
                         </div>
 
                         {call.order_details.invoice.pec && (
-                          <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-800/80">
-                            <span className="text-[10px] uppercase text-zinc-400 font-medium block">PEC</span>
-                            <span className="font-mono text-zinc-600 dark:text-zinc-300 text-[11px] break-all">
+                          <div className="pt-1.5 border-t border-[var(--border-subtle)]">
+                            <span className="text-[10px] uppercase text-[var(--text-muted)] font-medium block">
+                              PEC
+                            </span>
+                            <span className="font-mono text-[var(--text-secondary)] text-[11px] break-all">
                               {call.order_details.invoice.pec}
                             </span>
                           </div>
                         )}
 
                         {call.order_details.invoice.address && (
-                          <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-800/80">
-                            <span className="text-[10px] uppercase text-zinc-400 font-medium block">Indirizzo Sede</span>
-                            <span className="text-zinc-600 dark:text-zinc-300 text-[11px]">
+                          <div className="pt-1.5 border-t border-[var(--border-subtle)]">
+                            <span className="text-[10px] uppercase text-[var(--text-muted)] font-medium block">
+                              Indirizzo Sede
+                            </span>
+                            <span className="text-[var(--text-secondary)] text-[11px]">
                               {call.order_details.invoice.address}
                             </span>
                           </div>
@@ -693,15 +730,18 @@ export default function ServiceDashboardPage() {
 
                     {/* Dettaglio Divisione Spesa "Alla Romana" */}
                     {call.order_details?.split_count && call.order_details.split_count > 1 && (
-                      <div className="flex items-center justify-between p-2 rounded-md bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/60 text-xs">
+                      <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-xs">
                         <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-zinc-500 shrink-0" />
-                          <span className="text-zinc-700 dark:text-zinc-300 font-medium">
-                            Conto diviso per <strong>{call.order_details.split_count} persone</strong>
+                          <Users className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
+                          <span className="text-[var(--text-secondary)] font-medium">
+                            Conto diviso per{' '}
+                            <strong className="text-[var(--text-primary)] font-mono tabular-nums">
+                              {call.order_details.split_count} persone
+                            </strong>
                           </span>
                         </div>
                         {call.order_details.split_quota && (
-                          <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">
+                          <span className="font-mono tabular-nums font-semibold text-[var(--text-primary)] bg-[var(--bg-subtle)] px-2 py-0.5 rounded border border-[var(--border-subtle)]">
                             {call.order_details.split_quota} a quota
                           </span>
                         )}
@@ -710,13 +750,13 @@ export default function ServiceDashboardPage() {
 
                     {/* Banner Azione Richiesta Smart Bill (POS / Resto) */}
                     {call.order_details?.action_required && (
-                      <div className="p-2 rounded-md bg-sky-50 dark:bg-sky-950/30 border border-sky-200/60 dark:border-sky-800/40 flex items-center justify-between text-xs">
-                        <span className="font-medium text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
-                          <Send className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                      <div className="p-2.5 rounded-lg bg-[var(--accent-telemetry-bg)] border border-[var(--accent-telemetry-border)] flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <span className="font-medium text-[var(--accent-telemetry-text)] flex items-center gap-1.5">
+                          <Send className="w-3.5 h-3.5" />
                           <span>{call.order_details.action_required}</span>
                         </span>
                         {call.order_details.change_due && (
-                          <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded">
+                          <span className="font-mono tabular-nums font-semibold text-[var(--accent-operational-text)] bg-[var(--accent-operational-bg)] px-2 py-0.5 rounded border border-[var(--accent-operational-border)]">
                             Resto: {call.order_details.change_due}
                           </span>
                         )}
@@ -725,14 +765,13 @@ export default function ServiceDashboardPage() {
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between gap-2 flex-wrap">
+                <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
                   {call.status === 'in_progress' ? (
-                    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      <span>Cameriere in Arrivo al Tavolo</span>
-                    </span>
+                    <StatusBadge tone="warning" size="sm" dot>
+                      Cameriere in Arrivo al Tavolo
+                    </StatusBadge>
                   ) : (
-                    <span className="text-[11px] text-zinc-500">In attesa di presa in carico</span>
+                    <span className="text-[11px] text-[var(--text-muted)]">In attesa di presa in carico</span>
                   )}
 
                   <div className="flex items-center gap-2">
@@ -740,10 +779,10 @@ export default function ServiceDashboardPage() {
                       <button
                         type="button"
                         onClick={() => handleDispatchAttendant(call)}
-                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 font-medium text-xs flex items-center gap-1.5 transition-all touch-press active:scale-95 cursor-pointer shadow-2xs"
+                        className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-medium text-xs flex items-center gap-1.5 transition-all touch-press active:scale-95 cursor-pointer shadow-2xs"
                         title="Segnala al tavolo che il cameriere sta arrivando con POS o Resto"
                       >
-                        <Send className="w-3.5 h-3.5 text-zinc-500" />
+                        <Send className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                         <span>Invia Cameriere</span>
                       </button>
                     )}
@@ -751,14 +790,14 @@ export default function ServiceDashboardPage() {
                     <button
                       type="button"
                       onClick={() => handleResolve(call.id, call.order_details?.bill_request_id)}
-                      className="min-h-[38px] px-4 py-1.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-xs touch-press active:scale-95 cursor-pointer"
+                      className="min-h-[38px] px-4 py-1.5 rounded-xl bg-[var(--text-primary)] text-[var(--bg-canvas)] hover:opacity-90 font-semibold text-xs flex items-center gap-1.5 transition-opacity shadow-xs touch-press active:scale-95 cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>{call.type === 'dish_order' ? 'Comanda Evasa' : 'Saldato / Evadi'}</span>
                     </button>
                   </div>
                 </div>
-              </div>
+              </SurfaceCard>
             );
           })}
         </div>
@@ -766,16 +805,23 @@ export default function ServiceDashboardPage() {
 
       {/* Sound Selection Modal */}
       {showSoundModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/[0.08] rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sound-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-xs animate-fade-in overscroll-contain"
+        >
+          <div className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center">
                   <Music className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Suono Chiamate Sala</h3>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <h3 id="sound-modal-title" className="text-sm font-semibold text-[var(--text-primary)]">
+                    Suono Chiamate Sala
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-secondary)]">
                     Segnale acustico riprodotto all&apos;arrivo di nuove notifiche
                   </p>
                 </div>
@@ -786,7 +832,8 @@ export default function ServiceDashboardPage() {
                   hapticTap();
                   setShowSoundModal(false);
                 }}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                aria-label="Chiudi selezione suono"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -799,56 +846,64 @@ export default function ServiceDashboardPage() {
                 return (
                   <div
                     key={opt.id}
-                    onClick={() => {
-                      hapticSelection();
-                      setSelectedSound(opt.id);
-                      playServiceSound(opt.id);
-                    }}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    className={`rounded-xl border transition-all flex items-center justify-between gap-2 ${
                       isSelected
-                        ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 shadow-2xs'
-                        : 'bg-transparent border-zinc-200/80 dark:border-zinc-800/80 hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
+                        ? 'bg-[var(--bg-subtle)] border-[var(--border-strong)] shadow-2xs'
+                        : 'bg-transparent border-[var(--border-subtle)] hover:bg-[var(--bg-subtle)]/60'
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className={`text-xs font-semibold ${isSelected ? 'text-zinc-950 dark:text-zinc-100' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                          {opt.name}
-                        </span>
-                        <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-zinc-200/80 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                          {opt.category}
-                        </span>
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => {
+                        hapticSelection();
+                        setSelectedSound(opt.id);
+                        playServiceSound(opt.id);
+                      }}
+                      className="min-w-0 flex-1 p-3 text-left flex items-center justify-between gap-3 cursor-pointer rounded-l-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span
+                            className={`text-xs font-semibold ${
+                              isSelected ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
+                            }`}
+                          >
+                            {opt.name}
+                          </span>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+                            {opt.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[var(--text-muted)] leading-tight">{opt.tagline}</p>
                       </div>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
-                        {opt.tagline}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* Play Preview Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          hapticTap();
-                          playServiceSound(opt.id);
-                        }}
-                        className="p-2 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors"
-                        title="Ascolta anteprima"
-                      >
-                        <Play className="w-3 h-3 fill-current" />
-                      </button>
 
                       {/* Selection Checkmark */}
                       <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                        className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all shrink-0 ${
                           isSelected
-                            ? 'bg-zinc-900 dark:bg-white border-zinc-900 dark:border-white text-white dark:text-zinc-950'
-                            : 'border-zinc-300 dark:border-zinc-700 bg-transparent text-transparent'
+                            ? 'bg-[var(--text-primary)] border-[var(--text-primary)] text-[var(--bg-canvas)]'
+                            : 'border-[var(--border-strong)] bg-transparent text-transparent'
                         }`}
                       >
-                        <Check className="w-3 h-3 stroke-[2.5]" />
+                        <Check className="w-3 h-3 stroke-[2.5]" aria-hidden="true" />
                       </div>
+                    </button>
+
+                    {/* Play Preview Button (sibling, non-nested) */}
+                    <div className="pr-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          hapticTap();
+                          playServiceSound(opt.id);
+                        }}
+                        aria-label={`Ascolta anteprima ${opt.name}`}
+                        className="p-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] transition-colors cursor-pointer"
+                        title="Ascolta anteprima"
+                      >
+                        <Play className="w-3 h-3 fill-current" aria-hidden="true" />
+                      </button>
                     </div>
                   </div>
                 );
@@ -856,14 +911,14 @@ export default function ServiceDashboardPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end">
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => {
                   hapticSuccess();
                   setShowSoundModal(false);
                 }}
-                className="px-4 py-2 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 font-semibold text-xs shadow-xs transition-all active:scale-95 cursor-pointer hover:bg-zinc-800 dark:hover:bg-zinc-100"
+                className="px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
               >
                 Conferma Selezione
               </button>

@@ -3,20 +3,19 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { 
-  Save, 
-  Check, 
-  ShieldCheck, 
-  ShieldAlert, 
-  Clock, 
-  Utensils, 
-  Link2, 
+import {
+  Save,
+  Check,
+  ShieldCheck,
+  Clock,
+  Utensils,
+  Link2,
   AlertCircle,
   RefreshCw,
   Send,
   Wifi,
   Wine,
-  Sparkles,
+  Sliders,
   Compass,
   Layers,
   Building2,
@@ -29,9 +28,10 @@ import {
   Palette,
   Smartphone,
 } from 'lucide-react';
-import { HUB_COLOR_PRESETS } from '@/lib/palettes';
+import { HUB_COLOR_PRESETS, getContrastColor } from '@/lib/palettes';
 import { BusinessCategory, HubMode } from '@/lib/types';
-import { CATEGORIES, getCategoryDefinition } from '@/lib/categories';
+import { CATEGORIES } from '@/lib/categories';
+import { PageHeader, StatusBadge, SurfaceCard } from '@/components/ui';
 
 export default function ProfilePage() {
   const [supabase] = useState(() => createClient());
@@ -86,78 +86,79 @@ export default function ProfilePage() {
   const [aiMenuContext, setAiMenuContext] = useState('');
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    let active = true;
+    async function initProfile() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user || !active) return;
 
-  async function loadProfile() {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_id, role')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      let targetOrgId = profile?.organization_id;
-      if (!targetOrgId && profile?.role === 'admin') {
-        const { data: firstOrg } = await supabase
-          .from('organizations')
-          .select('id')
-          .limit(1)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id, role')
+          .eq('auth_user_id', user.id)
           .single();
-        targetOrgId = firstOrg?.id;
+
+        let targetOrgId = profile?.organization_id;
+        if (!targetOrgId && profile?.role === 'admin') {
+          const { data: firstOrg } = await supabase
+            .from('organizations')
+            .select('id')
+            .limit(1)
+            .single();
+          targetOrgId = firstOrg?.id;
+        }
+
+        if (!targetOrgId || !active) return;
+
+        setOrgId(targetOrgId);
+
+        const { data: org, error } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', targetOrgId)
+          .single();
+
+        if (error) throw error;
+
+        if (org && active) {
+          setName(org.name || '');
+          setLogoUrl(org.logo_url || '');
+          setEmail(org.email || '');
+          setPhone(org.phone || '');
+          setWebsite(org.website || '');
+          setReviewUrl(org.google_review_url || '');
+          setReviewShieldEnabled(org.review_shield_enabled ?? true);
+          setCategory((org.category || 'restaurant') as BusinessCategory);
+          setHubMode((org.hub_mode || 'hub') as HubMode);
+          setCustomCtaLabel(org.custom_cta_label || '');
+          setCustomCtaUrl(org.custom_cta_url || '');
+          setCityGuideText(org.city_guide_text || '');
+          setSmartRoutingEnabled(org.smart_routing_enabled ?? false);
+          setLunchUrl(org.lunch_destination_url || '');
+          setLunchStart(org.lunch_start_time || '12:00');
+          setLunchEnd(org.lunch_end_time || '15:30');
+          setTelegramToken(org.telegram_bot_token || '');
+          setTelegramChatId(org.telegram_chat_id || '');
+          setTelegramAlertsEnabled(org.telegram_alerts_enabled ?? false);
+          setWifiSsid(org.wifi_ssid || '');
+          setWifiPassword(org.wifi_password || '');
+          setAiMenuContext(org.ai_menu_context || '');
+          setPrimaryColor(org.primary_color || '#B4F02A');
+        }
+      } catch (err) {
+        console.error('Error loading profile data:', err);
+        if (active) setErrorMsg("Impossibile caricare i dettagli dell'attività");
+      } finally {
+        if (active) setLoading(false);
       }
-
-      if (!targetOrgId) {
-        setLoading(false);
-        return;
-      }
-
-      setOrgId(targetOrgId);
-
-      const { data: org, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', targetOrgId)
-        .single();
-
-      if (error) throw error;
-
-      if (org) {
-        setName(org.name || '');
-        setLogoUrl(org.logo_url || '');
-        setEmail(org.email || '');
-        setPhone(org.phone || '');
-        setWebsite(org.website || '');
-        setReviewUrl(org.google_review_url || '');
-        setReviewShieldEnabled(org.review_shield_enabled ?? true);
-        setCategory((org.category || 'restaurant') as BusinessCategory);
-        setHubMode((org.hub_mode || 'hub') as HubMode);
-        setCustomCtaLabel(org.custom_cta_label || '');
-        setCustomCtaUrl(org.custom_cta_url || '');
-        setCityGuideText(org.city_guide_text || '');
-        setSmartRoutingEnabled(org.smart_routing_enabled ?? false);
-        setLunchUrl(org.lunch_destination_url || '');
-        setLunchStart(org.lunch_start_time || '12:00');
-        setLunchEnd(org.lunch_end_time || '15:30');
-        setTelegramToken(org.telegram_bot_token || '');
-        setTelegramChatId(org.telegram_chat_id || '');
-        setTelegramAlertsEnabled(org.telegram_alerts_enabled ?? false);
-        setWifiSsid(org.wifi_ssid || '');
-        setWifiPassword(org.wifi_password || '');
-        setAiMenuContext(org.ai_menu_context || '');
-        setPrimaryColor(org.primary_color || '#B4F02A');
-      }
-    } catch (err) {
-      console.error('Error loading profile data:', err);
-      setErrorMsg('Impossibile caricare i dettagli dell\'attività');
-    } finally {
-      setLoading(false);
     }
-  }
+    void initProfile();
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   // Handle Logo File Upload via API
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +166,7 @@ export default function ProfilePage() {
     if (!file || !orgId) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg('Il file selezionato supera i 5MB. Seleziona un\'immagine più leggera.');
+      setErrorMsg("Il file selezionato supera i 5MB. Seleziona un'immagine più leggera.");
       return;
     }
 
@@ -275,758 +276,1034 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 max-w-3xl animate-pulse">
-        <div className="h-8 bg-zinc-800 rounded w-1/3" />
-        <div className="h-4 bg-zinc-800 rounded w-1/2" />
-        <div className="h-96 bg-[#121214] border border-[#27272A] rounded-xl" />
+      <div className="space-y-6 max-w-3xl min-w-0">
+        <PageHeader title="Profilo Attività & Smart Routing" loading />
+        <SurfaceCard loading />
+        <SurfaceCard loading />
+        <SurfaceCard loading />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
-          Profilo Attività & Smart Routing
-        </h1>
-        <p className="text-sm text-zinc-400">
-          Personalizza le informazioni aziendali, il filtro recensioni e il routing orario intelligente (Menù Pranzo vs Google Reviews).
-        </p>
-      </div>
+    <div className="space-y-6 sm:space-y-8 max-w-3xl min-w-0">
+      <PageHeader
+        eyebrow="Configurazione Sede & Hub"
+        title="Profilo Attività & Smart Routing"
+        description="Personalizza le informazioni aziendali, il filtro recensioni e il routing orario intelligente (Menù Pranzo vs Google Reviews)."
+      />
 
       {/* Callout Banner to Custom Hub Studio */}
       <Link
         href="/dashboard/custom-hub"
-        className="group flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-[#BFFF00]/15 via-[#18181B] to-[#121214] border border-[#BFFF00]/30 hover:border-[#BFFF00] transition-all shadow-lg active:scale-[0.99]"
+        className="group flex items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] hover:bg-[var(--bg-elevated)]/60 transition-[background-color,border-color,transform] duration-[180ms] active:scale-[0.99]"
       >
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-[#BFFF00] text-black flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform">
-            <Smartphone className="w-5 h-5" />
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-[var(--rivo-volt)] text-[#09090B] flex items-center justify-center font-bold shrink-0">
+            <Smartphone className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold text-white group-hover:text-[#BFFF00] transition-colors">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-display text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--rivo-volt-text)] transition-colors">
                 Personalizza il tuo Custom Hub NFC
               </span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#BFFF00]/20 text-[#BFFF00] font-bold">
+              <StatusBadge tone="volt" mono>
                 Nuovo Studio
-              </span>
+              </StatusBadge>
             </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Modifica palette, pulsanti e servizi con l&apos;anteprima live su mockup smartphone in tempo reale.
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-snug">
+              Modifica palette, pulsanti e servizi con l&apos;anteprima live su mockup smartphone in
+              tempo reale.
             </p>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-1 text-xs font-bold text-[#BFFF00] group-hover:translate-x-1 transition-transform">
+        <div className="hidden sm:flex items-center gap-1 text-xs font-bold text-[var(--rivo-volt-text)] group-hover:translate-x-0.5 transition-transform shrink-0">
           <span>Apri Custom Hub</span>
-          <ArrowUpRight className="w-4 h-4" />
+          <ArrowUpRight className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
         </div>
       </Link>
 
       <form onSubmit={handleSave} className="space-y-6">
         {saved && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-sm flex items-center gap-2.5 animate-fade-in">
-            <Check className="w-5 h-5 shrink-0" />
+          <div
+            role="status"
+            aria-live="polite"
+            className="p-4 bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] rounded-xl text-sm flex items-center gap-2.5"
+          >
+            <Check className="w-5 h-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
             <span>Configurazione salvata con successo sul database di produzione!</span>
           </div>
         )}
 
         {errorMsg && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm flex items-center gap-2.5">
-            <AlertCircle className="w-5 h-5 shrink-0" />
+          <div
+            role="alert"
+            aria-live="polite"
+            className="p-4 bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] rounded-xl text-sm flex items-center gap-2.5"
+          >
+            <AlertCircle className="w-5 h-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {/* LOGO DEL LOCALE / MARCHIO */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#18181B] to-[#121214] p-5 sm:p-6 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-[#BFFF00]" />
-                <span>Logo del Locale / Marchio</span>
-              </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Questo logo apparirà in cima al tuo Universal Hub, sulla Ruota Premi e sulla scheda di valutazione.
-              </p>
-            </div>
-            <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-[#BFFF00]/10 text-[#BFFF00] border border-[#BFFF00]/20">
-              Live su NFC
-            </span>
-          </div>
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Identità Visiva',
+            title: 'Logo del Locale / Marchio',
+            subtitle:
+              'Questo logo apparirà in cima al tuo Universal Hub, sulla Ruota Premi e sulla scheda di valutazione.',
+            icon: ImageIcon,
+            action: (
+              <StatusBadge tone="volt" dot mono>
+                Live su NFC
+              </StatusBadge>
+            ),
+          }}
+        >
+          <div className="space-y-4">
+            {logoSuccess && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="p-3 bg-[var(--accent-operational-bg)] border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] rounded-lg text-xs flex items-center gap-2"
+              >
+                <Check className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <span>
+                  Logo aggiornato e salvato con successo! Visibile su tutti i dispositivi NFC.
+                </span>
+              </div>
+            )}
 
-          {logoSuccess && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-2 animate-fade-in">
-              <Check className="w-4 h-4 shrink-0" />
-              <span>Logo aggiornato e salvato con successo! Visibile su tutti i dispositivi NFC.</span>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-2">
-            {/* Visual Live Preview */}
-            <div className="shrink-0 relative group">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt="Anteprima Logo"
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-white/20 shadow-2xl bg-black ring-4 ring-white/5"
-                />
-              ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[#18181B] border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center text-zinc-500 shadow-inner group-hover:border-zinc-500 transition-colors">
-                  <ImageIcon className="w-7 h-7 mb-1 text-zinc-600" />
-                  <span className="text-[9px] uppercase font-semibold">Nessun Logo</span>
-                </div>
-              )}
-              {uploadingLogo && (
-                <div className="absolute inset-0 bg-black/75 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Loader2 className="w-6 h-6 text-[#BFFF00] animate-spin" />
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex-1 space-y-3 text-center sm:text-left">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                {/* Upload Button */}
-                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#a8e000] text-black font-bold text-xs shadow-lg shadow-[#BFFF00]/20 transition-all active:scale-95">
-                  <Upload className="w-4 h-4" />
-                  <span>{uploadingLogo ? 'Caricamento in corso...' : logoUrl ? 'Sostituisci Logo' : 'Carica Logo (File)'}</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                    onChange={handleLogoUpload}
-                    disabled={uploadingLogo}
-                    className="hidden"
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              {/* Visual Live Preview */}
+              <div className="shrink-0 relative">
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoUrl}
+                    alt="Anteprima Logo"
+                    width={96}
+                    height={96}
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-[var(--border-strong)] bg-[var(--bg-elevated)]"
                   />
-                </label>
-
-                {/* Toggle Direct URL input */}
-                <button
-                  type="button"
-                  onClick={() => setShowUrlInput(!showUrlInput)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-colors"
-                >
-                  <Link2 className="w-3.5 h-3.5" />
-                  <span>{showUrlInput ? 'Nascondi Link' : 'Inserisci Link URL'}</span>
-                </button>
-
-                {/* Remove Button */}
-                {logoUrl && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveLogo}
-                    disabled={uploadingLogo}
-                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold border border-red-500/20 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Rimuovi</span>
-                  </button>
+                ) : (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-strong)] flex flex-col items-center justify-center text-[var(--text-muted)]">
+                    <ImageIcon className="w-7 h-7 mb-1" strokeWidth={1.75} aria-hidden="true" />
+                    <span className="text-[9px] font-mono uppercase font-semibold">
+                      Nessun Logo
+                    </span>
+                  </div>
+                )}
+                {uploadingLogo && (
+                  <div className="absolute inset-0 bg-[var(--bg-backdrop)] rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                    <Loader2 className="w-6 h-6 text-[var(--rivo-volt)] animate-spin" aria-hidden="true" />
+                  </div>
                 )}
               </div>
 
-              <p className="text-[11px] text-zinc-500">
-                Formati supportati: PNG, JPG, WEBP, SVG (massimo 5MB). Consigliato formato quadrato 1:1.
-              </p>
+              {/* Actions */}
+              <div className="flex-1 space-y-3 text-center sm:text-left min-w-0">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                  <label className="min-h-[44px] cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs transition-[background-color,transform] duration-[180ms] active:scale-[0.98]">
+                    <Upload className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                    <span>
+                      {uploadingLogo
+                        ? 'Caricamento in corso…'
+                        : logoUrl
+                        ? 'Sostituisci Logo'
+                        : 'Carica Logo (File)'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={handleLogoUpload}
+                      disabled={uploadingLogo}
+                      className="hidden"
+                    />
+                  </label>
 
-              {/* Direct URL input accordion */}
-              {showUrlInput && (
-                <div className="pt-2 flex items-center gap-2 animate-fade-in">
-                  <input
-                    type="url"
-                    value={logoUrl}
-                    onChange={(e) => setLogoUrl(e.target.value)}
-                    placeholder="https://tuosito.it/logo.png"
-                    className="flex-1 min-h-[38px] bg-[#18181B] border border-[#27272A] rounded-xl px-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#BFFF00]"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    className="min-h-[44px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-strong)] transition-colors cursor-pointer"
+                  >
+                    <Link2 className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                    <span>{showUrlInput ? 'Nascondi Link' : 'Inserisci Link URL'}</span>
+                  </button>
+
+                  {logoUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      disabled={uploadingLogo}
+                      className="min-h-[44px] inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent-critical-bg)] hover:opacity-90 text-[var(--accent-critical-text)] text-xs font-semibold border border-[var(--accent-critical-border)] transition-opacity cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                      <span>Rimuovi</span>
+                    </button>
+                  )}
                 </div>
-              )}
+
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Formati supportati: PNG, JPG, WEBP, SVG (massimo 5&nbsp;MB). Consigliato formato
+                  quadrato 1:1.
+                </p>
+
+                {showUrlInput && (
+                  <div className="pt-1">
+                    <label htmlFor="profile-logo-url" className="sr-only">
+                      URL immagine logo
+                    </label>
+                    <input
+                      id="profile-logo-url"
+                      name="logoUrl"
+                      type="url"
+                      spellCheck={false}
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="https://tuosito.it/logo.png…"
+                      className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </SurfaceCard>
 
         {/* PALETTE COLORI & TEMA UNIVERSAL HUB */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#18181B] to-[#121214] p-5 sm:p-6 space-y-4 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Palette className="w-5 h-5 text-[#BFFF00]" />
-                <span>Palette Colori & Tema Hub</span>
-              </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Scegli in autonomia il colore guida del tuo Hub cliente. Si applica istantaneamente su pulsanti, icone e bagliori del tuo tag NFC/QR.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-xl bg-black/50 border border-white/10">
-              <span className="text-[11px] text-zinc-400">Colore attivo:</span>
-              <div
-                className="w-4 h-4 rounded-full border border-white/30 shadow-sm"
-                style={{ backgroundColor: primaryColor }}
-              />
-              <span className="font-mono text-xs font-bold text-white uppercase">{primaryColor}</span>
-            </div>
-          </div>
-
-          {/* Preset Palettes */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 pt-1">
-            {HUB_COLOR_PRESETS.map((p) => {
-              const isSelected = primaryColor.toUpperCase() === p.primary.toUpperCase();
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPrimaryColor(p.primary)}
-                  className={`p-3 rounded-2xl border flex flex-col items-center gap-2 text-center transition-all ${
-                    isSelected
-                      ? 'bg-white/10 border-white text-white shadow-xl ring-2 ring-white/40 scale-[1.03]'
-                      : 'bg-[#141416] border-white/5 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                  }`}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Tema Cliente',
+            title: 'Palette Colori & Tema Hub',
+            subtitle:
+              'Scegli in autonomia il colore guida del tuo Hub cliente. Si applica istantaneamente su pulsanti, icone e bagliori del tuo tag NFC/QR.',
+            icon: Palette,
+            action: (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+                <span className="text-[11px] text-[var(--text-muted)]">Colore attivo:</span>
+                <div
+                  className="w-4 h-4 rounded-full border border-[var(--border-strong)] shrink-0"
+                  style={{ backgroundColor: primaryColor }}
+                />
+                <span
+                  translate="no"
+                  className="font-mono tabular-nums text-xs font-bold text-[var(--text-primary)] uppercase"
                 >
-                  <div
-                    className="w-8 h-8 rounded-full shadow-lg border border-white/20 flex items-center justify-center transition-transform"
-                    style={{ backgroundColor: p.primary }}
-                  >
-                    {isSelected && <Check className="w-4 h-4 text-black drop-shadow font-extrabold stroke-[3]" />}
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold block text-white">{p.name}</span>
-                    <span className="text-[10px] text-zinc-500 line-clamp-1">{p.description}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Custom Hex Color Picker */}
-          <div className="pt-3 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <span>Oppure seleziona un colore su misura:</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={primaryColor.startsWith('#') ? primaryColor : '#B4F02A'}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                className="w-9 h-9 rounded-xl cursor-pointer bg-transparent border-0 p-0"
-              />
-              <input
-                type="text"
-                value={primaryColor}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                placeholder="#B4F02A"
-                className="w-28 min-h-[38px] bg-[#141416] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white font-mono uppercase focus:outline-none focus:border-white"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 1: INFORMAZIONI GENERALI */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">
-          <h2 className="text-base font-semibold text-white">Informazioni Attività</h2>
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-              Ragione Sociale / Nome Locale <span className="text-[#BFFF00]">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00] transition-colors"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Email Pubblica</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="info@tuolocale.it"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00] transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Telefono</label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+39 081 123456"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00] transition-colors"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1.5">Sito Web Ufficiale</label>
-            <input
-              type="url"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://www.tuolocale.it"
-              className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00] transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* SECTION 2: SETTORE ATTIVITÀ & UNIVERSAL NFC HUB */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[#BFFF00]" />
-              <h2 className="text-base font-semibold text-white">Settore Attività & Universal NFC Hub</h2>
-            </div>
-            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase rounded-full bg-[#BFFF00]/10 text-[#BFFF00]">
-              Cloud Adaptive
-            </span>
-          </div>
-
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            I chip NFC e i QR code RIVO non necessitano di alcuna riprogrammazione fisica: cambiando il settore o la modalità qui, l&apos;esperienza del cliente si aggiorna istantaneamente in tempo reale.
-          </p>
-
-          {/* Category Selection Cards with pure Lucide SVG icons */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-2">
-              Settore di Attività Commerciale ({CATEGORIES.length} Settori Disponibili) <span className="text-[#BFFF00]">*</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-[340px] overflow-y-auto p-1 rounded-xl border border-[#27272A]/50 bg-[#09090B]/40 scrollbar-thin">
-              {CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const isSelected = category === cat.id;
+                  {primaryColor}
+                </span>
+              </div>
+            ),
+          }}
+        >
+          <div className="space-y-4">
+            {/* Preset Palettes */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+              {HUB_COLOR_PRESETS.map((p) => {
+                const isSelected = primaryColor.toUpperCase() === p.primary.toUpperCase();
+                const checkColor = getContrastColor(p.primary);
                 return (
                   <button
-                    key={cat.id}
+                    key={p.id}
                     type="button"
-                    onClick={() => {
-                      setCategory(cat.id as BusinessCategory);
-                      if (!customCtaLabel || customCtaLabel === 'Consulta Menù Digitale') {
-                        setCustomCtaLabel(cat.defaultCtaLabel);
-                      }
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                    onClick={() => setPrimaryColor(p.primary)}
+                    className={`p-3 rounded-xl border flex flex-col items-center gap-2 text-center transition-[background-color,border-color] duration-[180ms] cursor-pointer min-h-[44px] ${
                       isSelected
-                        ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-white shadow-[0_0_15px_rgba(191,255,0,0.15)] ring-1 ring-[#BFFF00]'
-                        : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        ? 'bg-[var(--bg-subtle)] border-[var(--text-primary)] ring-1 ring-[var(--text-primary)] text-[var(--text-primary)]'
+                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-[#BFFF00] text-black' : 'bg-zinc-800 text-zinc-300'}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-[#BFFF00]" />}
+                    <div
+                      className="w-8 h-8 rounded-full border border-[var(--border-strong)] flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: p.primary }}
+                    >
+                      {isSelected && (
+                        <Check
+                          className="w-4 h-4 stroke-[2.75]"
+                          style={{ color: checkColor }}
+                          aria-hidden="true"
+                        />
+                      )}
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-white block leading-snug">{cat.label}</span>
-                      <span className="text-[10px] text-zinc-500 block mt-0.5 line-clamp-2 leading-tight">{cat.desc}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Hub Mode Selector with pure Lucide SVG icons */}
-          <div className="pt-2 border-t border-[#27272A]">
-            <label className="block text-xs font-medium text-zinc-300 mb-2">
-              Modalità di Reindirizzamento NFC / QR
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {[
-                {
-                  id: 'hub',
-                  label: 'Universal Experience Hub',
-                  tag: 'Consigliato',
-                  icon: Sparkles,
-                  desc: 'Apre la pagina multifunzione adattata al settore (Menù/Servizi, Wi-Fi 1-tap, Ruota della Fortuna, Fidelity Card e Recensioni).',
-                },
-                {
-                  id: 'shield',
-                  label: 'Review Shield Diretto',
-                  tag: 'Solo Recensioni',
-                  icon: ShieldCheck,
-                  desc: 'Apre direttamente la schermata di filtro recensioni a 5 stelle anti 1-3 stelle.',
-                },
-                {
-                  id: 'smart_routing',
-                  label: 'Smart Routing Orario',
-                  tag: 'Orario Pranzo',
-                  icon: Clock,
-                  desc: 'Mostra il menù pranzo negli orari definiti e il filtro recensioni per il resto della giornata.',
-                },
-                {
-                  id: 'direct',
-                  label: 'Reindirizzamento Diretto',
-                  tag: 'Standard',
-                  icon: ArrowUpRight,
-                  desc: 'Reindirizza istantaneamente alla scheda Google Business o all\'URL configurato sul chip.',
-                },
-              ].map((m) => {
-                const Icon = m.icon;
-                const isSelected = hubMode === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setHubMode(m.id as HubMode)}
-                    className={`p-3 rounded-xl border text-left transition-all ${
-                      isSelected
-                        ? 'bg-[#BFFF00]/10 border-[#BFFF00] text-white shadow-[0_0_12px_rgba(191,255,0,0.1)]'
-                        : 'bg-[#18181B] border-[#27272A] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-[#BFFF00]" />
-                        <span className="text-xs font-bold text-white">{m.label}</span>
-                      </div>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">
-                        {m.tag}
+                    <div className="min-w-0 w-full">
+                      <span className="text-xs font-bold block text-[var(--text-primary)] truncate">
+                        {p.name}
+                      </span>
+                      <span className="text-[10px] text-[var(--text-muted)] line-clamp-1">
+                        {p.description}
                       </span>
                     </div>
-                    <p className="text-[11px] text-zinc-500 leading-snug pl-6">{m.desc}</p>
                   </button>
                 );
               })}
             </div>
-          </div>
 
-          {/* Hero Custom CTA Configuration */}
-          <div className="pt-2 border-t border-[#27272A]">
-            <h3 className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
-              <ExternalLink className="w-3.5 h-3.5 text-[#BFFF00]" />
-              Pulsante in Evidenza sull&apos;Hub (Hero CTA)
-            </h3>
-            <p className="text-[11px] text-zinc-400 mb-3">
-              Un banner luminoso ad alta conversione posizionato in cima all&apos;Hub del cliente.
+            {/* Custom Hex Color Picker */}
+            <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <label
+                htmlFor="profile-custom-color-hex"
+                className="text-xs text-[var(--text-secondary)] font-medium"
+              >
+                Oppure seleziona un colore su misura:
+              </label>
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="color"
+                  aria-label="Selettore colore personalizzato"
+                  value={primaryColor.startsWith('#') ? primaryColor : '#B4F02A'}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-11 h-11 rounded-lg cursor-pointer bg-[var(--bg-elevated)] border border-[var(--border-strong)] p-1"
+                />
+                <input
+                  id="profile-custom-color-hex"
+                  name="primaryColor"
+                  type="text"
+                  spellCheck={false}
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  placeholder="#B4F02A…"
+                  className="w-28 min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono uppercase focus:outline-none focus-visible:border-[var(--text-primary)]"
+                />
+              </div>
+            </div>
+          </div>
+        </SurfaceCard>
+
+        {/* SECTION 1: INFORMAZIONI GENERALI */}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Anagrafica',
+            title: 'Informazioni Attività',
+            icon: Building2,
+          }}
+        >
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="profile-org-name"
+                className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+              >
+                Ragione Sociale / Nome Locale{' '}
+                <span className="text-[var(--rivo-volt-text)]">*</span>
+              </label>
+              <input
+                id="profile-org-name"
+                name="orgName"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="profile-org-email"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
+                  Email Pubblica
+                </label>
+                <input
+                  id="profile-org-email"
+                  name="orgEmail"
+                  type="email"
+                  spellCheck={false}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="info@tuolocale.it…"
+                  className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="profile-org-phone"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
+                  Telefono
+                </label>
+                <input
+                  id="profile-org-phone"
+                  name="orgPhone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+39 081 123456…"
+                  className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-sm font-mono text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="profile-org-website"
+                className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+              >
+                Sito Web Ufficiale
+              </label>
+              <input
+                id="profile-org-website"
+                name="orgWebsite"
+                type="url"
+                spellCheck={false}
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://www.tuolocale.it…"
+                className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-sm font-mono text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+              />
+            </div>
+          </div>
+        </SurfaceCard>
+
+        {/* SECTION 2: SETTORE ATTIVITÀ & UNIVERSAL NFC HUB */}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Esperienza Dinamica',
+            title: 'Settore Attività & Universal NFC Hub',
+            icon: Sliders,
+            action: (
+              <StatusBadge tone="volt" mono>
+                Cloud Adaptive
+              </StatusBadge>
+            ),
+          }}
+        >
+          <div className="space-y-5">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              I chip NFC e i QR code RIVO non necessitano di alcuna riprogrammazione fisica:
+              cambiando il settore o la modalità qui, l&apos;esperienza del cliente si aggiorna
+              istantaneamente in tempo reale.
+            </p>
+
+            {/* Category Selection Cards with pure Lucide SVG icons */}
+            <div>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)] mb-2">
+                Settore di Attività Commerciale ({CATEGORIES.length} Settori Disponibili){' '}
+                <span className="text-[var(--rivo-volt-text)]">*</span>
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-[340px] overflow-y-auto p-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]">
+                {CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const isSelected = category === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setCategory(cat.id as BusinessCategory);
+                        if (!customCtaLabel || customCtaLabel === 'Consulta Menù Digitale') {
+                          setCustomCtaLabel(cat.defaultCtaLabel);
+                        }
+                      }}
+                      className={`p-3 rounded-xl border text-left transition-[background-color,border-color] duration-[180ms] flex flex-col justify-between cursor-pointer ${
+                        isSelected
+                          ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt-border)] text-[var(--text-primary)] ring-1 ring-[var(--rivo-volt-border)]'
+                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div
+                          className={`p-1.5 rounded-lg ${
+                            isSelected
+                              ? 'bg-[var(--rivo-volt)] text-[#09090B]'
+                              : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                        </div>
+                        {isSelected && (
+                          <Check
+                            className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]"
+                            strokeWidth={2.5}
+                            aria-hidden="true"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-[var(--text-primary)] block leading-snug">
+                          {cat.label}
+                        </span>
+                        <span className="text-[10px] text-[var(--text-muted)] block mt-0.5 line-clamp-2 leading-tight">
+                          {cat.desc}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Hub Mode Selector with pure Lucide SVG icons */}
+            <div className="pt-4 border-t border-[var(--border-subtle)]">
+              <span className="block text-xs font-semibold text-[var(--text-secondary)] mb-2">
+                Modalità di Reindirizzamento NFC / QR
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  {
+                    id: 'hub',
+                    label: 'Universal Experience Hub',
+                    tag: 'Consigliato',
+                    icon: Layers,
+                    desc: 'Apre la pagina multifunzione adattata al settore (Menù/Servizi, Wi-Fi 1-tap, Ruota della Fortuna, Fidelity Card e Recensioni).',
+                  },
+                  {
+                    id: 'shield',
+                    label: 'Review Shield Diretto',
+                    tag: 'Solo Recensioni',
+                    icon: ShieldCheck,
+                    desc: 'Apre direttamente la schermata di filtro recensioni a 5 stelle anti 1-3 stelle.',
+                  },
+                  {
+                    id: 'smart_routing',
+                    label: 'Smart Routing Orario',
+                    tag: 'Orario Pranzo',
+                    icon: Clock,
+                    desc: 'Mostra il menù pranzo negli orari definiti e il filtro recensioni per il resto della giornata.',
+                  },
+                  {
+                    id: 'direct',
+                    label: 'Reindirizzamento Diretto',
+                    tag: 'Standard',
+                    icon: ArrowUpRight,
+                    desc: "Reindirizza istantaneamente alla scheda Google Business o all'URL configurato sul chip.",
+                  },
+                ].map((m) => {
+                  const Icon = m.icon;
+                  const isSelected = hubMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setHubMode(m.id as HubMode)}
+                      className={`p-3.5 rounded-xl border text-left transition-[background-color,border-color] duration-[180ms] cursor-pointer ${
+                        isSelected
+                          ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt-border)] text-[var(--text-primary)]'
+                          : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Icon
+                            className="w-4 h-4 text-[var(--rivo-volt-text)] shrink-0"
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
+                          <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                            {m.label}
+                          </span>
+                        </div>
+                        <StatusBadge tone={isSelected ? 'volt' : 'neutral'} shape="tag" mono>
+                          {m.tag}
+                        </StatusBadge>
+                      </div>
+                      <p className="text-[11px] text-[var(--text-secondary)] leading-snug pl-6">
+                        {m.desc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Hero Custom CTA Configuration */}
+            <div className="pt-4 border-t border-[var(--border-subtle)]">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] mb-1 flex items-center gap-1.5">
+                <ExternalLink
+                  className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+                <span>Pulsante in Evidenza sull&apos;Hub (Hero CTA)</span>
+              </h3>
+              <p className="text-[11px] text-[var(--text-secondary)] mb-3">
+                Un banner luminoso ad alta conversione posizionato in cima all&apos;Hub del cliente.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="profile-cta-label"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
+                    Testo del Pulsante
+                  </label>
+                  <input
+                    id="profile-cta-label"
+                    name="customCtaLabel"
+                    type="text"
+                    value={customCtaLabel}
+                    onChange={(e) => setCustomCtaLabel(e.target.value)}
+                    placeholder="Es. Prenota Taglio / Prenota Visita / Menù del Giorno…"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="profile-cta-url"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
+                    Link di Destinazione
+                  </label>
+                  <input
+                    id="profile-cta-url"
+                    name="customCtaUrl"
+                    type="url"
+                    spellCheck={false}
+                    value={customCtaUrl}
+                    onChange={(e) => setCustomCtaUrl(e.target.value)}
+                    placeholder="https://wa.me/39… oppure link prenotazione/PDF"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-xs sm:text-sm text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* City Guide / Territorio (Especially for Hotel & B&B) */}
+            <div className="pt-4 border-t border-[var(--border-subtle)]">
+              <label
+                htmlFor="profile-city-guide"
+                className="text-xs font-semibold text-[var(--text-primary)] mb-1 flex items-center gap-1.5"
+              >
+                <Compass
+                  className="w-3.5 h-3.5 text-[var(--accent-warning-text)]"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+                <span>Guida del Territorio & Informazioni per gli Ospiti</span>
+              </label>
+              <p className="text-[11px] text-[var(--text-secondary)] mb-2">
+                Mostra consigli turistici, ristoranti convenzionati e info utili nel pop-up della
+                Guida del Territorio sull&apos;Hub.
+              </p>
+              <textarea
+                id="profile-city-guide"
+                name="cityGuideText"
+                rows={3}
+                value={cityGuideText}
+                onChange={(e) => setCityGuideText(e.target.value)}
+                placeholder="Es. Ristorante convenzionato a 200m: Trattoria del Porto (10% sconto esibendo la card). Farmacia di turno in Via Roma. Taxi H24: +39 081 99999…"
+                className="w-full bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg p-3 text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors resize-none"
+              />
+            </div>
+          </div>
+        </SurfaceCard>
+
+        {/* SECTION 3: REVIEW SHIELD CONFIGURATION */}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Reputazione',
+            title: 'Review Shield (Filtro 5 Stelle)',
+            icon: ShieldCheck,
+            action: (
+              <StatusBadge tone="volt" mono>
+                Anti 1-3 Stelle
+              </StatusBadge>
+            ),
+          }}
+        >
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="profile-review-url"
+                className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+              >
+                URL Scheda Google Business / Recensioni
+              </label>
+              <input
+                id="profile-review-url"
+                name="reviewUrl"
+                type="url"
+                spellCheck={false}
+                value={reviewUrl}
+                onChange={(e) => setReviewUrl(e.target.value)}
+                placeholder="https://g.page/r/tuo-codice-recensione/review…"
+                className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-xs sm:text-sm text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+              />
+              <p className="text-xs text-[var(--text-muted)] mt-1.5">
+                Tutti i clienti che assegnano 4 o 5 stelle verranno reindirizzati direttamente a
+                questo link ufficiale di Google.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <span className="text-sm font-semibold text-[var(--text-primary)] block">
+                  Attiva Review Shield
+                </span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Intercetta recensioni da 1 a 3 stelle convogliandole nel pannello privato.
+                </span>
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={reviewShieldEnabled}
+                aria-label="Attiva Review Shield"
+                onClick={() => setReviewShieldEnabled(!reviewShieldEnabled)}
+                className={`w-14 h-8 rounded-full p-1 transition-colors cursor-pointer shrink-0 flex items-center ${
+                  reviewShieldEnabled
+                    ? 'bg-[var(--rivo-volt)]'
+                    : 'bg-[var(--bg-subtle)] border border-[var(--border-strong)]'
+                }`}
+              >
+                <span
+                  className={`w-6 h-6 rounded-full transition-transform ${
+                    reviewShieldEnabled
+                      ? 'translate-x-6 bg-[#09090B]'
+                      : 'translate-x-0 bg-[var(--text-muted)]'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </SurfaceCard>
+
+        {/* SECTION 4: SMART ROUTING CONDITIONAL */}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Automazione Oraria',
+            title: 'Smart Routing Orario (Menù vs Recensioni)',
+            icon: Utensils,
+            action: (
+              <StatusBadge tone="telemetry" mono>
+                Automatismo
+              </StatusBadge>
+            ),
+          }}
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Invece di usare due QR code separati al tavolo, RIVO instrada il cliente in base
+              all&apos;orario: mostra il <strong className="text-[var(--text-primary)]">Menù Digitale a Pranzo</strong> e chiede la{' '}
+              <strong className="text-[var(--text-primary)]">Recensione / Review Shield di Sera</strong>!
+            </p>
+
+            <div className="pt-2 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <span className="text-sm font-semibold text-[var(--text-primary)] block">
+                  Abilita Cambio Automatico Pranzo
+                </span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Durante la fascia del pranzo apre il menù, poi torna alle recensioni.
+                </span>
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={smartRoutingEnabled}
+                aria-label="Abilita Cambio Automatico Pranzo"
+                onClick={() => setSmartRoutingEnabled(!smartRoutingEnabled)}
+                className={`w-14 h-8 rounded-full p-1 transition-colors cursor-pointer shrink-0 flex items-center ${
+                  smartRoutingEnabled
+                    ? 'bg-[var(--accent-telemetry)]'
+                    : 'bg-[var(--bg-subtle)] border border-[var(--border-strong)]'
+                }`}
+              >
+                <span
+                  className={`w-6 h-6 rounded-full transition-transform ${
+                    smartRoutingEnabled
+                      ? 'translate-x-6 bg-white'
+                      : 'translate-x-0 bg-[var(--text-muted)]'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {smartRoutingEnabled && (
+              <div className="space-y-4 pt-3 border-t border-[var(--border-subtle)]">
+                <div>
+                  <label
+                    htmlFor="profile-lunch-url"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
+                    Link Menù Digitale Pranzo{' '}
+                    <span className="text-[var(--accent-telemetry-text)]">*</span>
+                  </label>
+                  <input
+                    id="profile-lunch-url"
+                    name="lunchUrl"
+                    type="url"
+                    spellCheck={false}
+                    required={smartRoutingEnabled}
+                    value={lunchUrl}
+                    onChange={(e) => setLunchUrl(e.target.value)}
+                    placeholder="https://menu.tuolocale.it oppure link PDF/Drive…"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-xs sm:text-sm text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="profile-lunch-start"
+                      className="text-xs font-semibold text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5"
+                    >
+                      <Clock className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                      <span>Orario Inizio Pranzo</span>
+                    </label>
+                    <input
+                      id="profile-lunch-start"
+                      name="lunchStart"
+                      type="time"
+                      value={lunchStart}
+                      onChange={(e) => setLunchStart(e.target.value)}
+                      className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-sm font-mono tabular-nums text-[var(--text-primary)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="profile-lunch-end"
+                      className="text-xs font-semibold text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5"
+                    >
+                      <Clock className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                      <span>Orario Fine Pranzo</span>
+                    </label>
+                    <input
+                      id="profile-lunch-end"
+                      name="lunchEnd"
+                      type="time"
+                      value={lunchEnd}
+                      onChange={(e) => setLunchEnd(e.target.value)}
+                      className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 py-2 text-sm font-mono tabular-nums text-[var(--text-primary)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </SurfaceCard>
+
+        {/* SECTION 5: TELEGRAM NOTIFICATIONS */}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Alert Sala',
+            title: 'Notifiche Istantanee Telegram (Staff & Titolare)',
+            icon: Send,
+            action: (
+              <StatusBadge tone="telemetry" mono>
+                Anti-Crisi & Sala
+              </StatusBadge>
+            ),
+          }}
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Ricevi un messaggio istantaneo sul tuo Telegram personale o del gruppo camerieri ogni
+              volta che un cliente invia una recensione 1-3 stelle o chiama il cameriere al
+              tavolo.
+            </p>
+
+            <div className="pt-2 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <span className="text-sm font-semibold text-[var(--text-primary)] block">
+                  Attiva Notifiche Telegram
+                </span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Invia alert immediati in sala.
+                </span>
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={telegramAlertsEnabled}
+                aria-label="Attiva Notifiche Telegram"
+                onClick={() => setTelegramAlertsEnabled(!telegramAlertsEnabled)}
+                className={`w-14 h-8 rounded-full p-1 transition-colors cursor-pointer shrink-0 flex items-center ${
+                  telegramAlertsEnabled
+                    ? 'bg-[var(--accent-telemetry)]'
+                    : 'bg-[var(--bg-subtle)] border border-[var(--border-strong)]'
+                }`}
+              >
+                <span
+                  className={`w-6 h-6 rounded-full transition-transform ${
+                    telegramAlertsEnabled
+                      ? 'translate-x-6 bg-white'
+                      : 'translate-x-0 bg-[var(--text-muted)]'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {telegramAlertsEnabled && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[var(--border-subtle)]">
+                <div>
+                  <label
+                    htmlFor="profile-telegram-token"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
+                    Telegram Bot Token
+                  </label>
+                  <input
+                    id="profile-telegram-token"
+                    name="telegramToken"
+                    type="text"
+                    spellCheck={false}
+                    autoComplete="off"
+                    value={telegramToken}
+                    onChange={(e) => setTelegramToken(e.target.value)}
+                    placeholder="Es. 123456789:ABCdefGhI…"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-xs text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="profile-telegram-chat-id"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                  >
+                    Telegram Chat ID / Canale
+                  </label>
+                  <input
+                    id="profile-telegram-chat-id"
+                    name="telegramChatId"
+                    type="text"
+                    spellCheck={false}
+                    autoComplete="off"
+                    value={telegramChatId}
+                    onChange={(e) => setTelegramChatId(e.target.value)}
+                    placeholder="Es. -10012345678 oppure tuo ID…"
+                    className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-xs text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </SurfaceCard>
+
+        {/* SECTION 6: WI-FI GUEST CONFIG */}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Connettività Ospiti',
+            title: 'Wi-Fi Guest & Rete Clienti',
+            icon: Wifi,
+          }}
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              I clienti possono connettersi al Wi-Fi del locale toccando il chip NFC. Inserisci il
+              nome della tua rete e la password da mostrare dopo che hanno lasciato il loro
+              contatto.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                  Testo del Pulsante
+                <label
+                  htmlFor="profile-wifi-ssid"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
+                  Nome Rete Wi-Fi (SSID)
                 </label>
                 <input
+                  id="profile-wifi-ssid"
+                  name="wifiSsid"
                   type="text"
-                  value={customCtaLabel}
-                  onChange={(e) => setCustomCtaLabel(e.target.value)}
-                  placeholder="Es. Prenota Taglio / Prenota Visita / Menù del Giorno"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#BFFF00] transition-colors"
+                  spellCheck={false}
+                  autoComplete="off"
+                  value={wifiSsid}
+                  onChange={(e) => setWifiSsid(e.target.value)}
+                  placeholder="Es. BarCentrale_Guest…"
+                  className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                  Link di Destinazione
+                <label
+                  htmlFor="profile-wifi-password"
+                  className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5"
+                >
+                  Password Wi-Fi
                 </label>
                 <input
-                  type="url"
-                  value={customCtaUrl}
-                  onChange={(e) => setCustomCtaUrl(e.target.value)}
-                  placeholder="https://wa.me/39... oppure link prenotazione/PDF"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-[#BFFF00] transition-colors"
+                  id="profile-wifi-password"
+                  name="wifiPassword"
+                  type="text"
+                  spellCheck={false}
+                  autoComplete="off"
+                  value={wifiPassword}
+                  onChange={(e) => setWifiPassword(e.target.value)}
+                  placeholder="Es. Benvenuto2026!…"
+                  className="w-full min-h-[44px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3.5 text-xs sm:text-sm text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)]"
                 />
               </div>
             </div>
           </div>
+        </SurfaceCard>
 
-          {/* City Guide / Territorio (Especially for Hotel & B&B) */}
-          <div className="pt-2 border-t border-[#27272A]">
-            <h3 className="text-xs font-semibold text-white mb-1 flex items-center gap-1.5">
-              <Compass className="w-3.5 h-3.5 text-amber-400" />
-              Guida del Territorio & Informazioni per gli Ospiti
-            </h3>
-            <p className="text-[11px] text-zinc-400 mb-2">
-              Mostra consigli turistici, ristoranti convenzionati e info utili nel pop-up della Guida del Territorio sull&apos;Hub.
+        {/* SECTION 7: AI SOMMELIER KNOWLEDGE BASE */}
+        <SurfaceCard
+          radius="2xl"
+          padding="lg"
+          header={{
+            eyebrow: 'Intelligenza Artificiale',
+            title: 'AI Sommelier & Menù Knowledge Base',
+            icon: Wine,
+            action: (
+              <StatusBadge tone="telemetry" mono>
+                Google Gemini
+              </StatusBadge>
+            ),
+          }}
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Incolla qui una breve descrizione del menù del tuo locale, le specialità di punta
+              della casa e le etichette di vino su cui vuoi fare up-selling. L&apos;AI Sommelier
+              userà queste informazioni per consigliare i clienti al tavolo.
             </p>
-            <textarea
-              rows={3}
-              value={cityGuideText}
-              onChange={(e) => setCityGuideText(e.target.value)}
-              placeholder="Es. Ristorante convenzionato a 200m: Trattoria del Porto (10% sconto esibendo la card). Farmacia di turno in Via Roma. Taxi H24: +39 081 99999..."
-              className="w-full bg-[#18181B] border border-[#27272A] rounded-xl p-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-400 transition-colors resize-none"
-            />
-          </div>
-        </div>
 
-        {/* SECTION 3: REVIEW SHIELD CONFIGURATION */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-[#BFFF00]" />
-              <h2 className="text-base font-semibold text-white">Review Shield (Filtro 5 Stelle)</h2>
-            </div>
-            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase rounded-full bg-[#BFFF00]/10 text-[#BFFF00]">
-              Anti 1-3 Stelle
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-              URL Scheda Google Business / Recensioni
-            </label>
-            <input
-              type="url"
-              value={reviewUrl}
-              onChange={(e) => setReviewUrl(e.target.value)}
-              placeholder="https://g.page/r/tuo-codice-recensione/review"
-              className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-[#BFFF00] transition-colors"
-            />
-            <p className="text-xs text-zinc-500 mt-1.5">
-              Tutti i clienti che assegnano 4 o 5 stelle verranno reindirizzati direttamente a questo link ufficiale di Google.
-            </p>
-          </div>
-
-          <div className="pt-3 border-t border-[#27272A] flex items-center justify-between">
             <div>
-              <span className="text-sm font-medium text-white block">Attiva Review Shield</span>
-              <span className="text-xs text-zinc-400">
-                Intercetta recensioni da 1 a 3 stelle convogliandole nel pannello privato.
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setReviewShieldEnabled(!reviewShieldEnabled)}
-              className={`w-14 h-8 rounded-full p-1 transition-colors touch-press ${
-                reviewShieldEnabled ? 'bg-[#BFFF00]' : 'bg-zinc-700'
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full bg-black transition-transform ${
-                  reviewShieldEnabled ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* SECTION 3: SMART ROUTING CONDITIONAL */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Utensils className="w-5 h-5 text-blue-400" />
-              <h2 className="text-base font-semibold text-white">Smart Routing Orario (Menù vs Recensioni)</h2>
-            </div>
-            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase rounded-full bg-blue-500/10 text-blue-400">
-              Automatismo
-            </span>
-          </div>
-
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Invece di usare due QR code separati al tavolo, RIVO instrada il cliente in base all&apos;orario: mostra il <strong>Menù Digitale a Pranzo</strong> e chiede la <strong>Recensione / Review Shield di Sera</strong>!
-          </p>
-
-          <div className="pt-2 flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium text-white block">Abilita Cambio Automatico Pranzo</span>
-              <span className="text-xs text-zinc-400">
-                Durante la fascia del pranzo apre il menù, poi torna alle recensioni.
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSmartRoutingEnabled(!smartRoutingEnabled)}
-              className={`w-14 h-8 rounded-full p-1 transition-colors touch-press ${
-                smartRoutingEnabled ? 'bg-blue-500' : 'bg-zinc-700'
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full bg-black transition-transform ${
-                  smartRoutingEnabled ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {smartRoutingEnabled && (
-            <div className="space-y-4 pt-3 border-t border-[#27272A] animate-fade-in">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                  Link Menù Digitale Pranzo <span className="text-blue-400">*</span>
-                </label>
-                <input
-                  type="url"
-                  required={smartRoutingEnabled}
-                  value={lunchUrl}
-                  onChange={(e) => setLunchUrl(e.target.value)}
-                  placeholder="https://menu.tuolocale.it oppure link PDF/Drive"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-blue-500 transition-colors"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" /> Orario Inizio Pranzo
-                  </label>
-                  <input
-                    type="time"
-                    value={lunchStart}
-                    onChange={(e) => setLunchStart(e.target.value)}
-                    className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" /> Orario Fine Pranzo
-                  </label>
-                  <input
-                    type="time"
-                    value={lunchEnd}
-                    onChange={(e) => setLunchEnd(e.target.value)}
-                    className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* SECTION 4: TELEGRAM NOTIFICATIONS */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Send className="w-5 h-5 text-blue-400" />
-              <h2 className="text-base font-semibold text-white">Notifiche Istantanee Telegram (Staff & Titolare)</h2>
-            </div>
-            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase rounded-full bg-blue-500/10 text-blue-400">
-              Anti-Crisi & Sala
-            </span>
-          </div>
-
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Ricevi un messaggio istantaneo sul tuo Telegram personale o del gruppo camerieri ogni volta che un cliente invia una recensione 1-3 stelle o chiama il cameriere al tavolo.
-          </p>
-
-          <div className="pt-2 flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium text-white block">Attiva Notifiche Telegram</span>
-              <span className="text-xs text-zinc-400">Invia alert immediati in sala.</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setTelegramAlertsEnabled(!telegramAlertsEnabled)}
-              className={`w-14 h-8 rounded-full p-1 transition-colors touch-press ${
-                telegramAlertsEnabled ? 'bg-blue-500' : 'bg-zinc-700'
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full bg-black transition-transform ${
-                  telegramAlertsEnabled ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {telegramAlertsEnabled && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[#27272A] animate-fade-in">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Telegram Bot Token</label>
-                <input
-                  type="text"
-                  value={telegramToken}
-                  onChange={(e) => setTelegramToken(e.target.value)}
-                  placeholder="Es. 123456789:ABCdefGhI..."
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Telegram Chat ID / Canale</label>
-                <input
-                  type="text"
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="Es. -10012345678 oppure tuo ID"
-                  className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* SECTION 5: WI-FI GUEST CONFIG */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Wifi className="w-5 h-5 text-[#BFFF00]" />
-            <h2 className="text-base font-semibold text-white">Wi-Fi Guest & Rete Clienti</h2>
-          </div>
-
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            I clienti possono connettersi al Wi-Fi del locale toccando il chip NFC. Inserisci il nome della tua rete e la password da mostrare dopo che hanno lasciato il loro contatto.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Nome Rete Wi-Fi (SSID)</label>
-              <input
-                type="text"
-                value={wifiSsid}
-                onChange={(e) => setWifiSsid(e.target.value)}
-                placeholder="Es. BarCentrale_Guest"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 text-xs sm:text-sm text-white focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Password Wi-Fi</label>
-              <input
-                type="text"
-                value={wifiPassword}
-                onChange={(e) => setWifiPassword(e.target.value)}
-                placeholder="Es. Benvenuto2026!"
-                className="w-full min-h-[44px] bg-[#18181B] border border-[#27272A] rounded-xl px-3.5 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-[#BFFF00]"
+              <label htmlFor="profile-ai-menu-context" className="sr-only">
+                Knowledge Base Menù per AI Sommelier
+              </label>
+              <textarea
+                id="profile-ai-menu-context"
+                name="aiMenuContext"
+                rows={4}
+                value={aiMenuContext}
+                onChange={(e) => setAiMenuContext(e.target.value)}
+                placeholder="Es. Specialità: Fiorentina di Scottona frollata 40 giorni, Risotto ai Porcini e Tartufo. Vini consigliati: Aglianico del Taburno per le carni, Greco di Tufo per il pesce. Disponibili pizze e pasta senza glutine…"
+                className="w-full bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg p-3.5 text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:border-[var(--text-primary)] transition-colors resize-none"
               />
             </div>
           </div>
-        </div>
-
-        {/* SECTION 6: AI SOMMELIER KNOWLEDGE BASE */}
-        <div className="rounded-2xl border border-[#27272A] bg-[#121214] p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wine className="w-5 h-5 text-purple-400" />
-              <h2 className="text-base font-semibold text-white">AI Sommelier & Menù Knowledge Base</h2>
-            </div>
-            <span className="px-2 py-0.5 text-[10px] font-semibold uppercase rounded-full bg-purple-500/10 text-purple-400">
-              Google Gemini
-            </span>
-          </div>
-
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Incolla qui una breve descrizione del menù del tuo locale, le specialità di punta della casa e le etichette di vino su cui vuoi fare up-selling. L&apos;AI Sommelier userà queste informazioni per consigliare i clienti al tavolo.
-          </p>
-
-          <div>
-            <textarea
-              rows={4}
-              value={aiMenuContext}
-              onChange={(e) => setAiMenuContext(e.target.value)}
-              placeholder="Es. Specialità: Fiorentina di Scottona frollata 40 giorni, Risotto ai Porcini e Tartufo. Vini consigliati: Aglianico del Taburno per le carni, Greco di Tufo per il pesce. Disponibili pizze e pasta senza glutine..."
-              className="w-full bg-[#18181B] border border-[#27272A] rounded-xl p-3.5 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-400 transition-colors resize-none"
-            />
-          </div>
-        </div>
+        </SurfaceCard>
 
         {/* SUBMIT BUTTON */}
         <div className="pt-2 flex justify-end">
           <button
             type="submit"
             disabled={saving}
-            className="w-full sm:w-auto min-h-[48px] px-8 py-3 bg-[#BFFF00] hover:bg-[#a8e000] text-black font-semibold text-sm rounded-xl transition-all shadow-lg shadow-[#BFFF00]/20 flex items-center justify-center gap-2 touch-press disabled:opacity-50"
+            className="w-full sm:w-auto min-h-[48px] px-8 py-3 bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-sm rounded-lg transition-[background-color,transform] duration-[180ms] flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
           >
             {saving ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Salvataggio...</span>
+                <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+                <span>Salvataggio…</span>
               </>
             ) : (
               <>
-                <Save className="w-4 h-4" />
+                <Save className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
                 <span>Salva Modifiche</span>
               </>
             )}

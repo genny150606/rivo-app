@@ -13,7 +13,7 @@ import {
   Link2,
   Copy,
   Check,
-  Sparkles,
+  Play,
   SkipForward,
   RotateCcw,
   CheckCircle2,
@@ -22,6 +22,14 @@ import {
   MapPin,
   Search,
 } from 'lucide-react';
+import {
+  PageHeader,
+  SurfaceCard,
+  StatusBadge,
+  EmptyState,
+  SegmentedControl,
+} from '@/components/ui';
+import type { StatusTone } from '@/components/ui/StatusBadge';
 import { InstagramIcon } from '@/components/brand-icons';
 import {
   extractInstagramHandle,
@@ -104,20 +112,20 @@ interface CommunicationsApiResponse {
 type ActiveTab = 'instagram_dm' | 'composer';
 type InstagramQueueFilter = 'to_contact' | 'all' | 'sent';
 
-function getLeadScoreBadgeClass(score?: number): string {
+function getLeadScoreTone(score?: number): StatusTone {
   if (typeof score !== 'number') {
-    return 'bg-[#18181B] border-[#27272A] text-[#A1A1AA]';
+    return 'neutral';
   }
   if (score >= 80) {
-    return 'bg-[#BFFF00]/15 border-[#BFFF00]/40 text-[#BFFF00]';
+    return 'volt';
   }
   if (score >= 60) {
-    return 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E]';
+    return 'operational';
   }
   if (score >= 40) {
-    return 'bg-[#F59E0B]/15 border-[#F59E0B]/40 text-[#F59E0B]';
+    return 'warning';
   }
-  return 'bg-[#18181B] border-[#27272A] text-[#A1A1AA]';
+  return 'neutral';
 }
 
 function OutreachCommunicationsContent() {
@@ -728,203 +736,188 @@ function OutreachCommunicationsContent() {
     prospects.find((p) => p.id === id)?.business_name || 'Prospect';
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-[#FAFAFA] p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-[#27272A] pb-5">
-        <div>
-          <div className="flex items-center gap-2.5 mb-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#BFFF00]" />
-            <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#BFFF00]">
-              RIVO OUTREACH — COMUNICAZIONI & COMPLIANCE GATE (SEZ. 9 & 15 PRD)
-            </span>
-          </div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-[-0.02em] text-[#FAFAFA]">
-            Centro Comunicazioni Multicanale & Tutela Dominio
-          </h1>
-          <p className="text-sm text-[#A1A1AA] mt-1">
-            Ogni invio passa attraverso `OutreachComplianceService`: verifica permessi, base giuridica GDPR, finestra 24h Meta/WhatsApp e Suppression List.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => loadCommunicationsData()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#BFFF00]/50 text-xs text-[#FAFAFA] self-start lg:self-auto"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Aggiorna
-        </button>
-      </div>
-
-      {/* Top Segmented Tab Switcher */}
-      <div className="inline-flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-[#121214] border border-[#27272A]">
-        <button
-          type="button"
-          onClick={() => setActiveTab('instagram_dm')}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'instagram_dm'
-              ? 'bg-[#BFFF00] text-[#09090B] shadow-sm'
-              : 'text-[#A1A1AA] hover:text-[#FAFAFA] hover:bg-[#18181B]'
-          }`}
-        >
-          <InstagramIcon className="w-3.5 h-3.5" />
-          <span>Coda DM Instagram (1-Click)</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              activeTab === 'instagram_dm'
-                ? 'bg-[#09090B]/15 text-[#09090B]'
-                : 'bg-[#18181B] border border-[#27272A] text-[#BFFF00]'
-            }`}
-          >
-            {toContactCount}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('composer')}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'composer'
-              ? 'bg-[#BFFF00] text-[#09090B] shadow-sm'
-              : 'text-[#A1A1AA] hover:text-[#FAFAFA] hover:bg-[#18181B]'
-          }`}
-        >
-          <Send className="w-3.5 h-3.5" />
-          <span>Composer Multicanale (Email / WhatsApp / Manuale)</span>
-        </button>
-      </div>
-
-      {feedback && (
-        <div
-          className={`p-4 rounded-xl border text-xs flex items-center justify-between gap-3 ${
-            feedback.type === 'ok'
-              ? 'bg-[#121214] border-[#BFFF00]/50 text-[#FAFAFA]'
-              : 'bg-[#EF4444]/10 border-[#EF4444]/40 text-[#EF4444]'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {feedback.type === 'ok' ? (
-              <ShieldCheck className="w-4 h-4 text-[#BFFF00] shrink-0" />
-            ) : (
-              <ShieldAlert className="w-4 h-4 text-[#EF4444] shrink-0" />
-            )}
-            <span>{feedback.text}</span>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="RIVO OUTREACH — COMUNICAZIONI & COMPLIANCE GATE (SEZ. 9 & 15 PRD)"
+        title="Centro Comunicazioni Multicanale & Tutela Dominio"
+        description="Ogni invio passa attraverso OutreachComplianceService: verifica permessi, base giuridica GDPR, finestra 24h Meta/WhatsApp e Suppression List."
+        actions={
           <button
             type="button"
-            onClick={() => setFeedback(null)}
-            className="text-[#A1A1AA] hover:text-[#FAFAFA] shrink-0"
+            onClick={() => loadCommunicationsData()}
+            className="inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] transition-colors touch-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
           >
-            Chiudi
+            <RefreshCw className="w-3.5 h-3.5" />
+            Aggiorna
           </button>
-        </div>
+        }
+      />
+
+      {/* Top Segmented Tab Switcher */}
+      <SegmentedControl<ActiveTab>
+        ariaLabel="Modalità centro comunicazioni"
+        value={activeTab}
+        onChange={setActiveTab}
+        size="md"
+        options={[
+          {
+            value: 'instagram_dm',
+            label: 'Coda DM Instagram (1-Click)',
+            icon: MessageSquare,
+            badge: toContactCount,
+          },
+          {
+            value: 'composer',
+            label: 'Composer Multicanale (Email / WhatsApp / Manuale)',
+            icon: Send,
+          },
+        ]}
+      />
+
+      {feedback && (
+        <SurfaceCard
+          variant={feedback.type === 'err' ? 'critical' : 'default'}
+          padding="sm"
+          className={feedback.type === 'ok' ? 'border-[var(--rivo-volt-border)]' : ''}
+        >
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {feedback.type === 'ok' ? (
+                <ShieldCheck className="w-4 h-4 text-[var(--rivo-volt-text)] shrink-0" />
+              ) : (
+                <ShieldAlert className="w-4 h-4 text-[var(--accent-critical-text)] shrink-0" />
+              )}
+              <span
+                className={
+                  feedback.type === 'ok'
+                    ? 'text-[var(--text-primary)]'
+                    : 'text-[var(--accent-critical-text)]'
+                }
+              >
+                {feedback.text}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFeedback(null)}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium shrink-0 px-2 py-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
+            >
+              Chiudi
+            </button>
+          </div>
+        </SurfaceCard>
       )}
 
       {activeTab === 'instagram_dm' ? (
         <div className="space-y-5">
           {/* Compliance Info Banner */}
-          <div className="bg-[#121214] border border-[#BFFF00]/30 rounded-xl p-4 flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#BFFF00]/10 border border-[#BFFF00]/30 flex items-center justify-center shrink-0">
-              <Info className="w-4 h-4 text-[#BFFF00]" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-[11px] font-mono uppercase tracking-wider text-[#BFFF00]">
-                Modalità Assistita Ufficiale — Zero Rischio Ban Meta
+          <SurfaceCard padding="sm" className="border-[var(--rivo-volt-border)]">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex items-center justify-center shrink-0">
+                <Info className="w-4 h-4 text-[var(--rivo-volt-text)]" />
               </div>
-              <p className="text-xs text-[#A1A1AA] leading-relaxed">
-                Meta non consente l&apos;invio API automatico di DM a freddo: qui trovi i profili Instagram individuati con messaggio personalizzato AI e link demo RIVO + Attività. In 1 clic copi il DM e apri la chat ig.me/m/@handle pronta per Incolla + Invio.
-              </p>
+              <div className="space-y-1 min-w-0">
+                <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--rivo-volt-text)]">
+                  Modalità Assistita Ufficiale — Zero Rischio Ban Meta
+                </div>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Meta non consente l&apos;invio API automatico di DM a freddo: qui trovi i profili Instagram individuati con messaggio personalizzato AI e link demo RIVO + Attività. In 1 clic copi il DM e apri la chat ig.me/m/@handle pronta per Incolla + Invio.
+                </p>
+              </div>
             </div>
-          </div>
+          </SurfaceCard>
 
           {/* Filter Bar + AI Instagram Finder */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-[#121214] border border-[#27272A] rounded-xl p-3.5">
-            <div className="flex flex-wrap items-center gap-2">
+          <SurfaceCard padding="sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIgFilter('to_contact')}
+                  className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)] ${
+                    igFilter === 'to_contact'
+                      ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)]'
+                      : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Da contattare ({toContactCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIgFilter('all')}
+                  className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)] ${
+                    igFilter === 'all'
+                      ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)]'
+                      : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Tutti con Instagram ({withIgCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIgFilter('sent')}
+                  className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)] ${
+                    igFilter === 'sent'
+                      ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)]'
+                      : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Già contattati su IG ({alreadySentCount})
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setIgFilter('to_contact')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  igFilter === 'to_contact'
-                    ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-[#BFFF00]'
-                    : 'bg-[#0D0D10] border-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA]'
-                }`}
+                disabled={igDiscoveryBusy || busy || prospectsWithoutIg.length === 0}
+                onClick={handleFindInstagramBatch}
+                className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-xs font-semibold text-[var(--rivo-volt-text)] disabled:opacity-45 disabled:cursor-not-allowed transition-colors tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
               >
-                Da contattare ({toContactCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setIgFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  igFilter === 'all'
-                    ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-[#BFFF00]'
-                    : 'bg-[#0D0D10] border-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA]'
-                }`}
-              >
-                Tutti con Instagram ({withIgCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setIgFilter('sent')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  igFilter === 'sent'
-                    ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-[#BFFF00]'
-                    : 'bg-[#0D0D10] border-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA]'
-                }`}
-              >
-                Già contattati su IG ({alreadySentCount})
+                <Search className={`w-3.5 h-3.5 ${igDiscoveryBusy ? 'animate-pulse' : ''}`} />
+                <span>
+                  {igDiscoveryBusy
+                    ? 'Ricerca Instagram AI in corso…'
+                    : `Cerca Instagram AI sui Prospect senza IG (${prospectsWithoutIg.length})`}
+                </span>
               </button>
             </div>
-
-            <button
-              type="button"
-              disabled={igDiscoveryBusy || busy || prospectsWithoutIg.length === 0}
-              onClick={handleFindInstagramBatch}
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg bg-[#18181B] border border-[#BFFF00]/50 hover:border-[#BFFF00] text-xs font-semibold text-[#BFFF00] disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
-            >
-              <Search className={`w-3.5 h-3.5 ${igDiscoveryBusy ? 'animate-pulse' : ''}`} />
-              <span>
-                {igDiscoveryBusy
-                  ? 'Ricerca Instagram AI in corso...'
-                  : `Cerca Instagram AI sui Prospect senza IG (${prospectsWithoutIg.length})`}
-              </span>
-            </button>
-          </div>
+          </SurfaceCard>
 
           {/* Split 2-Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: Queue List */}
-            <div className="lg:col-span-5 bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-[#27272A] pb-2.5">
-                <h2 className="text-xs font-mono uppercase text-[#A1A1AA]">
-                  Coda Profili Instagram ({filteredIgProspects.length})
-                </h2>
-                <span className="text-[10px] font-mono text-[#71717A]">
-                  1-Click DM Workflow
-                </span>
-              </div>
-
+            <SurfaceCard
+              padding="sm"
+              className="lg:col-span-5"
+              header={{
+                title: `Coda Profili Instagram (${filteredIgProspects.length})`,
+                action: (
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">
+                    1-Click DM Workflow
+                  </span>
+                ),
+              }}
+            >
               {filteredIgProspects.length === 0 ? (
-                <div className="p-6 text-center space-y-3 rounded-lg bg-[#0D0D10] border border-[#27272A]">
-                  <InstagramIcon className="w-6 h-6 text-[#71717A] mx-auto" />
-                  <p className="text-xs text-[#A1A1AA]">
-                    {igFilter === 'to_contact'
+                <EmptyState
+                  compact
+                  icon={MessageSquare}
+                  title="Nessun profilo disponibile"
+                  description={
+                    igFilter === 'to_contact'
                       ? 'Nessun prospect con Instagram in attesa di contatto in questa lista.'
                       : igFilter === 'sent'
                       ? 'Nessun DM Instagram ancora registrato come inviato.'
-                      : 'Nessun prospect ha ancora un profilo Instagram salvato.'}
-                  </p>
-                  {prospectsWithoutIg.length > 0 && (
-                    <button
-                      type="button"
-                      disabled={igDiscoveryBusy}
-                      onClick={handleFindInstagramBatch}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#BFFF00]/50 text-[11px] font-semibold text-[#BFFF00]"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      Avvia Ricerca Instagram AI
-                    </button>
-                  )}
-                </div>
+                      : 'Nessun prospect ha ancora un profilo Instagram salvato.'
+                  }
+                  primaryAction={
+                    prospectsWithoutIg.length > 0
+                      ? {
+                          label: 'Avvia Ricerca Instagram AI',
+                          onClick: handleFindInstagramBatch,
+                        }
+                      : undefined
+                  }
+                />
               ) : (
                 <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                   {filteredIgProspects.map((p) => {
@@ -941,53 +934,54 @@ function OutreachCommunicationsContent() {
                           setSelectedIgProspectId(p.id);
                           setCopiedAndOpenedProspectId(null);
                         }}
-                        className={`w-full text-left p-3.5 rounded-xl border transition-all space-y-2 ${
+                        className={`w-full text-left p-3.5 rounded-xl border transition-all space-y-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)] ${
                           isSelected
-                            ? 'bg-[#18181B] border-[#BFFF00] shadow-[0_0_0_1px_rgba(191,255,0,0.25)]'
-                            : 'bg-[#0D0D10] border-[#27272A] hover:border-[#3F3F46]'
+                            ? 'bg-[var(--bg-elevated)] border-[var(--rivo-volt)] shadow-[0_0_0_1px_var(--rivo-volt-border)]'
+                            : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold text-[#FAFAFA] truncate">
+                            <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
                               {p.business_name}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-[#A1A1AA] mt-0.5">
-                              <MapPin className="w-3 h-3 text-[#71717A] shrink-0" />
+                            <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] mt-0.5">
+                              <MapPin className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
                               <span className="truncate">
                                 {p.city || p.subcategory || p.category}
                               </span>
                             </div>
                           </div>
 
-                          <span
-                            className={`px-2 py-0.5 rounded border text-[10px] font-mono font-semibold shrink-0 ${getLeadScoreBadgeClass(
-                              p.lead_score
-                            )}`}
+                          <StatusBadge
+                            tone={getLeadScoreTone(p.lead_score)}
+                            size="sm"
+                            shape="tag"
+                            className="shrink-0 tabular-nums"
                           >
                             {typeof p.lead_score === 'number'
                               ? `Score ${p.lead_score}`
                               : 'Score N/D'}
-                          </span>
+                          </StatusBadge>
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-[#BFFF00]">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-[var(--rivo-volt-text)]">
                             <InstagramIcon className="w-3 h-3" />
                             @{handle}
                           </span>
 
                           <div className="flex items-center gap-1.5">
                             {isSent && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#22C55E]/15 border border-[#22C55E]/40 text-[10px] font-mono uppercase text-[#22C55E]">
+                              <StatusBadge tone="operational" size="sm" shape="tag">
                                 <CheckCircle2 className="w-3 h-3" />
                                 DM Inviato
-                              </span>
+                              </StatusBadge>
                             )}
                             {isSuppressed && (
-                              <span className="px-2 py-0.5 rounded bg-[#EF4444]/15 border border-[#EF4444]/40 text-[10px] font-mono uppercase text-[#EF4444]">
+                              <StatusBadge tone="critical" size="sm" shape="tag">
                                 Opt-Out
-                              </span>
+                              </StatusBadge>
                             )}
                           </div>
                         </div>
@@ -996,51 +990,50 @@ function OutreachCommunicationsContent() {
                   })}
                 </div>
               )}
-            </div>
+            </SurfaceCard>
 
             {/* Right: Active 1-Click DM Card */}
             <div className="lg:col-span-7">
               {!activeIgProspect || !activeIgHandle ? (
-                <div className="bg-[#121214] border border-[#27272A] rounded-xl p-10 text-center space-y-3">
-                  <MessageSquare className="w-8 h-8 text-[#71717A] mx-auto" />
-                  <h3 className="text-sm font-semibold text-[#FAFAFA]">
-                    Seleziona un prospect con Instagram dalla coda
-                  </h3>
-                  <p className="text-xs text-[#A1A1AA] max-w-md mx-auto">
-                    Qui compariranno il profilo @handle, il link alla Demo RIVO + Attività e il messaggio personalizzato pronto per essere copiato e inviato su Instagram Direct in 1 clic.
-                  </p>
-                </div>
+                <SurfaceCard padding="lg">
+                  <EmptyState
+                    icon={MessageSquare}
+                    title="Seleziona un prospect con Instagram dalla coda"
+                    description="Qui compariranno il profilo @handle, il link alla Demo RIVO + Attività e il messaggio personalizzato pronto per essere copiato e inviato su Instagram Direct in 1 clic."
+                  />
+                </SurfaceCard>
               ) : (
-                <div className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-5">
+                <SurfaceCard padding="lg" className="space-y-5">
                   {/* Card Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-[#27272A] pb-4">
-                    <div className="space-y-1.5">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+                    <div className="space-y-1.5 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-bold text-[#FAFAFA]">
+                        <h2 className="font-display text-lg font-bold text-[var(--text-primary)]">
                           {activeIgProspect.business_name}
                         </h2>
-                        <span
-                          className={`px-2 py-0.5 rounded border text-[10px] font-mono font-semibold ${getLeadScoreBadgeClass(
-                            activeIgProspect.lead_score
-                          )}`}
+                        <StatusBadge
+                          tone={getLeadScoreTone(activeIgProspect.lead_score)}
+                          size="sm"
+                          shape="tag"
+                          className="tabular-nums"
                         >
                           {typeof activeIgProspect.lead_score === 'number'
                             ? `Lead Score ${activeIgProspect.lead_score}/100`
                             : 'Lead Score N/D'}
-                        </span>
+                        </StatusBadge>
                         {activeIgSentMsg && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#22C55E]/15 border border-[#22C55E]/40 text-[10px] font-mono uppercase text-[#22C55E]">
+                          <StatusBadge tone="operational" size="sm" shape="tag">
                             <CheckCircle2 className="w-3 h-3" />
                             DM già inviato (
                             {new Date(
                               activeIgSentMsg.sent_at || activeIgSentMsg.created_at
                             ).toLocaleDateString('it-IT')}
                             )
-                          </span>
+                          </StatusBadge>
                         )}
                       </div>
 
-                      <div className="text-xs text-[#A1A1AA]">
+                      <div className="text-xs text-[var(--text-secondary)]">
                         {[
                           activeIgProspect.city,
                           activeIgProspect.subcategory || activeIgProspect.category,
@@ -1054,7 +1047,7 @@ function OutreachCommunicationsContent() {
                           href={`https://www.instagram.com/${activeIgHandle}/`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs font-mono text-[#BFFF00] hover:underline"
+                          className="inline-flex items-center gap-1.5 text-xs font-mono text-[var(--rivo-volt-text)] hover:underline"
                         >
                           <InstagramIcon className="w-3.5 h-3.5" />
                           @{activeIgHandle}
@@ -1062,14 +1055,14 @@ function OutreachCommunicationsContent() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
                       <a
                         href={`https://www.instagram.com/${activeIgHandle}/`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00]/60 text-xs text-[#FAFAFA]"
+                        className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] transition-colors"
                       >
-                        <ExternalLink className="w-3.5 h-3.5 text-[#BFFF00]" />
+                        <ExternalLink className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
                         Apri Profilo
                       </a>
                       {activeIgDemoUrl && (
@@ -1077,9 +1070,9 @@ function OutreachCommunicationsContent() {
                           href={activeIgDemoUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#BFFF00]/40 hover:border-[#BFFF00] text-xs font-medium text-[#BFFF00]"
+                          className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--rivo-volt-text)] transition-colors"
                         >
-                          <Sparkles className="w-3.5 h-3.5" />
+                          <Play className="w-3.5 h-3.5" />
                           Apri Demo RIVO + Attività
                         </a>
                       )}
@@ -1089,24 +1082,26 @@ function OutreachCommunicationsContent() {
                   {/* Editable DM Draft */}
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <label
                           htmlFor="instagram-dm-draft"
-                          className="text-[11px] font-mono uppercase text-[#A1A1AA]"
+                          className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)]"
                         >
                           Testo DM Instagram Personalizzato
                         </label>
-                        <span className="px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[10px] font-mono text-[#BFFF00]">
+                        <StatusBadge tone="volt" size="sm" shape="tag">
                           {activeIgHasCustomPitch
                             ? 'Pitch AI Informale (Variante B)'
                             : 'Bozza Smart IG + Demo RIVO'}
-                        </span>
+                        </StatusBadge>
                       </div>
 
                       <div className="flex items-center gap-3">
                         <span
-                          className={`text-[11px] font-mono ${
-                            dmDraft.length > 950 ? 'text-[#F59E0B]' : 'text-[#71717A]'
+                          className={`text-[11px] font-mono tabular-nums ${
+                            dmDraft.length > 950
+                              ? 'text-[var(--accent-warning-text)]'
+                              : 'text-[var(--text-muted)]'
                           }`}
                         >
                           {dmDraft.length} caratteri
@@ -1121,9 +1116,9 @@ function OutreachCommunicationsContent() {
                             });
                             setCopiedAndOpenedProspectId(null);
                           }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00]/60 text-[11px] text-[#FAFAFA]"
+                          className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[11px] font-medium text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
                         >
-                          <RotateCcw className="w-3 h-3 text-[#BFFF00]" />
+                          <RotateCcw className="w-3 h-3 text-[var(--rivo-volt-text)]" />
                           Ripristina DM AI
                         </button>
                       </div>
@@ -1140,7 +1135,7 @@ function OutreachCommunicationsContent() {
                           [activeIgProspect.id]: val,
                         }));
                       }}
-                      className="w-full p-3.5 rounded-xl bg-[#0D0D10] border border-[#27272A] focus:border-[#BFFF00] focus:outline-none text-xs text-[#FAFAFA] leading-relaxed"
+                      className="w-full p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] focus:outline-none text-xs text-[var(--text-primary)] leading-relaxed"
                     />
                   </div>
 
@@ -1150,10 +1145,10 @@ function OutreachCommunicationsContent() {
                       type="button"
                       disabled={busy || !dmDraft.trim()}
                       onClick={handleCopyAndOpenInstagramDm}
-                      className={`flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+                      className={`flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 rounded-xl text-xs font-bold transition-all disabled:opacity-50 touch-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)] ${
                         copiedAndOpened
-                          ? 'bg-[#18181B] border-2 border-[#22C55E] text-[#22C55E]'
-                          : 'bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B]'
+                          ? 'bg-[var(--bg-elevated)] border-2 border-[var(--accent-operational-border)] text-[var(--accent-operational-text)]'
+                          : 'bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)]'
                       }`}
                     >
                       {copiedAndOpened ? (
@@ -1168,10 +1163,10 @@ function OutreachCommunicationsContent() {
                       type="button"
                       disabled={busy || !dmDraft.trim()}
                       onClick={handleConfirmIgDmSent}
-                      className={`flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+                      className={`flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 rounded-xl text-xs font-bold transition-all disabled:opacity-50 touch-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)] ${
                         copiedAndOpened
-                          ? 'bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] ring-2 ring-[#BFFF00]/40 shadow-[0_0_24px_rgba(191,255,0,0.22)]'
-                          : 'bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00]/60 text-[#FAFAFA]'
+                          ? 'bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] ring-2 ring-[var(--rivo-volt-border)]'
+                          : 'bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-primary)]'
                       }`}
                     >
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -1180,12 +1175,12 @@ function OutreachCommunicationsContent() {
                   </div>
 
                   {/* Quick Secondary Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#27272A] pt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4">
                     <button
                       type="button"
                       disabled={busy || filteredIgProspects.length <= 1}
                       onClick={handleSkipIgProspect}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#3F3F46] text-xs text-[#A1A1AA] hover:text-[#FAFAFA] disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
                     >
                       <SkipForward className="w-3.5 h-3.5" />
                       Salta →
@@ -1195,13 +1190,13 @@ function OutreachCommunicationsContent() {
                       type="button"
                       disabled={busy}
                       onClick={() => handleOptOut(activeIgProspect.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#EF4444]/60 text-xs text-[#EF4444] disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--accent-critical-border)] text-xs text-[var(--accent-critical-text)] disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
                     >
                       <Ban className="w-3.5 h-3.5" />
                       Opt-Out / Non contattare
                     </button>
                   </div>
-                </div>
+                </SurfaceCard>
               )}
             </div>
           </div>
@@ -1209,368 +1204,415 @@ function OutreachCommunicationsContent() {
       ) : (
         <div className="space-y-6">
           {/* Channels Status Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {channels.map((ch) => (
-              <div
-                key={ch.channel}
-                className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-1.5"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#FAFAFA]">{ch.label}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase ${
-                      ch.configured
-                        ? 'bg-[#22C55E]/15 text-[#22C55E]'
-                        : 'bg-[#F59E0B]/15 text-[#F59E0B]'
-                    }`}
+              <SurfaceCard key={ch.channel} padding="sm" className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">{ch.label}</span>
+                  <StatusBadge
+                    tone={ch.configured ? 'operational' : 'warning'}
+                    size="sm"
+                    shape="tag"
                   >
                     {ch.configured ? 'Attivo' : 'Assistito / Config'}
-                  </span>
+                  </StatusBadge>
                 </div>
-                <p className="text-[11px] text-[#71717A] leading-snug">{ch.policySummary}</p>
-              </div>
+                <p className="text-[11px] text-[var(--text-muted)] leading-snug">{ch.policySummary}</p>
+              </SurfaceCard>
             ))}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: Outbound Composer & Compliance Gate */}
             <div className="lg:col-span-7 space-y-6">
-              <form
-                onSubmit={handleDispatchCommunication}
-                className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-4"
-              >
-                <div className="flex items-center justify-between border-b border-[#27272A] pb-3">
-                  <h2 className="text-sm font-bold text-[#FAFAFA] flex items-center gap-2">
-                    <Send className="w-4 h-4 text-[#BFFF00]" />
-                    Invio / Coda Comunicazione Commerciale
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowReplyForm((v) => !v)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#18181B] border border-[#27272A] text-[11px] text-[#BFFF00]"
-                    >
-                      <Reply className="w-3 h-3" />
-                      Registra Risposta Ricevuta
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOptOut(selectedProspectId)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#18181B] border border-[#27272A] text-[11px] text-[#EF4444]"
-                    >
-                      <Ban className="w-3 h-3" />
-                      Opt-Out / Sopprimi
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="md:col-span-2">
-                    <label className="block text-[11px] font-mono uppercase text-[#A1A1AA] mb-1">
-                      Prospect Destinatario
-                    </label>
-                    <select
-                      value={selectedProspectId}
-                      onChange={(e) => setSelectedProspectId(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                    >
-                      {prospects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.business_name} (
-                          {p.business_email ||
-                            p.business_phone ||
-                            p.city ||
-                            'Senza recapito diretto'}
-                          )
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-mono uppercase text-[#A1A1AA] mb-1">
-                      Canale di Contatto
-                    </label>
-                    <select
-                      value={channel}
-                      onChange={(e) => setChannel(e.target.value as OutreachChannel)}
-                      className="w-full h-10 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                    >
-                      <option value="email">Email Commerciale</option>
-                      <option value="whatsapp">WhatsApp Business Cloud API</option>
-                      <option value="instagram">Instagram (API / Assistito)</option>
-                      <option value="manual">Contatto Manuale 1-to-1</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Legal Basis & Permission Registration Box */}
-                <div className="p-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono uppercase text-[#BFFF00]">
-                      1. Base Giuridica & Permesso Canale (`OutreachComplianceService`)
-                    </span>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={handleRegisterPermission}
-                      className="px-3 py-1 rounded bg-[#18181B] border border-[#BFFF00] text-[#BFFF00] text-[11px] font-semibold hover:bg-[#BFFF00] hover:text-[#09090B]"
-                    >
-                      Registra Autorizzazione Canale
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                    <select
-                      value={legalBasis}
-                      onChange={(e) => setLegalBasis(e.target.value as LegalBasisType)}
-                      className="h-9 px-2.5 rounded bg-[#121214] border border-[#27272A] text-xs text-[#FAFAFA]"
-                    >
-                      <option value="documented_b2b_legitimate_interest">
-                        Legittimo Interesse B2B (Contatto Aziendale Pubblico)
-                      </option>
-                      <option value="explicit_consent">Consenso Esplicito Opt-In</option>
-                      <option value="pre_contractual_request">Richiesta Pre-Contrattuale</option>
-                      <option value="user_initiated_inbound">
-                        Finestra 24h Avviata dall’Utente (WhatsApp / IG)
-                      </option>
-                    </select>
-                    <input
-                      type="text"
-                      value={evidenceReference}
-                      onChange={(e) => setEvidenceReference(e.target.value)}
-                      placeholder="Nota evidenza consenso / fonte contatto..."
-                      className="h-9 px-2.5 rounded bg-[#121214] border border-[#27272A] text-xs text-[#FAFAFA]"
-                    />
-                  </div>
-                </div>
-
-                {/* Execution Mode Selector */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-mono uppercase text-[#A1A1AA] mb-1">
-                      Modalità Operativa (Sez. 9.2 PRD)
-                    </label>
-                    <select
-                      value={deliveryMode}
-                      onChange={(e) => setDeliveryMode(e.target.value as OutreachDeliveryMode)}
-                      className="w-full h-10 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                    >
-                      <option value="draft">Draft Mode (Salva solo bozza)</option>
-                      <option value="approval">Approval Mode (Invia con approvazione Admin)</option>
-                      <option value="automated">Automated Mode (Solo canali con permesso attivo)</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-end pb-2">
-                    <label className="inline-flex items-center gap-2 text-xs text-[#FAFAFA] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isHumanApproved}
-                        onChange={(e) => setIsHumanApproved(e.target.checked)}
-                        className="accent-[#BFFF00]"
-                      />
-                      <span>Confermo revisione umana e approvazione Admin per questo messaggio</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono uppercase text-[#A1A1AA] mb-1">
-                    Oggetto (Email)
-                  </label>
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Proposta RIVO personalizzata per l'attività..."
-                    className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                    <label className="block text-[11px] font-mono uppercase text-[#A1A1AA]">
-                      Testo della Comunicazione *
-                    </label>
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {selectedDemoUrl ? (
-                        <a
-                          href={selectedDemoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0D0D10] border border-[#27272A] hover:border-[#BFFF00] text-[11px] text-[#FAFAFA]"
-                        >
-                          <ExternalLink className="w-3 h-3 text-[#BFFF00]" />
-                          Apri Demo
-                        </a>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0D0D10] border border-[#27272A] text-[11px] text-[#71717A] opacity-50">
-                          <ExternalLink className="w-3 h-3" />
-                          Apri Demo
-                        </span>
-                      )}
-
+              <SurfaceCard padding="lg">
+                <form onSubmit={handleDispatchCommunication} className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+                    <h2 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                      <Send className="w-4 h-4 text-[var(--rivo-volt-text)]" />
+                      Invio / Coda Comunicazione Commerciale
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        disabled={!selectedDemoUrl}
-                        onClick={() => {
-                          if (!selectedDemoUrl) return;
-                          navigator.clipboard.writeText(selectedDemoUrl);
-                          setCopiedDemoLink(true);
-                          setTimeout(() => setCopiedDemoLink(false), 2000);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0D0D10] border border-[#27272A] hover:border-[#BFFF00] text-[11px] text-[#FAFAFA] disabled:opacity-45 disabled:cursor-not-allowed"
+                        onClick={() => setShowReplyForm((v) => !v)}
+                        className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt-border)] text-[11px] font-medium text-[var(--rivo-volt-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
                       >
-                        {copiedDemoLink ? (
-                          <>
-                            <Check className="w-3 h-3 text-[#BFFF00]" />
-                            Copiato
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            Copia Link Demo
-                          </>
-                        )}
+                        <Reply className="w-3 h-3" />
+                        Registra Risposta Ricevuta
                       </button>
-
                       <button
                         type="button"
-                        disabled={!selectedProspect || !selectedDemoUrl || content.includes('/preview/')}
-                        onClick={() => {
-                          if (!selectedProspect || !selectedDemoUrl || content.includes('/preview/')) return;
-                          const snippet = `Ho preparato anche un'anteprima interattiva RIVO dedicata a ${selectedProspect.business_name} (senza login né impegno): ${selectedDemoUrl}`;
-                          setContent((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${snippet}` : snippet));
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#18181B] border border-[#BFFF00]/50 hover:border-[#BFFF00] text-[11px] font-medium text-[#BFFF00] disabled:opacity-45 disabled:cursor-not-allowed"
+                        onClick={() => handleOptOut(selectedProspectId)}
+                        className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--accent-critical-border)] text-[11px] font-medium text-[var(--accent-critical-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
                       >
-                        <Link2 className="w-3 h-3" />
-                        Inserisci Link Demo nel Testo
+                        <Ban className="w-3 h-3" />
+                        Opt-Out / Sopprimi
                       </button>
                     </div>
                   </div>
-                  <textarea
-                    rows={7}
-                    required
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="w-full p-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] leading-relaxed"
-                  />
-                </div>
 
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold uppercase tracking-wider disabled:opacity-50"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    {deliveryMode === 'draft'
-                      ? 'Salva in Bozza'
-                      : 'Verifica Compliance & Invia Comunicazione'}
-                  </button>
-                </div>
-              </form>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="md:col-span-2">
+                      <label
+                        htmlFor="comm-prospect-select"
+                        className="block text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)] mb-1"
+                      >
+                        Prospect Destinatario
+                      </label>
+                      <select
+                        id="comm-prospect-select"
+                        value={selectedProspectId}
+                        onChange={(e) => setSelectedProspectId(e.target.value)}
+                        className="w-full h-11 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] focus:outline-none text-xs text-[var(--text-primary)]"
+                      >
+                        {prospects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.business_name} (
+                            {p.business_email ||
+                              p.business_phone ||
+                              p.city ||
+                              'Senza recapito diretto'}
+                            )
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-              {/* Inbound Reply Recorder */}
-              {showReplyForm && (
-                <form
-                  onSubmit={handleRecordInboundReply}
-                  className="bg-[#121214] border border-[#BFFF00] rounded-xl p-5 space-y-3"
-                >
-                  <h3 className="text-xs font-bold uppercase text-[#BFFF00]">
-                    Registra Risposta Inbound dal Prospect
-                  </h3>
-                  <textarea
-                    rows={3}
-                    required
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Incolla il testo della risposta ricevuta via Email, WhatsApp o Instagram..."
-                    className="w-full p-3 rounded bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                  />
+                    <div>
+                      <label
+                        htmlFor="comm-channel-select"
+                        className="block text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)] mb-1"
+                      >
+                        Canale di Contatto
+                      </label>
+                      <select
+                        id="comm-channel-select"
+                        value={channel}
+                        onChange={(e) => setChannel(e.target.value as OutreachChannel)}
+                        className="w-full h-11 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] focus:outline-none text-xs text-[var(--text-primary)]"
+                      >
+                        <option value="email">Email Commerciale</option>
+                        <option value="whatsapp">WhatsApp Business Cloud API</option>
+                        <option value="instagram">Instagram (API / Assistito)</option>
+                        <option value="manual">Contatto Manuale 1-to-1</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Legal Basis & Permission Registration Box */}
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--rivo-volt-text)]">
+                        1. Base Giuridica & Permesso Canale (OutreachComplianceService)
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={handleRegisterPermission}
+                        className="min-h-[36px] px-3 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] text-[11px] font-semibold hover:bg-[var(--rivo-volt)] hover:text-[var(--rivo-volt-ink)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
+                      >
+                        Registra Autorizzazione Canale
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      <div>
+                        <label htmlFor="comm-legal-basis" className="sr-only">
+                          Base giuridica
+                        </label>
+                        <select
+                          id="comm-legal-basis"
+                          value={legalBasis}
+                          onChange={(e) => setLegalBasis(e.target.value as LegalBasisType)}
+                          className="w-full h-10 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                        >
+                          <option value="documented_b2b_legitimate_interest">
+                            Legittimo Interesse B2B (Contatto Aziendale Pubblico)
+                          </option>
+                          <option value="explicit_consent">Consenso Esplicito Opt-In</option>
+                          <option value="pre_contractual_request">Richiesta Pre-Contrattuale</option>
+                          <option value="user_initiated_inbound">
+                            Finestra 24h Avviata dall’Utente (WhatsApp / IG)
+                          </option>
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="comm-evidence-ref" className="sr-only">
+                          Nota evidenza consenso
+                        </label>
+                        <input
+                          id="comm-evidence-ref"
+                          type="text"
+                          value={evidenceReference}
+                          onChange={(e) => setEvidenceReference(e.target.value)}
+                          placeholder="Nota evidenza consenso / fonte contatto…"
+                          className="w-full h-10 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Execution Mode Selector */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label
+                        htmlFor="comm-delivery-mode"
+                        className="block text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)] mb-1"
+                      >
+                        Modalità Operativa (Sez. 9.2 PRD)
+                      </label>
+                      <select
+                        id="comm-delivery-mode"
+                        value={deliveryMode}
+                        onChange={(e) => setDeliveryMode(e.target.value as OutreachDeliveryMode)}
+                        className="w-full h-11 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                      >
+                        <option value="draft">Draft Mode (Salva solo bozza)</option>
+                        <option value="approval">Approval Mode (Invia con approvazione Admin)</option>
+                        <option value="automated">Automated Mode (Solo canali con permesso attivo)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-end pb-2">
+                      <label className="inline-flex items-center gap-2 text-xs text-[var(--text-primary)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isHumanApproved}
+                          onChange={(e) => setIsHumanApproved(e.target.checked)}
+                          className="w-4 h-4 accent-[#BFFF00]"
+                        />
+                        <span>Confermo revisione umana e approvazione Admin per questo messaggio</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="comm-subject-input"
+                      className="block text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)] mb-1"
+                    >
+                      Oggetto (Email)
+                    </label>
+                    <input
+                      id="comm-subject-input"
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="Proposta RIVO personalizzata per l'attività…"
+                      className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] focus:outline-none text-xs text-[var(--text-primary)]"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                      <label
+                        htmlFor="comm-content-input"
+                        className="block text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)]"
+                      >
+                        Testo della Comunicazione *
+                      </label>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {selectedDemoUrl ? (
+                          <a
+                            href={selectedDemoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 min-h-[34px] px-2.5 py-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt-border)] text-[11px] text-[var(--text-primary)]"
+                          >
+                            <ExternalLink className="w-3 h-3 text-[var(--rivo-volt-text)]" />
+                            Apri Demo
+                          </a>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 min-h-[34px] px-2.5 py-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] opacity-50">
+                            <ExternalLink className="w-3 h-3" />
+                            Apri Demo
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          disabled={!selectedDemoUrl}
+                          onClick={() => {
+                            if (!selectedDemoUrl) return;
+                            navigator.clipboard.writeText(selectedDemoUrl);
+                            setCopiedDemoLink(true);
+                            setTimeout(() => setCopiedDemoLink(false), 2000);
+                          }}
+                          className="inline-flex items-center gap-1 min-h-[34px] px-2.5 py-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt-border)] text-[11px] text-[var(--text-primary)] disabled:opacity-45 disabled:cursor-not-allowed"
+                        >
+                          {copiedDemoLink ? (
+                            <>
+                              <Check className="w-3 h-3 text-[var(--rivo-volt-text)]" />
+                              Copiato
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              Copia Link Demo
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={!selectedProspect || !selectedDemoUrl || content.includes('/preview/')}
+                          onClick={() => {
+                            if (!selectedProspect || !selectedDemoUrl || content.includes('/preview/')) return;
+                            const snippet = `Ho preparato anche un'anteprima interattiva RIVO dedicata a ${selectedProspect.business_name} (senza login né impegno): ${selectedDemoUrl}`;
+                            setContent((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${snippet}` : snippet));
+                          }}
+                          className="inline-flex items-center gap-1 min-h-[34px] px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-[11px] font-medium text-[var(--rivo-volt-text)] disabled:opacity-45 disabled:cursor-not-allowed"
+                        >
+                          <Link2 className="w-3 h-3" />
+                          Inserisci Link Demo nel Testo
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      id="comm-content-input"
+                      rows={7}
+                      required
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      className="w-full p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] focus:border-[var(--rivo-volt)] focus:outline-none text-xs text-[var(--text-primary)] leading-relaxed"
+                    />
+                  </div>
+
                   <div className="flex justify-end">
                     <button
                       type="submit"
                       disabled={busy}
-                      className="px-4 py-2 rounded bg-[#BFFF00] text-[#09090B] text-xs font-bold"
+                      className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold uppercase tracking-wider disabled:opacity-50 touch-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
                     >
-                      Salva Risposta & Aggiorna Pipeline
+                      <Send className="w-3.5 h-3.5" />
+                      {deliveryMode === 'draft'
+                        ? 'Salva in Bozza'
+                        : 'Verifica Compliance & Invia Comunicazione'}
                     </button>
                   </div>
                 </form>
+              </SurfaceCard>
+
+              {/* Inbound Reply Recorder */}
+              {showReplyForm && (
+                <SurfaceCard padding="md" className="border-[var(--rivo-volt-border)]">
+                  <form onSubmit={handleRecordInboundReply} className="space-y-3">
+                    <h3 className="text-xs font-mono uppercase tracking-wider text-[var(--rivo-volt-text)]">
+                      Registra Risposta Inbound dal Prospect
+                    </h3>
+                    <label htmlFor="comm-inbound-reply" className="sr-only">
+                      Testo risposta ricevuta
+                    </label>
+                    <textarea
+                      id="comm-inbound-reply"
+                      rows={3}
+                      required
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Incolla il testo della risposta ricevuta via Email, WhatsApp o Instagram…"
+                      className="w-full p-3 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={busy}
+                        className="min-h-[44px] px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold touch-press"
+                      >
+                        Salva Risposta & Aggiorna Pipeline
+                      </button>
+                    </div>
+                  </form>
+                </SurfaceCard>
               )}
             </div>
 
             {/* Right: Recent Messages & Suppression List */}
             <div className="lg:col-span-5 space-y-6">
-              <div className="bg-[#121214] border border-[#27272A] rounded-xl p-5 space-y-3">
-                <h2 className="text-xs font-mono uppercase text-[#A1A1AA]">
-                  Registro Comunicazioni & Stato Consegna ({messages.length})
-                </h2>
+              <SurfaceCard
+                padding="md"
+                header={{
+                  title: `Registro Comunicazioni & Stato Consegna (${messages.length})`,
+                }}
+              >
                 <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
                   {messages.length === 0 ? (
-                    <p className="text-xs text-[#71717A]">Nessuna comunicazione registrata.</p>
+                    <EmptyState
+                      compact
+                      icon={MessageSquare}
+                      title="Nessuna comunicazione registrata"
+                      description="I messaggi inviati o salvati in bozza compariranno qui."
+                    />
                   ) : (
                     messages.map((m) => (
                       <div
                         key={m.id}
-                        className="p-3 rounded-lg bg-[#0D0D10] border border-[#27272A] space-y-1 text-xs"
+                        className="p-3 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] space-y-1 text-xs"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-[#FAFAFA]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-[var(--text-primary)] truncate">
                             {prospectNameById(m.prospect_id)}
                           </span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase ${
-                              m.provider_status === 'sent' || m.provider_status === 'replied'
-                                ? 'bg-[#BFFF00]/15 text-[#BFFF00]'
-                                : 'bg-[#27272A] text-[#A1A1AA]'
-                            }`}
+                          <StatusBadge
+                            tone={
+                              m.direction === 'inbound' ||
+                              m.provider_status === 'sent' ||
+                              m.provider_status === 'replied'
+                                ? 'volt'
+                                : 'neutral'
+                            }
+                            size="sm"
+                            shape="tag"
                           >
                             {m.direction === 'inbound' ? 'RISPOSTA INBOUND' : m.provider_status}
-                          </span>
+                          </StatusBadge>
                         </div>
-                        <div className="text-[10px] font-mono text-[#71717A]">
+                        <div className="text-[10px] font-mono text-[var(--text-muted)]">
                           Canale: {m.channel.toUpperCase()} • Modalità: {m.delivery_mode} •{' '}
                           {new Date(m.created_at).toLocaleString('it-IT')}
                         </div>
-                        {m.subject && <div className="text-[#FAFAFA] font-medium">{m.subject}</div>}
-                        <p className="text-[#A1A1AA] line-clamp-3">{m.content}</p>
+                        {m.subject && (
+                          <div className="text-[var(--text-primary)] font-medium">{m.subject}</div>
+                        )}
+                        <p className="text-[var(--text-secondary)] line-clamp-3">{m.content}</p>
                       </div>
                     ))
                   )}
                 </div>
-              </div>
+              </SurfaceCard>
 
-              <div className="bg-[#121214] border border-[#27272A] rounded-xl p-5 space-y-3">
-                <h2 className="text-xs font-mono uppercase text-[#EF4444]">
-                  Suppression List & Opt-Out Attivi ({suppressions.length})
-                </h2>
+              <SurfaceCard
+                variant="critical"
+                padding="md"
+                header={{
+                  title: `Suppression List & Opt-Out Attivi (${suppressions.length})`,
+                }}
+              >
                 <div className="space-y-2 max-h-[220px] overflow-y-auto">
                   {suppressions.length === 0 ? (
-                    <p className="text-xs text-[#71717A]">Nessun contatto in lista di soppressione.</p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Nessun contatto in lista di soppressione.
+                    </p>
                   ) : (
                     suppressions.map((s) => (
                       <div
                         key={s.id}
-                        className="p-2.5 rounded bg-[#0D0D10] border border-[#27272A] flex items-center justify-between text-xs"
+                        className="p-2.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs"
                       >
-                        <div>
-                          <span className="font-mono text-[#FAFAFA]">
+                        <div className="min-w-0">
+                          <span className="font-mono text-[var(--text-primary)] truncate block">
                             {s.contact_identifier || prospectNameById(s.prospect_id)}
                           </span>
-                          <div className="text-[10px] text-[#71717A]">{s.reason}</div>
+                          <div className="text-[10px] text-[var(--text-muted)]">{s.reason}</div>
                         </div>
-                        <span className="text-[10px] font-mono uppercase text-[#EF4444]">
+                        <StatusBadge tone="critical" size="sm" shape="tag">
                           BLOCCATO
-                        </span>
+                        </StatusBadge>
                       </div>
                     ))
                   )}
                 </div>
-              </div>
+              </SurfaceCard>
             </div>
           </div>
         </div>
@@ -1583,8 +1625,8 @@ export default function OutreachCommunicationsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#09090B] text-[#A1A1AA] p-8 font-mono text-xs">
-          CARICAMENTO CENTRO COMUNICAZIONI...
+        <div className="py-12 font-mono text-xs text-[var(--text-secondary)]">
+          CARICAMENTO CENTRO COMUNICAZIONI…
         </div>
       }
     >

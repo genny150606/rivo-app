@@ -6,7 +6,6 @@ import {
   Utensils,
   BellRing,
   Wifi,
-  Sparkles,
   Wine,
   CreditCard,
   Star,
@@ -56,6 +55,7 @@ import {
   Wand2,
   Loader2,
   QrCode,
+  MapPin,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -92,11 +92,11 @@ import {
   CollaborativeFloatingBar,
   CollaborativeTableCartModal,
 } from '@/components/hub/CollaborativeTableCart';
-import confetti from 'canvas-confetti';
 import { createClient } from '@supabase/supabase-js';
 import { BusinessCategory } from '@/lib/types';
 import { getCategoryDefinition } from '@/lib/categories';
 import { DEFAULT_HUB_COLOR, getContrastColor } from '@/lib/palettes';
+import { HUB_FONT_CLASSES } from '@/lib/hub-fonts';
 import {
   mergeHubConfig,
   HubConfig,
@@ -353,6 +353,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [voiceLiveTranscript, setVoiceLiveTranscript] = useState('');
   const [voiceFeedbackToast, setVoiceFeedbackToast] = useState<string | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
 
@@ -615,18 +616,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   const handleRatingClick = (stars: number) => {
     hapticStarRating(stars);
     setSelectedRating(stars);
-    const primaryColor = org?.primary_color || DEFAULT_HUB_COLOR;
     if (stars >= 4) {
-      try {
-        confetti({
-          particleCount: 75,
-          spread: 65,
-          origin: { y: 0.7 },
-          colors: [primaryColor, '#FACC15', '#38BDF8', '#FFFFFF'],
-        });
-      } catch (e) {
-        console.warn('Confetti error:', e);
-      }
       setTimeout(() => {
         window.location.href = `/review/${code}`;
       }, 650);
@@ -790,6 +780,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     setIsVoiceListening(true);
     setVoiceLiveTranscript('');
     setVoiceFeedbackToast(null);
+    setVoiceError(null);
 
     const allDishes = canvaMenu.categories.flatMap((c) => c.dishes);
 
@@ -837,7 +828,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     const started = recognizer.start();
     if (!started) {
       setIsVoiceListening(false);
-      alert('Riconoscimento vocale non consentito dal browser. Verifica i permessi microfono.');
+      setVoiceError('Riconoscimento vocale non consentito dal browser. Verifica i permessi microfono.');
     }
   };
 
@@ -910,25 +901,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     events: {
       onGuestJoined: (name) => {
         hapticTap();
-        showCollabToast(`✨ ${name} si è unito al tavolo!`);
+        showCollabToast(`${name} si è unito al tavolo!`);
       },
       onNudged: (fromName) => {
         hapticWarning();
-        showCollabToast(`🔔 ${fromName} e il tavolo sono pronti a ordinare!`);
+        showCollabToast(`${fromName} e il tavolo sono pronti a ordinare!`);
       },
       onSubmitted: ({ round }) => {
         hapticSuccess();
-        showCollabToast(`👨‍🍳 Giro #${round} inviato in cucina!`);
-        try {
-          confetti({
-            particleCount: 70,
-            spread: 65,
-            origin: { y: 0.6 },
-          });
-        } catch {}
+        showCollabToast(`Giro #${round} inviato in cucina!`);
       },
       onError: (message) => {
-        showCollabToast(`⚠️ ${message}`);
+        showCollabToast(message);
       },
     },
   });
@@ -1139,15 +1123,6 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       setOrderSuccessMessage('Ordine inviato alla cassa e cucina! Il personale sta preparando i tuoi piatti.');
       setTableCart({});
       setOrderNotes('');
-
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: [canvaAccent, '#10b981', '#f59e0b', '#ffffff'],
-        });
-      } catch {}
     } catch (err: any) {
       const isNetworkError =
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -1276,24 +1251,20 @@ export default function UniversalHubPage({ params }: HubPageProps) {
     const isSynced = nfcPhase === 'synced';
     return (
       <div
-        className="min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden select-none transition-colors duration-300"
+        className={`min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden select-none transition-colors duration-300 ${HUB_FONT_CLASSES}`}
         style={{
           backgroundColor: activeTheme.bgHex,
           color: activeTheme.textHex,
           fontFamily: activeFont.cssFamily,
         }}
       >
-        {/* Background Aurora Ambient Light */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] sm:w-[480px] h-[340px] sm:h-[480px] rounded-full blur-[120px] transition-all duration-700"
-            style={{
-              backgroundColor: primaryColor,
-              opacity: isSynced ? (isLight ? 0.35 : 0.6) : (isLight ? 0.18 : 0.35),
-              transform: isSynced ? 'translate(-50%, -50%) scale(1.15)' : 'translate(-50%, -50%) scale(1)',
-            }}
-          />
-        </div>
+        {/* Background Radial Highlight */}
+        <div
+          className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-500"
+          style={{
+            background: `radial-gradient(circle at 50% 45%, ${primaryColor}${isSynced ? (isLight ? '20' : '24') : (isLight ? '10' : '16')} 0%, transparent 55%)`,
+          }}
+        />
 
         {/* Central NFC Resonator Hub */}
         <div className="relative z-10 flex flex-col items-center">
@@ -1301,7 +1272,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           <div className="relative flex items-center justify-center w-40 h-40 sm:w-48 sm:h-48 mb-6">
             {/* Pulsing Sonar Ring 1 */}
             <div
-              className="absolute inset-0 rounded-full border border-dashed pointer-events-none animate-nfc-sonar-1"
+              className="absolute inset-0 rounded-full border border-dashed pointer-events-none animate-nfc-sonar-1 motion-reduce:animate-none"
               style={{
                 borderColor: `${primaryColor}65`,
                 boxShadow: `0 0 25px ${primaryColor}20`,
@@ -1309,7 +1280,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             />
             {/* Pulsing Sonar Ring 2 */}
             <div
-              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-2"
+              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-2 motion-reduce:animate-none"
               style={{
                 borderColor: `${primaryColor}45`,
                 boxShadow: `0 0 35px ${primaryColor}15`,
@@ -1317,7 +1288,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             />
             {/* Pulsing Sonar Ring 3 */}
             <div
-              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-3"
+              className="absolute inset-0 rounded-full border pointer-events-none animate-nfc-sonar-3 motion-reduce:animate-none"
               style={{
                 borderColor: `${primaryColor}25`,
               }}
@@ -1325,38 +1296,37 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {/* Core Floating Glass NFC Token */}
             <div
-              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl border-2 flex items-center justify-center relative shadow-2xl transition-all duration-500 ${
+              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 flex items-center justify-center relative shadow-2xl transition-all duration-500 motion-reduce:animate-none ${
                 isSynced ? 'animate-nfc-contact-flash' : 'animate-float-gentle'
               } ${
                 isLight
-                  ? 'bg-white/90 border-slate-200/90 shadow-slate-300/60'
-                  : 'bg-[#141715]/90 border-white/20 shadow-black/80'
+                  ? 'bg-white/95 border-slate-200/90 shadow-slate-300/60'
+                  : 'bg-[#141715]/95 border-white/20 shadow-black/80'
               }`}
               style={{
                 borderColor: isSynced ? primaryColor : undefined,
                 boxShadow: isSynced
-                  ? `0 0 45px ${primaryColor}60, inset 0 0 20px ${primaryColor}25`
+                  ? `0 0 40px ${primaryColor}50, inset 0 0 18px ${primaryColor}20`
                   : `0 12px 35px rgba(0,0,0,0.35)`,
               }}
             >
-              {/* Internal Radiant Glow */}
+              {/* Internal Tint */}
               <div
-                className="absolute inset-1 rounded-2xl opacity-25 pointer-events-none transition-opacity duration-300"
+                className="absolute inset-1 rounded-xl opacity-15 pointer-events-none transition-opacity duration-300"
                 style={{
                   backgroundColor: primaryColor,
-                  filter: 'blur(8px)',
                 }}
               />
 
               {isSynced ? (
-                <div className="flex flex-col items-center justify-center gap-1 animate-scale-in">
+                <div className="flex flex-col items-center justify-center gap-1 animate-scale-in motion-reduce:animate-none">
                   <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12" style={{ color: primaryColor }} />
                 </div>
               ) : (
                 <div className="relative flex items-center justify-center">
-                  <NfcWaveIcon className="w-9 h-9 sm:w-11 sm:h-11 animate-pulse" style={{ color: primaryColor }} />
+                  <NfcWaveIcon className="w-9 h-9 sm:w-11 sm:h-11 animate-pulse motion-reduce:animate-none" style={{ color: primaryColor }} />
                   <span
-                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-[#141715] animate-ping"
+                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-[#141715] animate-ping motion-reduce:hidden"
                     style={{ backgroundColor: primaryColor }}
                   />
                 </div>
@@ -1369,7 +1339,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {isSynced ? (
               <div className="space-y-1 animate-fade-in">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 mb-1">
-                  <Sparkles className="w-3 h-3 animate-spin" />
+                  <Zap className="w-3 h-3" />
                   <span>Tag NFC Riconosciuto</span>
                 </div>
                 <h2 className={`text-base sm:text-lg font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -1410,7 +1380,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
   if (notFound || !org) {
     return (
       <div
-        className="min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 text-center transition-colors duration-300"
+        className={`min-h-screen min-h-dvh flex flex-col items-center justify-center p-6 text-center transition-colors duration-300 ${HUB_FONT_CLASSES}`}
         style={{
           backgroundColor: activeTheme.bgHex,
           color: activeTheme.textHex,
@@ -1428,7 +1398,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         </p>
         <Link
           href="/"
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
+          className={`min-h-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
             isLight ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-zinc-800 hover:bg-zinc-700 text-white'
           }`}
         >
@@ -1455,7 +1425,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
   return (
     <div
-      className="min-h-screen min-h-dvh flex flex-col justify-between relative selection:bg-white selection:text-black overflow-x-hidden transition-colors duration-300"
+      className={`min-h-screen min-h-dvh flex flex-col justify-between relative selection:bg-white selection:text-black overflow-x-hidden transition-colors duration-300 ${HUB_FONT_CLASSES}`}
       style={{
         backgroundColor: activeTheme.bgHex,
         color: activeTheme.textHex,
@@ -1482,24 +1452,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         </div>
       )}
 
-      {/* Dynamic Ambient Aurora Glow Mesh (60/120fps GPU-accelerated) */}
+      {/* Dynamic Ambient Radial Accent Highlight */}
       {activeConfig.accentGlow !== false && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          <div
-            className="absolute -top-16 left-1/2 -translate-x-1/2 w-[340px] sm:w-[520px] h-[300px] rounded-full blur-[130px] animate-ambient-drift-1"
-            style={{
-              backgroundColor: primaryColor,
-              opacity: isLight ? 0.25 : 0.65,
-            }}
-          />
-          <div
-            className="absolute top-1/4 -right-12 w-[220px] sm:w-[320px] h-[260px] rounded-full blur-[120px] animate-ambient-drift-2"
-            style={{
-              backgroundColor: `${primaryColor}85`,
-              opacity: isLight ? 0.2 : 0.5,
-            }}
-          />
-        </div>
+        <div
+          className="fixed inset-0 pointer-events-none z-0"
+          style={{
+            background: `radial-gradient(circle at 50% 0%, ${primaryColor}${isLight ? '16' : '22'} 0%, transparent 58%)`,
+          }}
+        />
       )}
 
       {/* Share Toast Notification */}
@@ -1607,13 +1567,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   setShowLangMenu(!showLangMenu);
                 }}
                 aria-label="Cambia lingua"
-                className={`touch-press h-9 px-2.5 rounded-full border flex items-center gap-1.5 transition-all text-xs font-bold active:scale-95 cursor-pointer ${
+                className={`touch-press min-h-[44px] min-w-[44px] px-2.5 rounded-full border flex items-center justify-center gap-1.5 transition-all text-xs font-bold active:scale-95 cursor-pointer ${
                   isLight
                     ? 'bg-white border-slate-200 text-slate-800 shadow-xs'
                     : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-200'
                 }`}
               >
-                <span>{SUPPORTED_LANGUAGES.find((l) => l.code === selectedLang)?.flag || '🇮🇹'}</span>
+                <Globe className="w-3.5 h-3.5 opacity-80" aria-hidden="true" />
                 <span className="uppercase text-[10px] tracking-wider font-mono">{selectedLang}</span>
               </button>
 
@@ -1624,10 +1584,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     onClick={() => setShowLangMenu(false)}
                   />
                   <div
-                    className={`absolute right-0 top-11 z-50 py-1.5 px-1 rounded-2xl shadow-2xl border min-w-[145px] animate-fade-in backdrop-blur-2xl ${
+                    className={`absolute right-0 top-12 z-50 py-1.5 px-1 rounded-2xl shadow-2xl border min-w-[155px] animate-fade-in ${
                       isLight
-                        ? 'bg-white/95 border-slate-200 text-slate-900 shadow-[0_10px_35px_rgba(0,0,0,0.15)]'
-                        : 'bg-[#161816]/95 border-white/10 text-white shadow-[0_10px_35px_rgba(0,0,0,0.7)]'
+                        ? 'bg-white border-slate-200 text-slate-900 shadow-[0_10px_35px_rgba(0,0,0,0.15)]'
+                        : 'bg-[#161816] border-white/10 text-white shadow-[0_10px_35px_rgba(0,0,0,0.7)]'
                     }`}
                   >
                     {SUPPORTED_LANGUAGES.map((lang) => (
@@ -1639,7 +1599,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                           setSelectedLang(lang.code);
                           setShowLangMenu(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                        className={`w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                           selectedLang === lang.code
                             ? 'bg-amber-500/20 text-amber-400 font-bold'
                             : isLight
@@ -1667,14 +1627,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 setShowContactModal(true);
               }}
               aria-label="Notifiche e assistenza"
-              className={`touch-press w-9 h-9 rounded-full border flex items-center justify-center transition-all relative active:scale-95 ${
+              className={`touch-press min-w-[44px] min-h-[44px] rounded-full border flex items-center justify-center transition-all relative active:scale-95 cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
                   : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
               }`}
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#181b19] animate-pulse" />
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#181b19] animate-pulse motion-reduce:animate-none" />
             </button>
 
             {/* Share Button */}
@@ -1682,7 +1642,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={handleShare}
               aria-label="Condividi locale"
-              className={`touch-press w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 ${
+              className={`touch-press min-w-[44px] min-h-[44px] rounded-full border flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
                   : 'bg-[#181b19] hover:bg-[#202421] border-white/[0.08] text-zinc-300 hover:text-white'
@@ -1742,8 +1702,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         {/* ========================================================================= */}
         {activeConfig.wifiBridge?.enabled && Boolean(activeConfig.wifiBridge.ssid?.trim()) && (
           <div
-            onClick={handleConnectWifi}
-            className={`w-full p-2.5 mb-2.5 relative z-10 border transition-all cursor-pointer touch-press active:scale-[0.98] ${cardBaseClass} ${
+            className={`w-full p-2.5 mb-2.5 relative z-10 border transition-colors ${cardBaseClass} ${
               nfcPhase === 'assembling' ? 'animate-assemble-badge' : 'animate-nfc-stagger-2'
             } ${getBorderRadiusClass(activeConfig.borderRadius)}`}
             style={{
@@ -1781,20 +1740,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <button
                   type="button"
                   onClick={handleOpenWifiQrModal}
-                  className={`p-1.5 rounded-lg border transition-all ${
+                  aria-label="Mostra QR Code o Password"
+                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border transition-all cursor-pointer ${
                     isLight
                       ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
                       : 'border-white/10 text-zinc-300 hover:bg-white/10'
                   }`}
                   title="Mostra QR Code o Password"
                 >
-                  <QrCode className="w-3.5 h-3.5" />
+                  <QrCode className="w-4 h-4" />
                 </button>
 
                 <button
                   type="button"
                   onClick={handleConnectWifi}
-                  className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1 shadow-sm transition-transform active:scale-95 cursor-pointer"
+                  className="min-h-[44px] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 cursor-pointer"
                   style={{
                     backgroundColor: wifiConnected ? '#10b981' : primaryColor,
                     color: wifiConnected ? '#ffffff' : contrastText,
@@ -1802,12 +1762,12 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 >
                   {wifiConnected ? (
                     <>
-                      <Check className="w-2.5 h-2.5" />
+                      <Check className="w-3 h-3" />
                       <span>Connesso!</span>
                     </>
                   ) : (
                     <>
-                      <Wifi className="w-2.5 h-2.5" />
+                      <Wifi className="w-3 h-3" />
                       <span>Connetti</span>
                     </>
                   )}
@@ -1829,7 +1789,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               rel="noopener noreferrer"
               className={`${
                 nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
-              } animate-hero-glow touch-press active:scale-[0.98] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left`}
+              } animate-hero-glow touch-press active:scale-[0.98] min-h-[48px] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left motion-reduce:animate-none`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
@@ -1846,18 +1806,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 className={`absolute inset-0 pointer-events-none overflow-hidden ${getBorderRadiusClass(activeConfig.borderRadius)}`}
                 style={getBorderRadiusStyle(activeConfig.borderRadius)}
               >
-                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-beam motion-reduce:hidden" />
               </div>
-              {/* Luminous breath overlay */}
-              <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse" />
 
               <div className="relative z-10 flex-1 min-w-0 pr-3">
                 {activeConfig.hero.badgeText && (
                   <div
-                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/20 mb-1.5`}
+                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 mb-1.5`}
                     style={getBorderRadiusStyle(activeConfig.borderRadius)}
                   >
-                    <Sparkles className="w-2.5 h-2.5" />
+                    <Zap className="w-2.5 h-2.5" />
                     <span>{activeConfig.hero.badgeText}</span>
                   </div>
                 )}
@@ -1874,7 +1832,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   className={`w-11 h-11 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 flex items-center justify-center group-hover:scale-110 transition-transform`}
                   style={getBorderRadiusStyle(activeConfig.borderRadius)}
                 >
-                  <ExternalLink className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
+                  <ExternalLink className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: contrastText }} />
                 </div>
               </div>
             </a>
@@ -1893,7 +1851,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               }}
               className={`${
                 nfcPhase === 'assembling' ? 'animate-assemble-hero' : 'animate-nfc-stagger-3'
-              } ${activeConfig.buttonGlow !== false ? 'animate-hero-glow' : ''} touch-press active:scale-[0.98] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer`}
+              } ${activeConfig.buttonGlow !== false ? 'animate-hero-glow' : ''} touch-press active:scale-[0.98] min-h-[48px] ${getBorderRadiusClass(activeConfig.borderRadius)} p-4 sm:p-5 flex items-center justify-between transition-all shadow-xl group relative overflow-hidden w-full text-left cursor-pointer motion-reduce:animate-none`}
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
@@ -1910,18 +1868,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 className={`absolute inset-0 pointer-events-none overflow-hidden ${getBorderRadiusClass(activeConfig.borderRadius)}`}
                 style={getBorderRadiusStyle(activeConfig.borderRadius)}
               >
-                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-beam" />
+                <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-beam motion-reduce:hidden" />
               </div>
-              {/* Luminous breath overlay */}
-              <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/20 blur-xl pointer-events-none animate-pulse" />
 
               <div className="relative z-10 flex-1 min-w-0 pr-3">
                 {activeConfig.hero.badgeText && (
                   <div
-                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/20 mb-1.5`}
+                    className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} bg-black/15 mb-1.5`}
                     style={getBorderRadiusStyle(activeConfig.borderRadius)}
                   >
-                    <Sparkles className="w-2.5 h-2.5" />
+                    <Zap className="w-2.5 h-2.5" />
                     <span>{activeConfig.hero.badgeText}</span>
                   </div>
                 )}
@@ -1939,9 +1895,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   style={getBorderRadiusStyle(activeConfig.borderRadius)}
                 >
                   {isSalon ? (
-                    <CalendarCheck className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
+                    <CalendarCheck className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: contrastText }} />
                   ) : (
-                    <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: contrastText }} />
+                    <UtensilsCrossed className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: contrastText }} />
                   )}
                 </div>
               </div>
@@ -1981,37 +1937,37 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   case 'CalendarCheck':
                     return <CalendarCheck className="w-5 h-5" style={{ color: primaryColor }} />;
                   case 'UtensilsCrossed':
-                    return <UtensilsCrossed className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                    return <UtensilsCrossed className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
                   case 'WhatsApp':
                     return <WhatsAppIcon className="w-5 h-5" color="#25D366" />;
                   case 'Instagram':
                     return <InstagramIcon className="w-5 h-5 text-pink-500" />;
                   case 'Sparkles':
                   default:
-                    return <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                    return <Zap className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
                 }
               }
 
               switch (mod.id) {
                 case 'bookings':
-                  return <CalendarCheck className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                  return <CalendarCheck className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
                 case 'service':
                   return isSalon ? (
-                    <CalendarCheck className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />
+                    <CalendarCheck className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />
                   ) : (
-                    <BellRing className="w-5 h-5 animate-bell-swing origin-top" style={{ color: primaryColor }} />
+                    <BellRing className="w-5 h-5 animate-bell-swing origin-top motion-reduce:animate-none" style={{ color: primaryColor }} />
                   );
                 case 'sommelier':
                   return (
                     <div className="relative">
                       <Wine className="w-5 h-5" style={{ color: primaryColor }} />
-                      <Sparkles className="w-2.5 h-2.5 absolute -top-1 -right-1 text-amber-300 animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#141715] absolute -top-0.5 -right-0.5" />
                     </div>
                   );
                 case 'wifi':
-                  return <Wifi className="w-5 h-5 animate-pulse" style={{ color: primaryColor }} />;
+                  return <Wifi className="w-5 h-5 animate-pulse motion-reduce:animate-none" style={{ color: primaryColor }} />;
                 case 'wheel':
-                  return <Sparkles className="w-5 h-5 animate-float-gentle" style={{ color: primaryColor }} />;
+                  return <Award className="w-5 h-5 animate-float-gentle motion-reduce:animate-none" style={{ color: primaryColor }} />;
                 case 'loyalty':
                   return <CreditCard className="w-5 h-5" style={{ color: primaryColor }} />;
                 case 'reviews':
@@ -2373,24 +2329,24 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 ...getBorderRadiusStyle(activeConfig.borderRadius),
               }}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 min-h-[48px]">
                 <div className="min-w-0">
                   <span
                     className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 ${getBorderRadiusClass(activeConfig.borderRadius)} mb-1`}
                     style={{
                       backgroundColor: `${primaryColor}25`,
-                      color: primaryColor,
+                      color: isLight && contrastText === '#000000' ? '#09090B' : primaryColor,
                       ...getBorderRadiusStyle(activeConfig.borderRadius),
                     }}
                   >
-                    <Sparkles className="w-2.5 h-2.5" /> In Evidenza
+                    <Zap className="w-2.5 h-2.5" /> In Evidenza
                   </span>
                   <h3 className={`text-xs sm:text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     {org.custom_cta_label}
                   </h3>
                 </div>
                 <div
-                  className={`w-8 h-8 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md`}
+                  className={`w-10 h-10 ${getBorderRadiusClass(activeConfig.borderRadius)} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md`}
                   style={{
                     backgroundColor: primaryColor,
                     color: contrastText,
@@ -2408,7 +2364,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             className={`${getBorderRadiusClass(activeConfig.borderRadius)} border p-4 shadow-xl relative overflow-hidden ${
               isLight
                 ? 'bg-white border-slate-200'
-                : 'border-white/[0.08] bg-gradient-to-b from-[#181b19] to-[#121413]'
+                : 'border-white/[0.08] bg-[#141715]'
             }`}
             style={{
               boxShadow: `0 8px 30px ${primaryColor}12`,
@@ -2417,7 +2373,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
           >
             <div className="flex items-center justify-between mb-2">
               <div className={`flex items-center gap-2 text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                <ShieldCheck className="w-4 h-4" style={{ color: primaryColor }} />
+                <ShieldCheck className="w-4 h-4" style={{ color: isLight && contrastText === '#000000' ? '#09090B' : primaryColor }} />
                 <span>Valuta la tua esperienza</span>
               </div>
               <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>1-Tap Google</span>
@@ -2440,14 +2396,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     onMouseEnter={() => setRatingHover(star)}
                     onMouseLeave={() => setRatingHover(null)}
                     onClick={() => handleRatingClick(star)}
-                    className="touch-press p-1 transition-transform hover:scale-125 active:scale-90 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center relative"
+                    className="touch-press p-1 transition-transform hover:scale-125 active:scale-90 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center relative cursor-pointer"
                     aria-label={`Vota ${star} stelle`}
                   >
                     <Star
                       style={{
                         animationDelay: isFilled ? '0ms' : `${(star - 1) * 220}ms`,
                       }}
-                      className={`w-7 h-7 sm:w-8 sm:h-8 transition-all ${
+                      className={`w-7 h-7 sm:w-8 sm:h-8 transition-all motion-reduce:animate-none ${
                         isFilled
                           ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.7)] scale-115 animate-star-pop'
                           : isLight
@@ -2490,7 +2446,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </span>
             <span className={isLight ? 'text-slate-400' : 'text-zinc-600'}>•</span>
             <span>Powered by</span>
-            <span className="font-bold" style={{ color: primaryColor }}>RIVO</span>
+            <span className="font-bold" style={{ color: isLight && contrastText === '#000000' ? '#09090B' : primaryColor }}>RIVO</span>
           </footer>
         </div>
 
@@ -2503,7 +2459,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] inset-x-0 max-w-md mx-auto px-4 z-40 pointer-events-none">
           <nav
             aria-label="Navigazione rapida"
-            className={`pointer-events-auto backdrop-blur-2xl border rounded-full px-5 py-2 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)] ${
+            className={`pointer-events-auto border rounded-full px-4 py-1.5 flex items-center justify-between shadow-[0_12px_45px_rgba(0,0,0,0.85)] ${
               nfcPhase === 'assembling' ? 'animate-assemble-dock' : ''
             } ${
               isLight
@@ -2519,7 +2475,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               aria-label="Torna all'inizio"
-              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+              className="touch-press active:scale-95 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5 cursor-pointer"
             >
               <Home className="w-5 h-5" />
               <span className="text-[9px] font-medium mt-0.5">{t.home}</span>
@@ -2539,7 +2495,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 }
               }}
               aria-label={isSalon ? 'Prenota Appuntamento' : isRetail ? 'Apri Catalogo' : 'Apri Menù'}
-              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+              className="touch-press active:scale-95 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5 cursor-pointer"
             >
               {isSalon ? (
                 <CalendarCheck className="w-5 h-5 text-amber-400" />
@@ -2568,11 +2524,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               {/* Ambient radar pulse ring */}
               {activeConfig.buttonGlow !== false && (
                 <span
-                  className="absolute inset-0 rounded-full animate-fab-pulse-ring pointer-events-none"
+                  className="absolute inset-0 rounded-full animate-fab-pulse-ring motion-reduce:hidden pointer-events-none"
                   style={{ backgroundColor: primaryColor }}
                 />
               )}
-              <BellRing className="w-5 h-5 relative z-10 animate-bell-swing origin-top" />
+              <BellRing className="w-5 h-5 relative z-10 animate-bell-swing origin-top motion-reduce:animate-none" />
             </Link>
 
             {/* Info & Assistenza */}
@@ -2583,7 +2539,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 setShowContactModal(true);
               }}
               aria-label="Info e contatti"
-              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+              className="touch-press active:scale-95 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5 cursor-pointer"
             >
               <Info className="w-5 h-5" />
               <span className="text-[9px] font-medium mt-0.5">{t.info}</span>
@@ -2594,7 +2550,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               type="button"
               onClick={handleShare}
               aria-label="Condividi"
-              className="touch-press active:scale-95 flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5"
+              className="touch-press active:scale-95 min-w-[48px] min-h-[48px] flex flex-col items-center justify-center hover:opacity-80 transition-all p-1.5 cursor-pointer"
             >
               <Share2 className="w-5 h-5" />
               <span className="text-[9px] font-medium mt-0.5">{t.share}</span>
@@ -2635,16 +2591,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {showMenuModal && (
         isRestaurant ? (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div role="dialog" aria-modal="true" aria-label={canvaMenu.headerTitle || 'Menù Digitale'} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 overscroll-contain animate-fade-in">
             <div
-              className={`w-full max-w-lg h-[94vh] sm:h-[88vh] rounded-t-[32px] sm:rounded-[32px] border ${canvaPreset.borderClass} flex flex-col overflow-hidden shadow-2xl transition-all relative`}
+              className={`w-full max-w-lg h-[94vh] sm:h-[88vh] rounded-t-2xl sm:rounded-2xl border ${canvaPreset.borderClass} flex flex-col overflow-hidden shadow-2xl transition-all relative`}
               style={{
                 background: canvaPreset.decorStyle.background,
                 fontFamily: canvaFontCss,
               }}
             >
               {/* Top Header Bar */}
-              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/30 backdrop-blur-md z-10">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/40 z-10">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0"
@@ -2659,7 +2615,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate flex items-center gap-1.5">
                       <span>{org.name}</span>
                       <span className="text-zinc-600">•</span>
-                      <span className="font-semibold text-emerald-400">📍 {device?.name || 'Tavolo'}</span>
+                      <span className="font-semibold text-emerald-400 inline-flex items-center gap-1">
+                        <MapPin className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        <span>{device?.name || 'Tavolo'}</span>
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -2670,18 +2629,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       href={org.lunch_destination_url || org.website!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-xl border border-white/10 flex items-center gap-1 text-white transition-colors"
+                      className="min-h-[44px] text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 inline-flex items-center gap-1 text-white transition-colors"
                     >
                       <span>PDF / Web</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
                   <button
+                    type="button"
                     onClick={() => {
                       hapticTap();
                       setShowMenuModal(false);
                     }}
-                    className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 min-h-[40px] min-w-[40px] flex items-center justify-center transition-colors"
+                    className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors cursor-pointer"
                     aria-label="Chiudi menù"
                   >
                     <X className="w-5 h-5" />
@@ -2742,14 +2702,14 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 {/* Order Notice or Chef Context */}
                 {(canvaMenu.orderNotice || org.ai_menu_context) && (
                   <div
-                    className="p-3 rounded-2xl border text-xs leading-relaxed flex items-start gap-2.5 backdrop-blur-sm"
+                    className="p-3 rounded-2xl border text-xs leading-relaxed flex items-start gap-2.5"
                     style={{
                       backgroundColor: `${canvaAccent}12`,
                       borderColor: `${canvaAccent}30`,
                       color: '#ffffff',
                     }}
                   >
-                    <Sparkles className="w-4 h-4 shrink-0 mt-0.5" style={{ color: canvaAccent }} />
+                    <Zap className="w-4 h-4 shrink-0 mt-0.5" style={{ color: canvaAccent }} />
                     <div className="space-y-0.5">
                       <strong className="block text-[10px] uppercase tracking-wider font-extrabold" style={{ color: canvaAccent }}>
                         {canvaMenu.allowTableOrders !== false ? 'Ordinazione al Tavolo Attiva' : 'Nota della Cucina'}
@@ -2782,14 +2742,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       value={canvaSearchQuery}
                       onChange={(e) => setCanvaSearchQuery(e.target.value)}
                       placeholder="Cerca piatti, allergeni, ingredienti..."
-                      className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
+                      className="w-full min-h-[44px] bg-white/[0.06] border border-white/10 rounded-xl pl-9 pr-9 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
                       style={{ borderColor: canvaSearchQuery ? canvaAccent : undefined }}
                     />
                     {canvaSearchQuery && (
                       <button
                         type="button"
                         onClick={() => setCanvaSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                        aria-label="Cancella ricerca"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -2800,10 +2761,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <button
                     type="button"
                     onClick={handleToggleVoiceOrdering}
-                    className="px-3 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 cursor-pointer shadow-xs"
+                    className="min-h-[44px] px-3 py-2 rounded-xl bg-[#BFFF00]/15 hover:bg-[#BFFF00]/25 border border-[#BFFF00]/35 text-[#BFFF00] text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all active:scale-95 cursor-pointer shadow-xs"
                     title="Comanda Vocale AI: parla per ordinare"
                   >
-                    <Mic className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+                    <Mic className="w-3.5 h-3.5 text-[#BFFF00] animate-pulse motion-reduce:animate-none" />
                     <span className="hidden sm:inline">Comanda Vocale</span>
                     <span className="sm:hidden">Voce</span>
                   </button>
@@ -2981,12 +2942,12 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                             className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0"
                                             style={{ backgroundColor: `${canvaAccent}25`, color: canvaAccent }}
                                           >
-                                            <Sparkles className="w-2 h-2" /> {t.topBadge}
+                                            <Award className="w-2.5 h-2.5" /> {t.topBadge}
                                           </span>
                                         )}
                                       </div>
                                       <span
-                                        className="text-xs sm:text-sm font-extrabold font-mono shrink-0"
+                                        className="text-xs sm:text-sm font-extrabold font-mono tabular-nums shrink-0"
                                         style={{ color: canvaAccent }}
                                       >
                                         {dish.price}
@@ -3019,11 +2980,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenWinePairing(dish)}
-                                    className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 transition-all active:scale-95 cursor-pointer shrink-0 shadow-xs"
+                                    className="min-h-[44px] px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-all active:scale-95 cursor-pointer shrink-0 shadow-xs"
                                     title="Chiedi al Sommelier AI quale vino abbinare a questo piatto"
                                   >
-                                    <Wine className="w-3 h-3 text-purple-400" />
-                                    <Sparkles className="w-2 h-2 text-amber-300" />
+                                    <Wine className="w-3.5 h-3.5 text-amber-400" />
                                     <span>Abbina Vino</span>
                                   </button>
 
@@ -3035,18 +2995,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                           <button
                                             type="button"
                                             onClick={() => removeFromTableCart(dish.id)}
-                                            className="w-7 h-7 rounded-lg bg-black/40 hover:bg-black/60 text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+                                            className="w-9 h-9 rounded-lg bg-black/40 hover:bg-black/60 text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer"
                                             aria-label="Diminuisci quantità"
                                           >
                                             <Minus className="w-3.5 h-3.5" />
                                           </button>
-                                          <span className="w-6 text-center text-xs font-bold font-mono text-white">
+                                          <span className="w-6 text-center text-xs font-bold font-mono tabular-nums text-white">
                                             {inCartCount}
                                           </span>
                                           <button
                                             type="button"
                                             onClick={() => addToTableCart(dish, true)}
-                                            className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold cursor-pointer"
+                                            className="w-9 h-9 rounded-lg flex items-center justify-center active:scale-90 transition-all font-bold cursor-pointer"
                                             style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
                                             aria-label="Aumenta quantità"
                                           >
@@ -3057,7 +3017,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                                         <button
                                           type="button"
                                           onClick={() => addToTableCart(dish)}
-                                          className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow border border-white/10 bg-white/5 hover:bg-white/10 text-white cursor-pointer"
+                                          className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow border border-white/10 bg-white/5 hover:bg-white/10 text-white cursor-pointer"
                                           style={{
                                             borderColor: `${canvaAccent}40`,
                                           }}
@@ -3158,8 +3118,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             </div>
           </div>
         ) : (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3">
+          <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 overscroll-contain animate-fade-in">
+            <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3">
               
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
@@ -3182,18 +3142,19 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       href={org.lunch_destination_url || org.website!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1 text-white"
+                      className="min-h-[44px] text-[11px] font-semibold bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10 inline-flex items-center gap-1 text-white"
                     >
                       <span>PDF / Web</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
                   <button
+                    type="button"
                     onClick={() => {
                       hapticTap();
                       setShowMenuModal(false);
                     }}
-                    className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
                     aria-label="Chiudi menù"
                   >
                     <X className="w-5 h-5" />
@@ -3211,7 +3172,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     color: '#ffffff',
                   }}
                 >
-                  <Sparkles className="w-4 h-4 shrink-0 mt-0.5" style={{ color: primaryColor }} />
+                  <Zap className="w-4 h-4 shrink-0 mt-0.5" style={{ color: primaryColor }} />
                   <div>
                     <strong className="block text-[11px] uppercase tracking-wider font-bold" style={{ color: primaryColor }}>
                       Consiglio dello Chef
@@ -3229,7 +3190,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
                   placeholder="Cerca piatti, ingredienti..."
-                  className="w-full bg-[#181b19] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none"
+                  className="w-full min-h-[44px] bg-[#181b19] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none"
                   style={{ borderColor: menuSearch ? primaryColor : undefined }}
                 />
               </div>
@@ -3254,7 +3215,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         hapticTap();
                         setMenuTab(tab.id as typeof menuTab);
                       }}
-                      className={`shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
+                      className={`shrink-0 min-h-[44px] text-[11px] px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                         isSelected
                           ? 'font-bold shadow-md'
                           : 'bg-white/[0.05] text-zinc-400 hover:text-white border border-white/5'
@@ -3294,12 +3255,12 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                               className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0"
                               style={{ backgroundColor: `${primaryColor}25`, color: primaryColor }}
                             >
-                              <Sparkles className="w-2 h-2" /> Top
+                              <Award className="w-2.5 h-2.5" /> Top
                             </span>
                           )}
                         </div>
                         <span
-                          className="text-xs sm:text-sm font-extrabold font-mono shrink-0"
+                          className="text-xs sm:text-sm font-extrabold font-mono tabular-nums shrink-0"
                           style={{ color: primaryColor }}
                         >
                           {item.price}
@@ -3441,8 +3402,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
         />
       )}
       {showOrderModal && !collabCart.isActive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3.5">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 overscroll-contain animate-fade-in">
+          <div className="w-full max-w-md bg-[#131614] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden space-y-3.5">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div className="flex items-center gap-2">
@@ -3460,11 +3421,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   hapticTap();
                   setShowOrderModal(false);
                 }}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
+                aria-label="Chiudi carrello"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3472,7 +3435,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {orderSuccessMessage ? (
               <div className="py-6 px-4 text-center space-y-4">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 animate-bounce-short">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 animate-bounce-short motion-reduce:animate-none">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <div className="space-y-1.5">
@@ -3488,7 +3451,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     setOrderSuccessMessage(null);
                     setShowOrderModal(false);
                   }}
-                  className="w-full py-3 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/15 transition-colors"
+                  className="w-full min-h-[48px] py-3 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/15 transition-colors cursor-pointer"
                 >
                   {t.close}
                 </button>
@@ -3512,7 +3475,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                         >
                           <div className="min-w-0 flex-1">
                             <h4 className="text-xs font-bold text-white truncate">{dish.name}</h4>
-                            <p className="text-[10px] text-zinc-400 font-mono">
+                            <p className="text-[10px] text-zinc-400 font-mono tabular-nums">
                               {dish.price} cad. • Subtotale:{' '}
                               <span style={{ color: canvaAccent }} className="font-bold">
                                 {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(subtotal)}
@@ -3524,28 +3487,31 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                             <button
                               type="button"
                               onClick={() => removeFromTableCart(dish.id)}
-                              className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-all"
+                              aria-label={`Rimuovi uno ${dish.name}`}
+                              className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer"
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className="w-5 text-center text-xs font-bold font-mono text-white">
+                            <span className="w-5 text-center text-xs font-bold font-mono tabular-nums text-white">
                               {quantity}
                             </span>
                             <button
                               type="button"
                               onClick={() => addToTableCart(dish)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-95 transition-all"
+                              aria-label={`Aggiungi uno ${dish.name}`}
+                              className="w-9 h-9 rounded-lg flex items-center justify-center active:scale-95 transition-all cursor-pointer"
                               style={{ backgroundColor: canvaAccent, color: canvaContrastText }}
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => removeDishEntirelyFromCart(dish.id)}
-                              className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center active:scale-95 ml-1 transition-all"
+                              aria-label={`Elimina ${dish.name}`}
+                              className="w-9 h-9 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center active:scale-95 ml-1 transition-all cursor-pointer"
                               title="Rimuovi"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
@@ -3556,10 +3522,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
                 {/* Notes field */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-zinc-300 block">
+                  <label htmlFor="hub-order-notes" className="text-[11px] font-semibold text-zinc-300 block">
                     {t.kitchenNotes}:
                   </label>
                   <textarea
+                    id="hub-order-notes"
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
                     placeholder={t.kitchenNotesPlaceholder}
@@ -3579,7 +3546,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 <div className="pt-2 border-t border-white/10 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-zinc-400">{t.total}:</span>
-                    <span className="text-base font-extrabold font-mono" style={{ color: canvaAccent }}>
+                    <span className="text-base font-extrabold font-mono tabular-nums" style={{ color: canvaAccent }}>
                       {formattedTotal}
                     </span>
                   </div>
@@ -3589,7 +3556,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       type="button"
                       onClick={handleSendOrder}
                       disabled={orderSending || cartItems.length === 0}
-                      className="flex-1 min-h-[44px] font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 min-h-[48px] font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                       style={{
                         backgroundColor: canvaAccent,
                         color: canvaContrastText,
@@ -3643,8 +3610,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* CONTACT & DIRECT ASSISTANCE MODAL */}
       {/* ========================================================================= */}
       {showContactModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-3xl p-5 shadow-2xl space-y-4">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
+          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-2xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div className="flex items-center gap-2">
                 <div
@@ -3659,11 +3626,13 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   hapticTap();
                   setShowContactModal(false);
                 }}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[40px] min-w-[40px] flex items-center justify-center"
+                aria-label="Chiudi info"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3759,7 +3728,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 hapticTap();
                 setShowContactModal(false);
               }}
-              className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[42px]"
+              className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[48px] cursor-pointer"
             >
               Chiudi
             </button>
@@ -3771,19 +3740,21 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* CITY GUIDE MODAL (For Hotel & B&B) */}
       {/* ========================================================================= */}
       {showCityGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-3xl p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
+          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-2xl p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-white">
                 <Compass className="w-4 h-4" style={{ color: primaryColor }} />
                 <span>Guida & Luoghi Consigliati</span>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   hapticTap();
                   setShowCityGuide(false);
                 }}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Chiudi guida"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3810,7 +3781,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 hapticTap();
                 setShowCityGuide(false);
               }}
-              className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[44px]"
+              className="w-full py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors min-h-[48px] cursor-pointer"
             >
               Chiudi Guida
             </button>
@@ -3822,11 +3793,11 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* CUSTOM MODULE DETAILS MODAL (Info/Testo personalizzato) */}
       {/* ========================================================================= */}
       {activeCustomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-3xl p-5 shadow-2xl space-y-3.5 max-h-[85vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
+          <div className="w-full max-w-sm bg-[#131614] border border-white/10 rounded-2xl p-5 shadow-2xl space-y-3.5 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-white">
-                <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
+                <Zap className="w-4 h-4" style={{ color: primaryColor }} />
                 <span>{activeCustomModal.title}</span>
               </div>
               <button
@@ -3835,7 +3806,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   hapticTap();
                   setActiveCustomModal(null);
                 }}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Chiudi dettagli"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3855,7 +3827,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                 hapticTap();
                 setActiveCustomModal(null);
               }}
-              className="w-full py-2.5 rounded-2xl text-xs font-bold transition-all min-h-[44px] shadow-lg active:scale-95"
+              className="w-full py-2.5 rounded-2xl text-xs font-bold transition-all min-h-[48px] shadow-lg active:scale-95 cursor-pointer"
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,
@@ -3872,10 +3844,10 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* ========================================================================= */}
       {upsellSuggestion && (
         <div className="fixed bottom-24 inset-x-4 max-w-sm mx-auto z-40 animate-slide-up pointer-events-auto">
-          <div className="p-3.5 rounded-2xl bg-zinc-900/95 border border-amber-500/40 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3 text-white">
+          <div className="p-3.5 rounded-2xl bg-[#141715] border border-amber-500/40 shadow-2xl flex items-center justify-between gap-3 text-white">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4" />
+                <Zap className="w-4 h-4" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] text-amber-400 font-bold block uppercase tracking-wider">
@@ -3894,14 +3866,15 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   addToTableCart(upsellSuggestion.dish);
                   setUpsellSuggestion(null);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-black transition-all active:scale-95 cursor-pointer shadow"
+                className="min-h-[44px] px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-black transition-all active:scale-95 cursor-pointer shadow"
               >
                 + Aggiungi
               </button>
               <button
                 type="button"
                 onClick={() => setUpsellSuggestion(null)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                aria-label="Chiudi suggerimento"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3914,17 +3887,16 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* MODAL: AI SOMMELIER & WINE PAIRING */}
       {/* ========================================================================= */}
       {showWinePairingModal && pairingDish && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-[#141615] border border-purple-500/30 rounded-3xl p-5 shadow-2xl space-y-4 text-white">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
+          <div className="w-full max-w-sm bg-[#141615] border border-amber-500/35 rounded-2xl p-5 shadow-2xl space-y-4 text-white">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-400 flex items-center justify-center">
                   <Wine className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <span>Sommelier Virtuale AI</span>
-                    <Sparkles className="w-3 h-3 text-amber-300" />
+                  <h3 className="text-sm font-bold text-white">
+                    Sommelier Virtuale AI
                   </h3>
                   <p className="text-[10px] text-zinc-400">Abbinamento per: {pairingDish.name}</p>
                 </div>
@@ -3932,7 +3904,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <button
                 type="button"
                 onClick={() => setShowWinePairingModal(false)}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+                aria-label="Chiudi abbinamento"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3940,24 +3913,24 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {winePairingLoading ? (
               <div className="py-10 text-center space-y-3">
-                <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
+                <Loader2 className="w-8 h-8 text-amber-400 animate-spin mx-auto" />
                 <p className="text-xs text-zinc-300">
                   Il sommelier sta selezionando l&apos;abbinamento perfetto per &quot;{pairingDish.name}&quot;...
                 </p>
               </div>
             ) : winePairingResult ? (
               <div className="space-y-3 text-xs">
-                <div className="p-3.5 rounded-2xl bg-purple-950/40 border border-purple-500/30 space-y-2">
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-amber-500/30 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25">
                         {winePairingResult.winePairing.type} • {winePairingResult.winePairing.region}
                       </span>
                       <h4 className="text-sm font-bold text-white mt-1">
                         {winePairingResult.winePairing.name}
                       </h4>
                     </div>
-                    <span className="text-xs font-extrabold font-mono text-amber-400 shrink-0">
+                    <span className="text-xs font-extrabold font-mono tabular-nums text-amber-400 shrink-0">
                       {winePairingResult.winePairing.priceEstimate}
                     </span>
                   </div>
@@ -3990,7 +3963,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                       });
                       setShowWinePairingModal(false);
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    className="flex-1 min-h-[48px] py-2.5 rounded-xl bg-[#BFFF00] hover:bg-[#d2ff4d] text-[#09090B] font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Aggiungi Calice/Bottiglia al Vassoio</span>
@@ -4006,17 +3979,18 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* MODAL: AI VOICE-TO-CART ORDERING */}
       {/* ========================================================================= */}
       {showVoiceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-[#141715] border border-purple-500/40 rounded-3xl p-6 shadow-2xl space-y-5 text-center text-white">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
+          <div className="w-full max-w-sm bg-[#141715] border border-[#BFFF00]/35 rounded-2xl p-6 shadow-2xl space-y-5 text-center text-white">
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
-              <span className="text-xs font-bold text-purple-400 flex items-center gap-1">
-                <Mic className="w-3.5 h-3.5 animate-pulse" />
+              <span className="text-xs font-bold text-[#BFFF00] flex items-center gap-1.5">
+                <Mic className="w-3.5 h-3.5 animate-pulse motion-reduce:animate-none" />
                 <span>Comanda Vocale AI</span>
               </span>
               <button
                 type="button"
                 onClick={() => setShowVoiceModal(false)}
-                className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+                aria-label="Chiudi microfono"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -4024,9 +3998,9 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {/* Pulsing Mic Graphic */}
             <div className="relative py-4 flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-purple-500/20 animate-ping absolute inset-0 m-auto" />
-              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg relative z-10">
-                <Mic className="w-8 h-8 text-white animate-pulse" />
+              <div className="w-20 h-20 rounded-full bg-[#BFFF00]/20 animate-ping motion-reduce:hidden absolute inset-0 m-auto" />
+              <div className="w-16 h-16 rounded-full bg-[#BFFF00] flex items-center justify-center shadow-lg relative z-10">
+                <Mic className="w-8 h-8 text-[#09090B] animate-pulse motion-reduce:animate-none" />
               </div>
             </div>
 
@@ -4036,7 +4010,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               </h3>
               <p className="text-xs text-zinc-400">
                 Parla liberamente, ad esempio: <br />
-                <span className="text-purple-300 font-semibold italic">
+                <span className="text-[#BFFF00] font-semibold italic">
                   &quot;Due margherite e una tagliata di manzo&quot;
                 </span>
               </p>
@@ -4044,7 +4018,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
 
             {/* Live Transcript Display */}
             {voiceLiveTranscript && (
-              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-purple-200">
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-zinc-200">
                 &quot;{voiceLiveTranscript}&quot;
               </div>
             )}
@@ -4059,7 +4033,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <button
               type="button"
               onClick={() => setShowVoiceModal(false)}
-              className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer"
+              className="w-full min-h-[48px] py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold cursor-pointer"
             >
               Chiudi
             </button>
@@ -4071,8 +4045,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* MODAL: AI IN-DINING REVIEW SHIELD */}
       {/* ========================================================================= */}
       {showInDiningShieldModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-[#171918] border border-amber-500/30 rounded-3xl p-5 shadow-2xl space-y-4 text-white">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 overscroll-contain animate-fade-in">
+          <div className="w-full max-w-sm bg-[#171918] border border-amber-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
@@ -4086,7 +4060,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
               <button
                 type="button"
                 onClick={() => setShowInDiningShieldModal(false)}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+                aria-label="Chiudi segnalazione"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4120,7 +4095,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   <button
                     type="button"
                     onClick={() => setShowInDiningShieldModal(false)}
-                    className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-semibold cursor-pointer"
+                    className="min-h-[48px] px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer"
                   >
                     Annulla
                   </button>
@@ -4128,7 +4103,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                     type="button"
                     disabled={inDiningSending}
                     onClick={handleSendInDiningReviewAlert}
-                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    className="flex-1 min-h-[48px] py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     {inDiningSending ? (
                       <span>Invio in corso...</span>
@@ -4150,7 +4125,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
       {/* WI-FI BRIDGE MODAL (QR CODE & DETAILS) */}
       {/* ========================================================================= */}
       {wifiQrModalOpen && activeConfig.wifiBridge?.ssid && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 overscroll-contain animate-fade-in">
           <div
             className={`w-full max-w-sm border p-6 shadow-2xl relative space-y-4 ${
               isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#121214] border-zinc-800 text-white'
@@ -4160,7 +4135,8 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <button
               type="button"
               onClick={() => setWifiQrModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Chiudi QR Wi-Fi"
+              className="absolute top-3 right-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -4171,7 +4147,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                   isLight ? 'bg-sky-50 text-sky-600' : 'bg-sky-500/20 text-sky-400'
                 }`}
               >
-                <Wifi className="w-6 h-6 animate-pulse" />
+                <Wifi className="w-6 h-6 animate-pulse motion-reduce:animate-none" />
               </div>
               <h3 className="text-base font-bold">Wi-Fi Ospiti</h3>
               <p className="text-xs text-zinc-400">
@@ -4182,7 +4158,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             {wifiQrDataUrl && (
               <div className="p-3 bg-white rounded-2xl flex justify-center max-w-[220px] mx-auto shadow-inner">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={wifiQrDataUrl} alt="QR Wi-Fi" className="w-48 h-48 rounded-lg" />
+                <img src={wifiQrDataUrl} alt="QR Wi-Fi" width={192} height={192} className="w-48 h-48 rounded-lg" />
               </div>
             )}
 
@@ -4210,7 +4186,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
                           setTimeout(() => setWifiPasswordCopied(false), 2000);
                         } catch {}
                       }}
-                      className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-300 hover:text-white"
+                      className="min-h-[44px] px-2.5 py-1 rounded bg-zinc-800 text-[10px] text-zinc-200 hover:text-white cursor-pointer"
                     >
                       {wifiPasswordCopied ? 'Copiata!' : 'Copia'}
                     </button>
@@ -4222,7 +4198,7 @@ export default function UniversalHubPage({ params }: HubPageProps) {
             <button
               type="button"
               onClick={handleConnectWifi}
-              className="w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer"
+              className="w-full min-h-[48px] py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer"
               style={{
                 backgroundColor: primaryColor,
                 color: contrastText,

@@ -14,13 +14,20 @@ import {
   RefreshCw,
   ArrowUpRight,
   Database,
-  Sparkles,
+  Cpu,
   FileSpreadsheet,
   Compass,
   ExternalLink,
   Navigation,
   Send,
 } from 'lucide-react';
+import {
+  PageHeader,
+  KpiCard,
+  SurfaceCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui';
 import { InstagramIcon } from '@/components/brand-icons';
 import {
   buildInstagramDmDeepLink,
@@ -368,518 +375,579 @@ export default function OutreachDiscoveryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-[#FAFAFA] p-6 lg:p-8 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-[#27272A] pb-6">
-        <div>
-          <div className="flex items-center gap-2.5 mb-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#BFFF00]" />
-            <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#BFFF00]">
-              RIVO OUTREACH — BUSINESS DISCOVERY
-            </span>
-          </div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-[-0.02em] text-[#FAFAFA]">
-            Ricerca e Acquisizione Attività — Priority Maps &amp; Campania
-          </h1>
-          <p className="text-sm text-[#A1A1AA] mt-1">
-            Motore geografico prioritario su Maps centrato su Napoli e Campania a lungo raggio (fino a 120 km), con mappa interattiva live e anteprima schede Google Maps.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowManualModal((v) => !v)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#3F3F46] text-xs font-medium text-[#FAFAFA] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5 text-[#BFFF00]" />
-            Inserimento Manuale
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowCsvModal((v) => !v)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#3F3F46] text-xs font-medium text-[#FAFAFA] transition-colors"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-[#A1A1AA]" />
-            Importa CSV
-          </button>
-          <Link
-            href="/admin/outreach/prospects"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-semibold transition-colors"
-          >
-            Apri CRM Prospect
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
-
-      {manualFeedback && (
-        <div className="p-4 rounded-xl bg-[#121214] border border-[#BFFF00]/40 text-xs text-[#FAFAFA] flex items-center justify-between">
-          <span>{manualFeedback}</span>
-          <button
-            type="button"
-            onClick={() => setManualFeedback(null)}
-            className="text-[#A1A1AA] hover:text-[#FAFAFA]"
-          >
-            Chiudi
-          </button>
-        </div>
-      )}
-
-      {/* Manual Entry Panel */}
-      {showManualModal && (
-        <form
-          onSubmit={handleManualSubmit}
-          className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-4"
-        >
-          <div className="flex items-center justify-between border-b border-[#27272A] pb-3">
-            <h2 className="text-sm font-semibold text-[#FAFAFA]">
-              Inserimento Diretto Attività Commerciale (con Provenienza Tracciata)
-            </h2>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="RIVO OUTREACH — BUSINESS DISCOVERY"
+        title="Ricerca e Acquisizione Attività — Priority Maps & Campania"
+        description="Motore geografico prioritario su Maps centrato su Napoli e Campania a lungo raggio (fino a 120 km), con mappa interattiva live e anteprima schede Google Maps."
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setShowManualModal(false)}
-              className="text-xs text-[#A1A1AA] hover:text-[#FAFAFA]"
+              onClick={() => setShowManualModal((v) => !v)}
+              className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
+            >
+              <Plus className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
+              Inserimento Manuale
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCsvModal((v) => !v)}
+              className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+              Importa CSV
+            </button>
+            <Link
+              href="/admin/outreach/prospects"
+              className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-semibold transition-colors touch-press"
+            >
+              Apri CRM Prospect
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        }
+      />
+
+      {manualFeedback && (
+        <SurfaceCard padding="sm" className="border-[var(--rivo-volt-border)]">
+          <div className="text-xs text-[var(--text-primary)] flex items-center justify-between gap-3">
+            <span>{manualFeedback}</span>
+            <button
+              type="button"
+              onClick={() => setManualFeedback(null)}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium shrink-0 px-2 py-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
             >
               Chiudi
             </button>
           </div>
+        </SurfaceCard>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Nome Attività *
-              </label>
-              <input
-                type="text"
-                required
-                value={manualForm.business_name}
-                onChange={(e) => setManualForm({ ...manualForm, business_name: e.target.value })}
-                placeholder="Es. Osteria del Porto"
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
+      {/* Manual Entry Panel */}
+      {showManualModal && (
+        <SurfaceCard padding="lg">
+          <form onSubmit={handleManualSubmit} className="space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+              <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">
+                Inserimento Diretto Attività Commerciale (con Provenienza Tracciata)
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowManualModal(false)}
+                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1 rounded"
+              >
+                Chiudi
+              </button>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label
+                  htmlFor="manual-business-name"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Nome Attività *
+                </label>
+                <input
+                  id="manual-business-name"
+                  type="text"
+                  required
+                  value={manualForm.business_name}
+                  onChange={(e) => setManualForm({ ...manualForm, business_name: e.target.value })}
+                  placeholder="Es. Osteria del Porto"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-category"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Categoria *
+                </label>
+                <select
+                  id="manual-category"
+                  value={manualForm.category}
+                  onChange={(e) =>
+                    setManualForm({
+                      ...manualForm,
+                      category: e.target.value,
+                    })
+                  }
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                >
+                  {OUTREACH_DISCOVERY_CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-subcategory"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Sottocategoria
+                </label>
+                <input
+                  id="manual-subcategory"
+                  type="text"
+                  value={manualForm.subcategory}
+                  onChange={(e) => setManualForm({ ...manualForm, subcategory: e.target.value })}
+                  placeholder="Es. restaurant / barber"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-city"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Città
+                </label>
+                <input
+                  id="manual-city"
+                  type="text"
+                  value={manualForm.city}
+                  onChange={(e) => setManualForm({ ...manualForm, city: e.target.value })}
+                  placeholder="Napoli"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-address"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Indirizzo Commerciale
+                </label>
+                <input
+                  id="manual-address"
+                  type="text"
+                  value={manualForm.address}
+                  onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })}
+                  placeholder="Via Toledo 148"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-website"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Sito Web
+                </label>
+                <input
+                  id="manual-website"
+                  type="url"
+                  value={manualForm.website}
+                  onChange={(e) => setManualForm({ ...manualForm, website: e.target.value })}
+                  placeholder="https://…"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-instagram"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  URL Instagram
+                </label>
+                <input
+                  id="manual-instagram"
+                  type="url"
+                  value={manualForm.instagram_url}
+                  onChange={(e) => setManualForm({ ...manualForm, instagram_url: e.target.value })}
+                  placeholder="https://instagram.com/…"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-phone"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Telefono Aziendale
+                </label>
+                <input
+                  id="manual-phone"
+                  type="text"
+                  value={manualForm.business_phone}
+                  onChange={(e) => setManualForm({ ...manualForm, business_phone: e.target.value })}
+                  placeholder="+39 081 …"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="manual-email"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Email Aziendale
+                </label>
+                <input
+                  id="manual-email"
+                  type="email"
+                  value={manualForm.business_email}
+                  onChange={(e) => setManualForm({ ...manualForm, business_email: e.target.value })}
+                  placeholder="info@…"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="manual-description"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Descrizione / Servizi Rilevati
+                </label>
+                <input
+                  id="manual-description"
+                  type="text"
+                  value={manualForm.description}
+                  onChange={(e) => setManualForm({ ...manualForm, description: e.target.value })}
+                  placeholder="Ristorante di pesce con 60 coperti, menu PDF online…"
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="manual-source"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+                >
+                  Fonte del Dato / Base Giuridica
+                </label>
+                <input
+                  id="manual-source"
+                  type="text"
+                  value={manualForm.source}
+                  onChange={(e) => setManualForm({ ...manualForm, source: e.target.value })}
+                  className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={manualSubmitting}
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-semibold disabled:opacity-50 touch-press"
+              >
+                {manualSubmitting ? 'Salvataggio e Deduplicazione…' : 'Salva Prospect nel CRM'}
+              </button>
+            </div>
+          </form>
+        </SurfaceCard>
+      )}
+
+      {/* CSV Import Modal */}
+      {showCsvModal && (
+        <SurfaceCard padding="lg">
+          <form onSubmit={handleCsvImport} className="space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+              <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">
+                Importazione Multipla CSV (con Deduplicazione Automatica)
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowCsvModal(false)}
+                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1 rounded"
+              >
+                Chiudi
+              </button>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Incolla righe CSV con intestazione:{' '}
+              <code className="text-[var(--text-primary)] font-mono">
+                business_name,category,subcategory,city,address,website,business_phone,business_email
+              </code>
+            </p>
+            <label htmlFor="discovery-csv-input" className="sr-only">
+              Contenuto CSV
+            </label>
+            <textarea
+              id="discovery-csv-input"
+              rows={5}
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+              placeholder={`business_name,category,subcategory,city,address,website,business_phone,business_email\nPizzeria Partenope,food_beverage,pizzeria,Napoli,Via Chiaia 42,https://pizzeriapartenope.example.it,+39081123456,info@pizzeriapartenope.example.it`}
+              className="w-full p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={csvImporting}
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-semibold disabled:opacity-50 touch-press"
+              >
+                {csvImporting ? 'Importazione in corso…' : 'Importa e Deduplica'}
+              </button>
+            </div>
+          </form>
+        </SurfaceCard>
+      )}
+
+      {/* Main Search Interface */}
+      <SurfaceCard padding="lg">
+        <form onSubmit={handleRunDiscovery} className="space-y-5">
+          {/* Campania Geo-Presets Quick Bar */}
+          <div className="space-y-2 pb-4 border-b border-[var(--border-subtle)]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--rivo-volt-text)]">
+                <Compass className="w-3.5 h-3.5" />
+                Focus Territoriale: Napoli &amp; Campania a Largo Raggio
+              </span>
+              <span className="text-[11px] font-mono tabular-nums text-[var(--text-muted)]">
+                Centro: {centerLat.toFixed(4)}, {centerLon.toFixed(4)} • Raggio {radiusKm} km
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {campaniaPresets.map((preset) => {
+                const isActive = activePresetId === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset)}
+                    title={`${preset.label} — ${preset.city} (${preset.province}), raggio ${preset.radiusKm} km`}
+                    className={`inline-flex items-center gap-1.5 min-h-[38px] px-3 py-1.5 rounded-lg border text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)] ${
+                      isActive
+                        ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] font-semibold'
+                        : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    <Navigation className="w-3 h-3 shrink-0" />
+                    <span>{preset.label}</span>
+                    <span className="text-[10px] font-mono tabular-nums opacity-75">
+                      {preset.radiusKm}km
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Località */}
             <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Categoria *
+              <label
+                htmlFor="discovery-location-input"
+                className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+              >
+                Località / Città Principale
+              </label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-[var(--rivo-volt-text)] absolute left-3 top-3.5" />
+                <input
+                  id="discovery-location-input"
+                  type="text"
+                  required
+                  value={locationQuery}
+                  onChange={(e) => {
+                    setActivePresetId(null);
+                    setLocationQuery(e.target.value);
+                  }}
+                  placeholder="Es. Napoli, Salerno, Caserta, Sorrento…"
+                  className="w-full h-11 pl-9 pr-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+            </div>
+
+            {/* Raggio Geografico */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="discovery-radius-number"
+                  className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)]"
+                >
+                  Raggio (1–120 km)
+                </label>
+                <span className="text-[10px] font-mono text-[var(--rivo-volt-text)]">
+                  {radiusKm >= 50 ? 'Largo raggio' : radiusKm >= 20 ? 'Area metropolitana' : 'Urbano'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  aria-label="Selettore raggio geografico"
+                  type="range"
+                  min={1}
+                  max={120}
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(Number(e.target.value))}
+                  className="w-full accent-[#BFFF00] cursor-pointer"
+                />
+                <input
+                  id="discovery-radius-number"
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(Math.max(1, Math.min(120, Number(e.target.value) || 1)))}
+                  className="w-16 h-11 px-2 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm font-mono tabular-nums text-[var(--text-primary)] text-center focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
+              </div>
+            </div>
+
+            {/* Categoria Commerciale */}
+            <div>
+              <label
+                htmlFor="discovery-category-select"
+                className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+              >
+                Categoria Commerciale
               </label>
               <select
-                value={manualForm.category}
-                onChange={(e) =>
-                  setManualForm({
-                    ...manualForm,
-                    category: e.target.value,
-                  })
-                }
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
+                id="discovery-category-select"
+                value={category}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
               >
-                {OUTREACH_DISCOVERY_CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
+                {OUTREACH_DISCOVERY_CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.label}
                   </option>
                 ))}
               </select>
             </div>
 
+            {/* Sottocategoria */}
             <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
+              <label
+                htmlFor="discovery-subcategory-select"
+                className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+              >
                 Sottocategoria
               </label>
-              <input
-                type="text"
-                value={manualForm.subcategory}
-                onChange={(e) => setManualForm({ ...manualForm, subcategory: e.target.value })}
-                placeholder="Es. restaurant / barber"
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
+              <select
+                id="discovery-subcategory-select"
+                value={subcategory}
+                onChange={(e) => setSubcategory(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+              >
+                {subcategoriesForSelected.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
+            {/* Numero Massimo di Risultati */}
             <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Città
+              <label
+                htmlFor="discovery-max-results"
+                className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)] mb-1.5"
+              >
+                Max Risultati
               </label>
               <input
-                type="text"
-                value={manualForm.city}
-                onChange={(e) => setManualForm({ ...manualForm, city: e.target.value })}
-                placeholder="Napoli"
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Indirizzo Commerciale
-              </label>
-              <input
-                type="text"
-                value={manualForm.address}
-                onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })}
-                placeholder="Via Toledo 148"
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Sito Web
-              </label>
-              <input
-                type="url"
-                value={manualForm.website}
-                onChange={(e) => setManualForm({ ...manualForm, website: e.target.value })}
-                placeholder="https://..."
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                URL Instagram
-              </label>
-              <input
-                type="url"
-                value={manualForm.instagram_url}
-                onChange={(e) => setManualForm({ ...manualForm, instagram_url: e.target.value })}
-                placeholder="https://instagram.com/..."
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Telefono Aziendale
-              </label>
-              <input
-                type="text"
-                value={manualForm.business_phone}
-                onChange={(e) => setManualForm({ ...manualForm, business_phone: e.target.value })}
-                placeholder="+39 081 ..."
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Email Aziendale
-              </label>
-              <input
-                type="email"
-                value={manualForm.business_email}
-                onChange={(e) => setManualForm({ ...manualForm, business_email: e.target.value })}
-                placeholder="info@..."
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Descrizione / Servizi Rilevati
-              </label>
-              <input
-                type="text"
-                value={manualForm.description}
-                onChange={(e) => setManualForm({ ...manualForm, description: e.target.value })}
-                placeholder="Ristorante di pesce con 60 coperti, menu PDF online..."
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-                Fonte del Dato / Base Giuridica
-              </label>
-              <input
-                type="text"
-                value={manualForm.source}
-                onChange={(e) => setManualForm({ ...manualForm, source: e.target.value })}
-                className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={manualSubmitting}
-              className="px-4 py-2 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-semibold disabled:opacity-50"
-            >
-              {manualSubmitting ? 'Salvataggio e Deduplicazione...' : 'Salva Prospect nel CRM'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* CSV Import Modal */}
-      {showCsvModal && (
-        <form
-          onSubmit={handleCsvImport}
-          className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-4"
-        >
-          <div className="flex items-center justify-between border-b border-[#27272A] pb-3">
-            <h2 className="text-sm font-semibold text-[#FAFAFA]">
-              Importazione Multipla CSV (con Deduplicazione Automatica)
-            </h2>
-            <button
-              type="button"
-              onClick={() => setShowCsvModal(false)}
-              className="text-xs text-[#A1A1AA] hover:text-[#FAFAFA]"
-            >
-              Chiudi
-            </button>
-          </div>
-          <p className="text-xs text-[#A1A1AA]">
-            Incolla righe CSV con intestazione:{' '}
-            <code className="text-[#FAFAFA]">
-              business_name,category,subcategory,city,address,website,business_phone,business_email
-            </code>
-          </p>
-          <textarea
-            rows={5}
-            value={csvText}
-            onChange={(e) => setCsvText(e.target.value)}
-            placeholder={`business_name,category,subcategory,city,address,website,business_phone,business_email\nPizzeria Partenope,food_beverage,pizzeria,Napoli,Via Chiaia 42,https://pizzeriapartenope.example.it,+39081123456,info@pizzeriapartenope.example.it`}
-            className="w-full p-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs font-mono text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-          />
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={csvImporting}
-              className="px-4 py-2 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-semibold disabled:opacity-50"
-            >
-              {csvImporting ? 'Importazione in corso...' : 'Importa e Deduplica'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Main Search Interface */}
-      <form
-        onSubmit={handleRunDiscovery}
-        className="bg-[#121214] border border-[#27272A] rounded-xl p-6 space-y-5"
-      >
-        {/* Campania Geo-Presets Quick Bar */}
-        <div className="space-y-2 pb-4 border-b border-[#27272A]">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-[#BFFF00]">
-              <Compass className="w-3.5 h-3.5" />
-              Focus Territoriale: Napoli &amp; Campania a Largo Raggio
-            </span>
-            <span className="text-[11px] font-mono text-[#71717A]">
-              Centro: {centerLat.toFixed(4)}, {centerLon.toFixed(4)} • Raggio {radiusKm} km
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {campaniaPresets.map((preset) => {
-              const isActive = activePresetId === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => handleSelectPreset(preset)}
-                  title={`${preset.label} — ${preset.city} (${preset.province}), raggio ${preset.radiusKm} km`}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-colors ${
-                    isActive
-                      ? 'bg-[#BFFF00]/15 border-[#BFFF00] text-[#BFFF00] font-semibold'
-                      : 'bg-[#0D0D10] border-[#27272A] text-[#A1A1AA] hover:border-[#3F3F46] hover:text-[#FAFAFA]'
-                  }`}
-                >
-                  <Navigation className="w-3 h-3 shrink-0" />
-                  <span>{preset.label}</span>
-                  <span className="text-[10px] font-mono opacity-75">{preset.radiusKm}km</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Località */}
-          <div>
-            <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-              Località / Città Principale
-            </label>
-            <div className="relative">
-              <MapPin className="w-4 h-4 text-[#BFFF00] absolute left-3 top-3" />
-              <input
-                type="text"
-                required
-                value={locationQuery}
-                onChange={(e) => {
-                  setActivePresetId(null);
-                  setLocationQuery(e.target.value);
-                }}
-                placeholder="Es. Napoli, Salerno, Caserta, Sorrento..."
-                className="w-full h-10 pl-9 pr-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-              />
-            </div>
-          </div>
-
-          {/* Raggio Geografico */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA]">
-                Raggio (1–120 km)
-              </label>
-              <span className="text-[10px] font-mono text-[#BFFF00]">
-                {radiusKm >= 50 ? 'Largo raggio' : radiusKm >= 20 ? 'Area metropolitana' : 'Urbano'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min={1}
-                max={120}
-                value={radiusKm}
-                onChange={(e) => setRadiusKm(Number(e.target.value))}
-                className="w-full accent-[#BFFF00] cursor-pointer"
-              />
-              <input
+                id="discovery-max-results"
                 type="number"
                 min={1}
-                max={120}
-                value={radiusKm}
-                onChange={(e) => setRadiusKm(Math.max(1, Math.min(120, Number(e.target.value) || 1)))}
-                className="w-16 h-10 px-2 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm font-mono text-[#FAFAFA] text-center focus:outline-none focus:border-[#BFFF00]"
+                max={50}
+                value={maxResults}
+                onChange={(e) => setMaxResults(Number(e.target.value))}
+                className="w-full h-11 px-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-sm font-mono tabular-nums text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
               />
             </div>
           </div>
 
-          {/* Categoria Commerciale */}
-          <div>
-            <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-              Categoria Commerciale
-            </label>
-            <select
-              value={category}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-            >
-              {OUTREACH_DISCOVERY_CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Sottocategoria */}
-          <div>
-            <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-              Sottocategoria
-            </label>
-            <select
-              value={subcategory}
-              onChange={(e) => setSubcategory(e.target.value)}
-              className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-            >
-              {subcategoriesForSelected.map((sub) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Numero Massimo di Risultati */}
-          <div>
-            <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA] mb-1.5">
-              Max Risultati
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={maxResults}
-              onChange={(e) => setMaxResults(Number(e.target.value))}
-              className="w-full h-10 px-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-sm font-mono text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-            />
-          </div>
-        </div>
-
-        {/* Fonti di acquisizione selezionabili */}
-        <div className="pt-2 border-t border-[#27272A]">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="space-y-2">
-              <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#A1A1AA]">
-                Fonti di Acquisizione Autorizzate (`BusinessDataProvider`)
-              </span>
-              <div className="flex flex-wrap gap-3">
-                {providers.map((p) => {
-                  const checked = selectedProviders.includes(p.id);
-                  return (
-                    <label
-                      key={p.id}
-                      className={`inline-flex items-center gap-2.5 px-3.5 py-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-                        checked
-                          ? 'bg-[#18181B] border-[#BFFF00] text-[#FAFAFA]'
-                          : 'bg-[#0D0D10] border-[#27272A] text-[#A1A1AA]'
-                      } ${!p.configured ? 'opacity-50' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={!p.configured}
-                        checked={checked}
-                        onChange={() => toggleProvider(p.id)}
-                        className="accent-[#BFFF00]"
-                      />
-                      <div>
-                        <div className="font-medium flex items-center gap-1.5">
-                          <Database className="w-3 h-3 text-[#BFFF00]" />
-                          <span>{p.name}</span>
-                          {p.id === 'google_places_official' && (
-                            <span className="px-1.5 py-0.5 rounded bg-[#BFFF00]/20 text-[#BFFF00] text-[9px] font-mono font-bold uppercase tracking-wider">
-                              #1 MAPS PRIORITARIO
-                            </span>
-                          )}
+          {/* Fonti di acquisizione selezionabili */}
+          <div className="pt-3 border-t border-[var(--border-subtle)]">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="space-y-2">
+                <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+                  Fonti di Acquisizione Autorizzate (BusinessDataProvider)
+                </span>
+                <div className="flex flex-wrap gap-3">
+                  {providers.map((p) => {
+                    const checked = selectedProviders.includes(p.id);
+                    return (
+                      <label
+                        key={p.id}
+                        className={`inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl border text-xs cursor-pointer transition-colors ${
+                          checked
+                            ? 'bg-[var(--bg-elevated)] border-[var(--rivo-volt)] text-[var(--text-primary)]'
+                            : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--text-secondary)]'
+                        } ${!p.configured ? 'opacity-50' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!p.configured}
+                          checked={checked}
+                          onChange={() => toggleProvider(p.id)}
+                          className="w-4 h-4 accent-[#BFFF00]"
+                        />
+                        <div>
+                          <div className="font-medium flex flex-wrap items-center gap-1.5">
+                            <Database className="w-3 h-3 text-[var(--rivo-volt-text)]" />
+                            <span>{p.name}</span>
+                            {p.id === 'google_places_official' && (
+                              <StatusBadge tone="volt" size="sm" shape="tag">
+                                #1 MAPS PRIORITARIO
+                              </StatusBadge>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-[var(--text-muted)]">{p.attribution}</div>
                         </div>
-                        <div className="text-[10px] text-[#71717A]">{p.attribution}</div>
-                      </div>
-                    </label>
-                  );
-                })}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={searching || selectedProviders.length === 0}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 shrink-0"
-            >
-              {searching ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Ricerca &amp; Analisi AI...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4" />
-                  Avvia ricerca + Analisi AI
-                </>
-              )}
-            </button>
+              <button
+                type="submit"
+                disabled={searching || selectedProviders.length === 0}
+                className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 py-3 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 shrink-0 touch-press"
+              >
+                {searching ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Ricerca &amp; Analisi AI…
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4" />
+                    Avvia ricerca + Analisi AI
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </SurfaceCard>
 
       {searchError && (
-        <div className="p-4 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/30 text-sm text-[#EF4444] flex items-center gap-2.5">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{searchError}</span>
-        </div>
+        <SurfaceCard variant="critical" padding="sm">
+          <div className="text-sm text-[var(--accent-critical-text)] flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{searchError}</span>
+          </div>
+        </SurfaceCard>
       )}
 
       {searchWarnings.length > 0 && (
-        <div className="p-4 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-xs text-[#F59E0B] space-y-1">
+        <SurfaceCard variant="warning" padding="sm" className="space-y-1">
           {searchWarnings.map((warn, i) => (
-            <div key={i} className="flex items-start gap-2">
+            <div key={i} className="flex items-start gap-2 text-xs text-[var(--accent-warning-text)]">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <span>{warn}</span>
             </div>
           ))}
-        </div>
+        </SurfaceCard>
       )}
 
       {/* Interactive Geo-Map & Google Maps Preview */}
@@ -927,295 +995,424 @@ export default function OutreachDiscoveryPage() {
       {searchResult && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
-              <span className="text-[11px] font-mono uppercase text-[#A1A1AA]">
-                Attività Trovate dalle Fonti
-              </span>
-              <div className="text-2xl font-bold font-mono text-[#FAFAFA] mt-1">
-                {searchResult.discoveredCount}
-              </div>
-            </div>
-            <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
-              <span className="text-[11px] font-mono uppercase text-[#A1A1AA]">
-                Nuovi Prospect Inseriti nel CRM
-              </span>
-              <div className="text-2xl font-bold font-mono text-[#BFFF00] mt-1">
-                {searchResult.insertedCount}
-              </div>
-            </div>
-            <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
-              <span className="text-[11px] font-mono uppercase text-[#A1A1AA]">
-                Già Analizzati dall&apos;AI
-              </span>
-              <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-                {searchResult.analyzedCount} / {searchResult.items.length}
-              </div>
-            </div>
-            <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4">
-              <span className="text-[11px] font-mono uppercase text-[#A1A1AA]">
-                Alto Potenziale (Score ≥ 60)
-              </span>
-              <div className="text-2xl font-bold font-mono text-[#BFFF00] mt-1">
-                {searchResult.items.filter((i) => (i.lead_score || 0) >= 60).length}
-              </div>
-            </div>
+            <KpiCard
+              label="Attività Trovate dalle Fonti"
+              value={searchResult.discoveredCount}
+              tone="neutral"
+            />
+            <KpiCard
+              label="Nuovi Prospect Inseriti nel CRM"
+              value={searchResult.insertedCount}
+              tone="volt"
+            />
+            <KpiCard
+              label="Già Analizzati dall'AI"
+              value={`${searchResult.analyzedCount} / ${searchResult.items.length}`}
+              tone="operational"
+            />
+            <KpiCard
+              label="Alto Potenziale (Score ≥ 60)"
+              value={searchResult.items.filter((i) => (i.lead_score || 0) >= 60).length}
+              tone="volt"
+            />
           </div>
 
-          <div className="bg-[#121214] border border-[#27272A] rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#27272A] flex flex-wrap items-center justify-between gap-2">
+          <SurfaceCard padding="none">
+            <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#BFFF00]" />
-                <h2 className="text-sm font-semibold text-[#FAFAFA]">
+                <CheckCircle2 className="w-4 h-4 text-[var(--rivo-volt-text)]" />
+                <h2 className="font-display text-sm font-semibold text-[var(--text-primary)] tabular-nums">
                   Risultati Acquisiti &amp; Analizzati dall&apos;AI ({searchResult.items.length})
                 </h2>
                 {searchResult.instagramDiscoveredCount > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/35 text-[11px] font-mono text-fuchsia-300">
+                  <StatusBadge tone="volt" size="sm">
                     <InstagramIcon className="w-3 h-3" />
-                    • {searchResult.instagramDiscoveredCount}{' '}
+                    {searchResult.instagramDiscoveredCount}{' '}
                     {searchResult.instagramDiscoveredCount === 1
                       ? 'profilo Instagram trovato con AI'
                       : 'profili Instagram trovati con AI'}
-                  </span>
+                  </StatusBadge>
                 )}
               </div>
               <Link
                 href="/admin/outreach/intelligence"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#BFFF00] hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Cpu className="w-3.5 h-3.5" />
                 Genera Messaggi &amp; Sales Agent AI
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-[#27272A] text-[11px] font-mono uppercase text-[#A1A1AA] bg-[#0D0D10]">
-                    <th className="py-3 px-4">Attività</th>
-                    <th className="py-3 px-4">Lead Score &amp; Analisi AI</th>
-                    <th className="py-3 px-4">Località / Indirizzo</th>
-                    <th className="py-3 px-4">Canali Pubblici Rilevati</th>
-                    <th className="py-3 px-4">Fonte &amp; Licenza</th>
-                    <th className="py-3 px-4 text-right">Azioni &amp; Mappa</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#27272A] text-sm">
+            {searchResult.items.length === 0 ? (
+              <div className="p-6">
+                <EmptyState
+                  compact
+                  icon={Search}
+                  title="Nessuna nuova attività inserita"
+                  description="Nessuna nuova attività inserita con i filtri specificati."
+                />
+              </div>
+            ) : (
+              <>
+                {/* Mobile Card List */}
+                <div className="lg:hidden divide-y divide-[var(--border-subtle)]">
                   {searchResult.items.map((item) => {
                     const isSelected = selectedProspect?.id === item.id;
                     const score = item.lead_score || item.ai_analysis?.totalLeadScore || 0;
-                    const classification = item.ai_analysis?.classification?.label;
-                    const topOpps = item.ai_analysis?.opportunities?.slice(0, 2) || [];
-                    const scoreColorClass =
-                      score >= 80
-                        ? 'bg-[#BFFF00]/15 border-[#BFFF00]/50 text-[#BFFF00]'
-                        : score >= 60
-                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                        : score >= 40
-                        ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
-                        : 'bg-[#18181B] border-[#27272A] text-[#A1A1AA]';
                     const gmapsHref =
                       item.digital_signals?.googleMapsUrl ||
                       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                         [item.business_name, item.address, item.city].filter(Boolean).join(', ')
                       )}`;
                     const igHandle = extractInstagramHandle(item.instagram_url);
-                    const igDmLink = buildInstagramDmDeepLink(item.instagram_url);
+
                     return (
-                      <tr
+                      <div
                         key={item.id}
-                        className={`hover:bg-[#18181B] transition-colors ${
-                          isSelected ? 'bg-[#BFFF00]/5' : ''
-                        }`}
+                        className={`p-4 space-y-3 ${isSelected ? 'bg-[var(--rivo-volt-bg)]' : ''}`}
                       >
-                        <td className="py-3 px-4 font-medium text-[#FAFAFA]">
-                          <div className="flex items-center gap-2">
-                            <span>{item.business_name}</span>
-                            {newlyInsertedIds.has(item.id) && (
-                              <span className="px-1.5 py-0.5 rounded bg-[#BFFF00]/20 text-[#BFFF00] text-[9px] font-mono uppercase">
-                                NUOVO
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-sm text-[var(--text-primary)]">
+                                {item.business_name}
                               </span>
-                            )}
+                              {newlyInsertedIds.has(item.id) && (
+                                <StatusBadge tone="volt" size="sm" shape="tag">
+                                  NUOVO
+                                </StatusBadge>
+                              )}
+                            </div>
+                            <div className="text-xs text-[var(--text-secondary)]">
+                              {item.city || '-'} • {item.subcategory || item.category}
+                            </div>
                           </div>
-                          <div className="text-[11px] text-[#71717A] font-normal mt-0.5">
-                            {item.subcategory || item.category}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-xs">
-                          {item.ai_analysis || score > 0 ? (
-                            <div className="space-y-1">
+                          {(item.ai_analysis || score > 0) && (
+                            <StatusBadge
+                              tone={
+                                score >= 80
+                                  ? 'volt'
+                                  : score >= 60
+                                  ? 'operational'
+                                  : score >= 40
+                                  ? 'telemetry'
+                                  : 'neutral'
+                              }
+                              size="sm"
+                              shape="tag"
+                              className="tabular-nums shrink-0"
+                            >
+                              {score}/100
+                            </StatusBadge>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          {item.website && (
+                            <a
+                              href={item.website}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
+                            >
+                              <Globe className="w-3 h-3 text-[var(--rivo-volt-text)]" />
+                              Web
+                            </a>
+                          )}
+                          {item.instagram_url && (
+                            <a
+                              href={item.instagram_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)]"
+                            >
+                              <InstagramIcon className="w-3 h-3" />@{igHandle || 'instagram'}
+                            </a>
+                          )}
+                          {item.business_phone && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-mono">
+                              <Phone className="w-3 h-3" />
+                              {item.business_phone}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <Link
+                            href={`/admin/outreach/intelligence?prospectId=${encodeURIComponent(item.id)}`}
+                            className="inline-flex items-center gap-1 min-h-[38px] px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--rivo-volt-text)] text-xs font-medium"
+                          >
+                            <Cpu className="w-3.5 h-3.5" />
+                            Pitch
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedProspect(item);
+                              if (item.latitude != null && item.longitude != null) {
+                                setCenterLat(item.latitude);
+                                setCenterLon(item.longitude);
+                              }
+                              mapSectionRef.current?.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                              });
+                            }}
+                            className={`inline-flex items-center gap-1 min-h-[38px] px-3 py-1.5 rounded-lg border text-xs font-medium ${
+                              isSelected
+                                ? 'bg-[var(--rivo-volt)] border-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] font-semibold'
+                                : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--text-primary)]'
+                            }`}
+                          >
+                            <MapPin className="w-3.5 h-3.5" />
+                            Maps
+                          </button>
+                          <a
+                            href={gmapsHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Apri ${item.business_name} su Google Maps`}
+                            className="inline-flex items-center justify-center min-h-[38px] min-w-[38px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--rivo-volt-text)]"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-[var(--border-subtle)] text-[11px] font-mono uppercase text-[var(--text-muted)] bg-[var(--bg-canvas)]">
+                        <th className="py-3 px-4">Attività</th>
+                        <th className="py-3 px-4">Lead Score &amp; Analisi AI</th>
+                        <th className="py-3 px-4">Località / Indirizzo</th>
+                        <th className="py-3 px-4">Canali Pubblici Rilevati</th>
+                        <th className="py-3 px-4">Fonte &amp; Licenza</th>
+                        <th className="py-3 px-4 text-right">Azioni &amp; Mappa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
+                      {searchResult.items.map((item) => {
+                        const isSelected = selectedProspect?.id === item.id;
+                        const score = item.lead_score || item.ai_analysis?.totalLeadScore || 0;
+                        const classification = item.ai_analysis?.classification?.label;
+                        const topOpps = item.ai_analysis?.opportunities?.slice(0, 2) || [];
+                        const scoreTone =
+                          score >= 80
+                            ? 'volt'
+                            : score >= 60
+                            ? 'operational'
+                            : score >= 40
+                            ? 'telemetry'
+                            : 'neutral';
+                        const gmapsHref =
+                          item.digital_signals?.googleMapsUrl ||
+                          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            [item.business_name, item.address, item.city].filter(Boolean).join(', ')
+                          )}`;
+                        const igHandle = extractInstagramHandle(item.instagram_url);
+                        const igDmLink = buildInstagramDmDeepLink(item.instagram_url);
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`hover:bg-[var(--bg-elevated)] transition-colors ${
+                              isSelected ? 'bg-[var(--rivo-volt-bg)]' : ''
+                            }`}
+                          >
+                            <td className="py-3 px-4 font-medium text-[var(--text-primary)]">
                               <div className="flex items-center gap-2">
-                                <span
-                                  className={`px-2 py-0.5 rounded border font-mono text-[11px] font-bold ${scoreColorClass}`}
-                                >
-                                  {score}/100
+                                <span>{item.business_name}</span>
+                                {newlyInsertedIds.has(item.id) && (
+                                  <StatusBadge tone="volt" size="sm" shape="tag">
+                                    NUOVO
+                                  </StatusBadge>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-[var(--text-muted)] font-normal mt-0.5">
+                                {item.subcategory || item.category}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-xs">
+                              {item.ai_analysis || score > 0 ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <StatusBadge
+                                      tone={scoreTone}
+                                      size="sm"
+                                      shape="tag"
+                                      className="tabular-nums font-bold"
+                                    >
+                                      {score}/100
+                                    </StatusBadge>
+                                    {classification && (
+                                      <span className="text-[11px] font-medium text-[var(--text-primary)]">
+                                        {classification}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {topOpps.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {topOpps.map((o) => (
+                                        <span
+                                          key={o.moduleSlug}
+                                          className="px-1.5 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[10px] text-[var(--text-secondary)]"
+                                        >
+                                          {o.moduleName}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-[var(--text-muted)]">
+                                  Da analizzare
                                 </span>
-                                {classification && (
-                                  <span className="text-[11px] font-medium text-[#FAFAFA]">
-                                    {classification}
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-xs text-[var(--text-secondary)]">
+                              <div className="flex items-center gap-1.5">
+                                <span>{item.city || '-'}</span>
+                                {typeof item.digital_signals?.distanceKm === 'number' && (
+                                  <span className="text-[10px] font-mono tabular-nums text-[var(--rivo-volt-text)]">
+                                    • {item.digital_signals.distanceKm} km
                                   </span>
                                 )}
                               </div>
-                              {topOpps.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {topOpps.map((o) => (
-                                    <span
-                                      key={o.moduleSlug}
-                                      className="px-1.5 py-0.5 rounded bg-[#0D0D10] border border-[#27272A] text-[10px] text-[#A1A1AA]"
-                                    >
-                                      {o.moduleName}
-                                    </span>
-                                  ))}
+                              {item.address && (
+                                <div className="text-[11px] text-[var(--text-muted)] truncate max-w-[240px]">
+                                  {item.address}
                                 </div>
                               )}
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-[#71717A]">Da analizzare</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-xs text-[#A1A1AA]">
-                          <div className="flex items-center gap-1.5">
-                            <span>{item.city || '-'}</span>
-                            {typeof item.digital_signals?.distanceKm === 'number' && (
-                              <span className="text-[10px] font-mono text-[#BFFF00]">
-                                • {item.digital_signals.distanceKm} km
-                              </span>
-                            )}
-                          </div>
-                          {item.address && (
-                            <div className="text-[11px] text-[#71717A] truncate max-w-[240px]">
-                              {item.address}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap items-center gap-2 text-xs">
-                            {item.website && (
-                              <a
-                                href={item.website}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#FAFAFA] hover:border-[#BFFF00]"
-                              >
-                                <Globe className="w-3 h-3 text-[#BFFF00]" />
-                                Web
-                              </a>
-                            )}
-                            {item.instagram_url && (
-                              <div className="inline-flex items-center gap-1">
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                {item.website && (
+                                  <a
+                                    href={item.website}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--rivo-volt)]"
+                                  >
+                                    <Globe className="w-3 h-3 text-[var(--rivo-volt-text)]" />
+                                    Web
+                                  </a>
+                                )}
+                                {item.instagram_url && (
+                                  <div className="inline-flex items-center gap-1">
+                                    <a
+                                      href={item.instagram_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      title={
+                                        igHandle
+                                          ? `@${igHandle} su Instagram`
+                                          : 'Apri profilo Instagram'
+                                      }
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] hover:border-[var(--rivo-volt)]"
+                                    >
+                                      <InstagramIcon className="w-3 h-3" />
+                                      <span>@{igHandle || 'instagram'}</span>
+                                    </a>
+                                    <Link
+                                      href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
+                                        item.id
+                                      )}`}
+                                      title={
+                                        igDmLink
+                                          ? `Apri coda DM Instagram (${igDmLink})`
+                                          : 'Apri coda DM Instagram'
+                                      }
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-[var(--text-primary)] text-[11px] font-mono"
+                                    >
+                                      <Send className="w-2.5 h-2.5 text-[var(--rivo-volt-text)]" />
+                                      DM
+                                    </Link>
+                                  </div>
+                                )}
+                                {item.business_phone && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-mono text-[11px]">
+                                    <Phone className="w-3 h-3" />
+                                    {item.business_phone}
+                                  </span>
+                                )}
+                                {item.business_email && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--rivo-volt-text)] font-mono text-[11px]">
+                                    <Mail className="w-3 h-3" />
+                                    {item.business_email}
+                                  </span>
+                                )}
+                                {!item.website &&
+                                  !item.instagram_url &&
+                                  !item.business_phone &&
+                                  !item.business_email && (
+                                    <span className="text-[11px] text-[var(--text-muted)]">
+                                      Solo scheda geografica
+                                    </span>
+                                  )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-[11px] font-mono text-[var(--text-muted)]">
+                              <div>{item.source}</div>
+                              <div className="text-[10px]">{item.source_reference}</div>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="inline-flex items-center gap-1.5">
+                                <Link
+                                  href={`/admin/outreach/intelligence?prospectId=${encodeURIComponent(item.id)}`}
+                                  title="Apri scheda AI e genera Pitch"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--rivo-volt-text)] hover:border-[var(--rivo-volt)] text-[11px] font-medium transition-colors"
+                                >
+                                  <Cpu className="w-3 h-3" />
+                                  Pitch
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedProspect(item);
+                                    if (item.latitude != null && item.longitude != null) {
+                                      setCenterLat(item.latitude);
+                                      setCenterLon(item.longitude);
+                                    }
+                                    mapSectionRef.current?.scrollIntoView({
+                                      behavior: 'smooth',
+                                      block: 'center',
+                                    });
+                                  }}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors ${
+                                    isSelected
+                                      ? 'bg-[var(--rivo-volt)] border-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] font-semibold'
+                                      : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--rivo-volt)]'
+                                  }`}
+                                >
+                                  <MapPin className="w-3 h-3" />
+                                  Maps
+                                </button>
                                 <a
-                                  href={item.instagram_url}
+                                  href={gmapsHref}
                                   target="_blank"
                                   rel="noreferrer"
-                                  title={
-                                    igHandle
-                                      ? `@${igHandle} su Instagram`
-                                      : 'Apri profilo Instagram'
-                                  }
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-500/35 text-fuchsia-300 hover:border-fuchsia-400"
+                                  title="Apri su Google Maps"
+                                  aria-label={`Apri ${item.business_name} su Google Maps`}
+                                  className="p-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:text-[var(--rivo-volt-text)] hover:border-[var(--rivo-volt)] transition-colors"
                                 >
-                                  <InstagramIcon className="w-3 h-3" />
-                                  <span>@{igHandle || 'instagram'}</span>
+                                  <ExternalLink className="w-3 h-3" />
                                 </a>
-                                <Link
-                                  href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
-                                    item.id
-                                  )}`}
-                                  title={
-                                    igDmLink
-                                      ? `Apri coda DM Instagram (${igDmLink})`
-                                      : 'Apri coda DM Instagram'
-                                  }
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-fuchsia-300 text-[11px] font-mono"
-                                >
-                                  <Send className="w-2.5 h-2.5" />
-                                  DM
-                                </Link>
                               </div>
-                            )}
-                            {item.business_phone && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#A1A1AA] font-mono text-[11px]">
-                                <Phone className="w-3 h-3" />
-                                {item.business_phone}
-                              </span>
-                            )}
-                            {item.business_email && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] text-[#BFFF00] font-mono text-[11px]">
-                                <Mail className="w-3 h-3" />
-                                {item.business_email}
-                              </span>
-                            )}
-                            {!item.website &&
-                              !item.instagram_url &&
-                              !item.business_phone &&
-                              !item.business_email && (
-                                <span className="text-[11px] text-[#71717A]">
-                                  Solo scheda geografica
-                                </span>
-                              )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-[11px] font-mono text-[#71717A]">
-                          <div>{item.source}</div>
-                          <div className="text-[10px]">{item.source_reference}</div>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="inline-flex items-center gap-1.5">
-                            <Link
-                              href={`/admin/outreach/intelligence?prospectId=${encodeURIComponent(item.id)}`}
-                              title="Apri scheda AI e genera Pitch"
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-[#27272A] bg-[#0D0D10] text-[#BFFF00] hover:border-[#BFFF00] text-[11px] font-medium transition-colors"
-                            >
-                              <Sparkles className="w-3 h-3" />
-                              Pitch
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedProspect(item);
-                                if (item.latitude != null && item.longitude != null) {
-                                  setCenterLat(item.latitude);
-                                  setCenterLon(item.longitude);
-                                }
-                                mapSectionRef.current?.scrollIntoView({
-                                  behavior: 'smooth',
-                                  block: 'center',
-                                });
-                              }}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded border text-[11px] font-medium transition-colors ${
-                                isSelected
-                                  ? 'bg-[#BFFF00] border-[#BFFF00] text-[#09090B] font-semibold'
-                                  : 'bg-[#0D0D10] border-[#27272A] text-[#FAFAFA] hover:border-[#BFFF00]'
-                              }`}
-                            >
-                              <MapPin className="w-3 h-3" />
-                              Maps
-                            </button>
-                            <a
-                              href={gmapsHref}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Apri su Google Maps"
-                              className="p-1.5 rounded border border-[#27272A] bg-[#0D0D10] text-[#A1A1AA] hover:text-[#BFFF00] hover:border-[#BFFF00] transition-colors"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {searchResult.items.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-xs text-[#71717A]">
-                        Nessuna nuova attività inserita con i filtri specificati.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </SurfaceCard>
         </div>
       )}
     </div>

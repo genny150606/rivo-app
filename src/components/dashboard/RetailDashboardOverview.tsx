@@ -1,41 +1,50 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useId } from 'react';
 import Link from 'next/link';
-import { 
-  Store, 
-  ShoppingBag, 
-  Boxes, 
-  TrendingUp, 
-  TrendingDown, 
-  AlertTriangle, 
-  DollarSign, 
-  Plus, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  CreditCard, 
-  Banknote, 
-  Users, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Store,
+  ShoppingBag,
+  Boxes,
+  TrendingUp,
+  AlertTriangle,
+  DollarSign,
+  Plus,
+  Clock,
   ChevronRight,
-  ExternalLink,
-  ShieldAlert,
-  Sparkles,
   BarChart3,
-  Calendar
+  Calendar,
+  CheckCircle2,
+  Receipt,
+  Cpu,
 } from 'lucide-react';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
   ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid,
 } from 'recharts';
 import { useSimpleMode } from '@/lib/simple-mode';
 import SimpleRetailERPView from '@/components/dashboard/SimpleRetailERPView';
+import {
+  PageHeader,
+  SurfaceCard,
+  KpiCard,
+  StatusBadge,
+  SegmentedControl,
+  EmptyState,
+  ChartTooltip,
+  type SegmentedOption,
+} from '@/components/ui';
+import {
+  RIVO_CHART_GRID,
+  RIVO_CHART_AXIS_TICK,
+  RIVO_CHART_SERIES,
+  formatItCurrency,
+} from '@/lib/chart-theme';
 
 export interface RetailOverviewProps {
   orgId: string;
@@ -66,6 +75,8 @@ export interface RetailOverviewProps {
     quantity_on_hand: number;
     variant: {
       id: string;
+      sku?: string | null;
+      barcode?: string | null;
       size: string | null;
       color: string | null;
       reorder_threshold: number;
@@ -75,6 +86,9 @@ export interface RetailOverviewProps {
         id: string;
         name: string;
         brand: string | null;
+        sku?: string | null;
+        barcode?: string | null;
+        category_name?: string | null;
         cost_price: number | null;
         sale_price: number | null;
       } | null;
@@ -83,6 +97,14 @@ export interface RetailOverviewProps {
   customersCount: number;
   totalProductsCount: number;
 }
+
+type TimeRangeValue = 'today' | '7d' | '30d';
+
+const TIME_RANGE_OPTIONS: ReadonlyArray<SegmentedOption<TimeRangeValue>> = [
+  { value: 'today', label: 'Oggi' },
+  { value: '7d', label: 'Ultimi 7 Giorni' },
+  { value: '30d', label: 'Ultimi 30 Giorni' },
+];
 
 export default function RetailDashboardOverview({
   orgName,
@@ -93,13 +115,17 @@ export default function RetailDashboardOverview({
   totalProductsCount,
 }: RetailOverviewProps) {
   const { isSimple, setSimple } = useSimpleMode();
-  const [timeRange, setTimeRange] = useState<'today' | '7d' | '30d'>('7d');
+  const [timeRange, setTimeRange] = useState<TimeRangeValue>('7d');
+  const retailSalesGradId = useId();
 
-  // Filter sales by timeRange
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOf7d = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-  const startOf30d = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+  // Anchor reference timestamp once to keep memoized ranges stable
+  const now = useMemo(() => new Date(), []);
+  const startOfToday = useMemo(
+    () => new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(),
+    [now]
+  );
+  const startOf7d = useMemo(() => now.getTime() - 7 * 24 * 60 * 60 * 1000, [now]);
+  const startOf30d = useMemo(() => now.getTime() - 30 * 24 * 60 * 60 * 1000, [now]);
 
   const filteredSales = useMemo(() => {
     return sales.filter((s) => {
@@ -138,7 +164,10 @@ export default function RetailDashboardOverview({
     for (const b of balances) {
       const q = b.quantity_on_hand || 0;
       totalPiecesInStock += q;
-      const c = b.variant?.cost_price || b.variant?.product?.cost_price || ((b.variant?.sale_price || b.variant?.product?.sale_price || 0) * 0.5);
+      const c =
+        b.variant?.cost_price ||
+        b.variant?.product?.cost_price ||
+        (b.variant?.sale_price || b.variant?.product?.sale_price || 0) * 0.5;
       totalStockCostValue += q * c;
 
       const threshold = b.variant?.reorder_threshold ?? 2;
@@ -163,12 +192,20 @@ export default function RetailDashboardOverview({
   // Sales Trend Chart Data (Daily timeline)
   const chartData = useMemo(() => {
     const days = timeRange === 'today' ? 1 : timeRange === '7d' ? 7 : 30;
-    const map = new Map<string, { date: string; displayDate: string; revenue: number; orders: number }>();
+    const map = new Map<
+      string,
+      { date: string; displayDate: string; revenue: number; orders: number }
+    >();
+    const dayFormatter = new Intl.DateTimeFormat('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: 'Europe/Rome',
+    });
 
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const key = d.toISOString().slice(0, 10);
-      const displayDate = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+      const displayDate = dayFormatter.format(d);
       map.set(key, { date: key, displayDate, revenue: 0, orders: 0 });
     }
 
@@ -190,7 +227,11 @@ export default function RetailDashboardOverview({
 
     for (const s of filteredSales) {
       for (const it of s.items || []) {
-        const current = productMap.get(it.product_name) || { name: it.product_name, quantity: 0, revenue: 0 };
+        const current = productMap.get(it.product_name) || {
+          name: it.product_name,
+          quantity: 0,
+          revenue: 0,
+        };
         current.quantity += it.quantity;
         current.revenue += it.total_price;
         productMap.set(it.product_name, current);
@@ -215,6 +256,19 @@ export default function RetailDashboardOverview({
     return sales.slice(0, 5);
   }, [sales]);
 
+  const dateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Rome',
+      }),
+    []
+  );
+
   if (isSimple) {
     return (
       <div className="space-y-4">
@@ -229,426 +283,423 @@ export default function RetailDashboardOverview({
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header & Store Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-white/[0.07] pb-6">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 font-mono">
-            <Store className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-            <span>
-              {businessType === 'shoe_store' ? 'Footwear & Fashion OS' : 'Retail Commercial OS'}
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={
+          businessType === 'shoe_store' ? 'FOOTWEAR & FASHION OS' : 'RETAIL COMMERCIAL OS'
+        }
+        title={orgName}
+        badge={
+          <StatusBadge tone="operational" variant="soft" size="md" dot pulse>
+            Operativo
+          </StatusBadge>
+        }
+        description="Panoramica vendite, andamento margini lordi, controllo scorte e registro transazioni."
+        meta={
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono tabular-nums text-[11px] text-[var(--text-muted)]">
+            <span className="inline-flex items-center gap-1.5">
+              <Cpu className="h-3.5 w-3.5 text-[var(--rivo-volt-text)]" strokeWidth={1.75} aria-hidden="true" />
+              <span>Catalogo: {totalProductsCount} articoli</span>
             </span>
+            <span aria-hidden="true">•</span>
+            <span>Giacenza: {kpis.totalPiecesInStock.toLocaleString('it-IT')} pz</span>
+            <span aria-hidden="true">•</span>
+            <span>Clienti CRM: {customersCount.toLocaleString('it-IT')}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white flex items-center gap-2.5 headline-tight">
-            <span>{orgName}</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
-              Operativo
-            </span>
-          </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
-            Panoramica vendite, andamento margini lordi, controllo scorte e registro transazioni.
-          </p>
-        </div>
-
-        {/* Quick Actions Buttons */}
-        <div className="flex items-center gap-2.5">
-          <Link
-            href="/dashboard/inventory"
-            className="inline-flex items-center gap-2 bg-white dark:bg-[#0B0C10] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors shadow-2xs touch-press"
-          >
-            <Boxes className="w-4 h-4 text-slate-500" />
-            <span>Magazzino</span>
-          </Link>
-
-          <Link
-            href="/dashboard/sales"
-            className="inline-flex items-center gap-2 bg-emerald-500 text-zinc-950 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-400 transition-colors shadow-sm touch-press"
-          >
-            <Store className="w-4 h-4" />
-            <span>Apri Punto Cassa POS</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* CTA: Attivare la modalità semplice? */}
-      <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3">
-          <div className="p-2 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shrink-0">
-            <Boxes className="w-5 h-5 text-emerald-600 dark:text-[#bfff00]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Attivare la modalità semplice?
-              </h3>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono">
-                ERP GESTIONALE
-              </span>
-            </div>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
-              Interfaccia gestionale essenziale: zero animazioni, tabelle statiche immediate per taglie calzature, scorte e cassa rapida da banco.
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => setSimple(true)}
-          className="shrink-0 px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-        >
-          <span>Attiva Modalità Semplice</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Time Range Selector */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-zinc-500">Periodo di Analisi:</span>
-        <div className="inline-flex rounded-xl border border-zinc-200 dark:border-zinc-800 p-0.5 bg-zinc-100 dark:bg-zinc-900 text-xs">
-          <button
-            onClick={() => setTimeRange('today')}
-            className={`px-3 py-1 rounded-lg transition-all ${
-              timeRange === 'today'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white font-bold shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            Oggi
-          </button>
-          <button
-            onClick={() => setTimeRange('7d')}
-            className={`px-3 py-1 rounded-lg transition-all ${
-              timeRange === '7d'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white font-bold shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            Ultimi 7 Giorni
-          </button>
-          <button
-            onClick={() => setTimeRange('30d')}
-            className={`px-3 py-1 rounded-lg transition-all ${
-              timeRange === '30d'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white font-bold shadow-2xs'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-          >
-            Ultimi 30 Giorni
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Revenue */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-xs text-zinc-500 font-medium">
-            <span>Fatturato Vendite</span>
-            <TrendingUp className="w-3.5 h-3.5 text-lime-500 dark:text-[#bfff00]" />
-          </div>
-          <div className="text-2xl font-bold font-mono text-zinc-950 dark:text-white mt-1">
-            € {kpis.revenue.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            {kpis.transactionsCount} scontrini ({kpis.piecesSold} pezzi venduti)
-          </span>
-        </div>
-
-        {/* Gross Margin */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-xs text-zinc-500 font-medium">
-            <span>Margine Lordo Stimato</span>
-            <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold font-mono text-emerald-500 mt-1">
-            € {kpis.margin.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <span className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-1 block">
-            {kpis.marginPercent.toFixed(1)}% sui ricavi netti
-          </span>
-        </div>
-
-        {/* Average Basket */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-xs text-zinc-500 font-medium">
-            <span>Scontrino Medio</span>
-            <ShoppingBag className="w-3.5 h-3.5 text-zinc-400" />
-          </div>
-          <div className="text-2xl font-bold font-mono text-zinc-950 dark:text-white mt-1">
-            € {kpis.avgBasket.toFixed(2)}
-          </div>
-          <span className="text-[11px] text-zinc-400 mt-1 block">
-            Valore medio per cliente
-          </span>
-        </div>
-
-        {/* Stock Alert */}
-        <Link
-          href="/dashboard/inventory"
-          className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xs hover:border-amber-500/40 transition-colors block"
-        >
-          <div className="flex items-center justify-between text-xs text-zinc-500 font-medium">
-            <span>Varianti Sotto Scorta</span>
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-          </div>
-          <div className={`text-2xl font-bold font-mono mt-1 ${kpis.lowStockCount > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
-            {kpis.lowStockCount} varianti
-          </div>
-          <span className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-1 block">
-            {kpis.lowStockCount > 0 ? 'Clicca per ordinare ai fornitori' : 'Scorte in ottimo stato'}
-          </span>
-        </Link>
-      </div>
-
-      {/* Sales Trend Chart */}
-      <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
-              Andamento Vendite (€)
-            </h2>
-            <p className="text-xs text-zinc-500">
-              Evoluzione giornaliera del fatturato registrato a cassa
-            </p>
-          </div>
-        </div>
-
-        <div className="h-64 w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="retailSalesGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#bfff00" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#bfff00" stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" opacity={0.3} />
-              <XAxis dataKey="displayDate" stroke="#71717a" fontSize={11} tickLine={false} />
-              <YAxis stroke="#71717a" fontSize={11} tickLine={false} tickFormatter={(v) => `€${v}`} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                      <div className="p-3 bg-zinc-950 text-white border border-zinc-800 rounded-xl shadow-xl text-xs space-y-1">
-                        <div className="font-semibold text-zinc-400">{data.date}</div>
-                        <div className="font-mono font-bold text-[#bfff00]">
-                          € {Number(data.revenue).toFixed(2)}
-                        </div>
-                        <div className="text-[10px] text-zinc-400">
-                          {data.orders} vendite completate
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#bfff00"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#retailSalesGrad)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Bottom 2 Columns: Top Products & Low Stock Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Top 5 Best Selling Products */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
-            <div className="flex items-center gap-2">
-              <ShoppingBag className="w-4 h-4 text-lime-500 dark:text-[#bfff00]" />
-              <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
-                Articoli Più Venduti (Top 5)
-              </h2>
-            </div>
-            <Link
-              href="/dashboard/sales"
-              className="text-xs font-semibold text-lime-600 dark:text-[#bfff00] hover:underline flex items-center gap-1"
-            >
-              <span>Tutte le vendite</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-2">
-            {topProducts.length === 0 ? (
-              <div className="py-8 text-center text-xs text-zinc-400">
-                Nessuna vendita registrata in questo periodo.
-              </div>
-            ) : (
-              topProducts.map((p, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/40 text-xs"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-800 font-mono font-bold flex items-center justify-center text-[10px] text-zinc-600 dark:text-zinc-300">
-                      {idx + 1}
-                    </span>
-                    <span className="font-semibold text-zinc-950 dark:text-white truncate max-w-xs">
-                      {p.name}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono font-bold text-zinc-950 dark:text-white block">
-                      € {p.revenue.toFixed(2)}
-                    </span>
-                    <span className="text-[10px] text-zinc-400">
-                      {p.quantity} pezzi venduti
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Low Stock Alerts */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
-                Alert Riordino Magazzino
-              </h2>
-            </div>
+        }
+        actions={
+          <>
             <Link
               href="/dashboard/inventory"
-              className="text-xs font-semibold text-amber-500 hover:underline flex items-center gap-1"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] px-3.5 text-xs font-semibold text-[var(--text-primary)] transition-colors"
             >
-              <span>Vedi tutto</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <Boxes className="w-4 h-4 text-[var(--text-secondary)] shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              <span>Magazzino</span>
             </Link>
-          </div>
 
-          <div className="space-y-2">
+            <Link
+              href="/dashboard/sales"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] px-4 text-xs font-bold text-[var(--rivo-volt-ink)] transition-colors"
+            >
+              <Store className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              <span>Apri Punto Cassa POS</span>
+            </Link>
+          </>
+        }
+      />
+
+      {/* Time Range Segmented Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <Calendar className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" strokeWidth={1.75} aria-hidden="true" />
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] font-medium">
+            Periodo di Analisi
+          </span>
+        </div>
+
+        <SegmentedControl
+          options={TIME_RANGE_OPTIONS}
+          value={timeRange}
+          onChange={setTimeRange}
+          ariaLabel="Periodo di analisi vendite"
+          size="sm"
+        />
+      </div>
+
+      {/* 4 Operational Telemetry KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Fatturato Vendite"
+          value={formatItCurrency(kpis.revenue)}
+          icon={TrendingUp}
+          tone="volt"
+          context={`${kpis.transactionsCount} scontrini (${kpis.piecesSold} pezzi venduti)`}
+        />
+
+        <KpiCard
+          label="Margine Lordo Stimato"
+          value={formatItCurrency(kpis.margin)}
+          icon={DollarSign}
+          tone="operational"
+          delta={{
+            value: `${kpis.marginPercent.toFixed(1)}%`,
+            direction: kpis.margin > 0 ? 'up' : 'flat',
+            sentiment: kpis.margin > 0 ? 'positive' : 'neutral',
+            label: 'sui ricavi netti',
+          }}
+        />
+
+        <KpiCard
+          label="Scontrino Medio"
+          value={formatItCurrency(kpis.avgBasket)}
+          icon={ShoppingBag}
+          tone="neutral"
+          context="Valore medio per cliente"
+        />
+
+        <KpiCard
+          label="Varianti Sotto Scorta"
+          value={`${kpis.lowStockCount} varianti`}
+          icon={AlertTriangle}
+          tone={kpis.lowStockCount > 0 || kpis.outOfStockCount > 0 ? 'warning' : 'operational'}
+          context={
+            kpis.outOfStockCount > 0
+              ? `${kpis.outOfStockCount} esaurite • Ordina fornitori`
+              : kpis.lowStockCount > 0
+              ? 'Clicca per ordinare ai fornitori'
+              : 'Scorte in ottimo stato'
+          }
+          href="/dashboard/inventory"
+        />
+      </div>
+
+      {/* Asymmetric 8/4 Split: Sales Trend Chart + Reorder Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-8 min-w-0">
+          <SurfaceCard
+            className="h-full"
+            header={{
+              eyebrow: 'TELEMETRIA INCASSI',
+              title: 'Andamento Vendite (€)',
+              subtitle: 'Evoluzione giornaliera del fatturato registrato a cassa',
+              icon: BarChart3,
+              action: (
+                <StatusBadge tone="volt" variant="soft" size="sm">
+                  {timeRange === 'today' ? 'Oggi' : timeRange === '7d' ? '7 Giorni' : '30 Giorni'}
+                </StatusBadge>
+              ),
+            }}
+          >
+            <div className="h-64 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id={retailSalesGradId} x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="5%"
+                        stopColor="var(--chart-series-primary)"
+                        stopOpacity={0.28}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="var(--chart-series-primary)"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...RIVO_CHART_GRID} />
+                  <XAxis
+                    dataKey="displayDate"
+                    tick={RIVO_CHART_AXIS_TICK}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={RIVO_CHART_AXIS_TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    width={54}
+                    tickFormatter={(v) => `€${v}`}
+                  />
+                  <Tooltip
+                    content={<ChartTooltip currency />}
+                    cursor={{
+                      stroke: 'var(--chart-cursor)',
+                      strokeWidth: 1,
+                      strokeDasharray: '3 3',
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    name="Fatturato"
+                    dataKey="revenue"
+                    stroke={RIVO_CHART_SERIES.primary}
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill={`url(#${retailSalesGradId})`}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </SurfaceCard>
+        </div>
+
+        {/* Low Stock Alerts (4 Columns) */}
+        <div className="lg:col-span-4 min-w-0">
+          <SurfaceCard
+            className="h-full flex flex-col justify-between"
+            header={{
+              eyebrow: 'MAGAZZINO',
+              title: 'Alert Riordino',
+              icon: AlertTriangle,
+              action: (
+                <Link
+                  href="/dashboard/inventory"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-warning-text)] hover:underline"
+                >
+                  <span>Vedi tutto</span>
+                  <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                </Link>
+              ),
+            }}
+          >
             {criticalStockItems.length === 0 ? (
-              <div className="py-8 text-center text-xs text-zinc-400">
-                Nessun articolo attualmente sotto scorta. Ottimo lavoro!
-              </div>
+              <EmptyState
+                icon={CheckCircle2}
+                title="Scorte sotto controllo"
+                description="Nessun articolo attualmente sotto soglia minima di riordino."
+                compact
+              />
             ) : (
-              criticalStockItems.map((b) => {
-                const onHand = b.quantity_on_hand || 0;
-                const p = b.variant?.product;
-                const v = b.variant;
+              <div className="space-y-2.5">
+                {criticalStockItems.map((b) => {
+                  const onHand = b.quantity_on_hand || 0;
+                  const p = b.variant?.product;
+                  const v = b.variant;
 
-                return (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between p-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs"
-                  >
-                    <div>
-                      <div className="font-semibold text-zinc-950 dark:text-white">
-                        {p?.name || 'Articolo'}
+                  return (
+                    <div
+                      key={b.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--accent-warning-border)] bg-[var(--accent-warning-bg)] p-3 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[var(--text-primary)] truncate">
+                          {p?.name || 'Articolo'}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-[var(--text-secondary)] truncate">
+                          {p?.brand ? `${p.brand} • ` : ''}
+                          Taglia {v?.size || 'U'}
+                          {v?.color ? ` • ${v.color}` : ''}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-zinc-400">
-                        {p?.brand ? `${p.brand} • ` : ''}
-                        Taglia {v?.size || 'U'} {v?.color ? `• ${v.color}` : ''}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <StatusBadge
+                            tone={onHand === 0 ? 'critical' : 'warning'}
+                            size="sm"
+                          >
+                            {onHand === 0 ? 'Esaurito' : `${onHand} pz`}
+                          </StatusBadge>
+                          <span className="mt-0.5 block font-mono tabular-nums text-[10px] text-[var(--text-muted)]">
+                            Soglia {v?.reorder_threshold ?? 2}
+                          </span>
+                        </div>
+                        <Link
+                          href="/dashboard/suppliers"
+                          aria-label={`Ordina ${p?.name || 'articolo'} al fornitore`}
+                          title="Ordina al fornitore"
+                          className="inline-flex h-8 w-8 max-sm:min-h-[44px] max-sm:min-w-[44px] items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--rivo-volt)] hover:text-[var(--rivo-volt-ink)] hover:border-transparent transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                        </Link>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <span className={`font-mono font-bold block ${onHand === 0 ? 'text-rose-500' : 'text-amber-500'}`}>
-                          {onHand === 0 ? 'Esaurito' : `${onHand} pz`}
-                        </span>
-                        <span className="text-[10px] text-zinc-400">
-                          Soglia: {v?.reorder_threshold ?? 2} pz
-                        </span>
-                      </div>
-                      <Link
-                        href="/dashboard/suppliers"
-                        className="p-1.5 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-black hover:bg-[#bfff00] transition-colors"
-                        title="Ordina al fornitore"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
-          </div>
+          </SurfaceCard>
         </div>
       </div>
 
-      {/* Recent Transactions Table */}
-      <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xs">
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-zinc-400" />
-            <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
-              Ultime Vendite Registrate a Cassa
-            </h2>
-          </div>
-          <Link
-            href="/dashboard/sales"
-            className="text-xs font-semibold text-lime-600 dark:text-[#bfff00] hover:underline"
+      {/* Bottom Asymmetric Row: Top 5 Products (4 Cols) + Recent Sales Ledger (8 Cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="lg:col-span-4 min-w-0">
+          <SurfaceCard
+            header={{
+              eyebrow: 'PERFORMANCE PRODOTTO',
+              title: 'Top 5 Più Venduti',
+              icon: ShoppingBag,
+              action: (
+                <Link
+                  href="/dashboard/sales"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline"
+                >
+                  <span>Vendite</span>
+                  <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                </Link>
+              ),
+            }}
           >
-            Apri Registro Completo →
-          </Link>
+            {topProducts.length === 0 ? (
+              <EmptyState
+                icon={ShoppingBag}
+                title="Nessuna vendita nel periodo"
+                description="Registra una vendita al Punto Cassa per visualizzare la classifica dei modelli più richiesti."
+                primaryAction={{
+                  label: 'Apri Punto Cassa',
+                  href: '/dashboard/sales',
+                  icon: Store,
+                }}
+                compact
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {topProducts.map((p, idx) => (
+                  <div
+                    key={`${p.name}-${idx}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] font-mono tabular-nums text-[11px] font-bold text-[var(--text-secondary)]">
+                        {idx + 1}
+                      </span>
+                      <span className="font-semibold text-[var(--text-primary)] truncate">
+                        {p.name}
+                      </span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="block font-mono tabular-nums font-bold text-[var(--text-primary)]">
+                        {formatItCurrency(p.revenue)}
+                      </span>
+                      <span className="block font-mono tabular-nums text-[10px] text-[var(--text-muted)]">
+                        {p.quantity} pz venduti
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SurfaceCard>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-3">Scontrino</th>
-                <th className="px-4 py-3">Data e Ora</th>
-                <th className="px-4 py-3">Cliente</th>
-                <th className="px-4 py-3">Articoli</th>
-                <th className="px-4 py-3">Pagamento</th>
-                <th className="px-4 py-3 text-right">Totale Incasso</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/80">
-              {recentSales.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-zinc-400">
-                    Nessuna vendita registrata finora.
-                  </td>
-                </tr>
-              ) : (
-                recentSales.map((s) => {
-                  const itemsCount = (s.items || []).reduce((acc, it) => acc + it.quantity, 0);
-
-                  return (
-                    <tr key={s.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-zinc-950 dark:text-white">
-                        {s.sale_number}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-400 font-mono text-[11px] whitespace-nowrap">
-                        {new Date(s.created_at).toLocaleString('it-IT')}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
-                        {s.customer_name || 'Cliente al banco'}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-500">
-                        {itemsCount} pz ({(s.items || []).length} righe)
-                      </td>
-                      <td className="px-4 py-3 capitalize text-zinc-600 dark:text-zinc-300">
-                        {s.payment_method === 'card'
+        <div className="lg:col-span-8 min-w-0">
+          <SurfaceCard
+            padding="none"
+            header={{
+              eyebrow: 'REGISTRO TRANSAZIONI',
+              title: 'Ultime Vendite Registrate a Cassa',
+              icon: Clock,
+              action: (
+                <Link
+                  href="/dashboard/sales"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--rivo-volt-text)] hover:underline"
+                >
+                  <span>Registro Completo</span>
+                  <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden="true" />
+                </Link>
+              ),
+            }}
+          >
+            {recentSales.length === 0 ? (
+              <div className="p-5">
+                <EmptyState
+                  icon={Receipt}
+                  title="Nessuna vendita registrata finora"
+                  description="Gli scontrini emessi dal Punto Cassa POS appariranno qui in tempo reale con dettagli su articoli e marginalità."
+                  primaryAction={{
+                    label: 'Emetti Primo Scontrino',
+                    href: '/dashboard/sales',
+                    icon: Store,
+                  }}
+                  compact
+                />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)] font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Scontrino</th>
+                      <th className="px-4 py-3 font-semibold">Data e Ora</th>
+                      <th className="px-4 py-3 font-semibold">Cliente</th>
+                      <th className="px-4 py-3 font-semibold">Articoli</th>
+                      <th className="px-4 py-3 font-semibold">Pagamento</th>
+                      <th className="px-4 py-3 text-right font-semibold">Totale Incasso</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-subtle)]">
+                    {recentSales.map((s) => {
+                      const itemsCount = (s.items || []).reduce(
+                        (acc, it) => acc + it.quantity,
+                        0
+                      );
+                      const paymentLabel =
+                        s.payment_method === 'card'
                           ? 'Carta POS'
                           : s.payment_method === 'cash'
                           ? 'Contanti'
                           : s.payment_method === 'transfer'
                           ? 'Bonifico'
-                          : 'Buono'}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-zinc-950 dark:text-white">
-                        € {Number(s.total_amount).toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                          : 'Buono';
+
+                      return (
+                        <tr
+                          key={s.id}
+                          className="min-h-[48px] hover:bg-[var(--bg-elevated)]/60 transition-colors"
+                        >
+                          <td className="px-4 py-3.5 font-mono tabular-nums font-bold text-[var(--text-primary)] whitespace-nowrap">
+                            {s.sale_number}
+                          </td>
+                          <td className="px-4 py-3.5 font-mono tabular-nums text-[11px] text-[var(--text-muted)] whitespace-nowrap">
+                            {dateTimeFormatter.format(new Date(s.created_at))}
+                          </td>
+                          <td className="px-4 py-3.5 text-[var(--text-secondary)]">
+                            {s.customer_name || 'Cliente al banco'}
+                          </td>
+                          <td className="px-4 py-3.5 font-mono tabular-nums text-[var(--text-secondary)] whitespace-nowrap">
+                            {itemsCount} pz ({(s.items || []).length} righe)
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <StatusBadge tone="neutral" size="sm">
+                              {paymentLabel}
+                            </StatusBadge>
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-mono tabular-nums font-bold text-[var(--text-primary)] whitespace-nowrap">
+                            {formatItCurrency(Number(s.total_amount))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SurfaceCard>
         </div>
       </div>
     </div>

@@ -1,14 +1,17 @@
 'use client';
 
 import { useSimpleMode } from '@/lib/simple-mode';
-import { Sliders, Zap, Check } from 'lucide-react';
+import { cn } from '@/lib/cn';
 
 interface SimpleModeToggleProps {
   className?: string;
   showBadge?: boolean;
 }
 
-export default function SimpleModeToggle({ className = '', showBadge = true }: SimpleModeToggleProps) {
+export default function SimpleModeToggle({
+  className = '',
+  showBadge = true,
+}: SimpleModeToggleProps) {
   const [isSimple, toggle] = useSimpleMode();
 
   return (
@@ -17,37 +20,51 @@ export default function SimpleModeToggle({ className = '', showBadge = true }: S
       onClick={() => toggle()}
       aria-label="Attiva o disattiva la modalità semplice gestionale"
       aria-pressed={isSimple}
-      className={`group inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors select-none ${
+      title={
         isSimple
-          ? 'bg-zinc-900 border-emerald-500 text-emerald-400 dark:bg-zinc-100 dark:text-zinc-900 dark:border-emerald-600 shadow-xs'
-          : 'bg-zinc-100 dark:bg-zinc-900/80 border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700'
-      } ${className}`}
-      title={isSimple ? 'Modalità semplice attiva (zero animazioni, stile ERP)' : 'Attiva la modalità semplice (zero animazioni, stile ERP)'}
+          ? 'Modalità semplice attiva (zero animazioni, stile ERP)'
+          : 'Attiva la modalità semplice (zero animazioni, stile ERP)'
+      }
+      className={cn(
+        'group inline-flex min-h-[38px] max-sm:min-h-[44px] items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium select-none cursor-pointer transition-[background-color,border-color,color] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] focus-visible:outline-offset-2',
+        isSimple
+          ? 'bg-[var(--bg-surface)] border-[var(--rivo-volt-border)] text-[var(--text-primary)]'
+          : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]',
+        className
+      )}
     >
       {/* Switch Track */}
       <span
-        className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150 ease-in-out ${
-          isSimple ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-zinc-300 dark:bg-zinc-700'
-        }`}
+        aria-hidden="true"
+        className={cn(
+          'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full border p-0.5 transition-[background-color,border-color] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+          isSimple
+            ? 'bg-[var(--rivo-volt)] border-[var(--rivo-volt-ink)]/20'
+            : 'bg-[var(--bg-subtle)] border-[var(--border-strong)]'
+        )}
       >
         <span
-          className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-xs ring-0 transition duration-150 ease-in-out ${
-            isSimple ? 'translate-x-3' : 'translate-x-0'
-          }`}
+          className={cn(
+            'pointer-events-none inline-block h-2.5 w-2.5 rounded-full transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+            isSimple
+              ? 'translate-x-3 bg-[var(--rivo-volt-ink)]'
+              : 'translate-x-0 bg-[var(--text-muted)]'
+          )}
         />
       </span>
 
-      <span className="font-semibold tracking-tight text-[11px] sm:text-xs">
+      <span className="font-semibold tracking-tight text-[11px] sm:text-xs whitespace-nowrap">
         Modalità Semplice
       </span>
 
       {showBadge && (
         <span
-          className={`hidden sm:inline-block px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${
+          className={cn(
+            'hidden sm:inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider leading-none',
             isSimple
-              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-              : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700'
-          }`}
+              ? 'bg-[var(--rivo-volt)]/15 text-[var(--rivo-volt-text)] border-[var(--rivo-volt-border)]'
+              : 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+          )}
         >
           ERP
         </span>

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { MapPin } from 'lucide-react';
+import { EmptyState, PageHeader, StatusBadge, SurfaceCard } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,9 @@ interface LocationItem {
 
 export default async function LocationsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let locations: LocationItem[] = [];
 
@@ -38,42 +41,62 @@ export default async function LocationsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white mb-1">Sedi Commerciali</h1>
-        <p className="text-sm text-zinc-400">
-          I punti vendita o locali fisici associati alla tua attività.
-        </p>
-      </div>
+    <div className="space-y-6 min-w-0">
+      <PageHeader
+        eyebrow="Sedi & Punti Fisici"
+        title="Sedi Commerciali"
+        description="I punti vendita o locali fisici associati alla tua attività."
+        badge={
+          <StatusBadge tone="neutral" mono>
+            {locations.length} {locations.length === 1 ? 'Sede' : 'Sedi'}
+          </StatusBadge>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {locations.length === 0 ? (
-          <div className="p-6 sm:p-8 col-span-2 rounded-xl bg-[#121214] border border-[#27272A] text-center text-sm text-zinc-500">
-            Nessuna sede configurata. Contatta l&apos;amministratore per aggiungere una nuova sede.
-          </div>
-        ) : (
-          locations.map((loc) => (
-            <div key={loc.id} className="p-4 sm:p-6 rounded-xl bg-[#121214] border border-[#27272A] space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#BFFF00] shrink-0" />
-                  <span className="font-semibold text-white">{loc.name}</span>
+      {locations.length === 0 ? (
+        <EmptyState
+          icon={MapPin}
+          eyebrow="Configurazione Sedi"
+          title="Nessuna sede configurata"
+          description="Nessuna sede configurata. Contatta l'amministratore per aggiungere una nuova sede."
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {locations.map((loc) => (
+            <SurfaceCard key={loc.id} radius="xl" padding="lg" className="min-w-0">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] flex items-center justify-center text-[var(--rivo-volt-text)] shrink-0">
+                      <MapPin className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                    </div>
+                    <h2 className="font-display font-semibold text-base text-[var(--text-primary)] truncate">
+                      {loc.name}
+                    </h2>
+                  </div>
+                  <StatusBadge tone="neutral" shape="tag" mono>
+                    <span translate="no">{loc.country}</span>
+                  </StatusBadge>
                 </div>
-                <span className="text-xs font-mono uppercase bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded shrink-0">
-                  {loc.country}
-                </span>
+
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {loc.address ? `${loc.address}, ` : ''}
+                  {loc.city || ''} {loc.postal_code || ''}
+                </p>
+
+                <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                  <StatusBadge tone="operational" dot mono>
+                    Stato: Operativa
+                  </StatusBadge>
+                  <span className="font-mono tabular-nums">
+                    Creata: {new Date(loc.created_at).toLocaleDateString('it-IT')}
+                  </span>
+                </div>
               </div>
-              <p className="text-sm text-zinc-400">
-                {loc.address ? `${loc.address}, ` : ''}{loc.city || ''} {loc.postal_code || ''}
-              </p>
-              <div className="pt-3 border-t border-[#27272A]/70 flex items-center justify-between text-xs text-zinc-500">
-                <span>Stato: Operativa</span>
-                <span>Creata: {new Date(loc.created_at).toLocaleDateString('it-IT')}</span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            </SurfaceCard>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

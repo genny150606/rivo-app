@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { 
-  Sparkles, 
   Send, 
   Mic, 
   MicOff, 
@@ -47,7 +46,7 @@ export default function RetailAICopilot() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: `👋 Ciao! Sono il tuo **Assistente AI RIVO per il Retail**.\n\nInvece di compilare form manuali, puoi scrivermi o dettarmi direttamente a voce cosa vuoi fare!`,
+      content: `Ciao! Sono il tuo **Assistente AI RIVO per il Retail**.\n\nInvece di compilare form manuali, puoi scrivermi o dettarmi direttamente a voce cosa vuoi fare!`,
       timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -71,7 +70,15 @@ export default function RetailAICopilot() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('La dettatura vocale non è supportata dal tuo browser. Puoi comunque scrivere normalmente!');
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `voice-unsupported-${Date.now()}`,
+          role: 'assistant',
+          content: 'La dettatura vocale non è supportata su questo browser. Puoi scrivere il comando direttamente qui sotto.',
+          timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
       return;
     }
 
@@ -144,7 +151,7 @@ export default function RetailAICopilot() {
       const errorMsg: Message = {
         id: 'err-' + Date.now(),
         role: 'assistant',
-        content: `❌ Si è verificato un errore: ${err.message}`,
+        content: `Si è verificato un errore: ${err.message}`,
         timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages(prev => [...prev, errorMsg]);
@@ -155,83 +162,109 @@ export default function RetailAICopilot() {
 
   return (
     <>
-      {/* Floating Launcher Button */}
+      {/* Floating Launcher Button (cleared above mobile bottom dock) */}
       {!isOpen && (
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-lime-400 via-emerald-400 to-teal-400 hover:from-lime-300 hover:to-teal-300 text-black font-bold text-xs rounded-full shadow-2xl shadow-lime-400/30 hover:scale-105 active:scale-95 transition-all duration-200 group"
+          aria-label="Apri Assistente Magazzino RIVO"
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40 flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] px-4 py-2.5 text-xs font-bold text-[var(--rivo-volt-ink)] shadow-lg transition-[background-color,transform] duration-[180ms] active:scale-[0.98] cursor-pointer"
         >
-          <div className="relative">
-            <Sparkles className="w-4 h-4 text-black animate-spin" style={{ animationDuration: '6s' }} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-600 rounded-full animate-ping" />
-          </div>
-          <span>Assistente Magazzino AI</span>
+          <Bot className="w-4 h-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+          <span>Copilot Magazzino</span>
         </button>
       )}
 
       {/* Floating Copilot Modal / Drawer */}
       {isOpen && (
-        <div className="fixed bottom-5 right-5 z-50 w-[95vw] sm:w-[420px] h-[580px] max-h-[90vh] bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-200">
+        <div
+          role="dialog"
+          aria-modal="false"
+          aria-label="RIVO Retail Copilot"
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[420px] h-[560px] max-h-[78dvh] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        >
           {/* Header */}
-          <div className="px-4 py-3.5 bg-gradient-to-r from-zinc-900 to-black border-b border-zinc-800 flex items-center justify-between">
+          <div className="px-4 py-3.5 bg-[var(--bg-elevated)] border-b border-[var(--border-subtle)] flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-lime-400/20 border border-lime-400/40 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-lime-400" />
+              <div className="w-8 h-8 rounded-lg bg-[#09090B] border border-[#22242A] flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-[#BFFF00]" strokeWidth={1.75} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white leading-none">RIVO Retail Copilot</h3>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Gestione vocale & testuale del magazzino</p>
+                <h3 className="font-display text-sm font-bold text-[var(--text-primary)] leading-none">
+                  RIVO Retail Copilot
+                </h3>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1">
+                  Gestione vocale &amp; testuale stock
+                </p>
               </div>
             </div>
 
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
-              className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+              aria-label="Chiudi Copilot Magazzino"
+              className="min-h-[38px] min-w-[38px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Messages Stream */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs bg-[var(--bg-canvas)]">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-lg bg-lime-400/10 border border-lime-400/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5 text-lime-400" />
+                  <div className="w-6 h-6 rounded-lg bg-[#09090B] border border-[#22242A] flex items-center justify-center shrink-0 mt-0.5">
+                    <Bot className="w-3.5 h-3.5 text-[#BFFF00]" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3 leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[85%] rounded-xl p-3 leading-relaxed whitespace-pre-wrap ${
                     msg.role === 'user'
-                      ? 'bg-lime-400 text-black font-medium ml-auto shadow-md'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-200'
+                      ? 'bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] font-medium ml-auto'
+                      : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)]'
                   }`}
                 >
                   <div>{msg.content}</div>
 
                   {/* Interactive Action Card if product was added */}
                   {msg.actionResult && (
-                    <div className="mt-3 p-2.5 bg-black/60 border border-lime-500/30 rounded-xl space-y-2 text-[11px]">
-                      <div className="flex items-center gap-1.5 text-lime-400 font-bold">
+                    <div className="mt-3 p-2.5 bg-[var(--bg-elevated)] border border-[var(--accent-operational-border)] rounded-xl space-y-2 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-[var(--accent-operational-text)] font-bold">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>Carico Registrato con Successo</span>
                       </div>
-                      <div className="space-y-0.5 text-zinc-300">
-                        <div>Articolo: <strong>{msg.actionResult.productName}</strong></div>
-                        {msg.actionResult.size && <div>Taglia: <strong>{msg.actionResult.size}</strong></div>}
-                        <div>Aggiunti: <strong className="text-lime-400">+{msg.actionResult.quantityAdded} pz</strong></div>
+                      <div className="space-y-0.5 text-[var(--text-secondary)]">
+                        <div>
+                          Articolo: <strong className="text-[var(--text-primary)]">{msg.actionResult.productName}</strong>
+                        </div>
+                        {msg.actionResult.size && (
+                          <div>
+                            Taglia: <strong className="text-[var(--text-primary)]">{msg.actionResult.size}</strong>
+                          </div>
+                        )}
+                        <div>
+                          Aggiunti:{' '}
+                          <strong className="font-mono text-[var(--rivo-volt-text)]">
+                            +{msg.actionResult.quantityAdded} pz
+                          </strong>
+                        </div>
                         {msg.actionResult.newStock !== undefined && (
-                          <div>Nuova Giacenza: <strong>{msg.actionResult.newStock} pz</strong></div>
+                          <div>
+                            Nuova Giacenza:{' '}
+                            <strong className="font-mono text-[var(--text-primary)]">
+                              {msg.actionResult.newStock} pz
+                            </strong>
+                          </div>
                         )}
                       </div>
                       <Link
                         href="/dashboard/inventory"
-                        className="inline-flex items-center gap-1 text-[10px] text-lime-400 hover:underline pt-1 font-semibold"
+                        className="inline-flex items-center gap-1 text-[11px] text-[var(--rivo-volt-text)] hover:underline pt-1 font-semibold"
                       >
                         <span>Visualizza a Magazzino</span>
                         <ArrowRight className="w-3 h-3" />
@@ -239,29 +272,30 @@ export default function RetailAICopilot() {
                     </div>
                   )}
 
-                  <div className={`text-[9px] mt-1.5 ${msg.role === 'user' ? 'text-black/60 text-right' : 'text-zinc-500'}`}>
+                  <div
+                    className={`font-mono text-[9px] mt-1.5 ${
+                      msg.role === 'user' ? 'text-[#09090B]/70 text-right' : 'text-[var(--text-muted)]'
+                    }`}
+                  >
                     {msg.timestamp}
                   </div>
                 </div>
 
                 {msg.role === 'user' && (
-                  <div className="w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0 mt-0.5">
-                    <User className="w-3.5 h-3.5 text-zinc-300" />
+                  <div className="w-6 h-6 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 mt-0.5">
+                    <User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                   </div>
                 )}
               </div>
             ))}
 
             {loading && (
-              <div className="flex gap-2.5 items-center text-zinc-400 text-xs">
-                <div className="w-6 h-6 rounded-lg bg-lime-400/10 border border-lime-400/30 flex items-center justify-center shrink-0">
-                  <Bot className="w-3.5 h-3.5 text-lime-400 animate-pulse" />
+              <div className="flex gap-2.5 items-center text-[var(--text-secondary)] text-xs">
+                <div className="w-6 h-6 rounded-lg bg-[#09090B] border border-[#22242A] flex items-center justify-center shrink-0">
+                  <Bot className="w-3.5 h-3.5 text-[#BFFF00] animate-pulse" />
                 </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-3 py-2 text-zinc-400 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-lime-400 rounded-full animate-bounce" />
-                  <span className="w-1.5 h-1.5 bg-lime-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                  <span className="w-1.5 h-1.5 bg-lime-400 rounded-full animate-bounce [animation-delay:0.4s]" />
-                  <span className="text-[11px] ml-1">Sto aggiornando il catalogo...</span>
+                <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 flex items-center gap-1.5">
+                  <span className="text-[11px] font-mono">Aggiornamento catalogo…</span>
                 </div>
               </div>
             )}
@@ -270,36 +304,40 @@ export default function RetailAICopilot() {
           </div>
 
           {/* Quick Prompt Chips */}
-          <div className="px-3 py-2 bg-zinc-900/50 border-t border-zinc-800/80 flex gap-1.5 overflow-x-auto no-scrollbar text-[11px]">
+          <div className="px-3 py-2 bg-[var(--bg-elevated)] border-t border-[var(--border-subtle)] flex gap-1.5 overflow-x-auto text-[11px]">
             <button
+              type="button"
               onClick={() => handleSend('inserisci 15 Air Max 95 di taglia 43')}
-              className="whitespace-nowrap px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full border border-zinc-700 transition-colors"
+              className="whitespace-nowrap px-2.5 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg border border-[var(--border-subtle)] transition-colors cursor-pointer"
             >
               +15 Air Max 95 (Tg. 43)
             </button>
             <button
+              type="button"
               onClick={() => handleSend('aggiungi 8 mocassini Borrelli taglia 42 a 130 euro')}
-              className="whitespace-nowrap px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full border border-zinc-700 transition-colors"
+              className="whitespace-nowrap px-2.5 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg border border-[var(--border-subtle)] transition-colors cursor-pointer"
             >
               +8 Mocassini Borrelli (Tg. 42)
             </button>
             <button
+              type="button"
               onClick={() => handleSend('quali prodotti sono sotto scorta?')}
-              className="whitespace-nowrap px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full border border-zinc-700 transition-colors"
+              className="whitespace-nowrap px-2.5 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg border border-[var(--border-subtle)] transition-colors cursor-pointer"
             >
               Prodotti sotto scorta
             </button>
           </div>
 
           {/* Input Bar */}
-          <div className="p-3 bg-black border-t border-zinc-800 flex items-center gap-2">
+          <div className="p-3 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] flex items-center gap-2">
             <button
               type="button"
               onClick={toggleListening}
-              className={`p-2.5 rounded-xl transition-all ${
-                listening 
-                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
-                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+              aria-label={listening ? 'Ferma dettatura vocale' : 'Attiva dettatura vocale'}
+              className={`min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+                listening
+                  ? 'bg-[#B91C1C] border-transparent text-white animate-pulse'
+                  : 'bg-[var(--bg-elevated)] hover:bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)]'
               }`}
               title={listening ? 'Ascolto in corso... tocca per fermare' : 'Dettatura vocale'}
             >
@@ -308,21 +346,23 @@ export default function RetailAICopilot() {
 
             <input
               type="text"
-              placeholder={listening ? 'Parla pure, sto ascoltando...' : 'Es: inserisci 15 Air Max 95 di taglia 43...'}
+              aria-label="Comando vocale o testuale per il magazzino"
+              placeholder={listening ? 'Parla pure, sto ascoltando…' : 'Es: +15 Air Max 95 taglia 43…'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSend();
               }}
               disabled={loading}
-              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-lime-400"
+              className="flex-1 min-h-[40px] bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)]"
             />
 
             <button
               type="button"
               onClick={() => handleSend()}
               disabled={!input.trim() || loading}
-              className="p-2.5 bg-lime-400 hover:bg-lime-300 disabled:opacity-40 text-black rounded-xl transition-all font-bold"
+              aria-label="Invia comando"
+              className="min-h-[40px] min-w-[40px] flex items-center justify-center bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] disabled:opacity-40 text-[var(--rivo-volt-ink)] rounded-lg transition-colors font-bold cursor-pointer"
             >
               <Send className="w-4 h-4" />
             </button>

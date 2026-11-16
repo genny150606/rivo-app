@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   Search,
-  Sparkles,
+  Cpu,
   Globe,
   Phone,
   Mail,
@@ -24,6 +24,13 @@ import {
   Image as ImageIcon,
   Upload,
 } from 'lucide-react';
+import {
+  PageHeader,
+  SurfaceCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui';
+import type { StatusTone } from '@/components/ui/StatusBadge';
 import { InstagramIcon } from '@/components/brand-icons';
 import {
   OUTREACH_DISCOVERY_CATEGORIES,
@@ -660,11 +667,11 @@ export default function OutreachProspectsPage() {
     );
   };
 
-  const getScoreBadgeClass = (score: number) => {
-    if (score >= 80) return 'bg-[#BFFF00] text-[#09090B] font-bold';
-    if (score >= 60) return 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30';
-    if (score >= 40) return 'bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30';
-    return 'bg-[#27272A] text-[#A1A1AA]';
+  const getScoreTone = (score: number): StatusTone => {
+    if (score >= 80) return 'volt';
+    if (score >= 60) return 'operational';
+    if (score >= 40) return 'warning';
+    return 'neutral';
   };
 
   const activeDemoUrl = activeProspect
@@ -706,378 +713,517 @@ export default function OutreachProspectsPage() {
   const latestCtaMeta = (demoCtaLogs[0]?.metadata || null) as Record<string, unknown> | null;
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-[#FAFAFA] p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-[#27272A] pb-5">
-        <div>
-          <div className="flex items-center gap-2.5 mb-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#BFFF00]" />
-            <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#BFFF00]">
-              RIVO OUTREACH — PROSPECT CRM
-            </span>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="RIVO OUTREACH — PROSPECT CRM"
+        title={`Archivio Prospect & Qualificazione (${total})`}
+        description="Tabella ad alta densità con Lead Score spiegabile, verifica duplicati, storico comunicazioni e conversione diretta in Cliente RIVO."
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/admin/outreach/discovery"
+              className="inline-flex items-center min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] transition-colors"
+            >
+              + Acquisisci Nuove Attività
+            </Link>
+            <button
+              type="button"
+              onClick={fetchProspects}
+              className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Aggiorna
+            </button>
           </div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-[-0.02em] text-[#FAFAFA]">
-            Archivio Prospect & Qualificazione ({total})
-          </h1>
-          <p className="text-sm text-[#A1A1AA] mt-1">
-            Tabella ad alta densità con Lead Score spiegabile, verifica duplicati, storico comunicazioni e conversione diretta in Cliente RIVO.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <Link
-            href="/admin/outreach/discovery"
-            className="px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#3F3F46] text-xs font-medium text-[#FAFAFA]"
-          >
-            + Acquisisci Nuove Attività
-          </Link>
-          <button
-            type="button"
-            onClick={fetchProspects}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#3F3F46] text-xs text-[#FAFAFA]"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Aggiorna
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {feedback && (
-        <div className="p-3.5 rounded-xl bg-[#121214] border border-[#BFFF00]/40 text-xs text-[#FAFAFA] flex items-center justify-between">
-          <span>{feedback}</span>
-          <button
-            type="button"
-            onClick={() => setFeedback(null)}
-            className="text-[#A1A1AA] hover:text-[#FAFAFA]"
-          >
-            Chiudi
-          </button>
-        </div>
+        <SurfaceCard padding="sm" className="border-[var(--rivo-volt-border)]">
+          <div className="text-xs text-[var(--text-primary)] flex items-center justify-between gap-3">
+            <span>{feedback}</span>
+            <button
+              type="button"
+              onClick={() => setFeedback(null)}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium shrink-0 px-2 py-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
+            >
+              Chiudi
+            </button>
+          </div>
+        </SurfaceCard>
       )}
 
       {/* Filter Bar */}
-      <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
-        <div className="md:col-span-2 relative">
-          <Search className="w-4 h-4 text-[#71717A] absolute left-3 top-3" />
-          <input
-            type="text"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Cerca per nome, città, email o dominio..."
-            className="w-full h-10 pl-9 pr-3.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-          />
-        </div>
+      <SurfaceCard padding="sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <div className="sm:col-span-2 relative">
+            <label htmlFor="prospects-search-q" className="sr-only">
+              Cerca prospect
+            </label>
+            <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-3.5" />
+            <input
+              id="prospects-search-q"
+              type="text"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Cerca per nome, città, email o dominio…"
+              className="w-full h-11 pl-9 pr-3.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+            />
+          </div>
 
-        <div>
-          <select
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              setPage(1);
-            }}
-            className="w-full h-10 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-          >
-            <option value="">Tutte le categorie</option>
-            {OUTREACH_DISCOVERY_CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div>
+            <label htmlFor="prospects-filter-category" className="sr-only">
+              Filtra per categoria
+            </label>
+            <select
+              id="prospects-filter-category"
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                setPage(1);
+              }}
+              className="w-full h-11 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+            >
+              <option value="">Tutte le categorie</option>
+              {OUTREACH_DISCOVERY_CATEGORIES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="w-full h-10 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-          >
-            <option value="">Tutti gli stati pipeline</option>
-            {OUTREACH_PIPELINE_STAGES.map((st) => (
-              <option key={st.id} value={st.id}>
-                {st.label}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div>
+            <label htmlFor="prospects-filter-status" className="sr-only">
+              Filtra per stato pipeline
+            </label>
+            <select
+              id="prospects-filter-status"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full h-11 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+            >
+              <option value="">Tutti gli stati pipeline</option>
+              {OUTREACH_PIPELINE_STAGES.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <select
-            value={minScore}
-            onChange={(e) => {
-              setMinScore(e.target.value);
-              setPage(1);
-            }}
-            className="w-full h-10 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-          >
-            <option value="">Qualsiasi Lead Score</option>
-            <option value="80">80–100 (Priorità Alta)</option>
-            <option value="60">60+ (Buon Potenziale)</option>
-            <option value="40">40+ (Potenziale Medio)</option>
-          </select>
-        </div>
+          <div>
+            <label htmlFor="prospects-filter-score" className="sr-only">
+              Filtra per punteggio minimo
+            </label>
+            <select
+              id="prospects-filter-score"
+              value={minScore}
+              onChange={(e) => {
+                setMinScore(e.target.value);
+                setPage(1);
+              }}
+              className="w-full h-11 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+            >
+              <option value="">Qualsiasi Lead Score</option>
+              <option value="80">80–100 (Priorità Alta)</option>
+              <option value="60">60+ (Buon Potenziale)</option>
+              <option value="40">40+ (Potenziale Medio)</option>
+            </select>
+          </div>
 
-        <div>
-          <select
-            value={sortBy}
-            onChange={(e) =>
-              setSortBy(e.target.value as 'lead_score' | 'created_at' | 'business_name')
-            }
-            className="w-full h-10 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-          >
-            <option value="lead_score">Ordina per: Lead Score</option>
-            <option value="created_at">Ordina per: Data Acquisizione</option>
-            <option value="business_name">Ordina per: Nome A-Z</option>
-          </select>
+          <div>
+            <label htmlFor="prospects-sort-by" className="sr-only">
+              Ordina prospect
+            </label>
+            <select
+              id="prospects-sort-by"
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(e.target.value as 'lead_score' | 'created_at' | 'business_name')
+              }
+              className="w-full h-11 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+            >
+              <option value="lead_score">Ordina per: Lead Score</option>
+              <option value="created_at">Ordina per: Data Acquisizione</option>
+              <option value="business_name">Ordina per: Nome A-Z</option>
+            </select>
+          </div>
         </div>
-      </div>
+      </SurfaceCard>
 
       {/* Bulk Selection Toolbar */}
       {selectedIds.length > 0 && (
-        <div className="bg-[#121214] border border-fuchsia-500/40 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-[#FAFAFA]">
-            <span className="px-2 py-0.5 rounded bg-[#BFFF00] text-[#09090B] font-mono font-bold">
-              {selectedIds.length}
-            </span>
-            <span>prospect selezionati</span>
-            {selectedIds.length > 15 && (
-              <span className="text-[11px] text-[#A1A1AA]">
-                (scansione AI fino a 15 alla volta)
+        <SurfaceCard padding="sm" className="border-[var(--rivo-volt-border)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-[var(--text-primary)]">
+              <span className="px-2 py-0.5 rounded bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] font-mono tabular-nums font-bold">
+                {selectedIds.length}
               </span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={bulkFindingIg}
-              onClick={handleBulkFindInstagram}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/45 hover:border-fuchsia-400 text-xs font-semibold text-fuchsia-300 disabled:opacity-50 transition-colors"
-            >
-              {bulkFindingIg ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Ricerca Instagram AI...
-                </>
-              ) : (
-                <>
-                  <InstagramIcon className="w-3.5 h-3.5" />
-                  Trova Instagram AI ({selectedIds.length})
-                </>
+              <span>prospect selezionati</span>
+              {selectedIds.length > 15 && (
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  (scansione AI fino a 15 alla volta)
+                </span>
               )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedIds([])}
-              className="px-3 py-1.5 rounded-lg bg-[#0D0D10] border border-[#27272A] hover:border-[#3F3F46] text-xs text-[#A1A1AA] hover:text-[#FAFAFA]"
-            >
-              Deseleziona
-            </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={bulkFindingIg}
+                onClick={handleBulkFindInstagram}
+                className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-1.5 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-xs font-semibold text-[var(--rivo-volt-text)] disabled:opacity-50 transition-colors"
+              >
+                {bulkFindingIg ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Ricerca Instagram AI…
+                  </>
+                ) : (
+                  <>
+                    <InstagramIcon className="w-3.5 h-3.5" />
+                    Trova Instagram AI ({selectedIds.length})
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="min-h-[40px] px-3 py-1.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                Deseleziona
+              </button>
+            </div>
           </div>
-        </div>
+        </SurfaceCard>
       )}
 
-      {/* Data Table */}
-      <div className="bg-[#121214] border border-[#27272A] rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="h-11 bg-[#0D0D10] border-b border-[#27272A] text-[11px] font-mono uppercase text-[#A1A1AA]">
-                <th className="px-4 w-10">
-                  <input
-                    type="checkbox"
-                    checked={prospects.length > 0 && selectedIds.length === prospects.length}
-                    onChange={toggleSelectAll}
-                    className="accent-[#BFFF00]"
-                  />
-                </th>
-                <th className="px-4">Attività Commerciale</th>
-                <th className="px-4">Categoria</th>
-                <th className="px-4">Città</th>
-                <th className="px-4">Canali</th>
-                <th className="px-4">Lead Score</th>
-                <th className="px-4">Stato Pipeline</th>
-                <th className="px-4 text-right">Azioni</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#27272A] text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-xs text-[#71717A] font-mono">
-                    CARICAMENTO ARCHIVIO PROSPECT...
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-xs text-[#EF4444]">
-                    {error}
-                  </td>
-                </tr>
-              ) : prospects.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-xs text-[#71717A]">
-                    Nessun prospect trovato. Avvia una ricerca dalla sezione &ldquo;Ricerca attività&rdquo;.
-                  </td>
-                </tr>
-              ) : (
-                prospects.map((p) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => openProspectDetail(p)}
-                    className={`h-13 cursor-pointer transition-colors hover:bg-[#18181B] ${
-                      activeProspect?.id === p.id ? 'bg-[#18181B]' : ''
-                    }`}
-                  >
-                    <td className="px-4" onClick={(e) => e.stopPropagation()}>
+      {/* Data Table & Mobile Cards */}
+      <SurfaceCard padding="none">
+        {loading ? (
+          <div className="py-12 text-center text-xs text-[var(--text-muted)] font-mono">
+            CARICAMENTO ARCHIVIO PROSPECT…
+          </div>
+        ) : error ? (
+          <div className="py-8 px-4 text-center text-xs text-[var(--accent-critical-text)]">
+            {error}
+          </div>
+        ) : prospects.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              compact
+              icon={Search}
+              title="Nessun prospect trovato"
+              description='Avvia una ricerca dalla sezione "Ricerca attività" per popolare il CRM.'
+            />
+          </div>
+        ) : (
+          <>
+            {/* Mobile Card List */}
+            <div className="lg:hidden divide-y divide-[var(--border-subtle)]">
+              {prospects.map((p) => (
+                <div
+                  key={p.id}
+                  className={`p-4 space-y-3 ${
+                    activeProspect?.id === p.id ? 'bg-[var(--bg-elevated)]' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5 min-w-0">
                       <input
+                        aria-label={`Seleziona ${p.business_name}`}
                         type="checkbox"
                         checked={selectedIds.includes(p.id)}
                         onChange={() => toggleSelectOne(p.id)}
-                        className="accent-[#BFFF00]"
+                        className="mt-1 w-4 h-4 accent-[#BFFF00] shrink-0"
                       />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-[#FAFAFA] flex items-center gap-2">
-                        <span>{p.business_name}</span>
-                        {p.organization_id && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#BFFF00] text-[#09090B] font-bold">
-                            CLIENTE RIVO
-                          </span>
-                        )}
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm text-[var(--text-primary)] flex flex-wrap items-center gap-1.5">
+                          <span>{p.business_name}</span>
+                          {p.organization_id && (
+                            <StatusBadge tone="volt" variant="solid" size="sm" shape="tag">
+                              CLIENTE RIVO
+                            </StatusBadge>
+                          )}
+                        </div>
+                        <div className="text-xs text-[var(--text-secondary)]">
+                          {p.city || '-'} • {p.category}
+                          {p.subcategory ? ` (${p.subcategory})` : ''}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-[#71717A] truncate max-w-[260px]">
-                        {p.address || p.source || 'Fonte registrata'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#A1A1AA]">
-                      <div>{p.category}</div>
-                      {p.subcategory && (
-                        <div className="text-[11px] text-[#71717A]">{p.subcategory}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#FAFAFA]">{p.city || '-'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {p.website && <Globe className="w-3.5 h-3.5 text-[#BFFF00]" />}
-                        {p.business_email && <Mail className="w-3.5 h-3.5 text-[#22C55E]" />}
-                        {p.business_phone && <Phone className="w-3.5 h-3.5 text-[#A1A1AA]" />}
-                        {p.instagram_url && (() => {
-                          const igHandle = extractInstagramHandle(p.instagram_url);
-                          return (
-                            <a
-                              href={p.instagram_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              title={
-                                igHandle ? `@${igHandle} su Instagram` : 'Apri profilo Instagram'
-                              }
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-500/40 text-fuchsia-400 hover:text-fuchsia-300 hover:border-fuchsia-400 text-[10px] font-mono transition-colors"
-                            >
-                              <InstagramIcon className="w-3 h-3 shrink-0" />
-                              {igHandle && (
-                                <span className="max-w-[88px] truncate">@{igHandle}</span>
-                              )}
-                            </a>
-                          );
-                        })()}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-mono ${getScoreBadgeClass(
-                          p.lead_score
-                        )}`}
-                      >
-                        {p.lead_score}/100
-                      </span>
-                    </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        value={p.commercial_status}
-                        onChange={(e) =>
-                          handleStageChange(p.id, e.target.value as OutreachCommercialStatus)
-                        }
-                        className="h-8 px-2.5 rounded bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
-                      >
-                        {OUTREACH_PIPELINE_STAGES.map((stage) => (
-                          <option key={stage.id} value={stage.id}>
-                            {stage.shortLabel}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex items-center gap-1.5">
+                    </div>
+
+                    <StatusBadge
+                      tone={getScoreTone(p.lead_score)}
+                      variant={p.lead_score >= 80 ? 'solid' : 'soft'}
+                      size="sm"
+                      shape="tag"
+                      className="tabular-nums shrink-0"
+                    >
+                      {p.lead_score}/100
+                    </StatusBadge>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {p.website && <Globe className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />}
+                    {p.business_email && (
+                      <Mail className="w-3.5 h-3.5 text-[var(--accent-operational-text)]" />
+                    )}
+                    {p.business_phone && (
+                      <Phone className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    )}
+                    {p.instagram_url && (() => {
+                      const igHandle = extractInstagramHandle(p.instagram_url);
+                      return (
                         <a
-                          href={buildProspectDemoUrl(p.business_name, p.id)}
+                          href={p.instagram_url}
                           target="_blank"
                           rel="noreferrer"
-                          title="Apri Demo Interattiva RIVO"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs text-[#BFFF00]"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] text-[10px] font-mono"
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          Demo
+                          <InstagramIcon className="w-3 h-3 shrink-0" />
+                          {igHandle && <span className="max-w-[110px] truncate">@{igHandle}</span>}
                         </a>
-                        <button
-                          type="button"
-                          onClick={() => openProspectDetail(p)}
-                          className="px-2.5 py-1 rounded bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs text-[#FAFAFA]"
-                        >
-                          Dettagli
-                        </button>
-                      </div>
-                    </td>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <select
+                      aria-label={`Stato pipeline per ${p.business_name}`}
+                      value={p.commercial_status}
+                      onChange={(e) =>
+                        handleStageChange(p.id, e.target.value as OutreachCommercialStatus)
+                      }
+                      className="h-10 px-2.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                    >
+                      {OUTREACH_PIPELINE_STAGES.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          {stage.shortLabel}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={buildProspectDemoUrl(p.business_name, p.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 min-h-[40px] px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs text-[var(--rivo-volt-text)]"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Demo
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => openProspectDetail(p)}
+                        className="min-h-[40px] px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--text-primary)]"
+                      >
+                        Dettagli
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="h-11 bg-[var(--bg-canvas)] border-b border-[var(--border-subtle)] text-[11px] font-mono uppercase text-[var(--text-muted)]">
+                    <th className="px-4 w-10">
+                      <input
+                        aria-label="Seleziona tutti i prospect"
+                        type="checkbox"
+                        checked={prospects.length > 0 && selectedIds.length === prospects.length}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 accent-[#BFFF00]"
+                      />
+                    </th>
+                    <th className="px-4">Attività Commerciale</th>
+                    <th className="px-4">Categoria</th>
+                    <th className="px-4">Città</th>
+                    <th className="px-4">Canali</th>
+                    <th className="px-4">Lead Score</th>
+                    <th className="px-4">Stato Pipeline</th>
+                    <th className="px-4 text-right">Azioni</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)] text-sm">
+                  {prospects.map((p) => (
+                    <tr
+                      key={p.id}
+                      onClick={() => openProspectDetail(p)}
+                      className={`h-13 cursor-pointer transition-colors hover:bg-[var(--bg-elevated)] ${
+                        activeProspect?.id === p.id ? 'bg-[var(--bg-elevated)]' : ''
+                      }`}
+                    >
+                      <td className="px-4" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          aria-label={`Seleziona ${p.business_name}`}
+                          type="checkbox"
+                          checked={selectedIds.includes(p.id)}
+                          onChange={() => toggleSelectOne(p.id)}
+                          className="w-4 h-4 accent-[#BFFF00]"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                          <span>{p.business_name}</span>
+                          {p.organization_id && (
+                            <StatusBadge tone="volt" variant="solid" size="sm" shape="tag">
+                              CLIENTE RIVO
+                            </StatusBadge>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] truncate max-w-[260px]">
+                          {p.address || p.source || 'Fonte registrata'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--text-secondary)]">
+                        <div>{p.category}</div>
+                        {p.subcategory && (
+                          <div className="text-[11px] text-[var(--text-muted)]">{p.subcategory}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--text-primary)]">{p.city || '-'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {p.website && <Globe className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />}
+                          {p.business_email && (
+                            <Mail className="w-3.5 h-3.5 text-[var(--accent-operational-text)]" />
+                          )}
+                          {p.business_phone && (
+                            <Phone className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                          )}
+                          {p.instagram_url && (() => {
+                            const igHandle = extractInstagramHandle(p.instagram_url);
+                            return (
+                              <a
+                                href={p.instagram_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                title={
+                                  igHandle ? `@${igHandle} su Instagram` : 'Apri profilo Instagram'
+                                }
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] hover:border-[var(--rivo-volt)] text-[10px] font-mono transition-colors"
+                              >
+                                <InstagramIcon className="w-3 h-3 shrink-0" />
+                                {igHandle && (
+                                  <span className="max-w-[88px] truncate">@{igHandle}</span>
+                                )}
+                              </a>
+                            );
+                          })()}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge
+                          tone={getScoreTone(p.lead_score)}
+                          variant={p.lead_score >= 80 ? 'solid' : 'soft'}
+                          size="sm"
+                          shape="tag"
+                          className="tabular-nums"
+                        >
+                          {p.lead_score}/100
+                        </StatusBadge>
+                      </td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          aria-label={`Stato pipeline per ${p.business_name}`}
+                          value={p.commercial_status}
+                          onChange={(e) =>
+                            handleStageChange(p.id, e.target.value as OutreachCommercialStatus)
+                          }
+                          className="h-9 px-2.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                        >
+                          {OUTREACH_PIPELINE_STAGES.map((stage) => (
+                            <option key={stage.id} value={stage.id}>
+                              {stage.shortLabel}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1.5">
+                          <a
+                            href={buildProspectDemoUrl(p.business_name, p.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Apri Demo Interattiva RIVO"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs text-[var(--rivo-volt-text)]"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Demo
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => openProspectDetail(p)}
+                            className="px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs text-[var(--text-primary)]"
+                          >
+                            Dettagli
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </SurfaceCard>
 
       {/* Lateral Detail Drawer */}
       {activeProspect && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-[#0D0D10] border-l border-[#27272A] shadow-2xl overflow-y-auto p-6 space-y-6">
-          <div className="flex items-start justify-between border-b border-[#27272A] pb-4">
-            <div>
+        <aside
+          aria-label={`Scheda prospect ${activeProspect.business_name}`}
+          className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-[var(--bg-canvas)] border-l border-[var(--border-subtle)] shadow-2xl overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-6"
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-mono uppercase text-[#BFFF00]">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--rivo-volt-text)]">
                   SCHEDA PROSPECT
                 </span>
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-mono ${getScoreBadgeClass(
-                    activeProspect.lead_score
-                  )}`}
+                <StatusBadge
+                  tone={getScoreTone(activeProspect.lead_score)}
+                  variant={activeProspect.lead_score >= 80 ? 'solid' : 'soft'}
+                  size="sm"
+                  shape="tag"
+                  className="tabular-nums"
                 >
                   Score {activeProspect.lead_score}/100
-                </span>
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#18181B] border border-[#27272A] text-[#A1A1AA]">
+                </StatusBadge>
+                <StatusBadge tone="neutral" size="sm" shape="tag" className="tabular-nums">
                   Confidenza {activeProspect.confidence_score}%
-                </span>
+                </StatusBadge>
                 {demoOpenedLogs.length > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-[#06B6D4]/15 text-[#22D3EE] border border-[#06B6D4]/40">
+                  <StatusBadge tone="telemetry" size="sm" shape="tag" className="tabular-nums">
                     <Eye className="w-3 h-3" />
                     Demo Aperta ({demoOpenedLogs.length}x) •{' '}
                     {new Date(demoOpenedLogs[0].created_at).toLocaleString('it-IT')}
-                  </span>
+                  </StatusBadge>
                 )}
                 {demoCtaLogs.length > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-[#BFFF00] text-[#09090B] font-bold">
+                  <StatusBadge tone="volt" variant="solid" size="sm" shape="tag">
                     <CheckCircle2 className="w-3 h-3" />
                     Richiesta Attivazione dalla Demo
-                  </span>
+                  </StatusBadge>
                 )}
               </div>
-              <h2 className="text-xl font-bold text-[#FAFAFA] mt-1">
+              <h2 className="font-display text-xl font-bold text-[var(--text-primary)] mt-1.5">
                 {activeProspect.business_name}
               </h2>
-              <p className="text-xs text-[#A1A1AA]">
+              <p className="text-xs text-[var(--text-secondary)]">
                 {activeProspect.category}{' '}
                 {activeProspect.subcategory ? `• ${activeProspect.subcategory}` : ''} •{' '}
                 {activeProspect.city || 'Città non specificata'}
@@ -1085,8 +1231,9 @@ export default function OutreachProspectsPage() {
             </div>
             <button
               type="button"
+              aria-label="Chiudi scheda prospect"
               onClick={() => setActiveProspect(null)}
-              className="p-2 rounded-lg bg-[#121214] border border-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA]"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rivo-volt)]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1098,15 +1245,15 @@ export default function OutreachProspectsPage() {
               type="button"
               disabled={actionBusy}
               onClick={() => handleRunAIAnalysis(activeProspect.id)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#18181B] border border-[#BFFF00]/50 hover:border-[#BFFF00] text-xs font-semibold text-[#BFFF00]"
+              className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-xs font-semibold text-[var(--rivo-volt-text)]"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Cpu className="w-3.5 h-3.5" />
               {activeProspect.ai_analysis ? 'Riesegui Analisi AI' : 'Analizza con AI'}
             </button>
 
             <Link
               href={`/admin/outreach/communications?prospectId=${activeProspect.id}`}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#3F3F46] text-xs font-medium text-[#FAFAFA]"
+              className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)]"
             >
               <Send className="w-3.5 h-3.5" />
               Invia Comunicazione
@@ -1116,12 +1263,12 @@ export default function OutreachProspectsPage() {
               type="button"
               disabled={actionBusy || findingIgId === activeProspect.id}
               onClick={handleFindInstagramForActive}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/40 hover:border-fuchsia-400 text-xs font-semibold text-fuchsia-300 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-xs font-semibold text-[var(--rivo-volt-text)] disabled:opacity-50"
             >
               {findingIgId === activeProspect.id ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Ricerca IG...
+                  Ricerca IG…
                 </>
               ) : (
                 <>
@@ -1137,7 +1284,7 @@ export default function OutreachProspectsPage() {
                   href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
                     activeProspect.id
                   )}`}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#121214] border border-fuchsia-500/40 hover:border-fuchsia-400 text-xs font-medium text-fuchsia-300"
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--rivo-volt-text)]"
                 >
                   <Send className="w-3.5 h-3.5" />
                   Invia DM IG (Coda)
@@ -1147,9 +1294,9 @@ export default function OutreachProspectsPage() {
                     href={activeIgDmUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-xs font-mono text-fuchsia-300"
+                    className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-mono text-[var(--text-primary)]"
                   >
-                    <InstagramIcon className="w-3.5 h-3.5" />
+                    <InstagramIcon className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
                     ig.me/m/@{activeIgHandle || 'instagram'}
                     <ExternalLink className="w-3 h-3" />
                   </a>
@@ -1163,7 +1310,7 @@ export default function OutreachProspectsPage() {
                   href={activeDemoUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#BFFF00]/50 hover:border-[#BFFF00] text-xs font-medium text-[#BFFF00]"
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--rivo-volt-text)]"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   Apri Demo
@@ -1175,11 +1322,11 @@ export default function OutreachProspectsPage() {
                     setCopiedDemoUrl(true);
                     setTimeout(() => setCopiedDemoUrl(false), 2000);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#BFFF00] text-xs font-medium text-[#FAFAFA]"
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--text-primary)]"
                 >
                   {copiedDemoUrl ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-[#BFFF00]" />
+                      <Check className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
                       Link Demo Copiato
                     </>
                   ) : (
@@ -1197,14 +1344,14 @@ export default function OutreachProspectsPage() {
                 <button
                   type="button"
                   onClick={() => setShowConvertModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold uppercase tracking-wide"
+                  className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold uppercase tracking-wide touch-press"
                 >
                   <UserCheck className="w-3.5 h-3.5" />
                   CONVERTI IN CLIENTE RIVO
                 </button>
                 <Link
                   href={`/admin/organizations/new?outreachProspectId=${activeProspect.id}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#121214] border border-[#27272A] hover:border-[#3F3F46] text-xs text-[#A1A1AA] hover:text-[#FAFAFA]"
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   <Building2 className="w-3.5 h-3.5" />
                   Apri Wizard Organizzazione
@@ -1213,7 +1360,7 @@ export default function OutreachProspectsPage() {
             ) : (
               <Link
                 href={`/admin/organizations/${activeProspect.organization_id}`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#BFFF00] text-[#09090B] text-xs font-bold"
+                className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 rounded-lg bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] text-xs font-bold"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Apri Organizzazione RIVO Convertita
@@ -1223,139 +1370,158 @@ export default function OutreachProspectsPage() {
 
           {/* Demo CTA Summary Card */}
           {demoCtaLogs.length > 0 && latestCtaMeta && (
-            <div className="p-4 rounded-xl bg-[#BFFF00]/10 border border-[#BFFF00]/50 space-y-2 text-xs">
+            <SurfaceCard padding="sm" className="border-[var(--rivo-volt-border)] bg-[var(--rivo-volt-bg)] space-y-2 text-xs">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-mono uppercase font-bold text-[#BFFF00]">
+                <span className="text-[11px] font-mono uppercase font-bold text-[var(--rivo-volt-text)]">
                   Richiesta Attivazione dalla Demo
                 </span>
-                <span className="text-[11px] font-mono text-[#A1A1AA]">
+                <span className="text-[11px] font-mono text-[var(--text-secondary)]">
                   {new Date(demoCtaLogs[0].created_at).toLocaleString('it-IT')}
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
                 <div>
-                  <span className="text-[#71717A]">Referente: </span>
-                  <span className="text-[#FAFAFA] font-medium">
+                  <span className="text-[var(--text-muted)]">Referente: </span>
+                  <span className="text-[var(--text-primary)] font-medium">
                     {String(latestCtaMeta.contact_name || 'Non indicato')}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#71717A]">Telefono: </span>
-                  <span className="text-[#FAFAFA] font-mono">
+                  <span className="text-[var(--text-muted)]">Telefono: </span>
+                  <span className="text-[var(--text-primary)] font-mono">
                     {String(latestCtaMeta.contact_phone || 'Non indicato')}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#71717A]">Orario preferito: </span>
-                  <span className="text-[#FAFAFA]">
+                  <span className="text-[var(--text-muted)]">Orario preferito: </span>
+                  <span className="text-[var(--text-primary)]">
                     {String(latestCtaMeta.preferred_time || 'Non indicato')}
                   </span>
                 </div>
               </div>
               {Boolean(latestCtaMeta.note) && (
-                <div className="pt-1 text-[#FAFAFA]">
-                  <span className="text-[#71717A]">Nota: </span>
+                <div className="pt-1 text-[var(--text-primary)]">
+                  <span className="text-[var(--text-muted)]">Nota: </span>
                   {String(latestCtaMeta.note)}
                 </div>
               )}
-            </div>
+            </SurfaceCard>
           )}
 
           {/* Convert Modal */}
           {showConvertModal && (
-            <form
-              onSubmit={handleConvertToClient}
-              className="p-4 rounded-xl bg-[#121214] border border-[#BFFF00] space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#BFFF00]">
-                  Conversione Transazionale in Organizzazione RIVO
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowConvertModal(false)}
-                  className="text-xs text-[#A1A1AA]"
-                >
-                  Annulla
-                </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] text-[#A1A1AA] mb-1">Nome Referente</label>
-                  <input
-                    type="text"
-                    required
-                    value={convertOwnerFirstName}
-                    onChange={(e) => setConvertOwnerFirstName(e.target.value)}
-                    className="w-full h-9 px-3 rounded bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                  />
+            <SurfaceCard padding="md" className="border-[var(--rivo-volt)]">
+              <form onSubmit={handleConvertToClient} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--rivo-volt-text)]">
+                    Conversione Transazionale in Organizzazione RIVO
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowConvertModal(false)}
+                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    Annulla
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-[11px] text-[#A1A1AA] mb-1">Cognome Referente</label>
-                  <input
-                    type="text"
-                    required
-                    value={convertOwnerLastName}
-                    onChange={(e) => setConvertOwnerLastName(e.target.value)}
-                    className="w-full h-9 px-3 rounded bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="convert-owner-first"
+                      className="block text-[11px] text-[var(--text-secondary)] mb-1"
+                    >
+                      Nome Referente
+                    </label>
+                    <input
+                      id="convert-owner-first"
+                      type="text"
+                      required
+                      value={convertOwnerFirstName}
+                      onChange={(e) => setConvertOwnerFirstName(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="convert-owner-last"
+                      className="block text-[11px] text-[var(--text-secondary)] mb-1"
+                    >
+                      Cognome Referente
+                    </label>
+                    <input
+                      id="convert-owner-last"
+                      type="text"
+                      required
+                      value={convertOwnerLastName}
+                      onChange={(e) => setConvertOwnerLastName(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="convert-owner-email"
+                      className="block text-[11px] text-[var(--text-secondary)] mb-1"
+                    >
+                      Email Account Titolare *
+                    </label>
+                    <input
+                      id="convert-owner-email"
+                      type="email"
+                      required
+                      value={convertOwnerEmail}
+                      onChange={(e) => setConvertOwnerEmail(e.target.value)}
+                      placeholder="titolare@locale.it"
+                      className="w-full h-10 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="convert-owner-password"
+                      className="block text-[11px] text-[var(--text-secondary)] mb-1"
+                    >
+                      Password Iniziale *
+                    </label>
+                    <input
+                      id="convert-owner-password"
+                      type="text"
+                      required
+                      value={convertOwnerPassword}
+                      onChange={(e) => setConvertOwnerPassword(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)]"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] text-[#A1A1AA] mb-1">
-                    Email Account Titolare *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={convertOwnerEmail}
-                    onChange={(e) => setConvertOwnerEmail(e.target.value)}
-                    placeholder="titolare@locale.it"
-                    className="w-full h-9 px-3 rounded bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA]"
-                  />
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={actionBusy}
+                    className="min-h-[40px] px-4 py-2 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold"
+                  >
+                    Conferma Creazione Organizzazione
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-[11px] text-[#A1A1AA] mb-1">
-                    Password Iniziale *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={convertOwnerPassword}
-                    onChange={(e) => setConvertOwnerPassword(e.target.value)}
-                    className="w-full h-9 px-3 rounded bg-[#0D0D10] border border-[#27272A] text-xs font-mono text-[#FAFAFA]"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end pt-2">
-                <button
-                  type="submit"
-                  disabled={actionBusy}
-                  className="px-4 py-2 rounded bg-[#BFFF00] text-[#09090B] text-xs font-bold"
-                >
-                  Conferma Creazione Organizzazione
-                </button>
-              </div>
-            </form>
+              </form>
+            </SurfaceCard>
           )}
 
           {/* Co-Branding Demo Preview & Custom Logo */}
-          <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-3 text-xs">
+          <SurfaceCard padding="sm" className="space-y-3 text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase text-[#BFFF00]">
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase text-[var(--rivo-volt-text)]">
                 <ImageIcon className="w-3.5 h-3.5" />
                 <span>Anteprima Co-Branding Link Demo (RIVO + Attività)</span>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-[#18181B] border border-[#27272A] text-[#A1A1AA]">
+              <StatusBadge tone="neutral" size="sm" shape="tag">
                 {activeProspect.digital_signals?.customLogoUrl
                   ? 'Logo Custom'
                   : activeProspect.digital_signals?.logoUrl
                   ? (activeProspect.digital_signals as { logoSource?: string })?.logoSource ||
                     'Rilevato Online'
                   : 'Monogramma Auto'}
-              </span>
+              </StatusBadge>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0D0D10] border border-[#27272A]">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
               <div className="inline-flex items-center gap-1.5 shrink-0">
                 <div className="w-9 h-9 rounded-xl bg-white border border-white/90 flex items-center justify-center p-1 shadow-sm shrink-0">
                   <Image
@@ -1366,13 +1532,15 @@ export default function OutreachProspectsPage() {
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <span className="text-xs font-mono font-bold text-[#71717A]">+</span>
+                <span className="text-xs font-mono font-bold text-[var(--text-muted)]">+</span>
                 {showActiveLogoImage && activeProxyLogoUrl ? (
                   <div className="w-9 h-9 rounded-xl bg-white border border-white/90 flex items-center justify-center overflow-hidden p-1 shadow-sm shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={activeProxyLogoUrl}
                       alt={activeProspect.business_name}
+                      width={36}
+                      height={36}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain"
                       onError={() => setFailedLogoUrl(activeProxyLogoUrl)}
@@ -1380,10 +1548,10 @@ export default function OutreachProspectsPage() {
                   </div>
                 ) : (
                   <div
-                    className="w-9 h-9 rounded-xl bg-[#18181B] border border-[#BFFF00]/45 flex items-center justify-center shadow-sm shrink-0"
+                    className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] border border-[var(--rivo-volt-border)] flex items-center justify-center shadow-sm shrink-0"
                     aria-label={activeProspect.business_name}
                   >
-                    <span className="text-xs font-black tracking-tight text-[#BFFF00] select-none">
+                    <span className="text-xs font-black tracking-tight text-[var(--rivo-volt-text)] select-none">
                       {getBusinessInitials(activeProspect.business_name)}
                     </span>
                   </div>
@@ -1391,10 +1559,10 @@ export default function OutreachProspectsPage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-[#FAFAFA] truncate">
+                <div className="text-xs font-semibold text-[var(--text-primary)] truncate">
                   RIVO + {activeProspect.business_name}
                 </div>
-                <div className="text-[11px] text-[#71717A] truncate">
+                <div className="text-[11px] text-[var(--text-muted)] truncate">
                   {activeLogoUrl ||
                     `Monogramma: ${getBusinessInitials(activeProspect.business_name)}`}
                 </div>
@@ -1402,22 +1570,26 @@ export default function OutreachProspectsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-[11px] text-[#A1A1AA]">
+              <label
+                htmlFor="prospect-custom-logo-url"
+                className="block text-[11px] text-[var(--text-secondary)]"
+              >
                 URL Logo Attività (PNG/JPG pubblico, opzionale)
               </label>
               <div className="flex flex-wrap items-center gap-2">
                 <input
+                  id="prospect-custom-logo-url"
                   type="text"
                   value={customLogoDraft}
                   onChange={(e) => setCustomLogoDraft(e.target.value)}
                   placeholder="https://esempio.it/logo.png"
-                  className="flex-1 min-w-[200px] h-9 px-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
+                  className="flex-1 min-w-[200px] h-10 px-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
                 />
                 <button
                   type="button"
                   disabled={actionBusy}
                   onClick={handleSaveCustomLogo}
-                  className="h-9 px-3.5 rounded-lg bg-[#BFFF00] hover:bg-[#A8E600] text-[#09090B] text-xs font-bold disabled:opacity-50"
+                  className="h-10 px-3.5 rounded-lg bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[var(--rivo-volt-ink)] text-xs font-bold disabled:opacity-50"
                 >
                   Salva Logo
                 </button>
@@ -1428,10 +1600,10 @@ export default function OutreachProspectsPage() {
                   type="button"
                   disabled={actionBusy}
                   onClick={handleDiscoverLogo}
-                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#18181B] border border-[#BFFF00]/40 hover:border-[#BFFF00] text-xs font-medium text-[#BFFF00] disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--rivo-volt-text)] disabled:opacity-50"
                 >
-                  <Sparkles className={`w-3.5 h-3.5 ${discoveringLogo ? 'animate-pulse' : ''}`} />
-                  {discoveringLogo ? 'Ricerca Logo...' : 'Cerca Logo Auto'}
+                  <Cpu className={`w-3.5 h-3.5 ${discoveringLogo ? 'animate-pulse' : ''}`} />
+                  {discoveringLogo ? 'Ricerca Logo…' : 'Cerca Logo Auto'}
                 </button>
 
                 <input
@@ -1445,10 +1617,10 @@ export default function OutreachProspectsPage() {
                   type="button"
                   disabled={actionBusy}
                   onClick={() => logoFileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs font-medium text-[#FAFAFA] disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--text-primary)] disabled:opacity-50"
                 >
                   <Upload className={`w-3.5 h-3.5 ${uploadingLogo ? 'animate-bounce' : ''}`} />
-                  {uploadingLogo ? 'Caricamento...' : 'Carica File'}
+                  {uploadingLogo ? 'Caricamento…' : 'Carica File'}
                 </button>
 
                 {activeProspect.website && (
@@ -1456,7 +1628,7 @@ export default function OutreachProspectsPage() {
                     type="button"
                     disabled={actionBusy}
                     onClick={handleEnrichWebsiteLogo}
-                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs font-medium text-[#FAFAFA] disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--text-primary)] disabled:opacity-50"
                   >
                     <RefreshCw
                       className={`w-3.5 h-3.5 ${enrichingWebsiteLogo ? 'animate-spin' : ''}`}
@@ -1471,10 +1643,10 @@ export default function OutreachProspectsPage() {
               <div
                 className={`text-[11px] font-medium ${
                   logoFeedback.type === 'error'
-                    ? 'text-[#EF4444]'
+                    ? 'text-[var(--accent-critical-text)]'
                     : logoFeedback.type === 'info'
-                    ? 'text-[#F59E0B]'
-                    : 'text-[#BFFF00]'
+                    ? 'text-[var(--accent-warning-text)]'
+                    : 'text-[var(--rivo-volt-text)]'
                 }`}
               >
                 {logoFeedback.message}
@@ -1482,7 +1654,7 @@ export default function OutreachProspectsPage() {
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-              <p className="text-[11px] text-[#71717A] leading-relaxed">
+              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
                 Appare nella card anteprima su WhatsApp/Telegram e dentro la demo interattiva quando condividi il link.
               </p>
               {activeOgCardUrl && (
@@ -1490,66 +1662,66 @@ export default function OutreachProspectsPage() {
                   href={activeOgCardUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#A1A1AA] hover:text-[#BFFF00] underline-offset-2 hover:underline shrink-0"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--rivo-volt-text)] underline-offset-2 hover:underline shrink-0"
                 >
                   <ExternalLink className="w-3 h-3" />
                   Anteprima Card Social
                 </a>
               )}
             </div>
-          </div>
+          </SurfaceCard>
 
           {/* Provenance & Contacts */}
-          <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-2 text-xs">
-            <div className="text-[11px] font-mono uppercase text-[#A1A1AA]">
+          <SurfaceCard padding="sm" className="space-y-2 text-xs">
+            <div className="text-[11px] font-mono uppercase text-[var(--text-secondary)]">
               Dati Commerciali e Provenienza Tracciabile
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
               <div>
-                <span className="text-[#71717A]">Indirizzo: </span>
-                <span className="text-[#FAFAFA]">
+                <span className="text-[var(--text-muted)]">Indirizzo: </span>
+                <span className="text-[var(--text-primary)]">
                   {activeProspect.address || 'Non disponibile'}
                 </span>
               </div>
               <div>
-                <span className="text-[#71717A]">Telefono: </span>
-                <span className="text-[#FAFAFA] font-mono">
+                <span className="text-[var(--text-muted)]">Telefono: </span>
+                <span className="text-[var(--text-primary)] font-mono">
                   {activeProspect.business_phone || 'Non disponibile'}
                 </span>
               </div>
               <div>
-                <span className="text-[#71717A]">Email: </span>
-                <span className="text-[#FAFAFA] font-mono">
+                <span className="text-[var(--text-muted)]">Email: </span>
+                <span className="text-[var(--text-primary)] font-mono">
                   {activeProspect.business_email || 'Non disponibile'}
                 </span>
               </div>
               <div>
-                <span className="text-[#71717A]">Sito Web: </span>
+                <span className="text-[var(--text-muted)]">Sito Web: </span>
                 {activeProspect.website ? (
                   <a
                     href={activeProspect.website}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[#BFFF00] hover:underline inline-flex items-center gap-1"
+                    className="text-[var(--rivo-volt-text)] hover:underline inline-flex items-center gap-1"
                   >
                     {activeProspect.website_domain || activeProspect.website}
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 ) : (
-                  <span className="text-[#FAFAFA]">Non rilevato</span>
+                  <span className="text-[var(--text-primary)]">Non rilevato</span>
                 )}
               </div>
               <div className="md:col-span-2 flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-[#71717A]">Instagram: </span>
+                <span className="text-[var(--text-muted)]">Instagram: </span>
                 {activeProspect.instagram_url ? (
                   <>
                     <a
                       href={activeProspect.instagram_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-fuchsia-300 hover:underline inline-flex items-center gap-1 font-mono"
+                      className="text-[var(--rivo-volt-text)] hover:underline inline-flex items-center gap-1 font-mono"
                     >
-                      <InstagramIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                      <InstagramIcon className="w-3.5 h-3.5" />
                       @{activeIgHandle || 'instagram'}
                       <ExternalLink className="w-3 h-3" />
                     </a>
@@ -1558,7 +1730,7 @@ export default function OutreachProspectsPage() {
                         href={activeIgDmUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-500/40 hover:border-fuchsia-400 text-[11px] font-mono text-fuchsia-300"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] hover:border-[var(--rivo-volt)] text-[11px] font-mono text-[var(--rivo-volt-text)]"
                       >
                         ig.me/m/@{activeIgHandle || 'instagram'}
                         <ExternalLink className="w-2.5 h-2.5" />
@@ -1568,78 +1740,78 @@ export default function OutreachProspectsPage() {
                       href={`/admin/outreach/communications?tab=instagram_dm&prospectId=${encodeURIComponent(
                         activeProspect.id
                       )}`}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-[11px] text-fuchsia-300"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-[11px] text-[var(--text-primary)]"
                     >
-                      <Send className="w-2.5 h-2.5" />
+                      <Send className="w-2.5 h-2.5 text-[var(--rivo-volt-text)]" />
                       Invia DM IG (Coda)
                     </Link>
                   </>
                 ) : (
-                  <span className="text-[#FAFAFA]">Non rilevato</span>
+                  <span className="text-[var(--text-primary)]">Non rilevato</span>
                 )}
                 <button
                   type="button"
                   disabled={actionBusy || findingIgId === activeProspect.id}
                   onClick={handleFindInstagramForActive}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#18181B] border border-[#27272A] hover:border-fuchsia-400 text-[11px] text-fuchsia-300 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-[11px] text-[var(--rivo-volt-text)] disabled:opacity-50"
                 >
                   <RefreshCw
                     className={`w-2.5 h-2.5 ${
                       findingIgId === activeProspect.id ? 'animate-spin' : ''
                     }`}
                   />
-                  {findingIgId === activeProspect.id ? 'Ricerca IG...' : 'Cerca IG con AI'}
+                  {findingIgId === activeProspect.id ? 'Ricerca IG…' : 'Cerca IG con AI'}
                 </button>
               </div>
             </div>
-            <div className="pt-2 border-t border-[#27272A] text-[11px] text-[#71717A] font-mono">
+            <div className="pt-2 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] font-mono">
               Fonte: {activeProspect.source} ({activeProspect.source_reference || 'N/D'}) •
               Acquisito il {new Date(activeProspect.source_acquired_at).toLocaleString('it-IT')}
             </div>
-          </div>
+          </SurfaceCard>
 
           {/* Duplicate warning if any */}
           {activeDetail && activeDetail.duplicateCandidates.length > 0 && (
-            <div className="p-4 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 space-y-2">
-              <div className="text-xs font-semibold text-[#F59E0B] flex items-center gap-2">
+            <SurfaceCard variant="warning" padding="sm" className="space-y-2">
+              <div className="text-xs font-semibold text-[var(--accent-warning-text)] flex items-center gap-2">
                 <GitMerge className="w-4 h-4" />
                 Possibili Schede Duplicate Rilevate ({activeDetail.duplicateCandidates.length})
               </div>
               {activeDetail.duplicateCandidates.map((dup) => (
                 <div
                   key={dup.id}
-                  className="flex items-center justify-between text-xs bg-[#0D0D10] p-2.5 rounded border border-[#27272A]"
+                  className="flex items-center justify-between gap-2 text-xs bg-[var(--bg-canvas)] p-2.5 rounded-lg border border-[var(--border-subtle)]"
                 >
                   <div>
-                    <span className="font-medium text-[#FAFAFA]">{dup.business_name}</span>
-                    <span className="text-[#71717A] ml-2">{dup.city}</span>
+                    <span className="font-medium text-[var(--text-primary)]">{dup.business_name}</span>
+                    <span className="text-[var(--text-muted)] ml-2">{dup.city}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleMergeDuplicate(dup.id)}
-                    className="px-2.5 py-1 rounded bg-[#BFFF00] text-[#09090B] font-semibold text-[11px]"
+                    className="px-2.5 py-1 rounded-md bg-[var(--rivo-volt)] text-[var(--rivo-volt-ink)] font-semibold text-[11px]"
                   >
                     Unisci Schede
                   </button>
                 </div>
               ))}
-            </div>
+            </SurfaceCard>
           )}
 
           {/* AI Analysis Summary & Opportunities */}
-          <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono uppercase text-[#BFFF00]">
-                AI Business Intelligence & Opportunità RIVO
+          <SurfaceCard padding="sm" className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-mono uppercase text-[var(--rivo-volt-text)]">
+                AI Business Intelligence &amp; Opportunità RIVO
               </span>
               <Link
                 href={`/admin/outreach/intelligence?prospectId=${activeProspect.id}`}
-                className="text-xs text-[#BFFF00] hover:underline"
+                className="text-xs text-[var(--rivo-volt-text)] hover:underline"
               >
                 Apri vista completa AI →
               </Link>
             </div>
-            <p className="text-xs text-[#FAFAFA] leading-relaxed">
+            <p className="text-xs text-[var(--text-primary)] leading-relaxed">
               {activeProspect.ai_analysis?.executiveSummary ||
                 'Nessuna analisi AI ancora eseguita per questa attività. Clicca "Analizza con AI" per valutare opportunità e punteggio.'}
             </p>
@@ -1650,50 +1822,58 @@ export default function OutreachProspectsPage() {
                   {activeProspect.ai_analysis.opportunities.map((opp, idx) => (
                     <div
                       key={`${opp.moduleSlug}-${idx}`}
-                      className="p-2.5 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs"
+                      className="p-2.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-[#FAFAFA]">{opp.moduleName}</span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase ${
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-[var(--text-primary)]">
+                          {opp.moduleName}
+                        </span>
+                        <StatusBadge
+                          tone={
                             opp.verificationStatus === 'confirmed'
-                              ? 'bg-[#BFFF00]/15 text-[#BFFF00]'
+                              ? 'volt'
                               : opp.verificationStatus === 'plausible'
-                              ? 'bg-[#3B82F6]/15 text-[#3B82F6]'
-                              : 'bg-[#27272A] text-[#A1A1AA]'
-                          }`}
+                              ? 'telemetry'
+                              : 'neutral'
+                          }
+                          size="sm"
+                          shape="tag"
                         >
                           {opp.verificationStatus === 'confirmed'
                             ? 'Opportunità Confermata'
                             : opp.verificationStatus === 'plausible'
                             ? 'Opportunità Plausibile'
                             : 'Non Verificabile Online'}
-                        </span>
+                        </StatusBadge>
                       </div>
-                      <p className="text-[11px] text-[#A1A1AA] mt-1">{opp.rationale}</p>
+                      <p className="text-[11px] text-[var(--text-secondary)] mt-1">{opp.rationale}</p>
                     </div>
                   ))}
                 </div>
               )}
-          </div>
+          </SurfaceCard>
 
           {/* Commercial Notes */}
-          <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-2">
-            <label className="block text-[11px] font-mono uppercase text-[#A1A1AA]">
+          <SurfaceCard padding="sm" className="space-y-2">
+            <label
+              htmlFor="prospect-admin-notes"
+              className="block text-[11px] font-mono uppercase text-[var(--text-secondary)]"
+            >
               Note Commerciali Admin
             </label>
             <textarea
+              id="prospect-admin-notes"
               rows={3}
               value={notesDraft}
               onChange={(e) => setNotesDraft(e.target.value)}
-              placeholder="Annotazioni su chiamata, referente, orario migliore per ricontatto..."
-              className="w-full p-3 rounded-lg bg-[#0D0D10] border border-[#27272A] text-xs text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
+              placeholder="Annotazioni su chiamata, referente, orario migliore per ricontatto…"
+              className="w-full p-3 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
             />
             <div className="flex justify-between items-center pt-1">
               <button
                 type="button"
                 onClick={() => handleGdprDelete(activeProspect.id)}
-                className="inline-flex items-center gap-1.5 text-xs text-[#EF4444] hover:underline"
+                className="inline-flex items-center gap-1.5 min-h-[36px] text-xs text-[var(--accent-critical-text)] hover:underline"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Cancellazione GDPR
@@ -1702,32 +1882,32 @@ export default function OutreachProspectsPage() {
                 type="button"
                 disabled={actionBusy}
                 onClick={handleSaveNotes}
-                className="px-3.5 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] hover:border-[#BFFF00] text-xs text-[#FAFAFA]"
+                className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--rivo-volt)] text-xs font-medium text-[var(--text-primary)]"
               >
                 Salva Note
               </button>
             </div>
-          </div>
+          </SurfaceCard>
 
           {/* Demo Telemetry & Communication History */}
           {detailLoading ? (
-            <div className="text-xs font-mono text-[#71717A]">Caricamento storico...</div>
+            <div className="text-xs font-mono text-[var(--text-muted)]">Caricamento storico…</div>
           ) : (
             activeDetail && (
               <>
-                <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-2">
+                <SurfaceCard padding="sm" className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="text-[11px] font-mono uppercase text-[#A1A1AA]">
+                    <div className="text-[11px] font-mono uppercase text-[var(--text-secondary)] tabular-nums">
                       Eventi Demo Interattiva ({demoTelemetryLogs.length})
                     </div>
                     {demoInteractionLogs.length > 0 && (
-                      <span className="text-[11px] font-mono text-[#BFFF00]">
+                      <span className="text-[11px] font-mono tabular-nums text-[var(--rivo-volt-text)]">
                         {demoInteractionLogs.length} interazioni
                       </span>
                     )}
                   </div>
                   {demoTelemetryLogs.length === 0 ? (
-                    <p className="text-xs text-[#71717A]">
+                    <p className="text-xs text-[var(--text-muted)]">
                       Nessuna apertura o interazione demo ancora registrata.
                     </p>
                   ) : (
@@ -1750,27 +1930,29 @@ export default function OutreachProspectsPage() {
                         return (
                           <div
                             key={evt.id}
-                            className="p-2 rounded bg-[#0D0D10] border border-[#27272A] text-xs flex flex-wrap items-center justify-between gap-2"
+                            className="p-2 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs flex flex-wrap items-center justify-between gap-2"
                           >
                             <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-mono uppercase ${
+                              <StatusBadge
+                                tone={
                                   evt.action === 'demo_cta_submitted'
-                                    ? 'bg-[#BFFF00]/20 text-[#BFFF00]'
+                                    ? 'volt'
                                     : evt.action === 'demo_opened'
-                                    ? 'bg-[#06B6D4]/20 text-[#22D3EE]'
-                                    : 'bg-[#27272A] text-[#FAFAFA]'
-                                }`}
+                                    ? 'telemetry'
+                                    : 'neutral'
+                                }
+                                size="sm"
+                                shape="tag"
                               >
                                 {eventLabel}
-                              </span>
+                              </StatusBadge>
                               {detailParts.length > 0 && (
-                                <span className="text-[11px] text-[#A1A1AA] font-mono">
+                                <span className="text-[11px] text-[var(--text-secondary)] font-mono">
                                   {detailParts.join(' • ')}
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] font-mono text-[#71717A]">
+                            <span className="text-[11px] font-mono text-[var(--text-muted)]">
                               {new Date(evt.created_at).toLocaleString('it-IT')}
                             </span>
                           </div>
@@ -1778,40 +1960,46 @@ export default function OutreachProspectsPage() {
                       })}
                     </div>
                   )}
-                </div>
+                </SurfaceCard>
 
-                <div className="bg-[#121214] border border-[#27272A] rounded-xl p-4 space-y-2">
-                  <div className="text-[11px] font-mono uppercase text-[#A1A1AA]">
+                <SurfaceCard padding="sm" className="space-y-2">
+                  <div className="text-[11px] font-mono uppercase text-[var(--text-secondary)] tabular-nums">
                     Storico Comunicazioni ({activeDetail.messages.length})
                   </div>
                   {activeDetail.messages.length === 0 ? (
-                    <p className="text-xs text-[#71717A]">Nessun messaggio inviato o ricevuto.</p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Nessun messaggio inviato o ricevuto.
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       {activeDetail.messages.map((m) => (
                         <div
                           key={m.id}
-                          className="p-2.5 rounded bg-[#0D0D10] border border-[#27272A] text-xs"
+                          className="p-2.5 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs"
                         >
-                          <div className="flex justify-between text-[11px] font-mono text-[#A1A1AA]">
+                          <div className="flex justify-between text-[11px] font-mono text-[var(--text-secondary)]">
                             <span>
                               {m.direction === 'outbound' ? 'INVIATO' : 'RICEVUTO'} • {m.channel}
                             </span>
                             <span>{m.provider_status}</span>
                           </div>
                           {m.subject && (
-                            <div className="font-semibold text-[#FAFAFA] mt-1">{m.subject}</div>
+                            <div className="font-semibold text-[var(--text-primary)] mt-1">
+                              {m.subject}
+                            </div>
                           )}
-                          <p className="text-[#A1A1AA] mt-1 whitespace-pre-line">{m.content}</p>
+                          <p className="text-[var(--text-secondary)] mt-1 whitespace-pre-line">
+                            {m.content}
+                          </p>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                </SurfaceCard>
               </>
             )
           )}
-        </div>
+        </aside>
       )}
     </div>
   );

@@ -31,7 +31,6 @@ import {
   ShieldCheck,
   ShoppingBag,
   Smartphone,
-  Sparkles,
   Star,
   Tag,
   TrendingUp,
@@ -514,7 +513,7 @@ function WheelAndReviewsSection({
                   );
                 })}
                 <div className="absolute inset-0 m-auto w-9 h-9 rounded-full bg-[#09090B] border-2 border-[#BFFF00] flex items-center justify-center">
-                  <Sparkles className="w-3.5 h-3.5 text-[#BFFF00]" />
+                  <Zap className="w-3.5 h-3.5 text-[#BFFF00]" />
                 </div>
               </div>
             </div>
@@ -1054,7 +1053,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
   );
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-[#FAFAFA] pb-28 selection:bg-[#BFFF00] selection:text-[#09090B]">
+    <div className="min-h-screen bg-[#09090B] text-[#FAFAFA] pb-28 overflow-x-hidden selection:bg-[#BFFF00] selection:text-[#09090B]">
       {/* a) Non-invasive Top Preview Banner */}
       <header className="sticky top-0 z-40 bg-[#09090B]/92 backdrop-blur-xl border-b border-[#27272A]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1066,7 +1065,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-[#BFFF00]/15 text-[#BFFF00] border border-[#BFFF00]/30">
-                  <Sparkles className="w-2.5 h-2.5" />
+                  <Zap className="w-2.5 h-2.5" />
                   MODALITÀ ANTEPRIMA INTERATTIVA
                 </span>
                 <span className="text-[11px] font-mono text-[#A1A1AA] truncate max-w-[220px] sm:max-w-xs">
@@ -1849,7 +1848,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
 
                   {preview.vertical === 'beauty' && activeSubTab === 'loyalty' && (
                     <div className="space-y-4">
-                      <div className="rounded-2xl bg-gradient-to-br from-[#18181B] via-[#121214] to-[#09090B] border border-[#BFFF00]/35 p-4 space-y-4 shadow-xl">
+                      <div className="rounded-2xl bg-[#111114] border border-[#BFFF00]/35 p-4 space-y-4 shadow-xl">
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-[10px] font-mono uppercase text-[#BFFF00]">
@@ -2178,7 +2177,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
 
                   {preview.vertical === 'retail' && activeSubTab === 'loyalty' && (
                     <div className="space-y-4">
-                      <div className="rounded-2xl bg-gradient-to-br from-[#18181B] via-[#121214] to-[#09090B] border border-[#BFFF00]/35 p-4 space-y-4">
+                      <div className="rounded-2xl bg-[#111114] border border-[#BFFF00]/35 p-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-[10px] font-mono uppercase text-[#BFFF00]">
@@ -2532,7 +2531,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
       {/* Activation / Callback Modal */}
       {isCtaOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 bg-black/80 overscroll-contain flex items-end sm:items-center justify-center p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cta-modal-title"
@@ -2540,7 +2539,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
             if (e.target === e.currentTarget) setIsCtaOpen(false);
           }}
         >
-          <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-[#121214] border border-[#27272A] p-5 sm:p-6 space-y-4 shadow-2xl">
+          <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-[#111114] border border-[#27272A] p-5 sm:p-6 space-y-4 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span className="text-[10px] font-mono uppercase tracking-wider text-[#BFFF00]">
@@ -2558,7 +2557,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
                 type="button"
                 onClick={() => setIsCtaOpen(false)}
                 aria-label="Chiudi finestra"
-                className="p-2 rounded-xl bg-[#18181B] border border-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA] cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-[#18181B] border border-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA] cursor-pointer shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2576,7 +2575,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   placeholder="Es. Marco Bianchi"
-                  className="w-full rounded-xl bg-[#09090B] border border-[#27272A] px-3.5 py-2.5 text-sm text-[#FAFAFA] placeholder:text-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#09090B] border border-[#27272A] px-3.5 py-2.5 text-sm text-[#FAFAFA] placeholder:text-zinc-500 focus:outline-none focus:border-[#BFFF00]"
                 />
               </div>
 
@@ -2591,7 +2590,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="Es. +39 333 123 4567"
-                  className="w-full rounded-xl bg-[#09090B] border border-[#27272A] px-3.5 py-2.5 text-sm text-[#FAFAFA] placeholder:text-zinc-500 focus:outline-none focus:border-[#BFFF00]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#09090B] border border-[#27272A] px-3.5 py-2.5 text-sm text-[#FAFAFA] placeholder:text-zinc-500 focus:outline-none focus:border-[#BFFF00]"
                 />
               </div>
 
@@ -2603,7 +2602,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
                   id="cta-preferred-time"
                   value={preferredTime}
                   onChange={(e) => setPreferredTime(e.target.value)}
-                  className="w-full rounded-xl bg-[#09090B] border border-[#27272A] px-3.5 py-2.5 text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
+                  className="w-full min-h-[44px] rounded-xl bg-[#09090B] border border-[#27272A] px-3.5 py-2.5 text-sm text-[#FAFAFA] focus:outline-none focus:border-[#BFFF00]"
                 >
                   {PREFERRED_TIME_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
@@ -2637,7 +2636,7 @@ export default function ProspectDemoSandbox({ preview }: { preview: PublicProspe
               <button
                 type="submit"
                 disabled={ctaSubmitting}
-                className="w-full py-3 px-4 rounded-xl bg-[#BFFF00] hover:bg-[#BFFF00]/90 disabled:opacity-60 text-[#09090B] text-sm font-extrabold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-[#BFFF00] hover:bg-[#BFFF00]/90 disabled:opacity-60 text-[#09090B] text-sm font-extrabold transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>{ctaSubmitting ? 'Invio in corso...' : 'Conferma Richiesta Call'}</span>

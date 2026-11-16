@@ -6,7 +6,6 @@ import {
   CalendarCheck,
   Scissors,
   Users,
-  Sparkles,
   Clock,
   Plus,
   Check,
@@ -26,6 +25,7 @@ import {
   Calendar,
   Wand2,
   Save,
+  Sliders,
 } from 'lucide-react';
 import {
   SalonService,
@@ -45,8 +45,19 @@ import {
   computeAvailableSlotsForDate,
 } from '@/lib/bookings/shared';
 import { hapticTap, hapticSuccess, hapticSelection } from '@/lib/haptics';
+import {
+  PageHeader,
+  SurfaceCard,
+  KpiCard,
+  StatusBadge,
+  SegmentedControl,
+  EmptyState,
+} from '@/components/ui';
 
 type DashboardTab = 'agenda' | 'staff' | 'services' | 'schedule';
+
+const BOOKING_INPUT_CLASS =
+  'w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--rivo-volt)] focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors';
 
 export default function SalonBookingsDashboardPage() {
   const [supabase] = useState(() => createClient());
@@ -65,6 +76,8 @@ export default function SalonBookingsDashboardPage() {
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingDeleteStaffId, setPendingDeleteStaffId] = useState<string | null>(null);
+  const [pendingDeleteServiceId, setPendingDeleteServiceId] = useState<string | null>(null);
 
   // Manual Booking / Walk-in Modal State
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -173,6 +186,17 @@ export default function SalonBookingsDashboardPage() {
     };
   }, [supabase, fetchSalonData, selectedDate]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || saving) return;
+      if (showServiceModal) setShowServiceModal(false);
+      else if (showStaffModal) setShowStaffModal(false);
+      else if (showBookingModal) setShowBookingModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showServiceModal, showStaffModal, showBookingModal, saving]);
+
   // Realtime subscription on salon_bookings
   useEffect(() => {
     if (!orgId) return;
@@ -271,9 +295,7 @@ export default function SalonBookingsDashboardPage() {
     });
     if (res && orgId) {
       hapticSuccess();
-      setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status } : b))
-      );
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status } : b)));
       showToast('Stato appuntamento aggiornato');
     }
   };
@@ -379,6 +401,12 @@ export default function SalonBookingsDashboardPage() {
   };
 
   const handleDeleteStaff = async (staffId: string) => {
+    if (pendingDeleteStaffId !== staffId) {
+      hapticTap();
+      setPendingDeleteStaffId(staffId);
+      return;
+    }
+    setPendingDeleteStaffId(null);
     const res = await postAction({ action: 'delete_staff', staff_id: staffId });
     if (res && orgId) {
       hapticSuccess();
@@ -435,6 +463,12 @@ export default function SalonBookingsDashboardPage() {
   };
 
   const handleDeleteService = async (serviceId: string) => {
+    if (pendingDeleteServiceId !== serviceId) {
+      hapticTap();
+      setPendingDeleteServiceId(serviceId);
+      return;
+    }
+    setPendingDeleteServiceId(null);
     const res = await postAction({ action: 'delete_service', service_id: serviceId });
     if (res && orgId) {
       hapticSuccess();
@@ -444,10 +478,7 @@ export default function SalonBookingsDashboardPage() {
   };
 
   // Schedule Helpers
-  const updateDaySchedule = (
-    dayKey: DayOfWeekKey,
-    updater: (prev: DaySchedule) => DaySchedule
-  ) => {
+  const updateDaySchedule = (dayKey: DayOfWeekKey, updater: (prev: DaySchedule) => DaySchedule) => {
     setSchedule((prev) => ({
       ...prev,
       [dayKey]: updater(prev[dayKey]),
@@ -467,10 +498,7 @@ export default function SalonBookingsDashboardPage() {
   };
 
   // Computed Agenda Metrics
-  const activeBookingsForDay = useMemo(
-    () => bookings.filter((b) => b.status !== 'cancelled'),
-    [bookings]
-  );
+  const activeBookingsForDay = useMemo(() => bookings.filter((b) => b.status !== 'cancelled'), [bookings]);
 
   const estimatedRevenue = useMemo(
     () =>
@@ -502,70 +530,71 @@ export default function SalonBookingsDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-zinc-400">
-        <RefreshCw className="w-7 h-7 animate-spin text-amber-400" />
-        <p className="text-sm font-semibold">Caricamento Agenda Salone & Poltrone...</p>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-[var(--text-secondary)]">
+        <RefreshCw className="w-7 h-7 animate-spin text-[var(--rivo-volt-text)]" />
+        <p className="text-sm font-semibold">Caricamento Agenda Salone &amp; Poltrone...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="space-y-6 pb-16 animate-fade-in">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl bg-emerald-500 text-black font-extrabold text-xs shadow-2xl flex items-center gap-2 animate-fade-in">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-5 right-5 z-50 px-4 py-3 rounded-xl bg-[#047857] text-white dark:bg-[var(--accent-operational)] dark:text-[#09090B] font-bold text-xs shadow-2xl flex items-center gap-2 animate-fade-in"
+        >
           <CheckCircle2 className="w-4 h-4" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Top Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-[#141716] border border-white/10 rounded-3xl p-5 sm:p-6">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[11px] font-extrabold uppercase tracking-wider">
-            <Scissors className="w-3.5 h-3.5" />
-            <span>Gestore Prenotazioni & Poltrone Live</span>
+      <PageHeader
+        eyebrow="Gestore Prenotazioni & Poltrone Live"
+        eyebrowTone="volt"
+        title="Agenda Appuntamenti & Staff"
+        description="Gestisci gli appuntamenti per ogni parrucchiere o barbiere, imposta i trattamenti con le durate e sincronizza in tempo reale gli slot liberi sul tuo Hub NFC/QR."
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => openNewBookingModal()}
+              className="px-4 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-colors cursor-pointer min-h-[40px]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuovo Appuntamento</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => orgId && fetchSalonData(orgId, selectedDate)}
+              aria-label="Aggiorna agenda"
+              className="p-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer min-h-[40px]"
+              title="Aggiorna agenda"
+            >
+              <RefreshCw className={`w-4 h-4 ${saving ? 'animate-spin text-[var(--rivo-volt-text)]' : ''}`} />
+            </button>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Agenda Appuntamenti & Staff
-          </h1>
-          <p className="text-xs sm:text-sm text-zinc-400 max-w-2xl">
-            Gestisci gli appuntamenti per ogni parrucchiere o barbiere, imposta i trattamenti con le durate e sincronizza in tempo reale gli slot liberi sul tuo Hub NFC/QR.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => openNewBookingModal()}
-            className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuovo Appuntamento</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => orgId && fetchSalonData(orgId, selectedDate)}
-            className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer"
-            title="Aggiorna agenda"
-          >
-            <RefreshCw className={`w-4 h-4 ${saving ? 'animate-spin text-amber-400' : ''}`} />
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Error Banner */}
       {errorMessage && (
-        <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center justify-between gap-3">
+        <div
+          role="alert"
+          className="p-4 rounded-xl bg-[var(--accent-critical-bg)] border border-[var(--accent-critical-border)] text-[var(--accent-critical-text)] text-xs font-semibold flex items-center justify-between gap-3"
+        >
           <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
-            className="p-1 rounded-lg hover:bg-white/10"
+            aria-label="Chiudi errore"
+            className="p-1 rounded-lg hover:bg-[var(--bg-surface)]/40"
           >
             <X className="w-4 h-4" />
           </button>
@@ -574,17 +603,22 @@ export default function SalonBookingsDashboardPage() {
 
       {/* 1-Click Starter Template Banner when empty */}
       {(services.length === 0 || staff.length === 0) && (
-        <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <SurfaceCard
+          variant="subtle"
+          padding="md"
+          className="border-[var(--rivo-volt-border)] bg-[var(--rivo-volt-bg)] flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-amber-400 font-black text-xs uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-[var(--rivo-volt-text)] font-bold text-xs uppercase tracking-wider">
               <Wand2 className="w-4 h-4" />
               <span>Configurazione Istantanea in 1 Tap</span>
             </div>
-            <h3 className="text-base font-extrabold text-white">
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
               Vuoi iniziare subito con un listino trattamenti e poltrone già pronte?
             </h3>
-            <p className="text-xs text-zinc-300">
-              Carica i trattamenti predefiniti (con durate e prezzi modificabili) e 3 poltrone dimostrative per testare subito il calendario clienti.
+            <p className="text-xs text-[var(--text-secondary)]">
+              Carica i trattamenti predefiniti (con durate e prezzi modificabili) e 3 poltrone dimostrative per
+              testare subito il calendario clienti.
             </p>
           </div>
 
@@ -593,62 +627,60 @@ export default function SalonBookingsDashboardPage() {
               type="button"
               disabled={saving}
               onClick={() => handleSeedTemplate('barber')}
-              className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-md transition-all cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
             >
               <Scissors className="w-4 h-4" />
               <span>Template Barber Shop</span>
             </button>
+
             <button
               type="button"
               disabled={saving}
               onClick={() => handleSeedTemplate('salon')}
-              className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-extrabold text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 text-pink-400" />
+              <Sliders className="w-4 h-4 text-[var(--accent-telemetry-text)]" />
               <span>Template Salone Donna/Unisex</span>
             </button>
           </div>
-        </div>
+        </SurfaceCard>
       )}
 
       {/* 4 Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar bg-[#141716] p-1.5 rounded-2xl border border-white/10">
-        {[
-          { id: 'agenda', label: 'Agenda Salone', icon: CalendarCheck, badge: activeBookingsForDay.length },
-          { id: 'staff', label: 'Staff & Poltrone', icon: Users, badge: staff.filter((s) => s.is_present_today).length },
-          { id: 'services', label: 'Listino Trattamenti', icon: Scissors, badge: services.length },
-          { id: 'schedule', label: 'Orari & Pause', icon: Clock },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                hapticSelection();
-                setActiveTab(tab.id as DashboardTab);
-              }}
-              className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-amber-500 text-black shadow-md'
-                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="truncate">{tab.label}</span>
-              {typeof tab.badge === 'number' && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    isActive ? 'bg-black/20 text-black' : 'bg-white/10 text-zinc-300'
-                  }`}
-                >
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="overflow-x-auto no-scrollbar">
+        <SegmentedControl
+          ariaLabel="Sezioni gestione prenotazioni e salone"
+          value={activeTab}
+          onChange={(val) => {
+            hapticSelection();
+            setActiveTab(val);
+          }}
+          options={[
+            {
+              value: 'agenda',
+              label: 'Agenda Salone',
+              icon: CalendarCheck,
+              badge: activeBookingsForDay.length,
+            },
+            {
+              value: 'staff',
+              label: 'Staff & Poltrone',
+              icon: Users,
+              badge: staff.filter((s) => s.is_present_today).length,
+            },
+            {
+              value: 'services',
+              label: 'Listino Trattamenti',
+              icon: Scissors,
+              badge: services.length,
+            },
+            {
+              value: 'schedule',
+              label: 'Orari & Pause',
+              icon: Clock,
+            },
+          ]}
+        />
       </div>
 
       {/* ===================================================================== */}
@@ -656,108 +688,103 @@ export default function SalonBookingsDashboardPage() {
       {/* ===================================================================== */}
       {activeTab === 'agenda' && (
         <div className="space-y-5">
-          {/* Date Bar & Daily KPIs */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141716] border border-white/10 rounded-3xl p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => shiftDate(-1)}
-                className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 transition-colors cursor-pointer"
-                aria-label="Giorno precedente"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <div className="px-4 py-2 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-3">
-                <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
-                <div>
-                  <p className="text-xs sm:text-sm font-black text-white capitalize">
-                    {formattedSelectedDate}
-                  </p>
-                  <p className="text-[11px] text-zinc-400">
-                    {dayScheduleInfo?.open
-                      ? `Orario salone: ${[
-                          dayScheduleInfo.morning.enabled
-                            ? `${dayScheduleInfo.morning.start}–${dayScheduleInfo.morning.end}`
-                            : null,
-                          dayScheduleInfo.afternoon.enabled
-                            ? `${dayScheduleInfo.afternoon.start}–${dayScheduleInfo.afternoon.end}`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' / ')}`
-                      : 'Giorno di chiusura settimanale'}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => shiftDate(1)}
-                className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 transition-colors cursor-pointer"
-                aria-label="Giorno successivo"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              {selectedDate !== getTodayDateStr() && (
+          {/* Date Bar */}
+          <SurfaceCard padding="sm">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedDate(getTodayDateStr())}
-                  className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-extrabold transition-colors cursor-pointer"
+                  onClick={() => shiftDate(-1)}
+                  className="p-2.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] transition-colors cursor-pointer"
+                  aria-label="Giorno precedente"
                 >
-                  Oggi
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
-              )}
 
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-zinc-300 focus:outline-none focus:border-amber-400"
-              />
-            </div>
+                <div className="px-4 py-2 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[var(--rivo-volt-text)] shrink-0" />
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] capitalize">
+                      {formattedSelectedDate}
+                    </p>
+                    <p className="text-[11px] font-mono tabular-nums text-[var(--text-secondary)]">
+                      {dayScheduleInfo?.open
+                        ? `Orario salone: ${[
+                            dayScheduleInfo.morning.enabled
+                              ? `${dayScheduleInfo.morning.start}–${dayScheduleInfo.morning.end}`
+                              : null,
+                            dayScheduleInfo.afternoon.enabled
+                              ? `${dayScheduleInfo.afternoon.start}–${dayScheduleInfo.afternoon.end}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' / ')}`
+                        : 'Giorno di chiusura settimanale'}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Summary Pills */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="px-3.5 py-2 rounded-2xl bg-white/[0.03] border border-white/10">
-                <span className="text-[10px] uppercase tracking-wider text-zinc-400 block">
-                  Appuntamenti
-                </span>
-                <span className="text-sm font-black text-white">
-                  {activeBookingsForDay.length} prenotati
-                </span>
-              </div>
-              <div className="px-3.5 py-2 rounded-2xl bg-white/[0.03] border border-white/10">
-                <span className="text-[10px] uppercase tracking-wider text-zinc-400 block">
-                  Poltrone Presenti
-                </span>
-                <span className="text-sm font-black text-emerald-400">
-                  {staff.filter((s) => s.is_present_today).length} / {staff.length}
-                </span>
-              </div>
-              <div className="px-3.5 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/25">
-                <span className="text-[10px] uppercase tracking-wider text-amber-300 block">
-                  Incasso Stimato
-                </span>
-                <span className="text-sm font-black text-amber-400">
-                  {formatEuroPrice(estimatedRevenue)}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => shiftDate(1)}
+                  className="p-2.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-primary)] transition-colors cursor-pointer"
+                  aria-label="Giorno successivo"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {selectedDate !== getTodayDateStr() && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(getTodayDateStr())}
+                    className="px-3 py-2 rounded-xl bg-[var(--rivo-volt-bg)] border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Oggi
+                  </button>
+                )}
+
+                <input
+                  type="date"
+                  aria-label="Seleziona data agenda"
+                  value={selectedDate}
+                  onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-xs font-mono tabular-nums text-[var(--text-primary)] focus:outline-none focus:border-[var(--rivo-volt)]"
+                />
               </div>
             </div>
+          </SurfaceCard>
+
+          {/* Daily KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <KpiCard
+              label="Appuntamenti"
+              value={`${activeBookingsForDay.length} prenotati`}
+              icon={CalendarCheck}
+              tone="neutral"
+            />
+            <KpiCard
+              label="Poltrone Presenti"
+              value={`${staff.filter((s) => s.is_present_today).length} / ${staff.length}`}
+              icon={Users}
+              tone="operational"
+            />
+            <KpiCard
+              label="Incasso Stimato"
+              value={formatEuroPrice(estimatedRevenue)}
+              icon={Scissors}
+              tone="volt"
+            />
           </div>
 
           {/* Columns per Barber / Hairdresser */}
           {staff.length === 0 ? (
-            <div className="p-10 rounded-3xl bg-[#141716] border border-white/10 text-center space-y-3">
-              <Users className="w-10 h-10 text-zinc-500 mx-auto" />
-              <h3 className="text-base font-extrabold text-white">
-                Nessuna poltrona o membro dello staff configurato
-              </h3>
-              <p className="text-xs text-zinc-400 max-w-md mx-auto">
-                Aggiungi i tuoi barbieri o parrucchieri nella scheda &ldquo;Staff & Poltrone&rdquo; oppure usa il pulsante qui sopra per caricare un template pronto.
-              </p>
-            </div>
+            <SurfaceCard padding="none">
+              <EmptyState
+                icon={Users}
+                title="Nessuna poltrona o membro dello staff configurato"
+                description="Aggiungi i tuoi barbieri o parrucchieri nella scheda 'Staff & Poltrone' oppure usa i template pronti qui sopra."
+              />
+            </SurfaceCard>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {staff.map((member) => {
@@ -766,40 +793,34 @@ export default function SalonBookingsDashboardPage() {
                   .sort((a, b) => a.start_time.localeCompare(b.start_time));
 
                 return (
-                  <div
+                  <SurfaceCard
                     key={member.id}
-                    className={`rounded-3xl border flex flex-col overflow-hidden transition-all ${
-                      member.is_present_today
-                        ? 'bg-[#141716] border-white/10'
-                        : 'bg-[#111312]/70 border-white/5 opacity-75'
+                    padding="none"
+                    className={`flex flex-col overflow-hidden transition-all ${
+                      member.is_present_today ? '' : 'opacity-75'
                     }`}
                   >
                     {/* Column Header */}
-                    <div className="p-4 border-b border-white/10 flex items-center justify-between gap-3 bg-white/[0.02]">
+                    <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--bg-subtle)]">
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm text-black shrink-0 shadow-md"
+                          className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-[#09090B] shrink-0 shadow-xs"
                           style={{ backgroundColor: member.color || '#f59e0b' }}
                         >
                           {member.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-black text-white truncate">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
                               {member.name}
                             </h3>
-                            <span
-                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                                member.is_present_today
-                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                              }`}
-                            >
+                            <StatusBadge tone={member.is_present_today ? 'operational' : 'critical'} size="sm">
                               {member.is_present_today ? 'Presente' : 'Assente'}
-                            </span>
+                            </StatusBadge>
                           </div>
-                          <p className="text-[11px] text-zinc-400 truncate">
-                            {member.role_title || 'Stylist / Barber'} • {memberBookings.filter((b) => b.status !== 'cancelled').length} appuntamenti
+                          <p className="text-[11px] text-[var(--text-secondary)] truncate font-mono tabular-nums">
+                            {member.role_title || 'Stylist / Barber'} •{' '}
+                            {memberBookings.filter((b) => b.status !== 'cancelled').length} appuntamenti
                           </p>
                         </div>
                       </div>
@@ -807,7 +828,8 @@ export default function SalonBookingsDashboardPage() {
                       <button
                         type="button"
                         onClick={() => openNewBookingModal(member.id)}
-                        className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 transition-colors cursor-pointer shrink-0"
+                        aria-label={`Aggiungi appuntamento per ${member.name}`}
+                        className="p-2 rounded-xl bg-[var(--rivo-volt-bg)] hover:opacity-90 border border-[var(--rivo-volt-border)] text-[var(--rivo-volt-text)] transition-colors cursor-pointer shrink-0"
                         title={`Aggiungi appuntamento per ${member.name}`}
                       >
                         <Plus className="w-4 h-4" />
@@ -817,15 +839,15 @@ export default function SalonBookingsDashboardPage() {
                     {/* Appointments List */}
                     <div className="p-3.5 space-y-2.5 flex-1">
                       {memberBookings.length === 0 ? (
-                        <div className="py-10 px-4 text-center rounded-2xl border border-dashed border-white/10 space-y-2">
-                          <Clock className="w-6 h-6 text-zinc-600 mx-auto" />
-                          <p className="text-xs font-bold text-zinc-400">
+                        <div className="py-10 px-4 text-center rounded-xl border border-dashed border-[var(--border-subtle)] space-y-2">
+                          <Clock className="w-6 h-6 text-[var(--text-muted)] mx-auto" />
+                          <p className="text-xs font-semibold text-[var(--text-secondary)]">
                             Nessun appuntamento per questa data
                           </p>
                           <button
                             type="button"
                             onClick={() => openNewBookingModal(member.id)}
-                            className="text-[11px] font-extrabold text-amber-400 hover:underline cursor-pointer"
+                            className="text-xs font-bold text-[var(--rivo-volt-text)] hover:underline cursor-pointer"
                           >
                             + Inserisci appuntamento o pausa
                           </button>
@@ -841,40 +863,41 @@ export default function SalonBookingsDashboardPage() {
                           return (
                             <div
                               key={bk.id}
-                              className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
+                              className={`p-3.5 rounded-xl border transition-all space-y-2.5 ${
                                 isCancelled
-                                  ? 'bg-white/[0.01] border-white/5 opacity-50'
+                                  ? 'bg-[var(--bg-subtle)]/40 border-[var(--border-subtle)] opacity-50'
                                   : isCompleted
-                                  ? 'bg-emerald-500/[0.06] border-emerald-500/25'
+                                  ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational-border)]'
                                   : isNoShow
-                                  ? 'bg-rose-500/[0.06] border-rose-500/25'
-                                  : 'bg-white/[0.03] border-white/10 hover:border-white/20'
+                                  ? 'bg-[var(--accent-critical-bg)] border-[var(--accent-critical-border)]'
+                                  : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]'
                               }`}
                             >
                               {/* Time & Status Row */}
-                              <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <div className="flex items-center gap-2">
                                   <span
-                                    className="px-2.5 py-1 rounded-lg font-mono text-xs font-black text-black"
+                                    className="px-2.5 py-1 rounded-lg font-mono tabular-nums text-xs font-bold text-[#09090B]"
                                     style={{ backgroundColor: member.color || '#f59e0b' }}
                                   >
                                     {bk.start_time} – {bk.end_time}
                                   </span>
-                                  <span className="text-[11px] font-semibold text-zinc-400">
+                                  <span className="text-[11px] font-mono tabular-nums font-semibold text-[var(--text-secondary)]">
                                     {bk.total_duration_minutes} min
                                   </span>
                                 </div>
 
-                                <span
-                                  className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                                <StatusBadge
+                                  tone={
                                     bk.status === 'confirmed'
-                                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                      ? 'warning'
                                       : bk.status === 'completed'
-                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                      ? 'operational'
                                       : bk.status === 'no_show'
-                                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                      : 'bg-zinc-500/20 text-zinc-400'
-                                  }`}
+                                      ? 'critical'
+                                      : 'neutral'
+                                  }
+                                  size="sm"
                                 >
                                   {bk.status === 'confirmed'
                                     ? 'Confermato'
@@ -883,43 +906,44 @@ export default function SalonBookingsDashboardPage() {
                                     : bk.status === 'no_show'
                                     ? 'No-Show'
                                     : 'Annullato'}
-                                </span>
+                                </StatusBadge>
                               </div>
 
                               {/* Customer & Services */}
                               <div>
                                 <div className="flex items-center justify-between gap-2">
-                                  <h4 className="text-sm font-black text-white truncate">
+                                  <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
                                     {bk.customer_name}
                                   </h4>
-                                  <span className="text-xs font-black text-amber-400 shrink-0">
+                                  <span className="text-xs font-mono tabular-nums font-bold text-[var(--rivo-volt-text)] shrink-0">
                                     {formatEuroPrice(bk.total_price)}
                                   </span>
                                 </div>
-                                <p className="text-xs text-zinc-300 font-semibold mt-0.5">
+                                <p className="text-xs text-[var(--text-secondary)] font-medium mt-0.5">
                                   {serviceNames.join(' + ') || 'Trattamento in salone'}
                                 </p>
                                 {bk.customer_phone && bk.customer_phone !== '-' && (
-                                  <p className="text-[11px] text-zinc-400 flex items-center gap-1 mt-1">
-                                    <Phone className="w-3 h-3 text-zinc-500" />
+                                  <p className="text-[11px] text-[var(--text-muted)] font-mono tabular-nums flex items-center gap-1 mt-1">
+                                    <Phone className="w-3 h-3" />
                                     <span>{bk.customer_phone}</span>
                                   </p>
                                 )}
                                 {bk.customer_notes && (
-                                  <p className="text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-2.5 py-1.5 mt-1.5">
-                                    💬 {bk.customer_notes}
+                                  <p className="text-[11px] text-[var(--accent-warning-text)] bg-[var(--accent-warning-bg)] border border-[var(--accent-warning-border)] rounded-lg px-2.5 py-1.5 mt-1.5 flex items-start gap-1.5">
+                                    <MessageCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                    <span>{bk.customer_notes}</span>
                                   </p>
                                 )}
                               </div>
 
                               {/* 1-Tap Actions */}
                               {bk.status !== 'cancelled' && (
-                                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center gap-1.5">
+                                <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap items-center gap-1.5">
                                   {bk.status !== 'completed' && (
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateBookingStatus(bk.id, 'completed')}
-                                      className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer"
+                                      className="px-2.5 py-1.5 rounded-lg bg-[var(--accent-operational-bg)] hover:opacity-90 border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                                     >
                                       <Check className="w-3 h-3" />
                                       <span>Completa</span>
@@ -933,7 +957,7 @@ export default function SalonBookingsDashboardPage() {
                                       )}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="px-2.5 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/30 text-[#25D366] text-[11px] font-extrabold flex items-center gap-1"
+                                      className="px-2.5 py-1.5 rounded-lg bg-[var(--accent-operational-bg)] hover:opacity-90 border border-[var(--accent-operational-border)] text-[var(--accent-operational-text)] text-[11px] font-bold flex items-center gap-1"
                                     >
                                       <MessageCircle className="w-3 h-3" />
                                       <span>WhatsApp</span>
@@ -944,7 +968,7 @@ export default function SalonBookingsDashboardPage() {
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateBookingStatus(bk.id, 'no_show')}
-                                      className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-rose-500/15 border border-white/10 text-zinc-400 hover:text-rose-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                      className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--accent-critical-bg)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-critical-text)] text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                                     >
                                       <Ban className="w-3 h-3" />
                                       <span>No-Show</span>
@@ -954,7 +978,7 @@ export default function SalonBookingsDashboardPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateBookingStatus(bk.id, 'cancelled')}
-                                    className="ml-auto px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                    className="ml-auto px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--accent-critical-bg)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-critical-text)] text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                                   >
                                     <X className="w-3 h-3" />
                                     <span>Annulla</span>
@@ -966,7 +990,7 @@ export default function SalonBookingsDashboardPage() {
                         })
                       )}
                     </div>
-                  </div>
+                  </SurfaceCard>
                 );
               })}
             </div>
@@ -979,45 +1003,45 @@ export default function SalonBookingsDashboardPage() {
       {/* ===================================================================== */}
       {activeTab === 'staff' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 bg-[#141716] border border-white/10 rounded-3xl p-4">
+          <SurfaceCard padding="md" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-black text-white">
+              <h2 className="text-base font-bold text-[var(--text-primary)]">
                 Poltrone, Barbieri e Hair Stylist
               </h2>
-              <p className="text-xs text-zinc-400">
-                Attiva o disattiva in 1 tap chi è presente oggi e scegli quali trattamenti esegue ciascun professionista.
+              <p className="text-xs text-[var(--text-secondary)]">
+                Attiva o disattiva in 1 tap chi è presente oggi e scegli quali trattamenti esegue ciascun
+                professionista.
               </p>
             </div>
             <button
               type="button"
               onClick={() => openEditStaffModal()}
-              className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-4 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Aggiungi Poltrona / Staff</span>
             </button>
-          </div>
+          </SurfaceCard>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {staff.map((member) => {
               const assignedCount = member.service_ids?.length || 0;
               return (
-                <div
-                  key={member.id}
-                  className="p-5 rounded-3xl bg-[#141716] border border-white/10 flex flex-col justify-between gap-4"
-                >
+                <SurfaceCard key={member.id} padding="md" className="flex flex-col justify-between gap-4">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-base text-black shadow-lg"
+                          className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-base text-[#09090B] shadow-xs shrink-0"
                           style={{ backgroundColor: member.color || '#f59e0b' }}
                         >
                           {member.name.slice(0, 2).toUpperCase()}
                         </div>
-                        <div>
-                          <h3 className="text-base font-black text-white">{member.name}</h3>
-                          <p className="text-xs text-zinc-400">
+                        <div className="min-w-0">
+                          <h3 className="text-base font-bold text-[var(--text-primary)] truncate">
+                            {member.name}
+                          </h3>
+                          <p className="text-xs text-[var(--text-secondary)] truncate">
                             {member.role_title || 'Hair Stylist / Barber'}
                           </p>
                         </div>
@@ -1026,10 +1050,10 @@ export default function SalonBookingsDashboardPage() {
                       <button
                         type="button"
                         onClick={() => handleToggleStaffPresence(member)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
                           member.is_present_today
-                            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                            : 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                            ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational-border)] text-[var(--accent-operational-text)]'
+                            : 'bg-[var(--accent-critical-bg)] border-[var(--accent-critical-border)] text-[var(--accent-critical-text)]'
                         }`}
                       >
                         {member.is_present_today ? (
@@ -1046,13 +1070,14 @@ export default function SalonBookingsDashboardPage() {
                       </button>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                      <span className="text-[10px] uppercase tracking-wider font-extrabold text-zinc-400 block mb-1">
-                        Competenze & Trattamenti abilitati
+                    <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-muted)] block mb-1">
+                        Competenze &amp; Trattamenti abilitati
                       </span>
                       {assignedCount === 0 ? (
-                        <span className="text-xs font-bold text-emerald-400">
-                          ✓ Esegue tutti i trattamenti del listino ({services.length})
+                        <span className="text-xs font-semibold text-[var(--accent-operational-text)] flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 shrink-0" />
+                          <span>Esegue tutti i trattamenti del listino ({services.length})</span>
                         </span>
                       ) : (
                         <div className="flex flex-wrap gap-1.5 mt-1">
@@ -1061,7 +1086,7 @@ export default function SalonBookingsDashboardPage() {
                             .map((s) => (
                               <span
                                 key={s.id}
-                                className="text-[11px] font-semibold px-2 py-0.5 rounded-lg bg-white/10 text-zinc-200"
+                                className="text-[11px] font-medium px-2 py-0.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
                               >
                                 {s.name}
                               </span>
@@ -1071,26 +1096,46 @@ export default function SalonBookingsDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
+                  <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => openEditStaffModal(member)}
-                      className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-zinc-200 flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-2 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                       <span>Modifica</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteStaff(member.id)}
-                      className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer"
-                      title="Elimina membro staff"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {pendingDeleteStaffId === member.id ? (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteStaff(member.id)}
+                          className="px-2.5 py-2 rounded-xl bg-[#B91C1C] text-white text-xs font-bold cursor-pointer"
+                        >
+                          Conferma
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteStaffId(null)}
+                          className="px-2 py-2 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-secondary)] text-xs font-semibold cursor-pointer"
+                        >
+                          Annulla
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStaff(member.id)}
+                        aria-label={`Elimina ${member.name}`}
+                        className="p-2 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-critical-bg)] text-[var(--text-muted)] hover:text-[var(--accent-critical-text)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                        title="Elimina membro staff"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
-                </div>
+                </SurfaceCard>
               );
             })}
           </div>
@@ -1102,82 +1147,104 @@ export default function SalonBookingsDashboardPage() {
       {/* ===================================================================== */}
       {activeTab === 'services' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#141716] border border-white/10 rounded-3xl p-4">
+          <SurfaceCard padding="md" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-black text-white">
-                Listino Trattamenti, Durate & Prezzi
+              <h2 className="text-base font-bold text-[var(--text-primary)]">
+                Listino Trattamenti, Durate &amp; Prezzi
               </h2>
-              <p className="text-xs text-zinc-400">
-                La durata di ogni trattamento determina automaticamente gli slot liberi mostrati al cliente quando prenota.
+              <p className="text-xs text-[var(--text-secondary)]">
+                La durata di ogni trattamento determina automaticamente gli slot liberi mostrati al cliente
+                quando prenota.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => openEditServiceModal()}
-                className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Nuovo Trattamento</span>
               </button>
             </div>
-          </div>
+          </SurfaceCard>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {services.map((svc) => {
               const catInfo = SERVICE_CATEGORIES.find((c) => c.id === svc.category);
               return (
-                <div
+                <SurfaceCard
                   key={svc.id}
-                  className="p-4 rounded-3xl bg-[#141716] border border-white/10 flex flex-col justify-between gap-3 hover:border-white/20 transition-all"
+                  padding="md"
+                  className="flex flex-col justify-between gap-3 hover:border-[var(--border-strong)] transition-all"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                        {catInfo?.emoji || '✂️'} {catInfo?.label || svc.category}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-zinc-300 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <StatusBadge tone="volt" size="sm">
+                        {catInfo?.label || svc.category}
+                      </StatusBadge>
+                      <span className="text-xs font-mono tabular-nums font-bold text-[var(--text-secondary)] flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-[var(--rivo-volt-text)]" />
                         {svc.duration_minutes} min
                       </span>
                     </div>
 
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-base font-black text-white leading-snug">
+                      <h3 className="text-base font-bold text-[var(--text-primary)] leading-snug">
                         {svc.name}
                       </h3>
-                      <span className="text-base font-black text-amber-400 shrink-0">
+                      <span className="text-base font-mono tabular-nums font-bold text-[var(--rivo-volt-text)] shrink-0">
                         {formatEuroPrice(svc.price)}
                       </span>
                     </div>
 
                     {svc.description && (
-                      <p className="text-xs text-zinc-400 leading-relaxed">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                         {svc.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                  <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
                     <button
                       type="button"
                       onClick={() => openEditServiceModal(svc)}
-                      className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-zinc-200 flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                       <span>Modifica</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteService(svc.id)}
-                      className="p-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer"
-                      title="Elimina trattamento"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {pendingDeleteServiceId === svc.id ? (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteService(svc.id)}
+                          className="px-2.5 py-2 rounded-xl bg-[#B91C1C] text-white text-xs font-bold cursor-pointer"
+                        >
+                          Conferma
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteServiceId(null)}
+                          className="px-2 py-2 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-secondary)] text-xs font-semibold cursor-pointer"
+                        >
+                          Annulla
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteService(svc.id)}
+                        aria-label={`Elimina trattamento ${svc.name}`}
+                        className="p-2 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--accent-critical-bg)] text-[var(--text-muted)] hover:text-[var(--accent-critical-text)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                        title="Elimina trattamento"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
-                </div>
+                </SurfaceCard>
               );
             })}
           </div>
@@ -1189,25 +1256,26 @@ export default function SalonBookingsDashboardPage() {
       {/* ===================================================================== */}
       {activeTab === 'schedule' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#141716] border border-white/10 rounded-3xl p-5">
+          <SurfaceCard padding="md" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-black text-white">
-                Orari Settimanali del Salone & Turni (Mattina / Pomeriggio)
+              <h2 className="text-base font-bold text-[var(--text-primary)]">
+                Orari Settimanali del Salone &amp; Turni (Mattina / Pomeriggio)
               </h2>
-              <p className="text-xs text-zinc-400">
-                Configura i giorni di apertura e l&apos;eventuale pausa pranzo. Il cliente vedrà solo gli slot che rientrano negli orari di apertura.
+              <p className="text-xs text-[var(--text-secondary)]">
+                Configura i giorni di apertura e l&apos;eventuale pausa pranzo. Il cliente vedrà solo gli slot
+                che rientrano negli orari di apertura.
               </p>
             </div>
             <button
               type="button"
               disabled={saving}
               onClick={handleSaveSchedule}
-              className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg cursor-pointer shrink-0"
+              className="px-5 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] text-[#09090B] font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
             >
               <Save className="w-4 h-4" />
               <span>{saving ? 'Salvataggio...' : 'Salva Orari Settimanali'}</span>
             </button>
-          </div>
+          </SurfaceCard>
 
           <div className="space-y-2.5">
             {DAY_LABELS_IT.map((dayMeta) => {
@@ -1219,12 +1287,11 @@ export default function SalonBookingsDashboardPage() {
               };
 
               return (
-                <div
+                <SurfaceCard
                   key={dayKey}
-                  className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-                    dayCfg.open
-                      ? 'bg-[#141716] border-white/10'
-                      : 'bg-[#111312]/60 border-white/5 opacity-70'
+                  padding="sm"
+                  className={`flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+                    dayCfg.open ? '' : 'opacity-75'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-[180px]">
@@ -1240,25 +1307,24 @@ export default function SalonBookingsDashboardPage() {
                           },
                         }))
                       }
-                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         dayCfg.open
-                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                          : 'bg-zinc-800 border-white/10 text-zinc-400'
+                          ? 'bg-[var(--accent-operational-bg)] border-[var(--accent-operational-border)] text-[var(--accent-operational-text)]'
+                          : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-muted)]'
                       }`}
                     >
                       {dayCfg.open ? 'Aperto' : 'Chiuso'}
                     </button>
-                    <span className="text-sm font-black text-white">
-                      {dayMeta.full}
-                    </span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">{dayMeta.full}</span>
                   </div>
 
                   {dayCfg.open ? (
                     <div className="flex flex-wrap items-center gap-3">
                       {/* Turno Mattina */}
-                      <div className="flex items-center gap-2 bg-white/[0.03] px-3 py-2 rounded-xl border border-white/10">
+                      <div className="flex flex-wrap items-center gap-2 bg-[var(--bg-subtle)] px-3 py-2 rounded-xl border border-[var(--border-subtle)]">
                         <input
                           type="checkbox"
+                          aria-label={`Abilita turno mattina ${dayMeta.full}`}
                           checked={dayCfg.morning.enabled}
                           onChange={(e) =>
                             updateDaySchedule(dayKey, (prev) => ({
@@ -1267,9 +1333,10 @@ export default function SalonBookingsDashboardPage() {
                             }))
                           }
                         />
-                        <span className="text-[11px] font-bold text-zinc-400">Mattina:</span>
+                        <span className="text-[11px] font-bold text-[var(--text-secondary)]">Mattina:</span>
                         <input
                           type="time"
+                          aria-label={`Inizio mattina ${dayMeta.full}`}
                           disabled={!dayCfg.morning.enabled}
                           value={dayCfg.morning.start}
                           onChange={(e) =>
@@ -1278,11 +1345,12 @@ export default function SalonBookingsDashboardPage() {
                               morning: { ...prev.morning, start: e.target.value },
                             }))
                           }
-                          className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white disabled:opacity-40"
+                          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 text-xs font-mono tabular-nums text-[var(--text-primary)] disabled:opacity-40"
                         />
-                        <span className="text-zinc-500">–</span>
+                        <span className="text-[var(--text-muted)]">–</span>
                         <input
                           type="time"
+                          aria-label={`Fine mattina ${dayMeta.full}`}
                           disabled={!dayCfg.morning.enabled}
                           value={dayCfg.morning.end}
                           onChange={(e) =>
@@ -1291,14 +1359,15 @@ export default function SalonBookingsDashboardPage() {
                               morning: { ...prev.morning, end: e.target.value },
                             }))
                           }
-                          className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white disabled:opacity-40"
+                          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 text-xs font-mono tabular-nums text-[var(--text-primary)] disabled:opacity-40"
                         />
                       </div>
 
                       {/* Turno Pomeriggio */}
-                      <div className="flex items-center gap-2 bg-white/[0.03] px-3 py-2 rounded-xl border border-white/10">
+                      <div className="flex flex-wrap items-center gap-2 bg-[var(--bg-subtle)] px-3 py-2 rounded-xl border border-[var(--border-subtle)]">
                         <input
                           type="checkbox"
+                          aria-label={`Abilita turno pomeriggio ${dayMeta.full}`}
                           checked={dayCfg.afternoon.enabled}
                           onChange={(e) =>
                             updateDaySchedule(dayKey, (prev) => ({
@@ -1307,9 +1376,12 @@ export default function SalonBookingsDashboardPage() {
                             }))
                           }
                         />
-                        <span className="text-[11px] font-bold text-zinc-400">Pomeriggio:</span>
+                        <span className="text-[11px] font-bold text-[var(--text-secondary)]">
+                          Pomeriggio:
+                        </span>
                         <input
                           type="time"
+                          aria-label={`Inizio pomeriggio ${dayMeta.full}`}
                           disabled={!dayCfg.afternoon.enabled}
                           value={dayCfg.afternoon.start}
                           onChange={(e) =>
@@ -1318,11 +1390,12 @@ export default function SalonBookingsDashboardPage() {
                               afternoon: { ...prev.afternoon, start: e.target.value },
                             }))
                           }
-                          className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white disabled:opacity-40"
+                          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 text-xs font-mono tabular-nums text-[var(--text-primary)] disabled:opacity-40"
                         />
-                        <span className="text-zinc-500">–</span>
+                        <span className="text-[var(--text-muted)]">–</span>
                         <input
                           type="time"
+                          aria-label={`Fine pomeriggio ${dayMeta.full}`}
                           disabled={!dayCfg.afternoon.enabled}
                           value={dayCfg.afternoon.end}
                           onChange={(e) =>
@@ -1331,16 +1404,16 @@ export default function SalonBookingsDashboardPage() {
                               afternoon: { ...prev.afternoon, end: e.target.value },
                             }))
                           }
-                          className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white disabled:opacity-40"
+                          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 text-xs font-mono tabular-nums text-[var(--text-primary)] disabled:opacity-40"
                         />
                       </div>
                     </div>
                   ) : (
-                    <span className="text-xs font-semibold text-zinc-500">
+                    <span className="text-xs font-semibold text-[var(--text-muted)]">
                       Salone chiuso per l&apos;intera giornata
                     </span>
                   )}
-                </div>
+                </SurfaceCard>
               );
             })}
           </div>
@@ -1351,21 +1424,28 @@ export default function SalonBookingsDashboardPage() {
       {/* MODAL: NUOVO APPUNTAMENTO MANUALE / WALK-IN */}
       {/* ===================================================================== */}
       {showBookingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-[#141716] border border-white/15 p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-booking-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-sm animate-fade-in overscroll-contain"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-white">
+                <h3 id="new-booking-modal-title" className="text-lg font-bold text-[var(--text-primary)]">
                   Inserisci Appuntamento in Agenda
                 </h3>
-                <p className="text-xs text-zinc-400">
-                  Data selezionata: <strong className="text-white">{selectedDate}</strong>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Data selezionata:{' '}
+                  <strong className="text-[var(--text-primary)] font-mono tabular-nums">{selectedDate}</strong>
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowBookingModal(false)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white"
+                aria-label="Chiudi modale nuovo appuntamento"
+                className="p-2 rounded-xl bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1374,13 +1454,13 @@ export default function SalonBookingsDashboardPage() {
             <form onSubmit={handleCreateManualBooking} className="space-y-4">
               {/* Staff picker */}
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1.5">
                   Poltrona / Professionista
                 </label>
                 <select
                   value={bookingFormStaffId}
                   onChange={(e) => setBookingFormStaffId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                  className={BOOKING_INPUT_CLASS}
                 >
                   {staff.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -1392,7 +1472,7 @@ export default function SalonBookingsDashboardPage() {
 
               {/* Services picker */}
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1.5">
                   Trattamenti da eseguire
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1">
@@ -1409,17 +1489,19 @@ export default function SalonBookingsDashboardPage() {
                         }
                         className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                           checked
-                            ? 'bg-amber-500/20 border-amber-400 text-white'
-                            : 'bg-white/[0.03] border-white/10 text-zinc-300'
+                            ? 'bg-[var(--rivo-volt-bg)] border-[var(--rivo-volt)] text-[var(--text-primary)]'
+                            : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)]'
                         }`}
                       >
-                        <div className="flex items-center justify-between text-xs font-extrabold">
+                        <div className="flex items-center justify-between gap-2 text-xs font-bold">
                           <span className="truncate">{svc.name}</span>
-                          <span className="text-amber-400 shrink-0">
+                          <span className="text-[var(--rivo-volt-text)] font-mono tabular-nums shrink-0">
                             {formatEuroPrice(svc.price)}
                           </span>
                         </div>
-                        <span className="text-[10px] text-zinc-400">{svc.duration_minutes} min</span>
+                        <span className="text-[11px] font-mono tabular-nums text-[var(--text-muted)]">
+                          {svc.duration_minutes} min
+                        </span>
                       </button>
                     );
                   })}
@@ -1428,14 +1510,14 @@ export default function SalonBookingsDashboardPage() {
 
               {/* Time picker with quick available slots */}
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1.5">
                   Orario di inizio
                 </label>
                 <input
                   type="time"
                   value={bookingFormTime}
                   onChange={(e) => setBookingFormTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm font-mono text-white mb-2"
+                  className={`${BOOKING_INPUT_CLASS} font-mono tabular-nums mb-2`}
                 />
                 {manualModalAvailableSlots.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
@@ -1444,10 +1526,10 @@ export default function SalonBookingsDashboardPage() {
                         key={slot.start_time}
                         type="button"
                         onClick={() => setBookingFormTime(slot.start_time)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono tabular-nums font-bold cursor-pointer transition-colors ${
                           bookingFormTime === slot.start_time
-                            ? 'bg-amber-500 text-black'
-                            : 'bg-white/5 text-zinc-300 hover:bg-white/10'
+                            ? 'bg-[var(--rivo-volt)] text-[#09090B]'
+                            : 'bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'
                         }`}
                       >
                         {slot.start_time}
@@ -1460,7 +1542,7 @@ export default function SalonBookingsDashboardPage() {
               {/* Customer Name & Phone */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                  <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                     Nome Cliente (o &ldquo;Pausa&rdquo;) *
                   </label>
                   <input
@@ -1469,11 +1551,11 @@ export default function SalonBookingsDashboardPage() {
                     placeholder="Es. Marco Rossi"
                     value={bookingFormCustomerName}
                     onChange={(e) => setBookingFormCustomerName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                    className={BOOKING_INPUT_CLASS}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                  <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                     Telefono / WhatsApp
                   </label>
                   <input
@@ -1481,13 +1563,13 @@ export default function SalonBookingsDashboardPage() {
                     placeholder="Es. 333 1234567"
                     value={bookingFormCustomerPhone}
                     onChange={(e) => setBookingFormCustomerPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                    className={`${BOOKING_INPUT_CLASS} font-mono tabular-nums`}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                   Note (opzionale)
                 </label>
                 <input
@@ -1495,22 +1577,22 @@ export default function SalonBookingsDashboardPage() {
                   placeholder="Es. Sfumatura alta a pelle, cliente abituale"
                   value={bookingFormNotes}
                   onChange={(e) => setBookingFormNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                  className={BOOKING_INPUT_CLASS}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setShowBookingModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 text-xs font-bold text-zinc-300"
+                  className="px-4 py-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={saving || !bookingFormCustomerName.trim() || bookingFormServiceIds.length === 0}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-black text-xs uppercase tracking-wider cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] disabled:opacity-40 text-[#09090B] font-bold text-xs uppercase tracking-wider cursor-pointer"
                 >
                   {saving ? 'Salvataggio...' : 'Salva Appuntamento'}
                 </button>
@@ -1524,16 +1606,22 @@ export default function SalonBookingsDashboardPage() {
       {/* MODAL: AGGIUNGI / MODIFICA STAFF */}
       {/* ===================================================================== */}
       {showStaffModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-[#141716] border border-white/15 p-6 space-y-4 shadow-2xl">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="staff-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-sm animate-fade-in overscroll-contain"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-black text-white">
+              <h3 id="staff-modal-title" className="text-lg font-bold text-[var(--text-primary)]">
                 {editingStaffId ? 'Modifica Professionista' : 'Nuova Poltrona / Professionista'}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowStaffModal(false)}
-                className="p-2 rounded-xl bg-white/5 text-zinc-400 hover:text-white"
+                aria-label="Chiudi modale staff"
+                className="p-2 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1541,7 +1629,7 @@ export default function SalonBookingsDashboardPage() {
 
             <form onSubmit={handleSaveStaff} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                   Nome (visibile ai clienti) *
                 </label>
                 <input
@@ -1550,12 +1638,12 @@ export default function SalonBookingsDashboardPage() {
                   placeholder="Es. Marco"
                   value={staffName}
                   onChange={(e) => setStaffName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                  className={BOOKING_INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                   Ruolo / Specializzazione
                 </label>
                 <input
@@ -1563,22 +1651,23 @@ export default function SalonBookingsDashboardPage() {
                   placeholder="Es. Master Barber / Colorist"
                   value={staffRole}
                   onChange={(e) => setStaffRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                  className={BOOKING_INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1.5">
                   Colore Poltrona in Agenda
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {STAFF_COLOR_PALETTE.map((hex) => (
                     <button
                       key={hex}
                       type="button"
+                      aria-label={`Seleziona colore ${hex}`}
                       onClick={() => setStaffColor(hex)}
                       className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer ${
-                        staffColor === hex ? 'scale-115 border-white' : 'border-transparent'
+                        staffColor === hex ? 'scale-110 border-[var(--text-primary)]' : 'border-transparent'
                       }`}
                       style={{ backgroundColor: hex }}
                     />
@@ -1587,24 +1676,24 @@ export default function SalonBookingsDashboardPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-xs font-bold text-zinc-200 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={staffAllServices}
                     onChange={(e) => setStaffAllServices(e.target.checked)}
-                    className="rounded border-white/20"
+                    className="rounded border-[var(--border-strong)]"
                   />
                   <span>Esegue tutti i trattamenti del listino</span>
                 </label>
 
                 {!staffAllServices && (
-                  <div className="max-h-40 overflow-y-auto space-y-1.5 p-2.5 rounded-2xl bg-black/40 border border-white/10">
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 p-2.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
                     {services.map((svc) => {
                       const checked = staffServiceIds.includes(svc.id);
                       return (
                         <label
                           key={svc.id}
-                          className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"
+                          className="flex items-center gap-2 text-xs text-[var(--text-primary)] cursor-pointer"
                         >
                           <input
                             type="checkbox"
@@ -1623,18 +1712,18 @@ export default function SalonBookingsDashboardPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setShowStaffModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold text-zinc-300"
+                  className="px-4 py-2 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={saving || !staffName.trim()}
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] disabled:opacity-40 text-[#09090B] font-bold text-xs uppercase tracking-wider cursor-pointer"
                 >
                   Salva
                 </button>
@@ -1648,16 +1737,22 @@ export default function SalonBookingsDashboardPage() {
       {/* MODAL: AGGIUNGI / MODIFICA TRATTAMENTO */}
       {/* ===================================================================== */}
       {showServiceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-[#141716] border border-white/15 p-6 space-y-4 shadow-2xl">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="service-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--bg-backdrop)] backdrop-blur-sm animate-fade-in overscroll-contain"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-black text-white">
+              <h3 id="service-modal-title" className="text-lg font-bold text-[var(--text-primary)]">
                 {editingServiceId ? 'Modifica Trattamento' : 'Nuovo Trattamento'}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowServiceModal(false)}
-                className="p-2 rounded-xl bg-white/5 text-zinc-400 hover:text-white"
+                aria-label="Chiudi modale trattamento"
+                className="p-2 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1665,7 +1760,7 @@ export default function SalonBookingsDashboardPage() {
 
             <form onSubmit={handleSaveService} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                   Nome del Trattamento *
                 </label>
                 <input
@@ -1674,36 +1769,36 @@ export default function SalonBookingsDashboardPage() {
                   placeholder="Es. Taglio Uomo + Barba Completa"
                   value={serviceName}
                   onChange={(e) => setServiceName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                  className={BOOKING_INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                   Categoria
                 </label>
                 <select
                   value={serviceCategory}
                   onChange={(e) => setServiceCategory(e.target.value as ServiceCategorySlug)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                  className={BOOKING_INPUT_CLASS}
                 >
                   {SERVICE_CATEGORIES.map((cat) => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.emoji} {cat.label}
+                      {cat.label}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                  <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                     Durata (minuti) *
                   </label>
                   <select
                     value={serviceDuration}
                     onChange={(e) => setServiceDuration(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                    className={`${BOOKING_INPUT_CLASS} font-mono tabular-nums`}
                   >
                     {[15, 20, 25, 30, 45, 50, 60, 75, 90, 120].map((min) => (
                       <option key={min} value={min}>
@@ -1714,7 +1809,7 @@ export default function SalonBookingsDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                  <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                     Prezzo (€) *
                   </label>
                   <input
@@ -1723,13 +1818,13 @@ export default function SalonBookingsDashboardPage() {
                     placeholder="25"
                     value={servicePriceEur}
                     onChange={(e) => setServicePriceEur(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                    className={`${BOOKING_INPUT_CLASS} font-mono tabular-nums`}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                <label className="text-xs font-bold text-[var(--text-secondary)] block mb-1">
                   Descrizione breve (opzionale)
                 </label>
                 <input
@@ -1737,22 +1832,22 @@ export default function SalonBookingsDashboardPage() {
                   placeholder="Es. Shampoo, taglio sartoriale e panno caldo"
                   value={serviceDescription}
                   onChange={(e) => setServiceDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/15 text-sm text-white"
+                  className={BOOKING_INPUT_CLASS}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setShowServiceModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold text-zinc-300"
+                  className="px-4 py-2 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={saving || !serviceName.trim()}
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-[var(--rivo-volt)] hover:bg-[var(--rivo-volt-hover)] disabled:opacity-40 text-[#09090B] font-bold text-xs uppercase tracking-wider cursor-pointer"
                 >
                   Salva Trattamento
                 </button>
